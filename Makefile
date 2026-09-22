@@ -4,7 +4,7 @@ DOCKER ?= docker
 IMAGE := rad-lmengine:0.6.0
 DOCS ?= docs
 
-.PHONY: help install health models config index search ask chat docker-build docker-run clean
+.PHONY: help install health models config index search ask chat review-check docker-build docker-run clean
 
 help:
 	@echo "install         venv 생성 + 의존성 설치 + .env 준비"
@@ -15,6 +15,7 @@ help:
 	@echo "search Q=\"질의\"   인덱스 검색만"
 	@echo "ask Q=\"질문\"      인덱스를 근거로 질의응답 (RAG)"
 	@echo "chat Q=\"질문\"     모델에 직접 질의"
+	@echo "review-check    review_chain 반복 루프·등급 흔들림 재현 (N=회수)"
 	@echo "docker-build    이미지 빌드 (podman: make docker-build DOCKER=podman)"
 	@echo "docker-run      컨테이너에서 health 실행"
 	@echo "clean           venv·캐시·인덱스 정리"
@@ -45,6 +46,9 @@ ask:
 
 chat:
 	$(PY) -m rad_lmengine.cli chat "$(Q)"
+
+review-check:
+	$(PY) scripts/review_check.py -n $(or $(N),3)
 
 docker-build:
 	$(DOCKER) build -t $(IMAGE) .
