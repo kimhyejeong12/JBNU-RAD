@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SecurityAI — AI 보안 정책 검토 시스템</title>
+<!--
+  단일 파일 대시보드. CSS · JS · 아이콘을 모두 인라인으로 둡니다 (외부망 차단 전제 — CDN · 웹폰트 금지).
+  숫자와 상태 배지는 전부 /api/results · /api/health 에서 옵니다. 파일로 직접 열면 data/results.json 을 읽습니다.
+-->
+<style>
+  :root {
+    --accent: #EA002C;   /* SK쉴더스 CI — 강조 · 위험 */
+    --sub: #FF7A00;      /* 보조 · 주의 */
+    --ok: #2E7D5B;       /* 정상 */
+    --ink: #111111;
+    --ink-dim: #666666;
+    --bg: #FFFFFF;
+    --bg-soft: #F5F5F6;
+    --line: #E4E4E7;
+    --risk-tint: #FFF4F6;
+    --warn-tint: #FFF6EE;
+    --ok-tint: #EFF7F3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    height: 100vh; overflow: hidden;
+    display: grid;
+    grid-template-rows: 56px auto minmax(0, 1fr);
+    grid-template-columns: 60px minmax(0, 1fr);
+    background: var(--bg-soft);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+                 "Malgun Gothic", sans-serif;
+    font-size: 14px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none;
+          stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  svg.i.sm { width: 15px; height: 15px; }
+
+  /* ── 상단 바 (GNB) ─────────────────────── */
+  .topbar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 18px;
+    padding: 0 20px; background: var(--ink); color: #fff;
+  }
+  .logo { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 17px; letter-spacing: -0.3px; }
+  .logo svg { width: 24px; height: 24px; stroke: var(--accent); stroke-width: 2.2; }
+  .sysname { padding-left: 18px; border-left: 1px solid #3A3A3A; font-size: 14.5px; font-weight: 600; }
+  .sysname small { font-weight: 400; color: #B5B5B5; margin-left: 6px; }
+  .top-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .hbadge {
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 11px; border-radius: 7px; border: 1px solid #3A3A3A;
+    background: #1D1D1D; font-size: 12.5px; white-space: nowrap;
+  }
+  .hbadge b { font-weight: 600; }
+  .hbadge .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; color: #D0D0D0; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #8A8A8A; flex: none; }
+  .dot.on { background: #3DBA7E; box-shadow: 0 0 0 3px rgba(61,186,126,.18); }
+  .dot.off { background: var(--accent); box-shadow: 0 0 0 3px rgba(234,0,44,.2); }
+  .bell { position: relative; background: none; border: none; color: #fff; padding: 6px; margin-left: 6px; border-radius: 7px; }
+  .bell:hover { background: #262626; }
+  .bell .count {
+    position: absolute; top: 1px; right: 0; min-width: 16px; height: 16px; padding: 0 4px;
+    border-radius: 99px; background: var(--accent); font-size: 10.5px; font-weight: 700;
+    display: none; align-items: center; justify-content: center;
+  }
+  .bell .count.show { display: flex; }
+  .alert-pop {
+    position: absolute; top: 50px; right: 16px; width: 330px; z-index: 30;
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.14); padding: 14px; display: none;
+  }
+  .alert-pop.show { display: block; }
+  .alert-pop h4 { margin: 0 0 8px; font-size: 13px; }
+  .alert-pop .chan { display: flex; justify-content: space-between; padding: 7px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
+  .alert-pop .chan span:last-child { color: var(--ink-dim); }
+  .alert-pop .chan.active span:last-child { color: var(--ok); font-weight: 600; }
+  .alert-pop .risk-item { font-size: 12.5px; padding: 6px 0; border-top: 1px solid var(--line); cursor: pointer; }
+  .alert-pop .risk-item:hover { color: var(--accent); }
+
+  /* ── 좌측 사이드바 ─────────────────────── */
+  .sidebar {
+    grid-row: 2 / 4; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 14px 0; background: var(--bg); border-right: 1px solid var(--line);
+  }
+  .nav {
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    border: none; border-radius: 9px; background: none; color: var(--ink-dim);
+  }
+  .nav:hover { background: var(--bg-soft); color: var(--ink); }
+  .nav[aria-current="true"] { background: var(--risk-tint); color: var(--accent); }
+
+  /* ── 검색 · 지표 바 ───────────────────── */
+  .toolbar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 14px 22px; background: var(--bg); border-bottom: 1px solid var(--line);
+  }
+  .toolbar h2 { margin: 0; font-size: 16px; font-weight: 700; margin-right: 8px; }
+  .search {
+    flex: 1; max-width: 420px; display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; height: 38px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+    color: var(--ink-dim);
+  }
+  .search:focus-within { border-color: var(--ink); }
+  .search input { flex: 1; border: none; outline: none; font: inherit; color: var(--ink); background: none; }
+  .pill {
+    display: flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px;
+    border-radius: 8px; font-size: 13px; white-space: nowrap; border: 1px solid;
+  }
+  .pill b { font-size: 14px; font-variant-numeric: tabular-nums; }
+  .pill.neutral { background: var(--bg-soft); border-color: var(--line); }
+  .pill.risk { background: var(--risk-tint); border-color: #F7C2CC; color: var(--accent); }
+  .pill.clear { background: var(--ok-tint); border-color: #BFDECF; color: var(--ok); }
+  .icon-btn {
+    width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink-dim);
+  }
+  .icon-btn:hover { color: var(--ink); border-color: var(--ink-dim); }
+  .toolbar .icon-btn { margin-left: auto; }
+
+  /* ── 작업 영역 ─────────────────────────── */
+  .workspace {
+    display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 18px;
+    padding: 18px 22px 22px; min-height: 0;
+  }
+  .main-col { display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: auto; }
+  .main-col > * { flex-shrink: 0; }
+  .card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
+
+  /* 알림 배너 */
+  .banner {
+    display: none; align-items: center; gap: 10px; padding: 11px 16px;
+    border: 1px solid #F7C2CC; border-left: 4px solid var(--accent); border-radius: 10px;
+    background: var(--risk-tint); font-size: 13px;
+  }
+  .banner.show { display: flex; }
+  .banner strong { color: var(--accent); }
+  .banner .chans { margin-left: auto; display: flex; gap: 6px; }
+  .banner .chan-chip { font-size: 11.5px; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg); color: var(--ink-dim); }
+  .banner .chan-chip.on { color: var(--ok); border-color: #BFDECF; font-weight: 600; }
+
+  /* 요약 지표 (제안서 ①) */
+  .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  .stat { padding: 14px 16px; }
+  .stat .label { font-size: 12px; color: var(--ink-dim); display: flex; align-items: center; gap: 6px; }
+  .stat .num { font-size: 26px; font-weight: 800; letter-spacing: -0.8px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+  .stat.정상 .num { color: var(--ok); } .stat.주의 .num { color: var(--sub); } .stat.위험 .num { color: var(--accent); }
+
+  /* 분석 큐 */
+  .queue { display: flex; flex-direction: column; min-height: 320px; }
+  .queue-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px 12px; flex-wrap: wrap; }
+  .queue-head h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
+  .queue-head h3 small { font-weight: 400; color: var(--ink-dim); font-size: 12.5px; margin-left: 4px; }
+  .seg { display: flex; padding: 3px; background: var(--bg-soft); border-radius: 8px; margin-left: auto; }
+  .seg button { border: none; background: none; padding: 5px 12px; border-radius: 6px; font-size: 12.5px; color: var(--ink-dim); font-weight: 600; }
+  .seg button[aria-selected="true"] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .filters { display: flex; gap: 6px; padding: 0 18px 12px; }
+  .filter {
+    display: inline-flex; align-items: center;
+    padding: 4px 12px; border: 1px solid var(--line); border-radius: 99px;
+    background: var(--bg); color: var(--ink-dim); font-size: 12px;
+  }
+  .filter[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+
+  .table { border-top: 1px solid var(--line); }
+  .tr {
+    display: grid; align-items: center; gap: 12px;
+    grid-template-columns: 84px minmax(200px, 1.4fr) minmax(160px, 1.3fr) 92px 112px 16px;
+    padding: 0 18px;
+  }
+  .thead { height: 38px; font-size: 12px; color: var(--ink-dim); font-weight: 600; border-bottom: 1px solid var(--line); }
+  .row {
+    width: 100%; text-align: left; min-height: 56px; padding-top: 8px; padding-bottom: 8px; background: var(--bg);
+    border: none; border-bottom: 1px solid var(--line); border-left: 3px solid transparent; padding-left: 15px;
+  }
+  .row:hover { background: #FAFAFB; }
+  .row[aria-current="true"] { background: var(--risk-tint); border-left-color: var(--accent); }
+  .cell-type { font-size: 12.5px; color: var(--ink-dim); }
+  .cell-type small { display: block; font-size: 11px; color: #999; font-variant-numeric: tabular-nums; }
+  .who { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .who .name { font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .who .badge { align-self: center; }
+  .who svg { color: var(--ink-dim); }
+  .detail-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #333; }
+  .time { font-size: 12.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .judge { display: flex; flex-direction: column; gap: 1px; font-size: 13px; font-weight: 600; }
+  .judge .line { display: flex; align-items: center; gap: 5px; }
+  .judge .op { font-size: 11px; font-weight: 500; color: var(--ink-dim); }
+  .chev { color: #BBB; }
+  /* 등급 점 — 같은 색을 옅게 깐 링 */
+  .ldot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; vertical-align: 1px; margin-right: 6px; }
+  .ldot.정상 { background: var(--ok); box-shadow: 0 0 0 3px rgba(46, 125, 91, .26); }
+  .ldot.주의 { background: var(--sub); box-shadow: 0 0 0 3px rgba(255, 122, 0, .26); }
+  .ldot.위험 { background: var(--accent); box-shadow: 0 0 0 3px rgba(234, 0, 44, .22); }
+  .stat .label .ldot { margin-right: 0; }
+  .lv-정상 { color: var(--ok); } .lv-주의 { color: var(--sub); } .lv-위험 { color: var(--accent); }
+  .badge { flex: none; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 5px; border: 1px solid; }
+  .badge.정상 { color: var(--ok); border-color: #BFDECF; background: var(--ok-tint); }
+  .badge.주의 { color: var(--sub); border-color: #FFD2AE; background: var(--warn-tint); }
+  .badge.위험 { color: var(--accent); border-color: #F7C2CC; background: var(--risk-tint); }
+  .empty { padding: 36px 18px; text-align: center; color: var(--ink-dim); }
+
+  /* ── 우측 패널 ─────────────────────────── */
+  .panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .panel-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
+  .panel-head h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
+  .rerun {
+    margin-left: auto; display: flex; align-items: center; gap: 6px;
+    padding: 6px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg);
+    font-size: 12.5px; font-weight: 600;
+  }
+  .rerun:hover { border-color: var(--ink-dim); }
+  .rerun:disabled { color: var(--ink-dim); background: var(--bg-soft); cursor: progress; }
+  .panel-body { flex: 1; overflow: auto; padding: 16px 18px; }
+  .subject { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+  .rec-line { display: flex; align-items: center; gap: 7px; font-size: 16px; font-weight: 800; letter-spacing: -0.3px; }
+  .rec-line svg { width: 20px; height: 20px; }
+  .meta { font-size: 12px; color: var(--ink-dim); margin: 4px 0 2px; }
+  .sec { margin-top: 18px; }
+  .sec h4 { margin: 0 0 7px; font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .box { background: var(--bg-soft); border-radius: 8px; padding: 11px 13px; font-size: 13.5px; }
+  .kv { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .kv th, .kv td { text-align: left; padding: 4px 0; vertical-align: top; }
+  .kv th { color: var(--ink-dim); font-weight: 600; width: 36%; padding-right: 10px; white-space: nowrap; }
+  .chips { display: flex; flex-direction: column; gap: 6px; }
+  .chip {
+    display: flex; align-items: center; gap: 7px; width: 100%; text-align: left;
+    padding: 7px 11px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); font-size: 12.5px;
+  }
+  .chip:hover { border-color: var(--ink-dim); }
+  .chip[aria-expanded="true"] { border-color: var(--sub); background: var(--warn-tint); }
+  .chip .open { margin-left: auto; color: var(--ink-dim); font-size: 11px; white-space: nowrap; }
+  .clause {
+    margin: -2px 0 4px; padding: 10px 12px; border-left: 3px solid var(--sub);
+    background: var(--bg-soft); border-radius: 0 6px 6px 0; font-size: 12.5px; white-space: pre-wrap;
+  }
+  .note { font-size: 11.5px; color: var(--ink-dim); margin: 6px 0 0; }
+
+  .panel-foot { padding: 14px 18px 16px; border-top: 1px solid var(--line); background: var(--bg); }
+  .panel-foot h4 { margin: 0 0 9px; font-size: 12.5px; font-weight: 700; }
+  .decide { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .decide button {
+    height: 40px; border-radius: 8px; font-weight: 700; font-size: 13.5px; border: 1px solid;
+  }
+  .decide .approve { color: var(--ok); border-color: #9CCDB5; background: var(--ok-tint); }
+  .decide .cond { color: #B85600; border-color: #FFC999; background: var(--warn-tint); }
+  .decide .reject { color: #fff; border-color: var(--accent); background: var(--accent); }
+  .decide button:hover { filter: brightness(0.97); }
+  .decide button[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .decision-state { font-size: 12px; margin-top: 8px; color: var(--ink-dim); display: flex; gap: 8px; align-items: center; }
+  .decision-state b { color: var(--ink); }
+  .decision-state button { border: none; background: none; padding: 0; color: var(--ink-dim); text-decoration: underline; font-size: 12px; }
+
+  /* 기준 문서 보기 */
+  .modal-back { position: fixed; inset: 0; background: rgba(17,17,17,.4); display: none; z-index: 40; align-items: center; justify-content: center; padding: 16px; }
+  .modal-back.show { display: flex; }
+  .modal { width: min(820px, 100%); max-height: 86vh; overflow: auto; background: var(--bg); border-radius: 12px; padding: 20px 22px; }
+  .modal h3 { margin: 0 0 12px; font-size: 16px; display: flex; align-items: center; }
+  .modal h3 button { margin-left: auto; border: none; background: none; font-size: 20px; color: var(--ink-dim); }
+  .modal .doc { margin-bottom: 16px; }
+  .modal .doc h4 { margin: 0 0 6px; font-size: 13px; }
+  .modal pre { margin: 0; white-space: pre-wrap; font: inherit; font-size: 13px; background: var(--bg-soft); border-radius: 8px; padding: 12px 14px; }
+
+  /* 툴팁 */
+  .tip {
+    position: fixed; z-index: 60; max-width: 270px; pointer-events: none;
+    background: var(--ink); color: #fff; border-radius: 8px; padding: 8px 11px;
+    font-size: 12px; line-height: 1.5; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+    word-break: keep-all; overflow-wrap: anywhere;
+    opacity: 0; transform: translateY(3px); transition: opacity .12s ease, transform .12s ease;
+  }
+  .tip.show { opacity: 1; transform: none; }
+  .tip[data-pos="right"] { transform: translateX(-3px); }
+  .tip[data-pos="right"].show { transform: none; }
+  .tip b { display: block; font-size: 12.5px; font-weight: 700; }
+  .tip span { display: block; color: #CFCFCF; margin-top: 2px; }
+  .tip b + span { margin-top: 3px; }
+  [data-tip] { cursor: help; }
+  button[data-tip], .row [data-tip] { cursor: pointer; }
+
+  footer.foot { font-size: 11.5px; color: var(--ink-dim); padding: 2px 4px; }
+  .warn { color: var(--accent); }
+
+  @media (max-width: 1150px) {
+    body { height: auto; overflow: auto; grid-template-columns: 1fr; grid-template-rows: auto auto auto; }
+    .sidebar { display: none; }
+    .topbar { flex-wrap: wrap; padding: 10px 16px; row-gap: 8px; }
+    .sysname { border-left: none; padding-left: 0; }
+    .top-right { margin-left: 0; flex-wrap: wrap; }
+    .workspace { grid-template-columns: 1fr; padding: 14px 16px; }
+    .main-col, .panel { overflow: visible; }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tr { grid-template-columns: 70px minmax(0, 1fr) 100px; }
+    .tr > :nth-child(3), .tr > :nth-child(4), .tr > :nth-child(6) { display: none; }
+    .toolbar { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="logo"><span data-icon="shield"></span>SecurityAI</div>
+  <div class="sysname">AI 보안 정책 검토 시스템<small>로컬 LLM · RAG 보안 분석 엔진</small></div>
+  <div class="top-right">
+    <span class="hbadge" id="b-ollama"><span class="dot"></span><b>Ollama</b><span id="b-ollama-txt">확인 중…</span></span>
+    <span class="hbadge" id="b-vdb"><span class="dot"></span><b>Vector DB</b><span id="b-vdb-txt">확인 중…</span></span>
+    <span class="hbadge" id="b-net"><span data-icon="lock" class="sm"></span><span id="b-net-txt">확인 중…</span></span>
+    <button class="bell" id="bell" aria-label="위험 알림" data-tip="위험 알림">
+      <span data-icon="bell"></span><span class="count" id="bell-count"></span>
+    </button>
+  </div>
+  <div class="alert-pop" id="alert-pop"></div>
+</header>
+
+<nav class="sidebar" aria-label="메뉴">
+  <button class="nav" data-view="all" aria-label="전체 분석 큐" aria-current="true" data-tip-pos="right" data-tip="전체 분석 큐|권한 신청과 정책 검토 결과를 한 목록으로 봅니다"><span data-icon="home"></span></button>
+  <button class="nav" data-view="permissions" aria-label="권한 신청 검토" data-tip-pos="right" data-tip="권한 신청 검토|접근 권한 신청 건별 AI 판정 — 승인 · 추가 검토 · 반려 권고"><span data-icon="lock"></span></button>
+  <button class="nav" data-view="policies" aria-label="정책 검토" data-tip-pos="right" data-tip="정책 검토|방화벽 · SWG · DLP · PAM 정책의 중복 · 충돌 · 과도한 허용"><span data-icon="server"></span></button>
+  <button class="nav" id="nav-docs" aria-label="기준 문서 원문" data-tip-pos="right" data-tip="기준 문서 원문|AI가 판정 근거로 삼는 사내 규정 전문을 봅니다"><span data-icon="book"></span></button>
+</nav>
+
+<section class="toolbar">
+  <h2>글로벌 분석 검색</h2>
+  <label class="search">
+    <span data-icon="search" class="sm"></span>
+    <input id="q" type="search" placeholder="정책 ID · 신청 ID · 요청자 · 권한으로 검색" autocomplete="off">
+  </label>
+  <span class="pill neutral" id="p-policies" data-tip="검토 정책 수|여러 보안 솔루션에서 수집해 공통 형식으로 표준화한 정책 건수"></span>
+  <span class="pill" id="p-open" data-tip="미결 위험|위험 등급 중 운영자가 아직 결정하지 않은 건수"></span>
+  <button class="icon-btn" id="reload" aria-label="결과 다시 불러오기" data-tip="결과 다시 불러오기|저장된 판정 결과와 서버 상태를 새로 읽습니다. 모델을 다시 돌리지는 않습니다"><span data-icon="refresh"></span></button>
+</section>
+
+<div class="workspace">
+  <div class="main-col">
+    <div class="banner" id="banner">
+      <span data-icon="alert" class="sm lv-위험"></span>
+      <span><strong id="banner-count"></strong> — 운영자 확인이 필요합니다.</span>
+      <span class="chans">
+        <span class="chan-chip on">대시보드</span>
+        <span class="chan-chip">이메일 · 연동 예정</span>
+        <span class="chan-chip">메신저 · 연동 예정</span>
+      </span>
+    </div>
+
+    <!-- ① 정책 위험 현황 -->
+    <section class="stats" id="stats"></section>
+
+    <!-- ② ③ ⑤ 분석 큐 — 권한 신청 · 정책 검토 -->
+    <section class="card queue">
+      <div class="queue-head">
+        <h3>최근 자동 분석 현황<small>Analysis Queue</small></h3>
+        <div class="seg" role="tablist" id="seg">
+          <button role="tab" data-view="all" aria-selected="true">전체 <span id="n-all"></span></button>
+          <button role="tab" data-view="permissions" aria-selected="false">권한 신청 <span id="n-perm"></span></button>
+          <button role="tab" data-view="policies" aria-selected="false">정책 검토 <span id="n-pol"></span></button>
+        </div>
+      </div>
+      <div class="filters" id="filters">
+        <button class="filter" data-level="전체" aria-pressed="true">전체</button>
+        <button class="filter" data-level="정상" aria-pressed="false"><i class="ldot 정상"></i>정상</button>
+        <button class="filter" data-level="주의" aria-pressed="false"><i class="ldot 주의"></i>주의</button>
+        <button class="filter" data-level="위험" aria-pressed="false"><i class="ldot 위험"></i>위험</button>
+      </div>
+      <div class="table">
+        <div class="tr thead">
+          <span>분류</span><span>대상 / 요청자</span><span>상세 내용</span><span>시간</span><span>AI 판정</span><span></span>
+        </div>
+        <div id="rows"></div>
+      </div>
+    </section>
+
+    <footer class="foot" id="foot"></footer>
+  </div>
+
+  <!-- ⑥ AI 판단 근거 및 권고 -->
+  <aside class="card panel" id="panel"></aside>
+</div>
+
+<div class="modal-back" id="docs-modal">
+  <div class="modal" role="dialog" aria-label="기준 문서 원문">
+    <h3>기준 문서 원문 <button id="docs-close" aria-label="닫기">×</button></h3>
+    <div id="docs-body"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ── 아이콘 (인라인 SVG) ─────────────────── */
+const ICONS = {
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+  home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  server: '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  alert: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  ok: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  warn: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>',
+  bad: '<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>',
+  chev: '<path d="m9 6 6 6-6 6"/>',
+  file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
+  db: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  policy: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="M9 12h6"/>',
+};
+const icon = (name, cls = "") => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+function paintIcons(root = document) {
+  root.querySelectorAll("[data-icon]").forEach((el) => {
+    el.outerHTML = icon(el.dataset.icon, el.className || "");
+  });
+}
+
+const LEVELS = ["정상", "주의", "위험"];
+const LEVEL_ICON = { "정상": "ok", "주의": "warn", "위험": "bad" };
+const DECISIONS = { approve: "승인", cond: "조건부 승인", reject: "반려 확정" };
+
+const state = {
+  results: null,
+  regulations: [],
+  health: null,
+  view: "all",          // all | permissions | policies
+  filter: "전체",
+  query: "",
+  selected: null,       // 큐 항목 key
+  expanded: new Set(),  // 펼친 근거 칩
+  decisions: {},        // key → { action, at } — 화면에만 두고 저장하지 않음
+  pending: {},          // 재판정 중인 신청 id → 시작 시각
+  offline: false,
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* ── 데이터 로드 — API 가 없으면(파일로 연 경우) results.json 을 직접 읽습니다 ── */
+async function getJSON(url, opts) {
+  const res = await fetch(url, { cache: "no-store", ...opts });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+async function load() {
+  try {
+    state.results = await getJSON("/api/results");
+    state.offline = false;
+  } catch (e) {
+    state.offline = true;
+    state.results = await getJSON("../../data/results.json");
+  }
+  try { state.regulations = await getJSON("/api/regulations"); } catch (e) { state.regulations = []; }
+  try { state.health = await getJSON("/api/health"); } catch (e) { state.health = null; }
+}
+
+/* ── 큐 항목 — 권한 신청과 정책 문제를 한 목록 형식으로 ─────── */
+function permissions() { return state.results.permissions || []; }
+function issues() { return (state.results.policy_review && state.results.policy_review.issues) || []; }
+
+function queue() {
+  const analysed = (state.results.generated_at || "").slice(0, 10);
+  const perm = permissions().map((p) => ({
+    type: "perm", key: p.id, id: p.id, level: p.level,
+    who: (p.detail && p.detail.requester) || p.title,
+    what: (p.detail && p.detail.requested_access) || "",
+    when: (p.detail && p.detail["신청일"]) || "",
+    judge: p.verdict, raw: p,
+  }));
+  const pol = issues().map((i, n) => ({
+    type: "policy", key: `ISSUE-${n + 1}`, id: `ISSUE-${n + 1}`, level: i.level,
+    who: (i.policy_ids || []).join(" ↔ "),
+    what: `${i.kind} — ${i.reason}`,
+    when: analysed,
+    judge: i.kind, raw: i,
+  }));
+  return perm.concat(pol);
+}
+
+function visible() {
+  const q = state.query.trim().toLowerCase();
+  return queue().filter((it) => {
+    if (state.view === "permissions" && it.type !== "perm") return false;
+    if (state.view === "policies" && it.type !== "policy") return false;
+    if (state.filter !== "전체" && it.level !== state.filter) return false;
+    if (!q) return true;
+    const hay = [it.id, it.who, it.what, it.judge, it.raw.reason, it.raw.recommendation,
+                 ...(it.raw.policy_ids || [])].join(" ").toLowerCase();
+    return hay.includes(q);
+  });
+}
+
+function openRisks() {
+  return queue().filter((it) => it.level === "위험" && !state.decisions[it.key]);
+}
+
+/* ── 상단 바 ────────────────────────────── */
+function hostOf(url) { try { return new URL(url).host; } catch (e) { return url || "-"; } }
+
+function networkMode(url) {
+  // 로컬 · 사설 대역 주소일 때만 "폐쇄망" 으로 표시합니다.
+  let h = "";
+  try { h = new URL(url).hostname; } catch (e) { return { closed: false, text: "서버 주소 확인 불가" }; }
+  if (h === "localhost" || h === "127.0.0.1" || h === "::1")
+    return { closed: true, text: "폐쇄망 모드 · 로컬 실행" };
+  if (/^10\./.test(h) || /^192\.168\./.test(h) || /^172\.(1[6-9]|2\d|3[01])\./.test(h))
+    return { closed: true, text: "폐쇄망 모드 · 사내 서버" };
+  return { closed: false, text: "원격 서버" };
+}
+
+function setBadge(id, on, text) {
+  const el = $(id);
+  const dot = el.querySelector(".dot");
+  if (dot) dot.className = "dot " + (on === null ? "" : on ? "on" : "off");
+  $(id + "-txt").textContent = text;
+}
+
+function renderTop() {
+  const r = state.results, h = state.health;
+  if (h) {
+    setBadge("b-ollama", h.connected && h.model_ready,
+      h.connected ? `${h.model_ready ? "연결됨" : "모델 없음"} · ${h.model}` : "연결 끊김");
+    setBadge("b-vdb", h.index_ready, h.index_ready ? "인덱스 준비됨" : "인덱스 비어 있음");
+    $("b-ollama").dataset.tip = h.connected
+      ? `로컬 LLM 서버|판정 문장을 생성하는 ${h.model} 이 이 서버에서 실행됩니다. ${h.base_url}`
+      : `로컬 LLM 서버 — 연결 안 됨|Ollama 앱이 켜져 있는지 확인하세요. 저장된 결과는 계속 볼 수 있습니다`;
+    $("b-vdb").dataset.tip = h.index_ready
+      ? `벡터 DB (Milvus)|기준 문서를 조각내 저장해 두고, 판정할 때 관련 조항을 찾아 모델에 넘깁니다`
+      : `벡터 DB — 비어 있음|make index 로 기준 문서를 적재하세요`;
+  } else {
+    setBadge("b-ollama", null, `캐시된 결과 · ${r.model}`);
+    setBadge("b-vdb", null, "API 미연결");
+    $("b-ollama").dataset.tip = "API 미연결|서버 없이 파일을 직접 열었습니다. make web 으로 실행하면 실시간 상태가 표시됩니다";
+    $("b-vdb").dataset.tip = "API 미연결|make web 으로 실행하면 인덱스 상태가 표시됩니다";
+  }
+  const url = h ? h.base_url : r.base_url;
+  const net = networkMode(url);
+  const b = $("b-net");
+  b.innerHTML = `${icon(net.closed ? "lock" : "globe", "sm")}<span>${esc(net.text)}</span><span class="mono">${esc(hostOf(url))}</span>`;
+  b.dataset.tip = net.closed
+    ? `외부 전송 없음|모델이 ${url} 에서 돌아 클라우드 AI로 나가는 트래픽이 없습니다. .env 의 RAD_OLLAMA_BASE_URL 한 줄로 사내 서버로 옮겨집니다`
+    : `원격 Ollama 서버|${url} — .env 의 RAD_OLLAMA_BASE_URL 로 바꿀 수 있습니다`;
+
+  const risks = openRisks();
+  const count = $("bell-count");
+  count.textContent = risks.length;
+  count.classList.toggle("show", risks.length > 0);
+  $("bell").dataset.tip = risks.length
+    ? `위험 알림 — 미결 ${risks.length}건|눌러서 목록과 알림 채널을 봅니다`
+    : "위험 알림|미결 위험이 없습니다. 눌러서 알림 채널을 봅니다";
+  $("alert-pop").innerHTML = `
+    <h4>위험 알림 ${risks.length ? `— 미결 ${risks.length}건` : "— 미결 없음"}</h4>
+    ${risks.map((it) => `<div class="risk-item" data-key="${esc(it.key)}"><i class="ldot 위험"></i>${esc(it.id)} · ${esc(it.who)}</div>`).join("")}
+    <div class="chan active"><span>대시보드 알림</span><span>사용 중</span></div>
+    <div class="chan"><span>이메일</span><span>연동 예정</span></div>
+    <div class="chan"><span>메신저</span><span>연동 예정</span></div>`;
+  $("alert-pop").querySelectorAll(".risk-item").forEach((el) => el.addEventListener("click", () => {
+    $("alert-pop").classList.remove("show");
+    select(el.dataset.key);
+  }));
+}
+
+function renderToolbar() {
+  const nPolicies = (state.results.policies || []).length;
+  $("p-policies").innerHTML = `${icon("policy", "sm")} 검토 정책 <b>${nPolicies}건</b>`;
+  const open = openRisks().length;
+  const pill = $("p-open");
+  pill.className = "pill " + (open ? "risk" : "clear");
+  pill.innerHTML = `${icon(open ? "alert" : "ok", "sm")} 미결 위험 <b>${open}건</b>`;
+}
+
+/* ── 배너 · 지표 ────────────────────────── */
+function renderBanner() {
+  const risky = state.results.summary["위험"] || 0;
+  $("banner-count").textContent = `위험 등급 ${risky}건`;
+  $("banner").classList.toggle("show", risky > 0);
+}
+
+function renderStats() {
+  const s = state.results.summary;
+  const tiles = [
+    { cls: "", label: "전체 판정", num: s.total,
+      tip: `전체 판정|권한 신청 ${s.permission_count}건 + 정책 문제 ${s.policy_issue_count}건` },
+    { cls: "정상", label: '<i class="ldot 정상"></i>정상 · 승인 권고', num: s["정상"], tip: "정상|기준 문서에 부합 — AI가 승인을 권고" },
+    { cls: "주의", label: '<i class="ldot 주의"></i>주의 · 추가 검토', num: s["주의"], tip: "주의|직무 연관성은 있으나 범위가 필요 이상 — 운영자 추가 검토 (기준 4.3)" },
+    { cls: "위험", label: '<i class="ldot 위험"></i>위험 · 반려 권고', num: s["위험"], tip: "위험|직무 무관 · 필수 승인 누락 · 장기 미사용 관리자 권한 — 반려 권고 (기준 4.2)" },
+    { cls: "", label: "정책 문제", num: s.policy_issue_count, tip: "정책 문제|정책 표에서 찾은 중복 · 충돌 · 과도한 허용" },
+  ];
+  $("stats").innerHTML = tiles.map((t) =>
+    `<div class="card stat ${t.cls}" data-tip="${esc(t.tip)}"><div class="label">${t.label}</div><div class="num">${t.num ?? 0}</div></div>`
+  ).join("");
+  const q = queue();
+  $("n-all").textContent = q.length;
+  $("n-perm").textContent = q.filter((i) => i.type === "perm").length;
+  $("n-pol").textContent = q.filter((i) => i.type === "policy").length;
+}
+
+/* ── 분석 큐 ────────────────────────────── */
+function renderRows() {
+  const items = visible();
+  if (!items.length) {
+    $("rows").innerHTML = `<div class="empty">조건에 맞는 항목이 없습니다.</div>`;
+    return;
+  }
+  $("rows").innerHTML = items.map((it) => {
+    const d = state.decisions[it.key];
+    const whoIcon = it.type === "perm" ? "user" : "alert";
+    return `<button class="tr row" data-key="${esc(it.key)}" aria-current="${it.key === state.selected}">
+      <span class="cell-type">${it.type === "perm" ? "권한 신청" : "정책 검토"}<small>${esc(it.id)}</small></span>
+      <span class="who">${icon(whoIcon, "sm")}<span class="name">${esc(it.who)}</span><span class="badge ${it.level}">${esc(it.level)}</span></span>
+      <span class="detail-cell" data-tip="${esc(it.what)}">${esc(it.what)}</span>
+      <span class="time">${esc(it.when)}</span>
+      <span class="judge"><span class="line lv-${it.level}">${icon(LEVEL_ICON[it.level] || "warn", "sm")}${esc(it.judge)}</span>
+        ${d ? `<span class="op">운영자 · ${esc(DECISIONS[d.action])}</span>` : ""}</span>
+      <span class="chev">${icon("chev", "sm")}</span>
+    </button>`;
+  }).join("");
+  $("rows").querySelectorAll(".row").forEach((el) => el.addEventListener("click", () => select(el.dataset.key)));
+}
+
+function select(key) {
+  state.selected = key;
+  const it = queue().find((i) => i.key === key);
+  if (it && state.view !== "all" && ((state.view === "permissions") !== (it.type === "perm"))) setView("all");
+  renderRows();
+  renderPanel();
+}
+
+/* ── 근거 조항 전문 ─────────────────────── */
+function docOf(source) { return state.regulations.find((r) => source.includes(r.name)); }
+
+function clauseText(source) {
+  const doc = docOf(source);
+  if (!doc) return "문서 원문을 찾을 수 없습니다. `make web` 으로 API 를 띄우면 조항 전문이 표시됩니다.";
+  // 모델이 "[...md] 4.1, 4.2, 4.3" 처럼 여러 조항을 한 줄로 돌려주므로 전부 찾습니다.
+  const nums = [...new Set(source.match(/\d+\.\d+/g) || [])];
+  const lines = doc.content.split("\n");
+  const heading = (i) => /^#{2,4}\s/.test(lines[i]);
+  const blocks = nums.map((num) => {
+    const start = lines.findIndex((l, i) => heading(i) && l.includes(num));
+    if (start < 0) return null;
+    let end = start + 1;
+    while (end < lines.length && !heading(end)) end++;
+    return lines.slice(start, end).join("\n").trim();
+  }).filter(Boolean);
+  if (!blocks.length) return doc.content.trim();   // 조항 번호가 없으면 문서 전문
+  return `${doc.name}\n\n` + blocks.join("\n\n");
+}
+
+function chipLabel(source) {
+  const doc = docOf(source);
+  const nums = [...new Set(source.match(/\d+\.\d+/g) || [])];
+  const name = doc ? doc.name.replace(/\.md$/, "") : String(source).replace(/[\[\]#]/g, "").trim();
+  return nums.length ? `${name} · ${nums.join(", ")}` : name;
+}
+
+/* ── 우측 패널 ──────────────────────────── */
+function renderPanel() {
+  const it = queue().find((i) => i.key === state.selected);
+  const panel = $("panel");
+  if (!it) {
+    panel.innerHTML = `<div class="panel-head"><h3>AI 설명 및 RAG 분석 근거</h3></div>
+      <div class="panel-body"><div class="empty">왼쪽 분석 큐에서 항목을 선택하면<br>AI 판단 근거와 권고가 표시됩니다.</div></div>`;
+    return;
+  }
+  const r = it.raw;
+  const isPerm = it.type === "perm";
+  const pending = isPerm && state.pending[it.id];
+  const decision = state.decisions[it.key];
+
+  const recText = isPerm ? `${r.verdict}` : `${r.kind}`;
+  const table = isPerm
+    ? Object.entries(r.detail || {})
+    : (state.results.policies || []).filter((p) => (r.policy_ids || []).includes(p.policy_id)).map((p) => [p.policy_id,
+        `${p.solution} · ${p.source} → ${p.destination} · ${p.service} · ${p.action} · 만료 ${p.expires_at || "없음"}`]);
+  const kvLabel = { requester: "신청자", requested_access: "신청 권한", current_access: "현재 보유 권한", "신청일": "신청일" };
+
+  panel.innerHTML = `
+    <div class="panel-head">
+      <h3>AI 설명 및 RAG 분석 근거</h3>
+      ${isPerm ? `<button class="rerun" id="rerun" ${pending ? "disabled" : ""}>${icon("activity", "sm")}<span id="rerun-txt">${pending ? rerunLabel(it.id) : "실시간 재판정"}</span></button>` : ""}
+    </div>
+    <div class="panel-body">
+      <p class="subject">${esc(isPerm ? r.title : `${it.who}`)}</p>
+      <div class="rec-line lv-${it.level}">${icon(LEVEL_ICON[it.level] || "warn")}${esc(recText)} <span class="badge ${it.level}">${esc(it.level)}</span></div>
+      <div class="meta">${esc(it.id)} · ${isPerm ? "권한 신청" : "정책 검토"}${isPerm && r.elapsed_sec != null ? ` · 판정 소요 ${esc(r.elapsed_sec)}초` : ""}</div>
+
+      <div class="sec"><h4>${icon("file", "sm")}${isPerm ? "상세 요청" : "관련 정책 원본"}</h4>
+        <div class="box"><table class="kv">
+          ${table.map(([k, v]) => `<tr><th>${esc(kvLabel[k] || k)}</th><td>${esc(v)}</td></tr>`).join("") || "<tr><td>정보 없음</td></tr>"}
+        </table></div>
+      </div>
+
+      <div class="sec"><h4>${icon("activity", "sm")}AI 판단 근거 <span style="font-weight:400;color:var(--ink-dim)">— 로컬 LLM 생성</span></h4>
+        <div class="box">${esc(r.reason)}</div>
+      </div>
+
+      <div class="sec"><h4>${icon("ok", "sm")}권고 조치</h4>
+        <div class="box">${esc(r.recommendation)}</div>
+      </div>
+
+      <div class="sec"><h4>${icon("db", "sm")}Vector DB 참조 문맥 (RAG)</h4>
+        ${isPerm
+          ? ((r.sources || []).length
+              ? `<div class="chips">${r.sources.map((s, n) => {
+                  const k = `${it.key}#${n}`, open = state.expanded.has(k);
+                  return `<button class="chip" data-k="${esc(k)}" aria-expanded="${open}">${icon("file", "sm")}<span>${esc(chipLabel(s))}</span><span class="open">${open ? "접기" : "조항 전문"}</span></button>
+                    ${open ? `<div class="clause">${esc(clauseText(s))}</div>` : ""}`;
+                }).join("")}</div>`
+              : `<p class="note">모델이 근거 문서를 반환하지 않았습니다.</p>`)
+          : `<p class="note">정책 검토는 검색 없이 정책 표 전체를 입력으로 판단합니다. 적용 기준은 기준 문서 5 · 6장입니다.</p>`}
+      </div>
+    </div>
+    <div class="panel-foot">
+      <h4>보안 운영자 의사결정</h4>
+      <div class="decide">
+        ${Object.entries(DECISIONS).map(([a, label]) =>
+          `<button class="${a}" data-action="${a}" aria-pressed="${decision && decision.action === a}">${label}</button>`).join("")}
+      </div>
+      <div class="decision-state">${decision
+        ? `<span>결정 <b>${esc(DECISIONS[decision.action])}</b> · ${esc(decision.at)} (AI 권고: ${esc(recText)})</span><button id="undo">취소</button>`
+        : `<span>AI는 권고만 합니다. 최종 결정은 운영자가 내립니다. <span style="color:#999">데모 — 저장되지 않음</span></span>`}</div>
+    </div>`;
+
+  panel.querySelectorAll(".chip").forEach((el) => el.addEventListener("click", () => {
+    const k = el.dataset.k;
+    state.expanded.has(k) ? state.expanded.delete(k) : state.expanded.add(k);
+    renderPanel();
+  }));
+  panel.querySelectorAll(".decide button").forEach((el) => el.addEventListener("click", () => {
+    const now = new Date();
+    state.decisions[it.key] = { action: el.dataset.action, at: now.toTimeString().slice(0, 5) };
+    renderAfterChange();
+  }));
+  const undo = $("undo");
+  if (undo) undo.addEventListener("click", () => { delete state.decisions[it.key]; renderAfterChange(); });
+  const rerun = $("rerun");
+  if (rerun) rerun.addEventListener("click", () => rerunReview(it.id));
+}
+
+function renderAfterChange() {
+  renderTop(); renderToolbar(); renderRows(); renderPanel();
+}
+
+/* ── 실시간 재판정 — 진행 상태를 state.pending 에 두어 다른 항목을 봐도 이어집니다 ── */
+function rerunLabel(id) {
+  const sec = Math.round((Date.now() - state.pending[id]) / 1000);
+  return `판정 중… ${sec}초 경과`;
+}
+
+setInterval(() => {
+  const it = queue().find((i) => i.key === state.selected);
+  const txt = $("rerun-txt");
+  if (it && txt && state.pending[it.id]) txt.textContent = rerunLabel(it.id);
+}, 1000);
+
+async function rerunReview(id) {
+  if (state.offline) {
+    alert("API 가 연결되지 않았습니다. `make web` 으로 서버를 띄운 뒤 접속하세요.");
+    return;
+  }
+  state.pending[id] = Date.now();
+  renderPanel();
+  try {
+    const fresh = await getJSON(`/api/review/${encodeURIComponent(id)}`, { method: "POST" });
+    const list = state.results.permissions;
+    const idx = list.findIndex((p) => p.id === fresh.id);
+    if (idx >= 0) list[idx] = fresh;
+    recount();
+  } catch (e) {
+    alert(`${id} 재판정에 실패했습니다: ${e.message}`);
+  } finally {
+    delete state.pending[id];
+    renderAll();
+  }
+}
+
+function recount() {
+  const s = state.results.summary;
+  const all = permissions().map((p) => p.level).concat(issues().map((i) => i.level));
+  LEVELS.forEach((l) => { s[l] = all.filter((x) => x === l).length; });
+  s.total = all.length;
+}
+
+/* ── 보기 전환 · 필터 · 검색 ─────────────── */
+function setView(view) {
+  state.view = view;
+  document.querySelectorAll("#seg button").forEach((b) => b.setAttribute("aria-selected", b.dataset.view === view));
+  document.querySelectorAll(".nav[data-view]").forEach((b) => b.setAttribute("aria-current", b.dataset.view === view));
+}
+
+document.querySelectorAll("#seg button, .nav[data-view]").forEach((b) => b.addEventListener("click", () => {
+  setView(b.dataset.view);
+  renderRows();
+}));
+
+document.querySelectorAll(".filter").forEach((f) => f.addEventListener("click", () => {
+  document.querySelectorAll(".filter").forEach((x) => x.setAttribute("aria-pressed", x === f));
+  state.filter = f.dataset.level;
+  renderRows();
+}));
+
+$("q").addEventListener("input", (e) => { state.query = e.target.value; renderRows(); });
+
+$("bell").addEventListener("click", (e) => { e.stopPropagation(); $("alert-pop").classList.toggle("show"); });
+document.addEventListener("click", (e) => {
+  if (!$("alert-pop").contains(e.target)) $("alert-pop").classList.remove("show");
+});
+
+$("nav-docs").addEventListener("click", () => {
+  $("docs-body").innerHTML = state.regulations.length
+    ? state.regulations.map((d) => `<div class="doc"><h4>${esc(d.name)}</h4><pre>${esc(d.content.trim())}</pre></div>`).join("")
+    : `<p class="note">기준 문서는 API 연결 시 표시됩니다. <code>make web</code> 으로 실행하세요.</p>`;
+  $("docs-modal").classList.add("show");
+});
+$("docs-close").addEventListener("click", () => $("docs-modal").classList.remove("show"));
+$("docs-modal").addEventListener("click", (e) => { if (e.target === $("docs-modal")) $("docs-modal").classList.remove("show"); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("docs-modal").classList.remove("show"); });
+
+$("reload").addEventListener("click", async () => {
+  await load();
+  renderAll();
+});
+
+function renderFooter() {
+  const r = state.results, s = r.summary;
+  const failed = s.failed
+    ? `<span class="warn">판정 실패 ${s.failed}건 — 구조화 출력 파싱 실패, 해당 건은 '주의'로 기록</span>`
+    : "판정 실패 0건";
+  $("foot").innerHTML = `계산 시각 ${esc(r.generated_at)} · 모델 ${esc(r.model)} · 서버 ${esc(r.base_url)} · ${failed}`;
+}
+
+function renderAll() {
+  renderTop(); renderToolbar(); renderBanner(); renderStats(); renderRows(); renderPanel(); renderFooter();
+}
+
+/* ── 툴팁 — data-tip="제목|설명". 다시 그려도 동작하도록 document 에 위임합니다 ── */
+const tip = document.createElement("div");
+tip.className = "tip";
+tip.setAttribute("role", "tooltip");
+document.body.appendChild(tip);
+let tipTarget = null, tipTimer = null;
+
+function placeTip(el) {
+  const r = el.getBoundingClientRect();
+  const pos = el.dataset.tipPos || "bottom";
+  const tw = tip.offsetWidth, th = tip.offsetHeight, gap = 8;
+  let x, y;
+  if (pos === "right") {
+    x = r.right + gap + 2; y = r.top + r.height / 2 - th / 2;
+  } else {
+    x = r.left + r.width / 2 - tw / 2; y = r.bottom + gap;
+    if (y + th > innerHeight - gap) y = r.top - th - gap;   // 아래 공간이 없으면 위로
+  }
+  tip.style.left = Math.max(gap, Math.min(x, innerWidth - tw - gap)) + "px";
+  tip.style.top = Math.max(gap, Math.min(y, innerHeight - th - gap)) + "px";
+  tip.dataset.pos = pos;
+}
+
+function showTip(el) {
+  const [title, desc] = String(el.dataset.tip || "").split("|");
+  if (!title) return;
+  tipTarget = el;
+  tip.innerHTML = desc ? `<b>${esc(title)}</b><span>${esc(desc)}</span>` : `<span style="color:#fff;margin:0">${esc(title)}</span>`;
+  tip.classList.remove("show");
+  placeTip(el);
+  requestAnimationFrame(() => tip.classList.add("show"));
+}
+
+function hideTip() {
+  clearTimeout(tipTimer);
+  tipTarget = null;
+  tip.classList.remove("show");
+}
+
+document.addEventListener("mouseover", (e) => {
+  const el = e.target.closest("[data-tip]");
+  if (el === tipTarget) return;
+  clearTimeout(tipTimer);
+  if (!el) { hideTip(); return; }
+  // 사이드바 · 상단 바는 바로, 나머지는 목록을 훑을 때 깜빡이지 않게 살짝 늦게
+  const instant = el.closest(".sidebar, .topbar");
+  tipTimer = setTimeout(() => showTip(el), instant ? 0 : 220);
+});
+document.addEventListener("focusin", (e) => {
+  const el = e.target.closest("[data-tip]");
+  if (el) showTip(el); else hideTip();
+});
+document.addEventListener("focusout", hideTip);
+document.addEventListener("scroll", hideTip, true);
+document.addEventListener("click", hideTip, true);
+
+paintIcons();
+load().then(() => {
+  // 기본 선택: 시연 순서상 첫 권한 신청.
+  const first = permissions()[0];
+  if (first) state.selected = first.id;
+  renderAll();
+}).catch((e) => {
+  document.querySelector(".workspace").innerHTML =
+    `<div class="card empty" style="grid-column:1/-1">결과를 불러오지 못했습니다: ${esc(e.message)}<br><br>
+     <code>make precompute</code> 로 data/results.json 을 만든 뒤 <code>make web</code> 으로 실행하세요.</div>`;
+});
+</script>
+</body>
+</html>
