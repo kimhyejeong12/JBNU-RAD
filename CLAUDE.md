@@ -31,7 +31,7 @@ RAD-LMENGINE/
 │   ├── loader.py               CSV → dict, 정책 표 → policy_chain 입력 텍스트
 │   ├── review.py               엔진 호출 → 화면용 dict (최대 2회 재시도, 실패 시 "주의")
 │   ├── main.py                 FastAPI — API 4개 + 화면 서빙
-│   └── static/index.html       단일 파일 대시보드 (CSS · JS · 아이콘 인라인)
+│   └── static/index.html       단일 파일 대시보드 — 분석 대기열 · 통계 탭 (CSS · JS · 아이콘 인라인)
 ├── scripts/
 │   ├── precompute.py           전 건 판정 → data/results.json
 │   └── review_check.py         반복 루프 · 등급 흔들림 재현 — 수정 금지
@@ -79,6 +79,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 | Vector DB 참조 문맥 | `Verdict.sources` — 모델이 밝힌 근거 문서. 누르면 `docs/` 원문에서 해당 조항을 잘라 보여준다 |
 | 상세 요청 | `permissions.csv` 원본 행 |
 | 정책 검토 행 | `PolicyIssue`의 `kind` · `level` · `policy_ids` · `reason` · `recommendation` |
+| 통계 대시보드 | 도넛 = `summary`의 정상 · 주의 · 위험. 부서별 막대 = 권한 신청을 신청자 첫 단어(부서)로 묶은 등급 건수. 차트는 라이브러리 없이 SVG · CSS로 그린다 |
 
 ---
 
