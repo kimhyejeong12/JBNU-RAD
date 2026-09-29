@@ -1,14 +1,14 @@
 """Engine 판정 결과를 화면용 dict 로 옮기는 어댑터.
 
-Verdict · PolicyReview 필드는 그대로 두고 title · verdict · detail · elapsed_sec 만 덧붙입니다.
-판정이 실패하면 최대 2회 재시도하고, 그래도 실패하면 예외 대신 "주의" 로 기록합니다.
+Verdict · PolicyReview · Answer 필드는 그대로 두고 title · verdict · detail · question · elapsed_sec 만 덧붙입니다.
+판정이 실패하면 최대 2회 재시도하고, 그래도 실패하면 예외 대신 "주의" 로 기록합니다 (질의응답은 답 자리에 원인).
 """
 from __future__ import annotations
 
 import time
 from typing import Any
 
-from rad_lmengine import PolicyReview, Verdict
+from rad_lmengine import Answer, PolicyReview, Verdict
 
 from .loader import format_policies, review_input
 
@@ -60,5 +60,17 @@ def review_policies(chain, rows: list[dict[str, str]]) -> tuple[dict[str, Any], 
     return {
         "summary": review.summary,
         "issues": [issue.model_dump() for issue in review.issues],
+        "elapsed_sec": round(elapsed, 1),
+    }, error
+
+
+def answer_question(chain, question: str) -> tuple[dict[str, Any], str | None]:
+    """기준 문서 질의 1건 → (화면용 dict, 실패 원인 또는 None). chain 은 rag_chain(structured=True)"""
+    answer, error, elapsed = _attempt(lambda: chain.invoke(question))
+    if answer is None:
+        answer = Answer(answer=f"답변 실패: {error}", sources=[])
+    return {
+        "question": question,
+        **answer.model_dump(),
         "elapsed_sec": round(elapsed, 1),
     }, error
