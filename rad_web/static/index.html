@@ -28,7 +28,7 @@
   body {
     height: 100vh; overflow: hidden;
     display: grid;
-    grid-template-rows: 56px auto minmax(0, 1fr);
+    grid-template-rows: 56px minmax(0, 1fr);
     grid-template-columns: 60px minmax(0, 1fr);
     background: var(--bg-soft);
     color: var(--ink);
@@ -79,7 +79,7 @@
 
   /* ── 좌측 사이드바 ─────────────────────── */
   .sidebar {
-    grid-row: 2 / 4; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    grid-row: 2; display: flex; flex-direction: column; align-items: center; gap: 6px;
     padding: 14px 0; background: var(--bg); border-right: 1px solid var(--line);
   }
   .nav {
@@ -89,15 +89,11 @@
   .nav:hover { background: var(--bg-soft); color: var(--ink); }
   .nav[aria-current="true"] { background: var(--risk-tint); color: var(--accent); }
 
-  /* ── 검색 · 지표 바 ───────────────────── */
-  .toolbar {
-    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-    padding: 14px 22px; background: var(--bg); border-bottom: 1px solid var(--line);
-  }
+  /* ── 검색 — 대기열만 거르므로 대기열 카드 제목 줄에 둡니다 ── */
   .search {
-    flex: 1; max-width: 420px; display: flex; align-items: center; gap: 8px;
-    padding: 0 12px; height: 38px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
-    color: var(--ink-dim);
+    flex: 1 1 220px; max-width: 320px; margin-left: auto; display: flex; align-items: center; gap: 8px;
+    padding: 0 11px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+    color: var(--ink-dim); font-size: 13px;
   }
   .search:focus-within { border-color: var(--ink); }
   .search input { flex: 1; border: none; outline: none; font: inherit; color: var(--ink); background: none; }
@@ -110,15 +106,9 @@
   .main-col { display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: auto; }
   .main-col > * { flex-shrink: 0; }
   .card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
-
-  /* 알림 배너 */
-  .banner {
-    display: none; align-items: center; gap: 10px; padding: 11px 16px;
-    border: 1px solid #F7C2CC; border-left: 4px solid var(--accent); border-radius: 10px;
-    background: var(--risk-tint); font-size: 13px;
-  }
-  .banner.show { display: flex; }
-  .banner strong { color: var(--accent); }
+  /* 통계 탭은 대기열 항목과 무관하므로 패널 없이 차트를 넓게 씁니다 */
+  .workspace[data-tab="charts"] { grid-template-columns: minmax(0, 1fr); }
+  .workspace[data-tab="charts"] > .panel { display: none; }
 
   /* 요약 지표 (제안서 ①) — 누르면 그 등급만 보는 필터 */
   .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -135,13 +125,14 @@
   .queue { display: flex; flex-direction: column; min-height: 320px; }
   .queue-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px 12px; flex-wrap: wrap; }
   .queue-head h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
-  .seg { display: flex; padding: 3px; background: var(--bg-soft); border-radius: 8px; margin-left: auto; }
+  /* 넓은 화면에서는 좌측 사이드바가 같은 필터를 맡으므로, 사이드바가 사라지는 작은 화면에서만 보입니다 */
+  .seg { display: none; padding: 3px; background: var(--bg-soft); border-radius: 8px; }
   .seg button { border: none; background: none; padding: 5px 12px; border-radius: 6px; font-size: 12.5px; color: var(--ink-dim); font-weight: 600; }
   .seg button[aria-selected="true"] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
   .table { border-top: 1px solid var(--line); }
   .tr {
     display: grid; align-items: center; gap: 12px;
-    grid-template-columns: 84px minmax(200px, 1.4fr) minmax(160px, 1.3fr) 92px 136px 16px;
+    grid-template-columns: 84px minmax(200px, 1.4fr) minmax(160px, 1.3fr) 92px 112px 16px;
     padding: 0 18px;
   }
   .thead { height: 38px; font-size: 12px; color: var(--ink-dim); font-weight: 600; border-bottom: 1px solid var(--line); }
@@ -167,10 +158,6 @@
   .ldot.위험 { background: var(--accent); box-shadow: 0 0 0 3px rgba(234, 0, 44, .22); }
   .stat .label .ldot { margin-right: 0; }
   .lv-정상 { color: var(--ok); } .lv-주의 { color: var(--sub); } .lv-위험 { color: var(--accent); }
-  .badge { flex: none; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 5px; border: 1px solid; }
-  .badge.정상 { color: var(--ok); border-color: #BFDECF; background: var(--ok-tint); }
-  .badge.주의 { color: var(--sub); border-color: #FFD2AE; background: var(--warn-tint); }
-  .badge.위험 { color: var(--accent); border-color: #F7C2CC; background: var(--risk-tint); }
   .empty { padding: 36px 18px; text-align: center; color: var(--ink-dim); }
 
   /* 메인 탭 — 분석 대기열 · 통계 대시보드 · 권한 질의 */
@@ -182,8 +169,9 @@
   }
   .main-tab:hover { color: var(--ink); }
   .main-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
-  /* display 를 지정한 요소는 hidden 속성만으로 숨겨지지 않아 직접 끕니다. .banner.show 보다 뒤에 두어야 합니다. */
-  .queue[hidden], .charts[hidden], .ask[hidden], .stats[hidden], .banner[hidden] { display: none; }
+  .view-queue { display: flex; flex-direction: column; gap: 14px; }
+  /* display 를 지정한 요소는 hidden 속성만으로 숨겨지지 않아 직접 끕니다. */
+  .view-queue[hidden], .charts[hidden], .ask[hidden] { display: none; }
 
   /* 통계 대시보드 */
   .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
@@ -217,7 +205,7 @@
 
   /* 권한 질의 — 남은 세로 공간을 채우고 기록만 안에서 스크롤합니다 */
   .ask { flex: 1 0 0; min-height: 380px; display: flex; flex-direction: column; }
-  .ask-log { flex: 1; min-height: 0; overflow: auto; padding: 14px 18px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 20px; }
+  .ask-log { flex: 1; min-height: 0; overflow: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 20px; }
   .qa { display: flex; flex-direction: column; gap: 8px; }
   .qa-q { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-weight: 700; }
   .qa-q .no { flex: none; font-size: 11.5px; font-weight: 600; color: var(--ink-dim); margin-top: 1px; font-variant-numeric: tabular-nums; }
@@ -333,8 +321,9 @@
   .warn { color: var(--accent); }
 
   @media (max-width: 1150px) {
-    body { height: auto; overflow: auto; grid-template-columns: 1fr; grid-template-rows: auto auto auto; }
+    body { height: auto; overflow: auto; grid-template-columns: 1fr; grid-template-rows: auto auto; }
     .sidebar { display: none; }
+    .seg { display: flex; }
     .topbar { flex-wrap: wrap; padding: 10px 16px; row-gap: 8px; }
     .workspace { grid-template-columns: 1fr; padding: 14px 16px; }
     .main-col { overflow: visible; }
@@ -351,9 +340,8 @@
     .charts { grid-template-columns: 1fr; }
     .ask { flex: none; min-height: 0; }
     .ask-log { max-height: 60vh; }
-    .tr { grid-template-columns: 70px minmax(0, 1fr) 124px; }
+    .tr { grid-template-columns: 70px minmax(0, 1fr) 100px; }
     .tr > :nth-child(3), .tr > :nth-child(4), .tr > :nth-child(6) { display: none; }
-    .toolbar { padding: 12px 16px; }
   }
 </style>
 </head>
@@ -373,38 +361,32 @@
 
 <nav class="sidebar" aria-label="메뉴">
   <button class="nav" data-view="all" aria-label="전체 분석 큐" aria-current="true" data-tip-pos="right" data-tip="전체 분석 큐|권한 신청과 정책 검토 결과를 한 목록으로 봅니다"><span data-icon="home"></span></button>
-  <button class="nav" data-view="permissions" aria-label="권한 신청 검토" data-tip-pos="right" data-tip="권한 신청 검토|접근 권한 신청 건별 AI 판정 — 승인 · 추가 검토 · 반려 권고"><span data-icon="lock"></span></button>
+  <button class="nav" data-view="permissions" aria-label="권한 신청 검토" data-tip-pos="right" data-tip="권한 신청 검토|접근 권한 신청 건별 AI 판정 — 정상 · 주의 · 위험"><span data-icon="lock"></span></button>
   <button class="nav" data-view="policies" aria-label="정책 검토" data-tip-pos="right" data-tip="정책 검토|방화벽 · SWG · DLP · PAM 정책의 중복 · 충돌 · 과도한 허용"><span data-icon="server"></span></button>
   <button class="nav" id="nav-docs" aria-label="기준 문서 원문" data-tip-pos="right" data-tip="기준 문서 원문|AI가 판정 근거로 삼는 사내 규정 전문을 봅니다"><span data-icon="book"></span></button>
 </nav>
 
-<section class="toolbar">
-  <label class="search">
-    <span data-icon="search" class="sm"></span>
-    <input id="q" type="search" placeholder="정책 ID · 신청 ID · 요청자 · 권한으로 검색" autocomplete="off">
-  </label>
-</section>
-
-<div class="workspace">
+<div class="workspace" data-tab="queue">
   <div class="main-col">
-    <div class="banner" id="banner">
-      <span data-icon="alert" class="sm lv-위험"></span>
-      <span><strong id="banner-count"></strong> — 운영자 확인이 필요합니다.</span>
-    </div>
-
-    <!-- ① 정책 위험 현황 -->
-    <section class="stats" id="stats"></section>
-
     <nav class="main-tabs" role="tablist" aria-label="보기 전환">
       <button class="main-tab" role="tab" id="tab-queue" data-tab="queue" aria-selected="true" aria-controls="view-queue"><span data-icon="list" class="sm"></span>분석 대기열</button>
       <button class="main-tab" role="tab" id="tab-charts" data-tab="charts" aria-selected="false" aria-controls="view-charts"><span data-icon="chart" class="sm"></span>통계 대시보드</button>
       <button class="main-tab" role="tab" id="tab-ask" data-tab="ask" aria-selected="false" aria-controls="view-ask"><span data-icon="chat" class="sm"></span>권한 질의</button>
     </nav>
 
+    <!-- 분석 대기열 — 요약 카드는 이 목록의 등급 필터라 탭 안에 둡니다 -->
+    <div class="view-queue" id="view-queue" role="tabpanel" aria-labelledby="tab-queue">
+    <!-- ① 정책 위험 현황 -->
+    <section class="stats" id="stats"></section>
+
     <!-- ② ③ ⑤ 분석 큐 — 권한 신청 · 정책 검토 -->
-    <section class="card queue" id="view-queue" role="tabpanel" aria-labelledby="tab-queue">
+    <section class="card queue">
       <div class="queue-head">
         <h3>최근 자동 분석 현황</h3>
+        <label class="search">
+          <span data-icon="search" class="sm"></span>
+          <input id="q" type="search" placeholder="정책 ID · 신청 ID · 요청자 · 권한으로 검색" autocomplete="off">
+        </label>
         <div class="seg" role="tablist" id="seg">
           <button role="tab" data-view="all" aria-selected="true">전체 <span id="n-all"></span></button>
           <button role="tab" data-view="permissions" aria-selected="false">권한 신청 <span id="n-perm"></span></button>
@@ -418,6 +400,7 @@
         <div id="rows"></div>
       </div>
     </section>
+    </div>
 
     <!-- 통계 대시보드 -->
     <section class="charts" id="view-charts" role="tabpanel" aria-labelledby="tab-charts" hidden>
@@ -435,9 +418,6 @@
 
     <!-- 권한 질의 — rag_chain 은 docs/ 만 검색하고 신청 목록 · 정책 표는 보지 않습니다 -->
     <section class="card ask" id="view-ask" role="tabpanel" aria-labelledby="tab-ask" hidden>
-      <div class="queue-head">
-        <h3>기준 문서 질의응답</h3>
-      </div>
       <div class="ask-log" id="ask-log" aria-live="polite"></div>
       <div class="ask-foot">
         <!-- 예시 질문은 scripts/precompute_ask.py 한 곳에서 정하고, 화면은 /api/asks 에서 버튼을 만듭니다 -->
@@ -478,7 +458,6 @@ const ICONS = {
   book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
-  alert: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
   ok: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
   warn: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>',
   bad: '<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>',
@@ -500,7 +479,12 @@ function paintIcons(root = document) {
 const LEVELS = ["정상", "주의", "위험"];
 const LEVEL_ICON = { "정상": "ok", "주의": "warn", "위험": "bad" };
 const DECISIONS = { approve: "승인", cond: "조건부 승인", reject: "반려 확정" };
-const VERDICT_TEXT = { "정상": "승인 권고", "주의": "추가 검토", "위험": "반려 권고" };
+// 화면에는 등급 단어만 쓰고, 등급에서 나오는 권고 문구와 기준은 툴팁에만 둡니다.
+const LEVEL_TIP = {
+  "정상": "승인 권고|기준 문서에 부합 — AI가 승인을 권고합니다",
+  "주의": "추가 검토|직무 연관성은 있으나 범위가 필요 이상 — 운영자 추가 검토 (기준 4.3)",
+  "위험": "반려 권고|직무 무관 · 필수 승인 누락 · 장기 미사용 관리자 권한 (기준 4.2)",
+};
 
 const state = {
   results: null,
@@ -555,14 +539,14 @@ function queue() {
     who: (p.detail && p.detail.requester) || p.title,
     what: (p.detail && p.detail.requested_access) || "",
     when: (p.detail && p.detail["신청일"]) || "",
-    judge: p.verdict, raw: p,
+    judge: p.level, raw: p,
   }));
   const pol = issues().map((i, n) => ({
     type: "policy", key: `ISSUE-${n + 1}`, id: `ISSUE-${n + 1}`, level: i.level,
     who: (i.policy_ids || []).join(" ↔ "),
     what: `${i.kind} — ${i.reason}`,
     when: analysed,
-    judge: i.kind, raw: i,
+    judge: i.level, raw: i,
   }));
   return perm.concat(pol);
 }
@@ -625,36 +609,31 @@ function renderTop() {
   }));
 }
 
-/* ── 배너 · 지표 ────────────────────────── */
-function renderBanner() {
-  const risky = state.results.summary["위험"] || 0;
-  $("banner-count").textContent = `위험 등급 ${risky}건`;
-  $("banner").classList.toggle("show", risky > 0);
-}
-
+/* ── 지표 ───────────────────────────────── */
 function renderStats() {
   // 숫자는 지금 보고 있는 범위(전체 · 권한 신청 · 정책 검토)를 따라 아래 목록과 맞춥니다.
   const items = queue().filter(inView);
-  const tiles = [
-    { level: "정상", label: "정상 · 승인 권고", tip: "정상|기준 문서에 부합 — AI가 승인을 권고" },
-    { level: "주의", label: "주의 · 추가 검토", tip: "주의|직무 연관성은 있으나 범위가 필요 이상 — 운영자 추가 검토 (기준 4.3)" },
-    { level: "위험", label: "위험 · 반려 권고", tip: "위험|직무 무관 · 필수 승인 누락 · 장기 미사용 관리자 권한 — 반려 권고 (기준 4.2)" },
-  ];
-  $("stats").innerHTML = tiles.map((t) =>
-    `<button class="card stat ${t.level}" data-level="${t.level}" aria-pressed="${state.filter === t.level}" data-tip="${esc(t.tip)}">
-      <span class="label"><i class="ldot ${t.level}"></i>${t.label}</span>
-      <span class="num">${items.filter((it) => it.level === t.level).length}</span></button>`
+  $("stats").innerHTML = LEVELS.map((l) =>
+    `<button class="card stat ${l}" data-level="${l}" aria-pressed="${state.filter === l}" data-tip="${esc(LEVEL_TIP[l])}">
+      <span class="label"><i class="ldot ${l}"></i>${l}</span>
+      <span class="num">${items.filter((it) => it.level === l).length}</span></button>`
   ).join("");
   $("stats").querySelectorAll(".stat").forEach((b) => b.addEventListener("click", () => {
     state.filter = state.filter === b.dataset.level ? "전체" : b.dataset.level;
-    setMainTab("queue");
     renderStats();
     renderRows();
   }));
   const q = queue();
-  $("n-all").textContent = q.length;
-  $("n-perm").textContent = q.filter((i) => i.type === "perm").length;
-  $("n-pol").textContent = q.filter((i) => i.type === "policy").length;
+  const n = { all: q.length, permissions: q.filter((i) => i.type === "perm").length, policies: q.filter((i) => i.type === "policy").length };
+  $("n-all").textContent = n.all;
+  $("n-perm").textContent = n.permissions;
+  $("n-pol").textContent = n.policies;
+  // 넓은 화면에는 세그먼트가 없으므로 건수를 사이드바 툴팁 제목에 붙입니다.
+  document.querySelectorAll(".nav[data-view]").forEach((b) => {
+    b.dataset.tipBase ||= b.dataset.tip;
+    const [title, desc] = b.dataset.tipBase.split("|");
+    b.dataset.tip = `${title} — ${n[b.dataset.view]}건|${desc}`;
+  });
 }
 
 /* ── 통계 대시보드 — 외부 라이브러리 없이 SVG · CSS 로 그립니다 ── */
@@ -687,7 +666,7 @@ function renderDonut() {
         <text class="caption" x="84" y="110" text-anchor="middle">전체 판정</text>
       </svg>
       <div class="legend">
-        ${LEVELS.map((l) => `<span><i class="ldot ${l}"></i>${l} · ${VERDICT_TEXT[l]}</span>
+        ${LEVELS.map((l) => `<span data-tip="${esc(LEVEL_TIP[l])}"><i class="ldot ${l}"></i>${l}</span>
           <b>${s[l] || 0}건</b><span class="pct">${pct(s[l] || 0)}</span>`).join("")}
       </div>
     </div>`;
@@ -735,14 +714,12 @@ function renderRows() {
   }
   $("rows").innerHTML = items.map((it) => {
     const d = state.decisions[it.key];
-    // 권한 판정 문구(승인 권고 등)는 등급에서 나오지만, 정책은 문제 유형이라 등급을 붙여 씁니다.
-    const judge = it.type === "perm" ? it.judge : `${it.judge} · ${it.level}`;
     return `<button class="tr row" data-key="${esc(it.key)}" aria-current="${it.key === state.selected}">
       <span class="cell-type">${it.type === "perm" ? "권한 신청" : "정책 검토"}<small>${esc(it.id)}</small></span>
       <span class="who">${esc(it.who)}</span>
       <span class="detail-cell" data-tip="${esc(it.what)}">${esc(it.what)}</span>
       <span class="time">${esc(it.when)}</span>
-      <span class="judge"><span class="line lv-${it.level}">${icon(LEVEL_ICON[it.level] || "warn", "sm")}${esc(judge)}</span>
+      <span class="judge"><span class="line lv-${it.level}">${icon(LEVEL_ICON[it.level] || "warn", "sm")}${esc(it.judge)}</span>
         ${d ? `<span class="op">운영자 · ${esc(DECISIONS[d.action])}</span>` : ""}</span>
       <span class="chev">${icon("chev", "sm")}</span>
     </button>`;
@@ -803,7 +780,6 @@ function renderPanel() {
   const pending = isPerm && state.pending[it.id];
   const decision = state.decisions[it.key];
 
-  const recText = isPerm ? `${r.verdict}` : `${r.kind}`;
   const table = isPerm
     ? Object.entries(r.detail || {})
     : (state.results.policies || []).filter((p) => (r.policy_ids || []).includes(p.policy_id)).map((p) => [p.policy_id,
@@ -817,8 +793,8 @@ function renderPanel() {
       ${CLOSE_BTN}
     </div>
     <div class="panel-body">
-      <p class="subject">${esc(isPerm ? r.title : `${it.who}`)}</p>
-      <div class="rec-line lv-${it.level}">${icon(LEVEL_ICON[it.level] || "warn")}${esc(recText)} <span class="badge ${it.level}">${esc(it.level)}</span></div>
+      <p class="subject">${esc(isPerm ? r.title : `${it.who} · ${r.kind}`)}</p>
+      <div class="rec-line lv-${it.level}">${icon(LEVEL_ICON[it.level] || "warn")}${esc(it.level)}</div>
       <div class="meta">${esc(it.id)}</div>
 
       <div class="sec"><h4>${icon("file", "sm")}${isPerm ? "상세 요청" : "관련 정책 원본"}</h4>
@@ -854,7 +830,7 @@ function renderPanel() {
           `<button class="${a}" data-action="${a}" aria-pressed="${decision && decision.action === a}">${label}</button>`).join("")}
       </div>
       <div class="decision-state">${decision
-        ? `<span>결정 <b>${esc(DECISIONS[decision.action])}</b> · ${esc(decision.at)} (AI 권고: ${esc(recText)})</span><button id="undo">취소</button>`
+        ? `<span>결정 <b>${esc(DECISIONS[decision.action])}</b> · ${esc(decision.at)} (AI 판정: ${esc(it.level)})</span><button id="undo">취소</button>`
         : `<span>AI는 권고만 합니다. 최종 결정은 운영자가 내립니다.</span>`}</div>
     </div>`;
 
@@ -968,7 +944,7 @@ function renderAskPanel() {
         <div class="meta">Q${sel.i + 1} · ${esc(m.q)}</div>
         <div class="sec"><h4>${icon("book", "sm")}기준 문서 원문</h4><div class="clause">${esc(clauseText(source))}</div></div>
         <p class="note">모델이 밝힌 근거 문서에서 해당 조항을 잘라 보여줍니다.</p>`
-      : `<div class="empty">답변 아래 참조 문맥을 누르면<br>인용한 조항 원문이 여기에 표시됩니다.</div>`}</div>`;
+      : `<div class="empty">답변 아래 근거 조항을 누르면<br>인용한 조항 원문이 여기에 표시됩니다.</div>`}</div>`;
 }
 
 async function ask(text) {
@@ -1030,8 +1006,8 @@ function setMainTab(tab) {
   $("view-queue").hidden = tab !== "queue";
   $("view-charts").hidden = tab !== "charts";
   $("view-ask").hidden = tab !== "ask";
-  // 질의 탭에서는 요약 카드 · 위험 배너를 숨겨 질문 · 답 목록에 세로 공간을 줍니다.
-  $("stats").hidden = $("banner").hidden = tab === "ask";
+  $("foot").hidden = tab === "ask";   // 하단 계산 시각은 판정 결과의 것이라 질의와 무관합니다
+  document.querySelector(".workspace").dataset.tab = tab;
   if (panelChanges) renderPanel();
   if (tab === "ask") $("ask-input").focus();
 }
@@ -1106,7 +1082,7 @@ function renderFooter() {
 }
 
 function renderAll() {
-  renderTop(); renderBanner(); renderStats(); renderCharts(); renderRows(); renderAskExamples(); renderAsk(); renderPanel(); renderFooter();
+  renderTop(); renderStats(); renderCharts(); renderRows(); renderAskExamples(); renderAsk(); renderPanel(); renderFooter();
 }
 
 /* ── 툴팁 — data-tip="제목|설명". 다시 그려도 동작하도록 document 에 위임합니다 ── */
