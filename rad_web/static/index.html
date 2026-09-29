@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SecurityAI — AI 보안 정책 검토 시스템</title>
+<link rel="icon" href="data:,">  <!-- 브라우저가 /favicon.ico 를 요청해 404 가 콘솔에 찍히는 것을 막습니다 -->
 <!--
   단일 파일 대시보드. CSS · JS · 아이콘을 모두 인라인으로 둡니다 (외부망 차단 전제 — CDN · 웹폰트 금지).
   숫자와 상태 배지는 전부 /api/results · /api/health 에서 옵니다. 파일로 직접 열면 data/results.json 을 읽습니다.
@@ -50,18 +51,13 @@
   .logo { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 17px; letter-spacing: -0.3px; }
   .logo svg { width: 24px; height: 24px; stroke: var(--accent); stroke-width: 2.2; }
   .sysname { padding-left: 18px; border-left: 1px solid #3A3A3A; font-size: 14.5px; font-weight: 600; }
-  .sysname small { font-weight: 400; color: #B5B5B5; margin-left: 6px; }
   .top-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-  .hbadge {
-    display: flex; align-items: center; gap: 7px;
-    padding: 5px 11px; border-radius: 7px; border: 1px solid #3A3A3A;
-    background: #1D1D1D; font-size: 12.5px; white-space: nowrap;
+  /* 엔진 경고 — CI 컬러는 흰 바탕에서만 쓰므로 검은 바 위에 흰 알약으로 띄웁니다 */
+  .engine-warn {
+    display: flex; align-items: center; padding: 5px 11px; border-radius: 7px;
+    background: #fff; color: var(--accent); font-size: 12.5px; font-weight: 700; white-space: nowrap;
   }
-  .hbadge b { font-weight: 600; }
-  .hbadge .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; color: #D0D0D0; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: #8A8A8A; flex: none; }
-  .dot.on { background: #3DBA7E; box-shadow: 0 0 0 3px rgba(61,186,126,.18); }
-  .dot.off { background: var(--accent); box-shadow: 0 0 0 3px rgba(234,0,44,.2); }
+  .engine-warn[hidden] { display: none; }
   .bell { position: relative; background: none; border: none; color: #fff; padding: 6px; margin-left: 6px; border-radius: 7px; }
   .bell:hover { background: #262626; }
   .bell .count {
@@ -77,9 +73,7 @@
   }
   .alert-pop.show { display: block; }
   .alert-pop h4 { margin: 0 0 8px; font-size: 13px; }
-  .alert-pop .chan { display: flex; justify-content: space-between; padding: 7px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
-  .alert-pop .chan span:last-child { color: var(--ink-dim); }
-  .alert-pop .chan.active span:last-child { color: var(--ok); font-weight: 600; }
+  .alert-pop .none { margin: 0; font-size: 12.5px; color: var(--ink-dim); }
   .alert-pop .risk-item { font-size: 12.5px; padding: 6px 0; border-top: 1px solid var(--line); cursor: pointer; }
   .alert-pop .risk-item:hover { color: var(--accent); }
 
@@ -100,7 +94,6 @@
     display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
     padding: 14px 22px; background: var(--bg); border-bottom: 1px solid var(--line);
   }
-  .toolbar h2 { margin: 0; font-size: 16px; font-weight: 700; margin-right: 8px; }
   .search {
     flex: 1; max-width: 420px; display: flex; align-items: center; gap: 8px;
     padding: 0 12px; height: 38px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
@@ -108,20 +101,6 @@
   }
   .search:focus-within { border-color: var(--ink); }
   .search input { flex: 1; border: none; outline: none; font: inherit; color: var(--ink); background: none; }
-  .pill {
-    display: flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px;
-    border-radius: 8px; font-size: 13px; white-space: nowrap; border: 1px solid;
-  }
-  .pill b { font-size: 14px; font-variant-numeric: tabular-nums; }
-  .pill.neutral { background: var(--bg-soft); border-color: var(--line); }
-  .pill.risk { background: var(--risk-tint); border-color: #F7C2CC; color: var(--accent); }
-  .pill.clear { background: var(--ok-tint); border-color: #BFDECF; color: var(--ok); }
-  .icon-btn {
-    width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
-    border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink-dim);
-  }
-  .icon-btn:hover { color: var(--ink); border-color: var(--ink-dim); }
-  .toolbar .icon-btn { margin-left: auto; }
 
   /* ── 작업 영역 ─────────────────────────── */
   .workspace {
@@ -140,37 +119,29 @@
   }
   .banner.show { display: flex; }
   .banner strong { color: var(--accent); }
-  .banner .chans { margin-left: auto; display: flex; gap: 6px; }
-  .banner .chan-chip { font-size: 11.5px; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg); color: var(--ink-dim); }
-  .banner .chan-chip.on { color: var(--ok); border-color: #BFDECF; font-weight: 600; }
 
-  /* 요약 지표 (제안서 ①) */
-  .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
-  .stat { padding: 14px 16px; }
+  /* 요약 지표 (제안서 ①) — 누르면 그 등급만 보는 필터 */
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .stat { padding: 14px 16px; width: 100%; text-align: left; }
+  .stat:hover { border-color: var(--ink-dim); }
+  .stat.정상[aria-pressed="true"] { border-color: var(--ok); background: var(--ok-tint); }
+  .stat.주의[aria-pressed="true"] { border-color: var(--sub); background: var(--warn-tint); }
+  .stat.위험[aria-pressed="true"] { border-color: var(--accent); background: var(--risk-tint); }
   .stat .label { font-size: 12px; color: var(--ink-dim); display: flex; align-items: center; gap: 6px; }
-  .stat .num { font-size: 26px; font-weight: 800; letter-spacing: -0.8px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+  .stat .num { display: block; font-size: 26px; font-weight: 800; letter-spacing: -0.8px; line-height: 1.25; font-variant-numeric: tabular-nums; }
   .stat.정상 .num { color: var(--ok); } .stat.주의 .num { color: var(--sub); } .stat.위험 .num { color: var(--accent); }
 
   /* 분석 큐 */
   .queue { display: flex; flex-direction: column; min-height: 320px; }
   .queue-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px 12px; flex-wrap: wrap; }
   .queue-head h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
-  .queue-head h3 small { font-weight: 400; color: var(--ink-dim); font-size: 12.5px; margin-left: 4px; }
   .seg { display: flex; padding: 3px; background: var(--bg-soft); border-radius: 8px; margin-left: auto; }
   .seg button { border: none; background: none; padding: 5px 12px; border-radius: 6px; font-size: 12.5px; color: var(--ink-dim); font-weight: 600; }
   .seg button[aria-selected="true"] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-  .filters { display: flex; gap: 6px; padding: 0 18px 12px; }
-  .filter {
-    display: inline-flex; align-items: center;
-    padding: 4px 12px; border: 1px solid var(--line); border-radius: 99px;
-    background: var(--bg); color: var(--ink-dim); font-size: 12px;
-  }
-  .filter[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); font-weight: 600; }
-
   .table { border-top: 1px solid var(--line); }
   .tr {
     display: grid; align-items: center; gap: 12px;
-    grid-template-columns: 84px minmax(200px, 1.4fr) minmax(160px, 1.3fr) 92px 112px 16px;
+    grid-template-columns: 84px minmax(200px, 1.4fr) minmax(160px, 1.3fr) 92px 136px 16px;
     padding: 0 18px;
   }
   .thead { height: 38px; font-size: 12px; color: var(--ink-dim); font-weight: 600; border-bottom: 1px solid var(--line); }
@@ -182,10 +153,7 @@
   .row[aria-current="true"] { background: var(--risk-tint); border-left-color: var(--accent); }
   .cell-type { font-size: 12.5px; color: var(--ink-dim); }
   .cell-type small { display: block; font-size: 11px; color: #999; font-variant-numeric: tabular-nums; }
-  .who { display: flex; align-items: center; gap: 7px; min-width: 0; }
-  .who .name { font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .who .badge { align-self: center; }
-  .who svg { color: var(--ink-dim); }
+  .who { min-width: 0; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .detail-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #333; }
   .time { font-size: 12.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
   .judge { display: flex; flex-direction: column; gap: 1px; font-size: 13px; font-weight: 600; }
@@ -259,7 +227,6 @@
   .qa .sec { margin-top: 2px; }
   .qa .chips { flex-direction: row; flex-wrap: wrap; }
   .qa .chip { width: auto; }
-  .qa .meta { margin: 0; }
   .ask-foot { display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 14px; border-top: 1px solid var(--line); }
   .ask-ex { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   .ask-ex .label { font-size: 11.5px; font-weight: 600; color: var(--ink-dim); margin-right: 2px; }
@@ -283,6 +250,10 @@
   .panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
   .panel-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
   .panel-head h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
+  .drawer-close { display: none; margin-left: auto; padding: 0 4px; border: none; background: none; font-size: 22px; line-height: 1; color: var(--ink-dim); }
+  .drawer-close:hover { color: var(--ink); }
+  .rerun ~ .drawer-close { margin-left: 4px; }
+  .drawer-back { display: none; }
   .rerun {
     margin-left: auto; display: flex; align-items: center; gap: 6px;
     padding: 6px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg);
@@ -365,15 +336,22 @@
     body { height: auto; overflow: auto; grid-template-columns: 1fr; grid-template-rows: auto auto auto; }
     .sidebar { display: none; }
     .topbar { flex-wrap: wrap; padding: 10px 16px; row-gap: 8px; }
-    .sysname { border-left: none; padding-left: 0; }
-    .top-right { margin-left: 0; flex-wrap: wrap; }
     .workspace { grid-template-columns: 1fr; padding: 14px 16px; }
-    .main-col, .panel { overflow: visible; }
-    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .main-col { overflow: visible; }
+    /* 패널은 목록 아래가 아니라 오른쪽에서 밀려 나오는 서랍으로 띄웁니다 */
+    .panel {
+      position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; width: min(430px, calc(100vw - 48px));   /* 폰에서도 바깥을 눌러 닫을 자리를 남깁니다 */
+      border: none; border-radius: 0; box-shadow: -12px 0 32px rgba(0,0,0,.16);
+      transform: translateX(100%); visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s;
+    }
+    .panel.open { transform: none; visibility: visible; transition: transform .2s ease; }
+    .drawer-close { display: block; }
+    .drawer-back.show { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(17,17,17,.4); }
+    body.drawer-open { overflow: hidden; }
     .charts { grid-template-columns: 1fr; }
     .ask { flex: none; min-height: 0; }
     .ask-log { max-height: 60vh; }
-    .tr { grid-template-columns: 70px minmax(0, 1fr) 100px; }
+    .tr { grid-template-columns: 70px minmax(0, 1fr) 124px; }
     .tr > :nth-child(3), .tr > :nth-child(4), .tr > :nth-child(6) { display: none; }
     .toolbar { padding: 12px 16px; }
   }
@@ -383,11 +361,9 @@
 
 <header class="topbar">
   <div class="logo"><span data-icon="shield"></span>SecurityAI</div>
-  <div class="sysname">AI 보안 정책 검토 시스템<small>로컬 LLM · RAG 보안 분석 엔진</small></div>
+  <div class="sysname">AI 보안 정책 검토 시스템</div>
   <div class="top-right">
-    <span class="hbadge" id="b-ollama"><span class="dot"></span><b>Ollama</b><span id="b-ollama-txt">확인 중…</span></span>
-    <span class="hbadge" id="b-vdb"><span class="dot"></span><b>Vector DB</b><span id="b-vdb-txt">확인 중…</span></span>
-    <span class="hbadge" id="b-net"><span data-icon="lock" class="sm"></span><span id="b-net-txt">확인 중…</span></span>
+    <span class="engine-warn" id="engine-warn" hidden><i class="ldot 위험"></i>AI 엔진 점검 필요</span>
     <button class="bell" id="bell" aria-label="위험 알림" data-tip="위험 알림">
       <span data-icon="bell"></span><span class="count" id="bell-count"></span>
     </button>
@@ -403,14 +379,10 @@
 </nav>
 
 <section class="toolbar">
-  <h2>글로벌 분석 검색</h2>
   <label class="search">
     <span data-icon="search" class="sm"></span>
     <input id="q" type="search" placeholder="정책 ID · 신청 ID · 요청자 · 권한으로 검색" autocomplete="off">
   </label>
-  <span class="pill neutral" id="p-policies" data-tip="검토 정책 수|여러 보안 솔루션에서 수집해 공통 형식으로 표준화한 정책 건수"></span>
-  <span class="pill" id="p-open" data-tip="미결 위험|위험 등급 중 운영자가 아직 결정하지 않은 건수"></span>
-  <button class="icon-btn" id="reload" aria-label="결과 다시 불러오기" data-tip="결과 다시 불러오기|저장된 판정 결과와 서버 상태를 새로 읽습니다. 모델을 다시 돌리지는 않습니다"><span data-icon="refresh"></span></button>
 </section>
 
 <div class="workspace">
@@ -418,11 +390,6 @@
     <div class="banner" id="banner">
       <span data-icon="alert" class="sm lv-위험"></span>
       <span><strong id="banner-count"></strong> — 운영자 확인이 필요합니다.</span>
-      <span class="chans">
-        <span class="chan-chip on">대시보드</span>
-        <span class="chan-chip">이메일 · 연동 예정</span>
-        <span class="chan-chip">메신저 · 연동 예정</span>
-      </span>
     </div>
 
     <!-- ① 정책 위험 현황 -->
@@ -437,18 +404,12 @@
     <!-- ② ③ ⑤ 분석 큐 — 권한 신청 · 정책 검토 -->
     <section class="card queue" id="view-queue" role="tabpanel" aria-labelledby="tab-queue">
       <div class="queue-head">
-        <h3>최근 자동 분석 현황<small>Analysis Queue</small></h3>
+        <h3>최근 자동 분석 현황</h3>
         <div class="seg" role="tablist" id="seg">
           <button role="tab" data-view="all" aria-selected="true">전체 <span id="n-all"></span></button>
           <button role="tab" data-view="permissions" aria-selected="false">권한 신청 <span id="n-perm"></span></button>
           <button role="tab" data-view="policies" aria-selected="false">정책 검토 <span id="n-pol"></span></button>
         </div>
-      </div>
-      <div class="filters" id="filters">
-        <button class="filter" data-level="전체" aria-pressed="true">전체</button>
-        <button class="filter" data-level="정상" aria-pressed="false"><i class="ldot 정상"></i>정상</button>
-        <button class="filter" data-level="주의" aria-pressed="false"><i class="ldot 주의"></i>주의</button>
-        <button class="filter" data-level="위험" aria-pressed="false"><i class="ldot 위험"></i>위험</button>
       </div>
       <div class="table">
         <div class="tr thead">
@@ -462,7 +423,7 @@
     <section class="charts" id="view-charts" role="tabpanel" aria-labelledby="tab-charts" hidden>
       <div class="card chart-card">
         <h3>총 판정 — 등급 비율</h3>
-        <p class="sub">권한 신청과 정책 문제를 합친 사전 계산 결과</p>
+        <p class="sub">권한 신청과 정책 문제를 합친 결과</p>
         <div id="chart-donut"></div>
       </div>
       <div class="card chart-card">
@@ -475,7 +436,7 @@
     <!-- 권한 질의 — rag_chain 은 docs/ 만 검색하고 신청 목록 · 정책 표는 보지 않습니다 -->
     <section class="card ask" id="view-ask" role="tabpanel" aria-labelledby="tab-ask" hidden>
       <div class="queue-head">
-        <h3>기준 문서 질의응답<small>Vector DB 검색 → 로컬 LLM 답변</small></h3>
+        <h3>기준 문서 질의응답</h3>
       </div>
       <div class="ask-log" id="ask-log" aria-live="polite"></div>
       <div class="ask-foot">
@@ -496,6 +457,7 @@
   <!-- ⑥ AI 판단 근거 및 권고 -->
   <aside class="card panel" id="panel"></aside>
 </div>
+<div class="drawer-back" id="drawer-back"></div>
 
 <div class="modal-back" id="docs-modal">
   <div class="modal" role="dialog" aria-label="기준 문서 원문">
@@ -512,13 +474,10 @@ const ICONS = {
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
   home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
-  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
   server: '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
   book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
-  refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
-  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   alert: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
   ok: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
   warn: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>',
@@ -527,7 +486,6 @@ const ICONS = {
   file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
   db: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
-  policy: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="M9 12h6"/>',
   list: '<path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
   chart: '<path d="M3 3v18h18"/><path d="M8 17v-4M13 17V7M18 17v-7"/>',
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
@@ -557,7 +515,7 @@ const state = {
   decisions: {},        // key → { action, at } — 화면에만 두고 저장하지 않음
   pending: {},          // 재판정 중인 신청 id → 시작 시각
   askCache: null,       // /api/asks — 예시 질문의 사전 계산 답변
-  asks: [],             // 권한 질의 기록 { q, started, answer, sources, failed, elapsed_sec, cached } — 화면에만 두고 저장하지 않음
+  asks: [],             // 권한 질의 기록 { q, started, answer, sources, failed } — 화면에만 두고 저장하지 않음
   askSource: null,      // 패널에 띄운 인용 조항 { i: 질의 순번, n: sources 순번 }
   offline: false,
 };
@@ -609,11 +567,14 @@ function queue() {
   return perm.concat(pol);
 }
 
+function inView(it) {
+  return state.view === "all" || (state.view === "permissions") === (it.type === "perm");
+}
+
 function visible() {
   const q = state.query.trim().toLowerCase();
   return queue().filter((it) => {
-    if (state.view === "permissions" && it.type !== "perm") return false;
-    if (state.view === "policies" && it.type !== "policy") return false;
+    if (!inView(it)) return false;
     if (state.filter !== "전체" && it.level !== state.filter) return false;
     if (!q) return true;
     const hay = [it.id, it.who, it.what, it.judge, it.raw.reason, it.raw.recommendation,
@@ -627,78 +588,41 @@ function openRisks() {
 }
 
 /* ── 상단 바 ────────────────────────────── */
-function hostOf(url) { try { return new URL(url).host; } catch (e) { return url || "-"; } }
-
-function networkMode(url) {
-  // 로컬 · 사설 대역 주소일 때만 "폐쇄망" 으로 표시합니다.
-  let h = "";
-  try { h = new URL(url).hostname; } catch (e) { return { closed: false, text: "서버 주소 확인 불가" }; }
-  if (h === "localhost" || h === "127.0.0.1" || h === "::1")
-    return { closed: true, text: "폐쇄망 모드 · 로컬 실행" };
-  if (/^10\./.test(h) || /^192\.168\./.test(h) || /^172\.(1[6-9]|2\d|3[01])\./.test(h))
-    return { closed: true, text: "폐쇄망 모드 · 사내 서버" };
-  return { closed: false, text: "원격 서버" };
-}
-
-function setBadge(id, on, text) {
-  const el = $(id);
-  const dot = el.querySelector(".dot");
-  if (dot) dot.className = "dot " + (on === null ? "" : on ? "on" : "off");
-  $(id + "-txt").textContent = text;
+function engineProblems(h) {
+  if (!h) return ["서버에서 엔진 상태를 받지 못했습니다"];
+  const out = [];
+  if (!h.connected) out.push("Ollama 서버 연결 끊김");
+  else {
+    if (!h.model_ready) out.push(`판정 모델 없음 (${h.model})`);
+    if (!h.embedding_ready) out.push(`임베딩 모델 없음 (${h.embedding_model})`);
+  }
+  if (!h.index_ready) out.push("기준 문서 인덱스 비어 있음");
+  return out;
 }
 
 function renderTop() {
-  const r = state.results, h = state.health;
-  if (h) {
-    setBadge("b-ollama", h.connected && h.model_ready,
-      h.connected ? `${h.model_ready ? "연결됨" : "모델 없음"} · ${h.model}` : "연결 끊김");
-    setBadge("b-vdb", h.index_ready, h.index_ready ? "인덱스 준비됨" : "인덱스 비어 있음");
-    $("b-ollama").dataset.tip = h.connected
-      ? `로컬 LLM 서버|판정 문장을 생성하는 ${h.model} 이 이 서버에서 실행됩니다. ${h.base_url}`
-      : `로컬 LLM 서버 — 연결 안 됨|Ollama 앱이 켜져 있는지 확인하세요. 저장된 결과는 계속 볼 수 있습니다`;
-    $("b-vdb").dataset.tip = h.index_ready
-      ? `벡터 DB (Milvus)|기준 문서를 조각내 저장해 두고, 판정할 때 관련 조항을 찾아 모델에 넘깁니다`
-      : `벡터 DB — 비어 있음|make index 로 기준 문서를 적재하세요`;
-  } else {
-    setBadge("b-ollama", null, `캐시된 결과 · ${r.model}`);
-    setBadge("b-vdb", null, "API 미연결");
-    $("b-ollama").dataset.tip = "API 미연결|서버 없이 파일을 직접 열었습니다. make web 으로 실행하면 실시간 상태가 표시됩니다";
-    $("b-vdb").dataset.tip = "API 미연결|make web 으로 실행하면 인덱스 상태가 표시됩니다";
-  }
-  const url = h ? h.base_url : r.base_url;
-  const net = networkMode(url);
-  const b = $("b-net");
-  b.innerHTML = `${icon(net.closed ? "lock" : "globe", "sm")}<span>${esc(net.text)}</span><span class="mono">${esc(hostOf(url))}</span>`;
-  b.dataset.tip = net.closed
-    ? `외부 전송 없음|모델이 ${url} 에서 돌아 클라우드 AI로 나가는 트래픽이 없습니다. .env 의 RAD_OLLAMA_BASE_URL 한 줄로 사내 서버로 옮겨집니다`
-    : `원격 Ollama 서버|${url} — .env 의 RAD_OLLAMA_BASE_URL 로 바꿀 수 있습니다`;
+  // 정상일 때는 아무것도 띄우지 않고, 문제가 있을 때만 경고 1개를 띄웁니다.
+  const problems = state.health && state.health.ok ? [] : engineProblems(state.health);
+  const warn = $("engine-warn");
+  warn.hidden = !problems.length;
+  warn.dataset.tip = `점검 항목|${problems.join(" · ")}. 저장된 판정 결과는 계속 볼 수 있습니다`;
 
   const risks = openRisks();
   const count = $("bell-count");
   count.textContent = risks.length;
   count.classList.toggle("show", risks.length > 0);
   $("bell").dataset.tip = risks.length
-    ? `위험 알림 — 미결 ${risks.length}건|눌러서 목록과 알림 채널을 봅니다`
-    : "위험 알림|미결 위험이 없습니다. 눌러서 알림 채널을 봅니다";
+    ? `위험 알림 — 미결 ${risks.length}건|눌러서 목록을 봅니다`
+    : "위험 알림|미결 위험이 없습니다";
   $("alert-pop").innerHTML = `
     <h4>위험 알림 ${risks.length ? `— 미결 ${risks.length}건` : "— 미결 없음"}</h4>
-    ${risks.map((it) => `<div class="risk-item" data-key="${esc(it.key)}"><i class="ldot 위험"></i>${esc(it.id)} · ${esc(it.who)}</div>`).join("")}
-    <div class="chan active"><span>대시보드 알림</span><span>사용 중</span></div>
-    <div class="chan"><span>이메일</span><span>연동 예정</span></div>
-    <div class="chan"><span>메신저</span><span>연동 예정</span></div>`;
+    ${risks.length
+      ? risks.map((it) => `<div class="risk-item" data-key="${esc(it.key)}"><i class="ldot 위험"></i>${esc(it.id)} · ${esc(it.who)}</div>`).join("")
+      : `<p class="none">운영자 결정을 기다리는 위험 건이 없습니다.</p>`}`;
   $("alert-pop").querySelectorAll(".risk-item").forEach((el) => el.addEventListener("click", () => {
     $("alert-pop").classList.remove("show");
     select(el.dataset.key);
   }));
-}
-
-function renderToolbar() {
-  const nPolicies = (state.results.policies || []).length;
-  $("p-policies").innerHTML = `${icon("policy", "sm")} 검토 정책 <b>${nPolicies}건</b>`;
-  const open = openRisks().length;
-  const pill = $("p-open");
-  pill.className = "pill " + (open ? "risk" : "clear");
-  pill.innerHTML = `${icon(open ? "alert" : "ok", "sm")} 미결 위험 <b>${open}건</b>`;
 }
 
 /* ── 배너 · 지표 ────────────────────────── */
@@ -709,18 +633,24 @@ function renderBanner() {
 }
 
 function renderStats() {
-  const s = state.results.summary;
+  // 숫자는 지금 보고 있는 범위(전체 · 권한 신청 · 정책 검토)를 따라 아래 목록과 맞춥니다.
+  const items = queue().filter(inView);
   const tiles = [
-    { cls: "", label: "전체 판정", num: s.total,
-      tip: `전체 판정|권한 신청 ${s.permission_count}건 + 정책 문제 ${s.policy_issue_count}건` },
-    { cls: "정상", label: '<i class="ldot 정상"></i>정상 · 승인 권고', num: s["정상"], tip: "정상|기준 문서에 부합 — AI가 승인을 권고" },
-    { cls: "주의", label: '<i class="ldot 주의"></i>주의 · 추가 검토', num: s["주의"], tip: "주의|직무 연관성은 있으나 범위가 필요 이상 — 운영자 추가 검토 (기준 4.3)" },
-    { cls: "위험", label: '<i class="ldot 위험"></i>위험 · 반려 권고', num: s["위험"], tip: "위험|직무 무관 · 필수 승인 누락 · 장기 미사용 관리자 권한 — 반려 권고 (기준 4.2)" },
-    { cls: "", label: "정책 문제", num: s.policy_issue_count, tip: "정책 문제|정책 표에서 찾은 중복 · 충돌 · 과도한 허용" },
+    { level: "정상", label: "정상 · 승인 권고", tip: "정상|기준 문서에 부합 — AI가 승인을 권고" },
+    { level: "주의", label: "주의 · 추가 검토", tip: "주의|직무 연관성은 있으나 범위가 필요 이상 — 운영자 추가 검토 (기준 4.3)" },
+    { level: "위험", label: "위험 · 반려 권고", tip: "위험|직무 무관 · 필수 승인 누락 · 장기 미사용 관리자 권한 — 반려 권고 (기준 4.2)" },
   ];
   $("stats").innerHTML = tiles.map((t) =>
-    `<div class="card stat ${t.cls}" data-tip="${esc(t.tip)}"><div class="label">${t.label}</div><div class="num">${t.num ?? 0}</div></div>`
+    `<button class="card stat ${t.level}" data-level="${t.level}" aria-pressed="${state.filter === t.level}" data-tip="${esc(t.tip)}">
+      <span class="label"><i class="ldot ${t.level}"></i>${t.label}</span>
+      <span class="num">${items.filter((it) => it.level === t.level).length}</span></button>`
   ).join("");
+  $("stats").querySelectorAll(".stat").forEach((b) => b.addEventListener("click", () => {
+    state.filter = state.filter === b.dataset.level ? "전체" : b.dataset.level;
+    setMainTab("queue");
+    renderStats();
+    renderRows();
+  }));
   const q = queue();
   $("n-all").textContent = q.length;
   $("n-perm").textContent = q.filter((i) => i.type === "perm").length;
@@ -805,13 +735,14 @@ function renderRows() {
   }
   $("rows").innerHTML = items.map((it) => {
     const d = state.decisions[it.key];
-    const whoIcon = it.type === "perm" ? "user" : "alert";
+    // 권한 판정 문구(승인 권고 등)는 등급에서 나오지만, 정책은 문제 유형이라 등급을 붙여 씁니다.
+    const judge = it.type === "perm" ? it.judge : `${it.judge} · ${it.level}`;
     return `<button class="tr row" data-key="${esc(it.key)}" aria-current="${it.key === state.selected}">
       <span class="cell-type">${it.type === "perm" ? "권한 신청" : "정책 검토"}<small>${esc(it.id)}</small></span>
-      <span class="who">${icon(whoIcon, "sm")}<span class="name">${esc(it.who)}</span><span class="badge ${it.level}">${esc(it.level)}</span></span>
+      <span class="who">${esc(it.who)}</span>
       <span class="detail-cell" data-tip="${esc(it.what)}">${esc(it.what)}</span>
       <span class="time">${esc(it.when)}</span>
-      <span class="judge"><span class="line lv-${it.level}">${icon(LEVEL_ICON[it.level] || "warn", "sm")}${esc(it.judge)}</span>
+      <span class="judge"><span class="line lv-${it.level}">${icon(LEVEL_ICON[it.level] || "warn", "sm")}${esc(judge)}</span>
         ${d ? `<span class="op">운영자 · ${esc(DECISIONS[d.action])}</span>` : ""}</span>
       <span class="chev">${icon("chev", "sm")}</span>
     </button>`;
@@ -826,6 +757,7 @@ function select(key) {
   if (it && state.view !== "all" && ((state.view === "permissions") !== (it.type === "perm"))) setView("all");
   renderRows();
   renderPanel();
+  openDrawer();
 }
 
 /* ── 근거 조항 전문 ─────────────────────── */
@@ -862,7 +794,7 @@ function renderPanel() {
   const it = queue().find((i) => i.key === state.selected);
   const panel = $("panel");
   if (!it) {
-    panel.innerHTML = `<div class="panel-head"><h3>AI 설명 및 RAG 분석 근거</h3></div>
+    panel.innerHTML = `<div class="panel-head"><h3>AI 판단 근거</h3>${CLOSE_BTN}</div>
       <div class="panel-body"><div class="empty">왼쪽 분석 큐에서 항목을 선택하면<br>AI 판단 근거와 권고가 표시됩니다.</div></div>`;
     return;
   }
@@ -880,13 +812,14 @@ function renderPanel() {
 
   panel.innerHTML = `
     <div class="panel-head">
-      <h3>AI 설명 및 RAG 분석 근거</h3>
+      <h3>AI 판단 근거</h3>
       ${isPerm ? `<button class="rerun" id="rerun" ${pending ? "disabled" : ""}>${icon("activity", "sm")}<span id="rerun-txt">${pending ? rerunLabel(it.id) : "실시간 재판정"}</span></button>` : ""}
+      ${CLOSE_BTN}
     </div>
     <div class="panel-body">
       <p class="subject">${esc(isPerm ? r.title : `${it.who}`)}</p>
       <div class="rec-line lv-${it.level}">${icon(LEVEL_ICON[it.level] || "warn")}${esc(recText)} <span class="badge ${it.level}">${esc(it.level)}</span></div>
-      <div class="meta">${esc(it.id)} · ${isPerm ? "권한 신청" : "정책 검토"}${isPerm && r.elapsed_sec != null ? ` · 판정 소요 ${esc(r.elapsed_sec)}초` : ""}</div>
+      <div class="meta">${esc(it.id)}</div>
 
       <div class="sec"><h4>${icon("file", "sm")}${isPerm ? "상세 요청" : "관련 정책 원본"}</h4>
         <div class="box"><table class="kv">
@@ -894,7 +827,7 @@ function renderPanel() {
         </table></div>
       </div>
 
-      <div class="sec"><h4>${icon("activity", "sm")}AI 판단 근거 <span style="font-weight:400;color:var(--ink-dim)">— 로컬 LLM 생성</span></h4>
+      <div class="sec"><h4>${icon("activity", "sm")}판단 이유</h4>
         <div class="box">${esc(r.reason)}</div>
       </div>
 
@@ -902,7 +835,7 @@ function renderPanel() {
         <div class="box">${esc(r.recommendation)}</div>
       </div>
 
-      <div class="sec"><h4>${icon("db", "sm")}Vector DB 참조 문맥 (RAG)</h4>
+      <div class="sec"><h4>${icon("db", "sm")}근거 조항</h4>
         ${isPerm
           ? ((r.sources || []).length
               ? `<div class="chips">${r.sources.map((s, n) => {
@@ -922,7 +855,7 @@ function renderPanel() {
       </div>
       <div class="decision-state">${decision
         ? `<span>결정 <b>${esc(DECISIONS[decision.action])}</b> · ${esc(decision.at)} (AI 권고: ${esc(recText)})</span><button id="undo">취소</button>`
-        : `<span>AI는 권고만 합니다. 최종 결정은 운영자가 내립니다. <span style="color:#999">데모 — 저장되지 않음</span></span>`}</div>
+        : `<span>AI는 권고만 합니다. 최종 결정은 운영자가 내립니다.</span>`}</div>
     </div>`;
 
   panel.querySelectorAll(".chip").forEach((el) => el.addEventListener("click", () => {
@@ -942,7 +875,7 @@ function renderPanel() {
 }
 
 function renderAfterChange() {
-  renderTop(); renderToolbar(); renderRows(); renderPanel();
+  renderTop(); renderRows(); renderPanel();
 }
 
 /* ── 실시간 재판정 — 진행 상태를 state.pending 에 두어 다른 항목을 봐도 이어집니다 ── */
@@ -996,7 +929,7 @@ function renderAsk() {
   $("ask-send").disabled = busy;
   $("ask-ex").querySelectorAll("button").forEach((b) => { b.disabled = busy; });
   if (!state.asks.length) {
-    log.innerHTML = `<div class="empty">예시 질문은 미리 계산한 답을 바로 보여줍니다.<br>직접 입력한 질문은 로컬 LLM 이 실시간으로 답하며 수십 초~수 분 걸릴 수 있습니다.</div>`;
+    log.innerHTML = `<div class="empty">사내 기준 문서를 근거로 답합니다.<br>답변에 수십 초 이상 걸릴 수 있습니다.</div>`;
     return;
   }
   log.innerHTML = state.asks.map((m, i) => {
@@ -1005,7 +938,7 @@ function renderAsk() {
     else if (m.failed) body = `<div class="box fail">${esc(m.answer)}</div>`;
     else body = `<div class="box">${esc(m.answer)}</div>`;
     const src = m.started || m.failed ? "" : `
-      <div class="sec"><h4>${icon("db", "sm")}Vector DB 참조 문맥 (RAG)</h4>
+      <div class="sec"><h4>${icon("db", "sm")}근거 조항</h4>
         ${(m.sources || []).length
           ? `<div class="chips">${m.sources.map((s, n) => {
               const on = !!state.askSource && state.askSource.i === i && state.askSource.n === n;
@@ -1013,10 +946,7 @@ function renderAsk() {
             }).join("")}</div>`
           : `<p class="note">모델이 근거 문서를 반환하지 않았습니다.</p>`}
       </div>`;
-    let meta = "";
-    if (m.cached) meta = `<p class="meta">사전 계산 ${esc(m.cached.at)} · ${esc(m.cached.model)} · 생성 소요 ${esc(m.elapsed_sec)}초</p>`;
-    else if (m.elapsed_sec != null) meta = `<p class="meta">실시간 생성 · 소요 ${esc(m.elapsed_sec)}초</p>`;
-    return `<div class="qa"><p class="qa-q"><span class="no">Q${i + 1}</span><span>${esc(m.q)}</span></p>${body}${src}${meta}</div>`;
+    return `<div class="qa"><p class="qa-q"><span class="no">Q${i + 1}</span><span>${esc(m.q)}</span></p>${body}${src}</div>`;
   }).join("");
   log.querySelectorAll(".chip").forEach((el) => el.addEventListener("click", () => {
     const [i, n] = el.dataset.src.split(":").map(Number);
@@ -1024,6 +954,7 @@ function renderAsk() {
     state.askSource = same ? null : { i, n };
     renderAsk();
     renderPanel();
+    if (state.askSource) openDrawer();
   }));
 }
 
@@ -1031,7 +962,7 @@ function renderAskPanel() {
   const sel = state.askSource;
   const m = sel && state.asks[sel.i];
   const source = m && m.sources[sel.n];
-  $("panel").innerHTML = `<div class="panel-head"><h3>인용 조항 원문</h3></div>
+  $("panel").innerHTML = `<div class="panel-head"><h3>인용 조항 원문</h3>${CLOSE_BTN}</div>
     <div class="panel-body">${source
       ? `<p class="subject">${esc(chipLabel(source))}</p>
         <div class="meta">Q${sel.i + 1} · ${esc(m.q)}</div>
@@ -1079,15 +1010,13 @@ function renderAskExamples() {
     $("ask-ex").innerHTML = `<span class="note">예시 답변이 없습니다. <code>make precompute-ask</code> 로 만드세요.</span>`;
     return;
   }
-  $("ask-ex").innerHTML = `<span class="label">사전 계산 예시</span>` +
+  $("ask-ex").innerHTML = `<span class="label">예시</span>` +
     c.asks.map((a, n) => `<button type="button" data-n="${n}">${esc(a.question)}</button>`).join("");
   $("ask-ex").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
     if (state.asks.some((m) => m.started)) return;
     const a = c.asks[Number(b.dataset.n)];
-    const at = String(c.generated_at || "").replace("T", " ").slice(0, 16);
-    // 시연용 연출입니다. 저장된 답을 3~4초 뒤에 보여주고, 답 아래 "사전 계산" 표시는 남깁니다.
-    runAsk(a.question, () => new Promise((resolve) => setTimeout(
-      () => resolve({ ...a, cached: { at, model: c.model } }), 3000 + Math.random() * 1000)));
+    // 시연용 연출입니다. 저장된 답을 3~4초 뒤에 보여줍니다.
+    runAsk(a.question, () => new Promise((resolve) => setTimeout(() => resolve({ ...a }), 3000 + Math.random() * 1000)));
   }));
 }
 
@@ -1113,17 +1042,12 @@ function setView(view) {
   state.view = view;
   document.querySelectorAll("#seg button").forEach((b) => b.setAttribute("aria-selected", b.dataset.view === view));
   document.querySelectorAll(".nav[data-view]").forEach((b) => b.setAttribute("aria-current", b.dataset.view === view));
+  renderStats();   // 요약 카드 숫자가 보기 범위를 따릅니다
 }
 
 document.querySelectorAll("#seg button, .nav[data-view]").forEach((b) => b.addEventListener("click", () => {
   setMainTab("queue");
   setView(b.dataset.view);
-  renderRows();
-}));
-
-document.querySelectorAll(".filter").forEach((f) => f.addEventListener("click", () => {
-  document.querySelectorAll(".filter").forEach((x) => x.setAttribute("aria-pressed", x === f));
-  state.filter = f.dataset.level;
   renderRows();
 }));
 
@@ -1142,23 +1066,47 @@ $("nav-docs").addEventListener("click", () => {
 });
 $("docs-close").addEventListener("click", () => $("docs-modal").classList.remove("show"));
 $("docs-modal").addEventListener("click", (e) => { if (e.target === $("docs-modal")) $("docs-modal").classList.remove("show"); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("docs-modal").classList.remove("show"); });
-
-$("reload").addEventListener("click", async () => {
-  await load();
-  renderAll();
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  $("docs-modal").classList.remove("show");
+  closeDrawer();
 });
+
+/* ── 작은 화면 서랍 — 1150px 미만에서만 패널을 오른쪽 서랍으로 띄웁니다 ── */
+const CLOSE_BTN = '<button class="drawer-close" aria-label="닫기">×</button>';
+const narrow = matchMedia("(max-width: 1150px)");
+
+function openDrawer() {
+  if (!narrow.matches) return;
+  $("panel").classList.add("open");
+  $("drawer-back").classList.add("show");
+  document.body.classList.add("drawer-open");
+}
+
+function closeDrawer() {
+  $("panel").classList.remove("open");
+  $("drawer-back").classList.remove("show");
+  document.body.classList.remove("drawer-open");
+}
+
+$("drawer-back").addEventListener("click", closeDrawer);
+// 패널 내용은 다시 그려지므로 닫기 버튼은 패널에 위임합니다.
+$("panel").addEventListener("click", (e) => { if (e.target.closest(".drawer-close")) closeDrawer(); });
+// 넓은 화면으로 바뀌면 서랍 상태를 풀어 배경 막이 남지 않게 합니다.
+narrow.addEventListener("change", (e) => { if (!e.matches) closeDrawer(); });
 
 function renderFooter() {
   const r = state.results, s = r.summary;
+  const at = String(r.generated_at || "").replace("T", " ").slice(0, 16);
+  // 판정 실패 건은 "주의" 로 기록되므로, 모델이 주의로 본 건과 구분하도록 있을 때만 알립니다.
   const failed = s.failed
-    ? `<span class="warn">판정 실패 ${s.failed}건 — 구조화 출력 파싱 실패, 해당 건은 '주의'로 기록</span>`
-    : "판정 실패 0건";
-  $("foot").innerHTML = `계산 시각 ${esc(r.generated_at)} · 모델 ${esc(r.model)} · 서버 ${esc(r.base_url)} · ${failed}`;
+    ? ` · <span class="warn">판정 실패 ${s.failed}건 — 해당 건은 '주의'로 기록되었습니다. 수동 검토가 필요합니다</span>`
+    : "";
+  $("foot").innerHTML = `계산 시각 ${esc(at)}${failed}`;
 }
 
 function renderAll() {
-  renderTop(); renderToolbar(); renderBanner(); renderStats(); renderCharts(); renderRows(); renderAskExamples(); renderAsk(); renderPanel(); renderFooter();
+  renderTop(); renderBanner(); renderStats(); renderCharts(); renderRows(); renderAskExamples(); renderAsk(); renderPanel(); renderFooter();
 }
 
 /* ── 툴팁 — data-tip="제목|설명". 다시 그려도 동작하도록 document 에 위임합니다 ── */
