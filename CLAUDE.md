@@ -24,16 +24,18 @@ RAD-LMENGINE/
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
 ├── data/                     검토 대상과 판정 결과
-│   ├── permissions.csv         권한 신청 6건
+│   ├── permissions.csv         권한 신청 8건 (REQ-007 · 008은 시연용 위험 예시)
 │   ├── policies.csv            정책 9건
-│   └── results.json            판정 결과 캐시 — precompute가 만든다. 손으로 고치지 않는다
+│   ├── results.json            판정 결과 캐시 — precompute가 만든다. 시연용 예시 4건이 더해져 있다 (§5)
+│   └── ask_results.json        권한 질의 예시 답변 캐시 — precompute-ask가 만든다
 ├── rad_web/                  웹 계층 (김혜정)
 │   ├── loader.py               CSV → dict, 정책 표 → policy_chain 입력 텍스트
-│   ├── review.py               엔진 호출 → 화면용 dict (최대 2회 재시도, 실패 시 "주의")
-│   ├── main.py                 FastAPI — API 4개 + 화면 서빙
-│   └── static/index.html       단일 파일 대시보드 — 분석 대기열 · 통계 탭 (CSS · JS · 아이콘 인라인)
+│   ├── review.py               엔진 호출 → 화면용 dict (최대 2회 재시도, 실패 시 "주의" · 질의는 답 자리에 원인)
+│   ├── main.py                 FastAPI — API 6개 + 화면 서빙
+│   └── static/index.html       단일 파일 대시보드 — 분석 대기열 · 통계 대시보드 · 권한 질의 탭 (CSS · JS · 아이콘 인라인)
 ├── scripts/
 │   ├── precompute.py           전 건 판정 → data/results.json
+│   ├── precompute_ask.py       권한 질의 예시 질문 3개 → data/ask_results.json (예시 질문 목록은 여기 한 곳)
 │   └── review_check.py         반복 루프 · 등급 흔들림 재현 — 수정 금지
 ├── .milvus/                  벡터 DB 파일 (Milvus Lite, git 제외)
 ├── .env · .env.example       설정. .env는 git 제외, make install이 예시에서 만든다
@@ -42,13 +44,13 @@ RAD-LMENGINE/
 ```
 
 CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_access, 신청일` / `policies.csv`: `policy_id, solution, source, destination, service, action, expires_at`.
-검토 대상은 실제 회사 데이터가 아니라 `docs/` 조항에 맞춰 설계한 사례다. REQ-001 · 002는 `review_check.py`의 사례와 같으므로 바꾸지 않는다.
+검토 대상은 실제 회사 데이터가 아니라 `docs/` 조항에 맞춰 설계한 사례다. REQ-001 · 002는 `review_check.py`의 사례와 같으므로 바꾸지 않는다. REQ-007 · 008은 4.2 위험 사례를 보여주려고 더한 시연용 예시다.
 
 ---
 
 ## 2. 엔진 연동
 
-`rad_web`은 엔진을 다시 만들지 않고 `rad_lmengine.Engine`만 호출한다. 판정 결과는 엔진 타입(`Verdict`, `PolicyReview`)의 필드를 그대로 쓰고, 화면용 값(`title`, `verdict`, `detail`, `elapsed_sec`)만 덧붙인다.
+`rad_web`은 엔진을 다시 만들지 않고 `rad_lmengine.Engine`만 호출한다. 판정 결과는 엔진 타입(`Verdict`, `PolicyReview`, `Answer`)의 필드를 그대로 쓰고, 화면용 값(`title`, `verdict`, `detail`, `question`, `elapsed_sec`)만 덧붙인다.
 
 **사전 계산** — `make precompute` (`scripts/precompute.py`)
 1. `loader`가 CSV 두 개를 읽는다.
@@ -57,29 +59,39 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 3. 정책 9건은 텍스트로 풀어 `Engine.policy_chain().invoke({policies})` → `PolicyReview`. **이 체인은 검색을 하지 않아 기준 문서를 보지 않는다.**
 4. 결과를 `data/results.json`에 쓴다. 파싱이 실패하면 2회까지 다시 시도하고, 그래도 실패하면 `level="주의"`, `reason="판정 실패: <원인>"`으로 남긴다.
 
+**권한 질의 예시** — `make precompute-ask` (`scripts/precompute_ask.py`)
+- 예시 질문 3개를 `Engine.rag_chain(structured=True).invoke(질문)`에 넣어 `Answer`(answer · sources)를 `data/ask_results.json`에 쓴다. `results.json`은 건드리지 않는다.
+- 이 체인은 `docs/`만 검색한다. 신청 목록 · 정책 표는 모르므로, 질문에 적힌 부서 · 직무와 기준 문서로만 답한다.
+
 **화면** — `make web` (`rad_web/main.py`)
 
 | API | 하는 일 | 엔진 호출 |
 |---|---|---|
 | `GET /api/results` | `results.json` 전체 (없으면 503) | 없음 — 캐시만 읽는다 |
-| `GET /api/health` | 상단 배지: 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` | `engine.models()`, `documents.is_empty()` |
+| `GET /api/asks` | `ask_results.json` 전체 (없으면 503) — 권한 질의 예시 버튼용 | 없음 — 캐시만 읽는다 |
+| `GET /api/health` | 헤더 경고: 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` | `engine.models()`, `documents.is_empty()` |
 | `GET /api/regulations` | `docs/` 원문 (근거 조항 전문 표시용) | 없음 |
 | `POST /api/review/{id}` | 권한 신청 1건 실시간 재판정 (없는 ID는 404) | `review_chain` — 위 2번과 같은 경로 |
+| `POST /api/ask` | 권한 질의 실시간 답변. 입력 `{"question"}` (공백 제외 1~500자, 벗어나면 422), 출력 `answer · sources · elapsed_sec · failed` | `rag_chain(structured=True)` |
 
-- `Engine()`과 `review_chain`은 앱 시작 시 1회만 만든다. CORS `*`는 데모 전용이다.
-- 실시간 재판정 결과는 화면 메모리에서만 바뀐다. `results.json`은 그대로이고, 새로고침하면 캐시 결과로 돌아온다.
+- `Engine()` · `review_chain` · `rag_chain`은 앱 시작 시 1회만 만든다. CORS `*`는 데모 전용이다.
+- 실시간 재판정 결과 · 운영자 결정 · 권한 질의 기록은 화면 메모리에만 있다. 파일은 그대로이고, 새로고침하면 캐시 결과로 돌아온다.
 
 **화면 필드의 출처**
 
 | 화면 | 출처 |
 |---|---|
-| 등급 · AI 판정 | `Verdict.level`. 판정 문구는 등급에서 파생 (정상 → 승인 권고, 주의 → 추가 검토, 위험 → 반려 권고) |
-| AI 판단 근거 | `Verdict.reason` — 모델이 생성 |
+| 헤더 경고 | `/api/health`의 `ok`가 false일 때만 "AI 엔진 점검 필요". 원인(연결 끊김 · 모델 없음 · 인덱스 비어 있음)은 툴팁. 페이지를 열 때 한 번 확인한다 |
+| 요약 카드 | 정상 · 주의 · 위험 건수. 숫자는 지금 보기 범위(전체 · 권한 신청 · 정책 검토)를 따른다. 누르면 그 등급만 보고, 다시 누르면 전체 |
+| 등급 · AI 판정 | `Verdict.level`. 판정 문구는 등급에서 파생 (정상 → 승인 권고, 주의 → 추가 검토, 위험 → 반려 권고). 정책 행은 `kind · level` (예: "충돌 · 주의") |
+| 판단 이유 | `Verdict.reason` — 모델이 생성 |
 | 권고 조치 | `Verdict.recommendation` — 모델이 생성 |
-| Vector DB 참조 문맥 | `Verdict.sources` — 모델이 밝힌 근거 문서. 누르면 `docs/` 원문에서 해당 조항을 잘라 보여준다 |
+| 근거 조항 | `Verdict.sources` — 모델이 밝힌 근거 문서. 누르면 `docs/` 원문에서 해당 조항을 잘라 보여준다 |
 | 상세 요청 | `permissions.csv` 원본 행 |
 | 정책 검토 행 | `PolicyIssue`의 `kind` · `level` · `policy_ids` · `reason` · `recommendation` |
 | 통계 대시보드 | 도넛 = `summary`의 정상 · 주의 · 위험. 부서별 막대 = 권한 신청을 신청자 첫 단어(부서)로 묶은 등급 건수. 차트는 라이브러리 없이 SVG · CSS로 그린다 |
+| 권한 질의 | 답 = `Answer.answer`, 근거 조항 = `Answer.sources` → 누르면 오른쪽 패널에 인용 조항 원문. 예시 버튼은 `ask_results.json`의 답을 3~4초 로딩 연출 뒤 보여주고, 직접 입력한 질문은 `/api/ask`로 실시간 생성한다. 등급 배지는 달지 않는다 (`Answer`에 등급이 없음) |
+| 하단 | 계산 시각 = `results.json`의 `generated_at`. 판정 실패는 1건 이상일 때만 경고 |
 
 ---
 
@@ -91,6 +103,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 | `make health` | 서버 · 모델 · 인덱스 확인 |
 | `make index` | `docs/` 적재 (바뀐 파일만 다시 임베딩) |
 | `make precompute` | `data/results.json` 재계산 (맥 기준 약 25분) |
+| `make precompute-ask` | `data/ask_results.json` 재계산 (약 1분) |
 | `make web` | 대시보드 http://localhost:8000 |
 
 설정은 `.env` 한 곳에서 나온다. 코드에 주소 · 모델명을 하드코딩하지 않는다. 두 환경 모두에서 동작해야 한다.
@@ -103,7 +116,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 서버 주소가 설정 한 줄로 바뀌는 구조가 제안서의 "향후 사내 환경 이전" 요구에 해당한다.
 9/27에는 맥에서 팀 서버로 접속되지 않았다 (8초 타임아웃).
 
-**Milvus Lite 파일 락**: DB 파일은 한 프로세스만 열 수 있다. `make web`이 떠 있으면 `make precompute` · `make index` · `make review-check`가 실패하므로 서버를 끄고 돌린다.
+**Milvus Lite 파일 락**: DB 파일은 한 프로세스만 열 수 있다. `make web`이 떠 있으면 `make precompute` · `make precompute-ask` · `make index` · `make review-check`가 실패하므로 서버를 끄고 돌린다.
 
 ---
 
@@ -115,13 +128,15 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 - ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제), React · Tailwind · 빌드 도구
 - ❌ 데이터베이스 · 로그인 · 파일 업로드
 - ❌ 정책 자동 수정 · 권한 자동 승인 — 운영자 결정 버튼은 화면 메모리에만 기록한다
-- ❌ `data/results.json`을 손으로 고치기 · 근거 없는 목업 데이터 — 화면의 판정은 엔진 출력이어야 한다
+- ❌ 엔진 출력 항목을 손으로 고치기 · 근거 없는 목업 데이터 — 시연용 예시는 새 항목으로만 더하고 `"example": true`를 단다. 예시 문구도 `docs/` 조항에 근거해야 한다 (§5)
 - ❌ 여러 모듈을 한꺼번에 바꾸기 — 하나씩 바꾸고 확인한다. 막히면 우회하지 말고 사용자에게 보고한다
 
 화면 규칙 (사용자 피드백):
+- 배포된 운영자 화면 기준으로 판단한다. 운영자 판단에 쓰지 않는 정보(모델명 · 서버 주소 · 폐쇄망 배지 · "연동 예정" · "사전 계산" 표시)와 중복 정보는 두지 않고, 엔진 이상 · 판정 실패처럼 문제가 있을 때만 알린다. 시연 설명(§7)을 이유로 요소를 남기지 않는다. 화면이 바뀌면 이 문서를 고친다.
+- 1150px 미만에서는 오른쪽 패널을 서랍으로 띄운다 (행 · 근거 칩 클릭 → 열림, × · Esc · 바깥 클릭 → 닫힘). 1150px 이상은 2단 배치.
 - 이모지 아이콘을 쓰지 않는다. 등급 표시는 CSS 점 `.ldot` (8px 점 + 같은 색 반투명 3px 링).
 - 툴팁(`data-tip="제목|설명"`)은 아이콘만 있는 요소와 화면에 없는 정보를 주는 요소에만 단다. 보이는 글자를 되풀이하는 툴팁은 달지 않는다.
-- 색상: 강조 `#EA002C` · 보조 `#FF7A00` · 정상 `#2E7D5B` · 본문 `#111111`/`#666666` · 배경 `#F5F5F6` + 흰 카드. SK쉴더스 CI 컬러는 흰 배경에서만 쓴다 (예외: 상단 검은 바의 방패 로고 — CI 규정 확인 필요).
+- 색상: 강조 `#EA002C` · 보조 `#FF7A00` · 정상 `#2E7D5B` · 본문 `#111111`/`#666666` · 배경 `#F5F5F6` + 흰 카드. SK쉴더스 CI 컬러는 흰 배경에서만 쓴다 (예외: 상단 검은 바의 방패 로고 — CI 규정 확인 필요). 검은 바 위의 엔진 경고는 흰 알약에 빨간 글자로 띄운다.
 - 폰트: `-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif`
 
 코드 주석은 엔진 코드처럼 "~합니다"체로, 코드만 봐서는 알 수 없는 이유만 짧게 쓴다.
@@ -130,8 +145,9 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 
 ## 5. 판정 결과 — 기대와 현재
 
-현재 `data/results.json`: 2026-09-27, 개인 맥 `qwen2.5:7b`. 전체 11건 — 정상 3 / 주의 8 / **위험 0**, 파싱 실패 0.
-위험이 0건이라 알림 배너와 종 배지가 뜨지 않는다.
+현재 `data/results.json` = 엔진 출력 11건(2026-09-27, 개인 맥 `qwen2.5:7b` — 정상 3 / 주의 8 / **위험 0**, 파싱 실패 0) + **시연용 위험 예시 4건**(`"example": true` — REQ-007 · 008, FW-001 · FW-006 문제).
+화면에는 15건 — 정상 3 / 주의 8 / 위험 4가 뜨고, 위험 배너와 종 배지가 나온다. 엔진은 위험을 한 건도 내지 않았다. 예시는 위험 등급 화면을 보여주려고 더한 것이고, 엔진 출력 11건은 바꾸지 않았다.
+`make precompute`를 돌리면 예시가 사라지고 REQ-007 · 008도 엔진이 판정한다.
 
 | ID | 신청 | 기대 | 근거 조항 | 현재 |
 |---|---|---|---|---|
@@ -141,17 +157,27 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 | **REQ-004** | **감사팀(감사위 승인) → 인사정보(HR_MASTER)** | **정상** | **3.2 단서** | 정상 ✅ |
 | REQ-005 | 마케팅팀 → 방화벽 정책 변경 | 위험 | 4.2 | 정상 ❌ 미탐 |
 | REQ-006 | 인프라운영팀 → PAM 경유 관리자 | 정상 | 6.2 | 주의 ❌ |
+| REQ-007 | 재무팀 → 급여 테이블 수정 (인사팀장 승인 없음) | 위험 | 3.3, 4.2 | 예시 — 엔진 판정 아님 |
+| REQ-008 | 인프라운영팀 → 운영 DB 관리자 연장 (115일 미사용) | 위험 | 4.2 | 예시 — 엔진 판정 아님 |
 
 | 정책 | 기대 | 근거 조항 | 현재 |
 |---|---|---|---|
-| FW-001 | 과도한 허용 | 5.2 | ❌ FW-003과 "중복"으로 잘못 묶음 |
+| FW-001 | 과도한 허용 | 5.2 | ❌ FW-003과 "중복"으로 잘못 묶음 → 화면에는 예시 "과도한 허용 · 위험"을 더함 |
 | FW-002 ↔ FW-003 | 중복 | 5.3 | ❌ 위와 같음 |
 | FW-004 ↔ FW-005 | 충돌 | 5.1 | ✅ |
 | SWG-001 ↔ DLP-001 | 충돌 | 6.1 | ❌ 각각 "과도한 허용"으로 분리 |
 | PAM-001 | 과도한 허용 | 6.2 | ✅ |
-| FW-006 | 과도한 허용 | 6.3 | ❌ 못 찾음 |
+| FW-006 | 과도한 허용 | 6.3 | ❌ 못 찾음 → 화면에는 예시 "과도한 허용 · 위험"을 더함 |
 
 **REQ-002 · REQ-004가 가장 중요하다.** 정상을 정상으로 판정하는 것(오탐률)이 실무 도입을 좌우한다. 두 건은 현재 모두 맞았다.
+
+권한 질의 예시 답변 (`data/ask_results.json` — 2026-09-30, `qwen2.5:7b`, 두 번 계산해 나은 쪽):
+
+| 예시 질문 | 인용 | 결과 |
+|---|---|---|
+| 1. 인사팀 김민수 → 급여 테이블(HR_SALARY) | 3.3 | ✅ |
+| 2. 감사팀 담당자 → 인사 정보(HR_MASTER) | 3.2 | ⚠️ 원문 "인사팀 소속 임직원"을 "감사팀 소속 임직원"으로 옮겼다. 두 번 계산해도 같았다 — 시연에서 누르지 않는다 |
+| 3. 개발팀 사원 → 운영 DB 관리자 | 3.1 | ✅ (1차 계산에서는 조항 번호가 빠져 문서 전문이 떴다) |
 
 ---
 
@@ -160,6 +186,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 - **검색은 병목이 아니다.** 두 문서가 청크 4개뿐이라 `top_k=4`가 이미 전부를 검색한다 (`top_k=8`로 올려도 같은 4개). `RAD_TOP_K` · 청크 크기 조정은 문서가 늘어나기 전까지 효과가 없다.
 - **소형 모델 한계** (`qwen2.5:7b`): 반복 루프로 판정 1건이 380~417초까지 늘어나고(9/27 6건 중 3건), 같은 입력에도 등급이 바뀐다 (REQ-005: 캐시 정상 → 재판정 주의). 판정 1건은 20초대에서 7분까지 걸린다.
 - **정책 검토는 기준 문서를 보지 않는다** (§2). 6.1 · 6.3 같은 사내 규칙은 모델이 알 수 없다.
+- **`rag_chain`의 sources 형식이 매번 다르다.** 조항 번호가 빠지면 근거 칩에 문서 이름만 뜨고, 누르면 문서 전문이 나온다.
 - **repeat_penalty는 쓰지 않는다.** 9/27 같은 6건 + 정책으로 비교한 결과:
 
 | 구성 | 판정 1건 | 권한 적중 | 정책 적중 | 등급 분포 |
@@ -172,24 +199,27 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 
 ---
 
-## 7. 시연 (9/30, 5분)
+## 7. 시연 (9/30 산학 자문 멘토링, 5분)
 
-**준비**: Ollama 앱 켜기 → `make health` → (팀 서버를 쓸 수 있으면 `.env` 두 줄을 바꾸고 `make web`을 끈 채 `make precompute`) → `make web`
+실제 기능 시연이 아니라 "이런 방식이 맞는가"를 묻는 자리다. 화면은 배포된 운영자 화면처럼 보여주되, **시작할 때 "위험 4건과 권한 질의 예시 답은 미리 준비한 예시"라고 먼저 말한다.**
 
-1. 헤더 배지 — Ollama 연결됨 · 모델명, 폐쇄망 모드 · `localhost:11434`. 폐쇄망 배지에 마우스를 올려 — "클라우드 AI로 나가는 트래픽이 없습니다. `.env` 한 줄로 사내 서버로 옮겨집니다"
-2. 요약 지표 — 전체 건수와 위험 건수
-3. REQ-001(영업팀 → 급여 테이블) — 기대는 위험(3.3). ⚠️ 현재 맥 결과는 "주의" → 팀 서버 결과가 없으면 소형 모델 한계로 설명한다
-4. REQ-002(인사팀 → 인사정보) → 정상, REQ-004와 나란히 — "같은 민감 정보라도 직무와 승인 절차가 맞으면 통과시킵니다"
-5. [승인] 버튼 — "AI는 권고하고, 결정은 운영자가 합니다"
-6. 실시간 재판정 — 수십 초~수 분 걸리므로 시작할 때 눌러 두고 마지막에 돌아온다. ⚠️ 결과가 캐시와 달라질 수 있다. REQ-002에서 누르면 핵심 사례가 뒤집힐 수 있다 (새로고침하면 캐시로 돌아옴)
-7. 정책 검토 탭 → FW-004 ↔ FW-005 충돌로 마무리 (현재 결과와 일치)
+**준비**: Ollama 앱 켜기 → `make health` → `make web` (예시 답을 다시 만들려면 `make web`을 끈 채 `make precompute-ask`)
 
-화면의 목록은 실시간 유입이 아니라 사전 계산 결과다. 화면 하단에 계산 시각이 나온다.
+1. 위험 배너 · 요약 카드 — 정상 3 · 주의 8 · 위험 4. [위험] 카드를 눌러 위험만 본다
+2. REQ-007(재무팀 → 급여 테이블 수정) → 반려 권고. 근거 조항 3.3을 눌러 원문을 보여준다
+3. REQ-002(인사팀 → 인사정보) → 정상, REQ-004와 나란히 — "같은 민감 정보라도 직무와 승인 절차가 맞으면 통과시킵니다"
+4. [승인] 버튼 — "AI는 권고하고, 결정은 운영자가 합니다"
+5. 정책 검토 → FW-004 ↔ FW-005 충돌 (엔진 결과, 기대와 일치)
+6. 권한 질의 탭 → 예시 1번 · 3번 (2번은 누르지 않는다, §5). 3~4초 로딩은 연출이고 저장된 답을 보여준다
+7. 멘토에게 물을 것 — REQ-001처럼 소형 모델(`qwen2.5:7b`)이 위험을 주의로 낮추는 문제 (§5 · §6). 모델명 · 폐쇄망 구조는 화면에 없으므로 말로 설명한다 ("클라우드로 나가는 트래픽이 없고, `.env` 한 줄로 사내 서버로 옮겨집니다")
+
+- [실시간 재판정]은 수십 초~수 분 걸리고 결과가 캐시와 달라질 수 있다. 쓰려면 엔진 항목에서 시작할 때 눌러 두고 마지막에 돌아온다. 예시 건(REQ-007 · 008)과 REQ-002에서는 누르지 않는다 (새로고침하면 캐시로 돌아옴).
+- 화면의 목록은 실시간 유입이 아니라 사전 계산 결과다. 화면 하단에 계산 시각이 나온다.
 
 ---
 
 ## 8. 남은 일
 
-1. **팀 서버 `gpt-oss:20b`로 재계산하고 §5와 대조한다.** 코드 변경 없이 `.env` 두 줄이면 된다. 맥에서 팀 서버로 가는 접속 경로부터 확보해야 한다.
+1. **팀 서버 `gpt-oss:20b`로 재계산하고 §5와 대조한다.** 코드 변경 없이 `.env` 두 줄이면 된다. 맥에서 팀 서버로 가는 접속 경로부터 확보해야 한다. 재계산하면 §5의 시연용 예시가 사라진다.
 2. 정책 검토가 기준 문서를 보도록 할지 엔진 담당자(양현성)와 상의한다 (`policy_chain`에 검색 추가 등). 엔진 코드이므로 웹 쪽에서 우회하지 않는다.
 3. 이번 범위 밖: 이메일 · 메신저 알림 연동, 실제 솔루션 API 수집(`rad_web/loader.py` 교체).
