@@ -11,8 +11,7 @@ from collections.abc import Iterable, Iterator, Mapping
 from pathlib import Path
 from typing import Any, Protocol
 
-# 어느 디렉터리에서 실행해도 상대 경로가 같은 파일을 가리키도록 프로젝트 루트를 기준으로 삼습니다.
-ROOT = Path(__file__).resolve().parent.parent
+from .. import ROOT
 
 Row = dict[str, str]
 

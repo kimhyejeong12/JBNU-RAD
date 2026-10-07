@@ -16,8 +16,8 @@ from pathlib import Path
 os.environ.setdefault("GRPC_VERBOSITY", "NONE")  # Milvus Lite 의 gRPC 경고를 숨깁니다.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from rad_data import event_review_input, group_by_user, latest, load_events, parse_datetime  # noqa: E402
-from rad_lmengine import Engine  # noqa: E402
+from sentinelai.data import event_review_input, group_by_user, latest, load_events, parse_datetime  # noqa: E402
+from sentinelai.engine import Engine  # noqa: E402
 
 RETRIES = 2
 
@@ -67,7 +67,7 @@ def main() -> int:
             print(f"  판정 실패 ({elapsed}초): {error}")
             results.append({"user": user, **inputs, "failed": True, "error": error})
             continue
-        # 알림(rad_lmengine/alert.py 의 Notifier)을 구축하면 주의 · 위험을 여기서 보냅니다.
+        # 알림(sentinelai/engine/alert.py 의 Notifier)을 구축하면 주의 · 위험을 여기서 보냅니다.
         print(f"  {verdict.level} ({elapsed}초) {verdict.reason}")
         print(f"  권고: {verdict.recommendation}")
         print(f"  근거: {', '.join(verdict.sources) or '없음'}")

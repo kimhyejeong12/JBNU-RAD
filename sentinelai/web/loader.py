@@ -4,7 +4,8 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+from .. import ROOT
+
 DATA_DIR = ROOT / "data"
 
 PERMISSION_COLUMNS = ["id", "requester", "requested_access", "current_access", "신청일"]

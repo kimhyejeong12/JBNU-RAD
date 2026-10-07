@@ -1,7 +1,7 @@
-# RAD-LMENGINE LLM 코어
+# SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
 PY := .venv/bin/python
 DOCKER ?= docker
-IMAGE := rad-lmengine:0.6.0
+IMAGE := sentinelai:0.6.0
 DOCS ?= docs
 
 .PHONY: help install health models config index index-policies search ask chat review-check review-events precompute precompute-ask web docker-build docker-run clean
@@ -32,28 +32,28 @@ install:
 	@test -f .env || (cp .env.example .env && echo ".env 생성됨")
 
 health:
-	$(PY) -m rad_lmengine.cli health
+	$(PY) -m sentinelai.engine.cli health
 
 models:
-	$(PY) -m rad_lmengine.cli models
+	$(PY) -m sentinelai.engine.cli models
 
 config:
-	$(PY) -m rad_lmengine.cli config
+	$(PY) -m sentinelai.engine.cli config
 
 index:
-	$(PY) -m rad_lmengine.cli index $(DOCS)
+	$(PY) -m sentinelai.engine.cli index $(DOCS)
 
 index-policies:
 	$(PY) scripts/index_policies.py "$(or $(SRC),data/policies.csv)"
 
 search:
-	$(PY) -m rad_lmengine.cli search "$(Q)"
+	$(PY) -m sentinelai.engine.cli search "$(Q)"
 
 ask:
-	$(PY) -m rad_lmengine.cli ask "$(Q)"
+	$(PY) -m sentinelai.engine.cli ask "$(Q)"
 
 chat:
-	$(PY) -m rad_lmengine.cli chat "$(Q)"
+	$(PY) -m sentinelai.engine.cli chat "$(Q)"
 
 review-check:
 	$(PY) scripts/review_check.py -n $(or $(N),3)
@@ -68,7 +68,7 @@ precompute-ask:
 	$(PY) scripts/precompute_ask.py
 
 web:
-	$(PY) -m uvicorn rad_web.main:app --reload --port 8000
+	$(PY) -m uvicorn sentinelai.web.main:app --reload --port 8000
 
 docker-build:
 	$(DOCKER) build -t $(IMAGE) .

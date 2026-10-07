@@ -1,8 +1,8 @@
 """검토 대상 데이터 계층 — 소스(어디서 읽나) × 매퍼(어떤 레코드로 바꾸나).
 
-엔진(rad_lmengine)을 가져오지 않습니다. 엔진 · 웹 · 스크립트가 같은 레코드 타입을 나눠 씁니다.
+엔진(sentinelai.engine)을 가져오지 않습니다. 엔진 · 웹 · 스크립트가 같은 레코드 타입을 나눠 씁니다.
 
-    from rad_data import event_review_input, group_by_user, load_events, load_requests
+    from sentinelai.data import event_review_input, group_by_user, load_events, load_requests
 
     for event in load_events("docs/솔루션 별 Mock 데이터.csv").records:
         print(event.describe())

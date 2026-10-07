@@ -13,8 +13,8 @@ from pathlib import Path
 os.environ.setdefault("GRPC_VERBOSITY", "NONE")  # Milvus Lite 의 gRPC 경고를 숨깁니다.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from rad_data import load_policies  # noqa: E402
-from rad_lmengine import Engine  # noqa: E402
+from sentinelai.data import load_policies  # noqa: E402
+from sentinelai.engine import Engine  # noqa: E402
 
 
 def main() -> int:

@@ -1,4 +1,4 @@
-# RAD-LMENGINE
+# SentinelAI
 
 > Claude Code가 세션 시작 시 읽는 프로젝트 안내서. 팀원도 같은 문서를 본다.
 
@@ -11,8 +11,9 @@
 
 정책은 RAG 저장소 한 곳에 쌓고, 두 기능 모두 거기서 근거를 찾는다. 새 작업은 둘 중 어느 쪽에 쓰이는지부터 정한다.
 
-로컬 LLM · RAG 기반 AI 보안 정책 검토 및 접근 권한 의사결정 지원 시스템 (참여기업 SK쉴더스, 전북대 캡스톤 팀 RAD).
-LLM · RAG 엔진 `rad_lmengine/`(양현성) 위에 웹 대시보드 `rad_web/`(김혜정)을 붙였다. 9월 30일 산학 자문 미팅에서 5분간 시연한다.
+로컬 LLM · RAG 기반 AI 보안 정책 검토 · 로그 감시 시스템. **전북대학교 RAD(RAG & Decision) 팀과 SK쉴더스가 함께 추진하는 산학 캡스톤 프로젝트**다.
+프로젝트 이름은 SentinelAI로 확정했다 (2026-10-07). 추진 주체(전북대학교 RAD · SK쉴더스)는 문서 · 화면 · 코드 설명에서 빼지 않는다. 로그 출처인 Microsoft Sentinel과 헷갈리지 않게, 그쪽은 항상 "Microsoft Sentinel"로 쓴다.
+LLM · RAG 엔진 `sentinelai/engine/`(양현성) 위에 웹 대시보드 `sentinelai/web/`(김혜정)을 붙였다. 9월 30일 산학 자문 미팅에서 5분간 시연한다.
 
 **원칙**: AI는 근거를 제공하고 등급을 매길 뿐, 승인 · 반려의 최종 결정은 보안 운영자가 한다.
 
@@ -21,26 +22,32 @@ LLM · RAG 엔진 `rad_lmengine/`(양현성) 위에 웹 대시보드 `rad_web/`(
 ## 1. 폴더 구조
 
 ```
-RAD-LMENGINE/
-├── rad_lmengine/             LLM · RAG 엔진 (양현성) — 수정 금지
-│   ├── engine.py               Engine — 설정 · LLM · DocumentStore · 체인 진입점 (engine.review_chain() 등은 chains/로 넘긴다)
-│   ├── chains/                 체인 — 한 파일에 한 기능
-│   │   ├── access.py             review_chain — 권한 신청 검토 (정책 이해)
-│   │   ├── policy.py             policy_chain — 정책 모순 판정 (정책 이해)
-│   │   ├── answer.py             answer_chain · rag_chain — 질의응답 (정책 이해)
-│   │   ├── event.py              event_chain — 로그 ↔ 정책 비교 (로그 감시)
-│   │   └── retrieval.py          종류별 검색 (조항 · 규칙) — 체인들이 함께 쓴다
-│   ├── rag.py                  DocumentStore — 기준 조항(clause) · 솔루션 규칙(rule)을 한 컬렉션에 적재, 종류별 검색
-│   ├── alert.py                Notifier 인터페이스 자리 — 아직 구현 없음 (§8)
-│   ├── prompt.py               프롬프트 (권한 검토 · 로그 검토 · 정책 검토 · 질의응답)
-│   ├── types.py                출력 타입 Verdict · PolicyReview · Answer
-│   ├── config.py               Settings — .env 읽기
-│   └── cli.py                  make health · index · ask 등이 부르는 CLI
-├── rad_data/                 검토 대상 데이터 계층 (양현성) — 엔진과 독립. 소스(CSV · JSON · 메모리) × 매퍼
-│   ├── types.py                SecurityEvent · AccessRequest · PolicyRule · LoadResult
-│   ├── source.py               RowSource — CsvSource · JsonSource · MemorySource, 확장자로 고르는 open_source
-│   ├── mapper.py               Mapper — EventMapper(Sentinel 로그) · AccessRequestMapper · PolicyRuleMapper
-│   └── events.py               로그 시각 필터(between · latest) · 사용자별 묶음 → event_chain 입력
+JBNU-RAD/
+├── sentinelai/               SentinelAI 패키지. __init__.py 는 ROOT · 버전만 두고 하위 패키지를 가져오지 않는다
+│   ├── engine/                 LLM · RAG 엔진 (양현성) — 수정 금지
+│   │   ├── engine.py             Engine — 설정 · LLM · DocumentStore · 체인 진입점 (engine.review_chain() 등은 chains/로 넘긴다)
+│   │   ├── chains/               체인 — 한 파일에 한 기능
+│   │   │   ├── access.py           review_chain — 권한 신청 검토 (정책 이해)
+│   │   │   ├── policy.py           policy_chain — 정책 모순 판정 (정책 이해)
+│   │   │   ├── answer.py           answer_chain · rag_chain — 질의응답 (정책 이해)
+│   │   │   ├── event.py            event_chain — 로그 ↔ 정책 비교 (로그 감시)
+│   │   │   └── retrieval.py        종류별 검색 (조항 · 규칙) — 체인들이 함께 쓴다
+│   │   ├── rag.py                DocumentStore — 기준 조항(clause) · 솔루션 규칙(rule)을 한 컬렉션에 적재, 종류별 검색
+│   │   ├── alert.py              Notifier 인터페이스 자리 — 아직 구현 없음 (§8)
+│   │   ├── prompt.py             프롬프트 (권한 검토 · 로그 검토 · 정책 검토 · 질의응답)
+│   │   ├── types.py              출력 타입 Verdict · PolicyReview · Answer
+│   │   ├── config.py             Settings — .env 의 SENTINELAI_* 읽기
+│   │   └── cli.py                make health · index · ask 등이 부르는 CLI
+│   ├── data/                   검토 대상 데이터 계층 (양현성) — 엔진과 독립. 소스(CSV · JSON · 메모리) × 매퍼
+│   │   ├── types.py              SecurityEvent · AccessRequest · PolicyRule · LoadResult
+│   │   ├── source.py             RowSource — CsvSource · JsonSource · MemorySource, 확장자로 고르는 open_source
+│   │   ├── mapper.py             Mapper — EventMapper(Microsoft Sentinel 로그) · AccessRequestMapper · PolicyRuleMapper
+│   │   └── events.py             로그 시각 필터(between · latest) · 사용자별 묶음 → event_chain 입력
+│   └── web/                    웹 계층 (김혜정)
+│       ├── loader.py             CSV → dict, 정책 표 → policy_chain 입력 텍스트
+│       ├── review.py             엔진 호출 → 화면용 dict (최대 2회 재시도, 실패 시 "주의" · 질의는 답 자리에 원인)
+│       ├── main.py               FastAPI — API 6개 + 화면 서빙
+│       └── static/index.html     단일 파일 대시보드 — 분석 대기열 · 통계 대시보드 · 권한 질의 탭 (CSS · JS · 아이콘 인라인)
 ├── docs/                     판정 근거 기준 문서 — 수정 금지
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
@@ -49,15 +56,10 @@ RAD-LMENGINE/
 │   ├── policies.csv            정책 9건
 │   ├── results.json            판정 결과 캐시 — precompute가 만든다. 시연용 예시 4건이 더해져 있다 (§5)
 │   └── ask_results.json        권한 질의 예시 답변 캐시 — precompute-ask가 만든다
-├── rad_web/                  웹 계층 (김혜정)
-│   ├── loader.py               CSV → dict, 정책 표 → policy_chain 입력 텍스트
-│   ├── review.py               엔진 호출 → 화면용 dict (최대 2회 재시도, 실패 시 "주의" · 질의는 답 자리에 원인)
-│   ├── main.py                 FastAPI — API 6개 + 화면 서빙
-│   └── static/index.html       단일 파일 대시보드 — 분석 대기열 · 통계 대시보드 · 권한 질의 탭 (CSS · JS · 아이콘 인라인)
 ├── scripts/
 │   ├── precompute.py           전 건 판정 → data/results.json
 │   ├── review_events.py        보안 솔루션 로그 → 사용자별 event_chain 판정 (--since 로 이후 로그만)
-│   ├── index_policies.py       솔루션 정책 규칙 → RAG 적재 (rad_data → DocumentStore.index_rules)
+│   ├── index_policies.py       솔루션 정책 규칙 → RAG 적재 (sentinelai.data → DocumentStore.index_rules)
 │   ├── precompute_ask.py       권한 질의 예시 질문 3개 → data/ask_results.json (예시 질문 목록은 여기 한 곳)
 │   └── review_check.py         반복 루프 · 등급 흔들림 재현 — 수정 금지
 ├── .milvus/                  벡터 DB 파일 (Milvus Lite, git 제외)
@@ -73,7 +75,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 
 ## 2. 엔진 연동
 
-`rad_web`은 엔진을 다시 만들지 않고 `rad_lmengine.Engine`만 호출한다. 판정 결과는 엔진 타입(`Verdict`, `PolicyReview`, `Answer`)의 필드를 그대로 쓰고, 화면용 값(`title`, `verdict`, `detail`, `question`, `elapsed_sec`)만 덧붙인다.
+`sentinelai.web`은 엔진을 다시 만들지 않고 `sentinelai.engine.Engine`만 호출한다. 판정 결과는 엔진 타입(`Verdict`, `PolicyReview`, `Answer`)의 필드를 그대로 쓰고, 화면용 값(`title`, `verdict`, `detail`, `question`, `elapsed_sec`)만 덧붙인다.
 
 **사전 계산** — `make precompute` (`scripts/precompute.py`)
 1. `loader`가 CSV 두 개를 읽는다.
@@ -86,7 +88,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 - 예시 질문 3개를 `Engine.rag_chain(structured=True).invoke(질문)`에 넣어 `Answer`(answer · sources)를 `data/ask_results.json`에 쓴다. `results.json`은 건드리지 않는다.
 - 이 체인은 기준 조항과 적재된 솔루션 규칙을 따로 검색해 이어 붙인다. 신청 목록은 모르므로, 질문에 적힌 부서 · 직무와 정책으로만 답한다. `ask_results.json`은 규칙을 적재하기 전에 계산한 것이다.
 
-**화면** — `make web` (`rad_web/main.py`)
+**화면** — `make web` (`sentinelai/web/main.py`)
 
 | API | 하는 일 | 엔진 호출 |
 |---|---|---|
@@ -125,7 +127,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 | `make install` | venv · 의존성 · `.env` 준비 (처음 한 번) |
 | `make health` | 서버 · 모델 · 인덱스 확인 |
 | `make index` | `docs/` 기준 조항 적재 (바뀐 파일만 다시 임베딩) |
-| `make index-policies SRC=정책파일` | 솔루션 정책 규칙 적재 (기본 `data/policies.csv`). `rad_lmengine.cli index --rebuild`는 규칙까지 지우므로 그 뒤에 다시 돌린다 |
+| `make index-policies SRC=정책파일` | 솔루션 정책 규칙 적재 (기본 `data/policies.csv`). `sentinelai.engine.cli index --rebuild`는 규칙까지 지우므로 그 뒤에 다시 돌린다 |
 | `make review-events SRC=로그 [SINCE=시각]` | 보안 솔루션 로그를 사용자별로 판정. 마지막에 다음 실행용 `--since` 시각을 출력 |
 | `make precompute` | `data/results.json` 재계산 (맥 기준 약 25분) |
 | `make precompute-ask` | `data/ask_results.json` 재계산 (약 1분) |
@@ -133,7 +135,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 
 설정은 `.env` 한 곳에서 나온다. 코드에 주소 · 모델명을 하드코딩하지 않는다. 두 환경 모두에서 동작해야 한다.
 
-| 환경 | `RAD_OLLAMA_BASE_URL` | `RAD_MODEL` |
+| 환경 | `SENTINELAI_OLLAMA_BASE_URL` | `SENTINELAI_MODEL` |
 |---|---|---|
 | 팀 서버 | `http://210.117.182.197:11434` | `gpt-oss:20b` |
 | 개인 맥 | `http://localhost:11434` | `qwen2.5:7b` |
@@ -147,7 +149,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 
 ## 4. 규칙
 
-- ❌ `rad_lmengine/`, `docs/`, `scripts/review_check.py` 수정. 프롬프트(`rad_lmengine/prompt.py`)도 엔진 담당자와 상의 없이 바꾸지 않는다
+- ❌ `sentinelai/engine/`, `docs/`, `scripts/review_check.py` 수정. 프롬프트(`sentinelai/engine/prompt.py`)도 엔진 담당자와 상의 없이 바꾸지 않는다
 - ❌ 엔진 기능 재구현, 엔진 타입을 대체하는 웹 전용 스키마
 - ❌ 서버 주소 · 모델명 하드코딩 — 전부 `Settings`
 - ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제), React · Tailwind · 빌드 도구
@@ -158,6 +160,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 
 화면 규칙 (사용자 피드백):
 - 배포된 운영자 화면 기준으로 판단한다. 운영자 판단에 쓰지 않는 정보(모델명 · 서버 주소 · 폐쇄망 배지 · "연동 예정" · "사전 계산" 표시)와 중복 정보는 두지 않고, 엔진 이상 · 판정 실패처럼 문제가 있을 때만 알린다. 시연 설명(§7)을 이유로 요소를 남기지 않는다. 화면이 바뀌면 이 문서를 고친다.
+- 예외: 상단 검은 바의 추진 주체 표기("전북대학교 RAD (RAG & Decision) · SK쉴더스")는 어느 폭에서도 숨기지 않는다. 720px 미만에서는 시스템 설명("AI 보안 정책 검토 시스템")을 먼저 숨긴다.
 - 1150px 미만에서는 오른쪽 패널을 서랍으로 띄운다 (행 · 근거 칩 클릭 → 열림, × · Esc · 바깥 클릭 → 닫힘). 1150px 이상은 2단 배치.
 - 탭 줄은 맨 위에 고정하고, 탭마다 그 탭에 쓰는 것만 둔다. 요약 카드(등급 필터)와 검색창은 대기열 탭 안에, 통계 탭은 패널 없이 차트를 전체 폭으로, 권한 질의 탭은 하단 계산 시각을 숨긴다.
 - 같은 동작을 하는 버튼은 한 화면에 하나만 둔다. 보기 범위(전체 · 권한 신청 · 정책 검토)는 좌측 사이드바가 맡고(건수는 툴팁), 사이드바가 없는 1150px 미만에서만 대기열 제목 줄에 세그먼트 버튼을 띄운다. 위험 알림은 종 배지 하나로 한다 (배너 없음).
@@ -211,7 +214,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 ## 6. 알려진 문제
 
 - **검색은 종류별로 한다.** RAG에는 기준 조항과 솔루션 규칙이 함께 있다. 한 번에 찾으면 규칙 9건에 조항 청크 4개가 밀려나므로, 권한 · 정책 검토는 조항만, 로그 검토는 조항과 규칙을 따로, 질의응답은 둘을 이어 붙여 쓴다. 조항은 아직 청크 4개뿐이라 `top_k=4`가 전부를 가져온다.
-- **`gpt-oss:20b`는 `RAD_NUM_PREDICT=1024`가 모자라다.** 답하기 전에 추론하느라 조항이 들어간 정책 검토에서 1024 토큰을 다 쓰고 빈 출력(`done_reason=length`)을 낸다. 10/7 측정에서 약 2000 토큰이 필요했고 4096이면 끝났다.
+- **`gpt-oss:20b`는 `SENTINELAI_NUM_PREDICT=1024`가 모자라다.** 답하기 전에 추론하느라 조항이 들어간 정책 검토에서 1024 토큰을 다 쓰고 빈 출력(`done_reason=length`)을 낸다. 10/7 측정에서 약 2000 토큰이 필요했고 4096이면 끝났다.
 - **소형 모델 한계** (`qwen2.5:7b`): 반복 루프로 판정 1건이 380~417초까지 늘어나고(9/27 6건 중 3건), 같은 입력에도 등급이 바뀐다 (REQ-005: 캐시 정상 → 재판정 주의). 판정 1건은 20초대에서 7분까지 걸린다.
 - **`rag_chain`의 sources 형식이 매번 다르다.** 조항 번호가 빠지면 근거 칩에 문서 이름만 뜨고, 누르면 문서 전문이 나온다.
 - **repeat_penalty는 쓰지 않는다.** 9/27 같은 6건 + 정책으로 비교한 결과:
@@ -248,6 +251,6 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 ## 8. 남은 일
 
 1. **팀 서버 `gpt-oss:20b`로 재계산하고 §5와 대조한다.** 코드 변경 없이 `.env` 두 줄이면 된다. 맥에서 팀 서버로 가는 접속 경로부터 확보해야 한다. 재계산하면 §5의 시연용 예시가 사라진다.
-2. **알림(Notifier) 구축** — 로그 감시의 주의 · 위험 판정을 운영자에게 보낸다. 인터페이스 자리만 `rad_lmengine/alert.py`에 두었고, `scripts/review_events.py`에서 부를 곳을 표시했다.
+2. **알림(Notifier) 구축** — 로그 감시의 주의 · 위험 판정을 운영자에게 보낸다. 인터페이스 자리만 `sentinelai/engine/alert.py`에 두었고, `scripts/review_events.py`에서 부를 곳을 표시했다.
 3. 기준 문서에 출력 · 매체 반출 조항이 없어 로그 감시가 근거 없이 판정한다. 절차서 14 · 17번(예외처리 · 매체 반출입) 원문이 필요하다.
-4. 이번 범위 밖: 이메일 · 메신저 알림 채널, 실제 솔루션 API 수집(`rad_web/loader.py` 교체).
+4. 이번 범위 밖: 이메일 · 메신저 알림 채널, 실제 솔루션 API 수집(`sentinelai/web/loader.py` 교체).

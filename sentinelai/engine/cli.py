@@ -8,7 +8,7 @@ from .engine import Engine
 
 
 class Cli:
-    """`python -m rad_lmengine.cli <command>`"""
+    """`python -m sentinelai.engine.cli <command>`"""
 
     def __init__(self, engine: Engine | None = None) -> None:
         self.engine = engine or Engine()
@@ -84,7 +84,8 @@ class Cli:
     @staticmethod
     def parser() -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(
-            prog="rad_lmengine", description="RAD-LMENGINE — 로컬 LLM·RAG 코어"
+            prog="sentinelai.engine.cli",
+            description="SentinelAI 엔진 — 로컬 LLM·RAG 코어 (전북대학교 RAD · SK쉴더스)",
         )
         sub = parser.add_subparsers(dest="command", required=True)
 

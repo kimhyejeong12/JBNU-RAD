@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, StringConstraints  # noqa: E402
 
-from rad_lmengine import Answer, Engine  # noqa: E402
+from sentinelai.engine import Answer, Engine  # noqa: E402
 
 from .loader import DATA_DIR, ROOT, load_permissions  # noqa: E402
 from .review import _attempt, review_permission  # noqa: E402
@@ -38,7 +38,11 @@ async def lifespan(app: FastAPI):
     state.clear()
 
 
-app = FastAPI(title="AI 보안 정책 검토 시스템", lifespan=lifespan)
+app = FastAPI(
+    title="SentinelAI",
+    description="AI 보안 정책 검토 시스템 — 전북대학교 RAD(RAG & Decision) · SK쉴더스",
+    lifespan=lifespan,
+)
 
 # 데모 전용 설정입니다. 사내 환경에 올릴 때는 허용 출처를 한정해야 합니다.
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])

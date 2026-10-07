@@ -8,7 +8,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from rad_lmengine import Answer, PolicyReview, Verdict
+from sentinelai.engine import Answer, PolicyReview, Verdict
 
 from .loader import format_policies, review_input
 

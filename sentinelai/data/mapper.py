@@ -43,7 +43,7 @@ def parse_datetime(value: str) -> datetime:
             parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError:
             raise ValueError(f"날짜 · 시각 형식이 아닙니다: {value!r}") from None
-    # Sentinel 의 TimeGenerated 는 UTC 라서 시간대 표기가 없으면 UTC 로 봅니다.
+    # Microsoft Sentinel 의 TimeGenerated 는 UTC 라서 시간대 표기가 없으면 UTC 로 봅니다.
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
@@ -89,7 +89,7 @@ _IGNORED = {"_ResourceId", "SourceSystem", "MG", "ManagementGroupName", "Compute
 
 
 class EventMapper(ColumnMapper):
-    """Sentinel 사용자 지정 로그(<솔루션>_CL) → SecurityEvent.
+    """Microsoft Sentinel 사용자 지정 로그(<솔루션>_CL) → SecurityEvent.
 
     WHO · WHERE · HOW 를 솔루션 공통 컬럼으로 보고 매퍼 하나로 모든 솔루션을 읽습니다.
     """
