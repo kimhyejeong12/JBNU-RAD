@@ -4,7 +4,7 @@ import argparse
 import dataclasses
 import sys
 
-from .chain import Engine
+from .engine import Engine
 
 
 class Cli:

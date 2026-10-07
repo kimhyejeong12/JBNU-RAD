@@ -2,7 +2,7 @@
 
 엔진(rad_lmengine)을 가져오지 않습니다. 엔진 · 웹 · 스크립트가 같은 레코드 타입을 나눠 씁니다.
 
-    from rad_data import load_events, load_requests
+    from rad_data import event_review_input, group_by_user, load_events, load_requests
 
     for event in load_events("docs/솔루션 별 Mock 데이터.csv").records:
         print(event.describe())
@@ -10,12 +10,18 @@
     request = load_requests("data/permissions.csv").records[0]
     engine.review_chain().invoke(request.review_input())
 
+    events = load_events("docs/솔루션 별 Mock 데이터.csv", since=last_run).records
+    for group in group_by_user(events).values():
+        engine.event_chain().invoke(event_review_input(group))
+
 새 환경은 name · rows() 를 갖춘 소스를 넘기고, 컬럼 이름만 다르면 매퍼의 columns 를 덮어씁니다.
 """
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
+from .events import between, event_review_input, group_by_user, latest
 from .mapper import AccessRequestMapper, ColumnMapper, EventMapper, Mapper, PolicyRuleMapper, parse_datetime
 from .source import CsvSource, JsonSource, MemorySource, Row, RowSource, open_source, register_source
 from .types import AccessRequest, LoadIssue, LoadResult, PolicyRule, Record, SecurityEvent
@@ -46,8 +52,18 @@ def load(target: Any, mapper: Mapper, strict: bool = False) -> LoadResult:
     return result
 
 
-def load_events(target: Any, mapper: EventMapper | None = None, strict: bool = False) -> LoadResult:
-    return load(target, mapper or EventMapper(), strict)
+def load_events(
+    target: Any,
+    mapper: EventMapper | None = None,
+    strict: bool = False,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> LoadResult:
+    """since · until 은 between() 과 같습니다. 범위 밖 로그는 오류가 아니므로 issues 에 넣지 않습니다."""
+    result = load(target, mapper or EventMapper(), strict)
+    if since or until:
+        result.records = between(result.records, since, until)
+    return result
 
 
 def load_requests(target: Any, mapper: AccessRequestMapper | None = None, strict: bool = False) -> LoadResult:
@@ -75,6 +91,10 @@ __all__ = [
     "Row",
     "RowSource",
     "SecurityEvent",
+    "between",
+    "event_review_input",
+    "group_by_user",
+    "latest",
     "load",
     "load_events",
     "load_policies",

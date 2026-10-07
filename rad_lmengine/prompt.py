@@ -41,6 +41,23 @@ class Prompts:
         ]
     )
 
+    EVENT_REVIEW = ChatPromptTemplate.from_messages(
+        [
+            ("system", SYSTEM),
+            (
+                "human",
+                "[대상 사용자]\n{subject}\n\n"
+                "[보안 솔루션 로그]\n{events}\n\n"
+                "[적용 기준 문서]\n{context}\n\n"
+                "[관련 솔루션 정책]\n{rules}\n\n"
+                "위 사용자의 행위를 기준 문서와 솔루션 정책에 비추어 판단하고, 어긋나는 조항이나 "
+                "정책이 있으면 밝히십시오. 정상 / 주의 / 위험 중 하나로 등급을 매기십시오. "
+                "기준 문서와 솔루션 정책 어디에도 이 행위를 직접 다루는 내용이 없으면 "
+                "그 사실을 판단 이유에 밝히십시오.",
+            ),
+        ]
+    )
+
     POLICY_CONFLICT = ChatPromptTemplate.from_messages(
         [
             ("system", SYSTEM),
@@ -48,8 +65,9 @@ class Prompts:
                 "human",
                 "다음은 여러 보안 솔루션에서 수집해 공통 형식으로 표준화한 정책 목록입니다.\n"
                 "--- 정책 시작 ---\n{policies}\n--- 정책 끝 ---\n\n"
-                "정책 간 중복, 상호 충돌, 과도한 허용을 찾아내고 각 항목마다 관련 정책 ID와 "
-                "위험 사유, 개선안을 제시하십시오.",
+                "[적용 기준 문서]\n{context}\n\n"
+                "기준 문서에 비추어 정책 간 중복, 상호 충돌, 과도한 허용을 찾아내고 각 항목마다 "
+                "관련 정책 ID와 위험 사유, 근거 조항, 개선안을 제시하십시오.",
             ),
         ]
     )

@@ -4,7 +4,7 @@ DOCKER ?= docker
 IMAGE := rad-lmengine:0.6.0
 DOCS ?= docs
 
-.PHONY: help install health models config index search ask chat review-check precompute precompute-ask web docker-build docker-run clean
+.PHONY: help install health models config index index-policies search ask chat review-check review-events precompute precompute-ask web docker-build docker-run clean
 
 help:
 	@echo "install         venv 생성 + 의존성 설치 + .env 준비"
@@ -12,10 +12,12 @@ help:
 	@echo "models          서버 모델 목록"
 	@echo "config          현재 설정 출력"
 	@echo "index [DOCS=경로] 문서로 벡터 인덱스 생성 (기본: docs)"
+	@echo "index-policies SRC=정책파일  솔루션 정책 규칙을 인덱스에 적재"
 	@echo "search Q=\"질의\"   인덱스 검색만"
 	@echo "ask Q=\"질문\"      인덱스를 근거로 질의응답 (RAG)"
 	@echo "chat Q=\"질문\"     모델에 직접 질의"
 	@echo "review-check    review_chain 반복 루프·등급 흔들림 재현 (N=회수)"
+	@echo "review-events SRC=로그 [SINCE=시각]  보안 솔루션 로그를 사용자별로 판정"
 	@echo "precompute      판정 결과를 data/results.json 에 미리 계산"
 	@echo "precompute-ask  권한 질의 예시 답변을 data/ask_results.json 에 미리 계산"
 	@echo "web             대시보드 실행 (http://localhost:8000)"
@@ -41,6 +43,9 @@ config:
 index:
 	$(PY) -m rad_lmengine.cli index $(DOCS)
 
+index-policies:
+	$(PY) scripts/index_policies.py "$(or $(SRC),data/policies.csv)"
+
 search:
 	$(PY) -m rad_lmengine.cli search "$(Q)"
 
@@ -52,6 +57,9 @@ chat:
 
 review-check:
 	$(PY) scripts/review_check.py -n $(or $(N),3)
+
+review-events:
+	$(PY) scripts/review_events.py "$(SRC)" $(if $(SINCE),--since "$(SINCE)")
 
 precompute:
 	$(PY) scripts/precompute.py

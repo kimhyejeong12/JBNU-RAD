@@ -5,14 +5,13 @@ from typing import Any
 import ollama
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import Runnable, RunnablePassthrough
+from langchain_core.runnables import Runnable
 from langchain_ollama import ChatOllama
 from pydantic import BaseModel
 
+from . import chains
 from .config import Settings
-from .prompt import Prompts
 from .rag import DocumentStore
-from .types import Answer, PolicyReview, Verdict
 
 
 class Engine:
@@ -55,38 +54,24 @@ class Engine:
             return prompt | model.with_structured_output(schema)
         return prompt | model | StrOutputParser()
 
-    def answer_chain(self, structured: bool = False, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-        """근거를 직접 넘기는 질의응답. 입력: context, question"""
-        return self.chain(Prompts.ANSWER, Answer if structured else None, **kwargs)
+    # 체인 본체는 chains/ 에 기능별로 있습니다. 기존 호출(engine.review_chain() 등)을 그대로 두려고 여기서 넘겨 줍니다.
 
-    def policy_chain(self, structured: bool = True, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-        """정책 중복·충돌·과도한 허용 검토. 입력: policies"""
-        return self.chain(Prompts.POLICY_CONFLICT, PolicyReview if structured else None, **kwargs)
+    def review_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        """접근 권한 신청 검토 — chains/access.py"""
+        return chains.review_chain(self, *args, **kwargs)
 
-    def review_chain(
-        self, retrieve: bool = True, k: int | None = None, **kwargs: Any
-    ) -> Runnable[dict[str, Any], Any]:
-        """접근 권한 적정성 판단.
+    def policy_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        """정책 모순 판정 — chains/policy.py"""
+        return chains.policy_chain(self, *args, **kwargs)
 
-        입력: requester, requested_access, current_access
-        (retrieve=False 면 context 도 직접 넘겨야 합니다.)
-        """
-        reviewer = self.chain(Prompts.ACCESS_REVIEW, Verdict, **kwargs)
-        if not retrieve:
-            return reviewer
-        lookup = self._review_query | self.documents.retriever(k) | DocumentStore.format
-        return RunnablePassthrough.assign(context=lookup) | reviewer
+    def event_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        """로그 ↔ 정책 비교 — chains/event.py"""
+        return chains.event_chain(self, *args, **kwargs)
 
-    @staticmethod
-    def _review_query(inputs: dict[str, Any]) -> str:
-        return f"{inputs['requester']} / {inputs['requested_access']}"
+    def answer_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        """근거를 직접 넘기는 질의응답 — chains/answer.py"""
+        return chains.answer_chain(self, *args, **kwargs)
 
-    def rag_chain(
-        self, structured: bool = False, k: int | None = None, **kwargs: Any
-    ) -> Runnable[str, Any]:
-        """저장소에서 근거를 찾아 답하는 체인. 입력: 질문 문자열"""
-        lookup = {
-            "context": self.documents.retriever(k) | DocumentStore.format,
-            "question": RunnablePassthrough(),
-        }
-        return lookup | self.answer_chain(structured, **kwargs)
+    def rag_chain(self, *args: Any, **kwargs: Any) -> Runnable[str, Any]:
+        """저장소 검색 질의응답 — chains/answer.py"""
+        return chains.rag_chain(self, *args, **kwargs)

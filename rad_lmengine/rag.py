@@ -26,12 +26,22 @@ class IndexReport:
 
 
 class DocumentStore:
-    """사내 기준 문서를 담는 Milvus 컬렉션.
+    """정책을 담는 Milvus 컬렉션. 두 종류를 한 곳에 쌓습니다.
 
-    파일 해시를 청크 메타데이터로 함께 저장해, 다시 적재할 때 변경된 파일만 임베딩합니다.
+    - 조항(clause): 사내 기준 문서. 파일을 청크로 나눠 넣습니다.
+    - 규칙(rule): 방화벽 · DLP 같은 솔루션 정책. 한 건을 한 청크로 넣고, source 를 "rules:" 로 시작합니다.
+
+    두 종류가 한 top_k 를 나눠 가지면 규칙 건수에 조항이 밀려나므로 검색은 종류별로 합니다.
+    해시를 메타데이터로 함께 저장해, 다시 적재할 때 바뀐 것만 임베딩합니다.
     """
 
     SUFFIXES = {".md", ".txt"}
+    RULES_PREFIX = "rules:"
+    # 메타데이터 필드를 늘리면 기존 컬렉션 스키마와 맞지 않으므로 종류는 source 접두어로 가립니다.
+    KIND_EXPR = {
+        "clause": f'not (source like "{RULES_PREFIX}%")',
+        "rule": f'source like "{RULES_PREFIX}%"',
+    }
     INDEX_PARAMS = {"metric_type": "COSINE", "index_type": "FLAT"}
 
     def __init__(self, settings: Settings) -> None:
@@ -112,33 +122,58 @@ class DocumentStore:
         return splitter.split_documents(docs)
 
     def index(self, source: str | Path, rebuild: bool = False) -> IndexReport:
-        """변경된 파일만 다시 임베딩합니다. rebuild 면 컬렉션을 비우고 전부 새로."""
+        """기준 문서를 적재합니다. 바뀐 파일만 다시 임베딩하고, rebuild 면 컬렉션을 비우고 전부 새로 (규칙도 지워짐)."""
         documents = self.read(source)
         if rebuild:
             self._store = self._open(drop_old=True)
 
         report = IndexReport()
         for doc in documents:
-            name = doc.metadata["source"]
-            stored = None if rebuild else self._stored_hash(name)
-            if stored == doc.metadata["doc_hash"]:
-                report.skipped.append(name)
-                continue
-            if stored is not None:
-                self.store.delete(expr=self._expr(name))
-            chunks = self.split([doc])
-            self.store.add_documents(
-                chunks, ids=[self._digest(f"{name}|{i}", 32) for i in range(len(chunks))]
-            )
-            report.indexed.append(name)
-            report.chunks += len(chunks)
+            self._replace(doc.metadata["source"], doc.metadata["doc_hash"], self.split([doc]), report, rebuild)
         return report
 
-    def retriever(self, k: int | None = None):
-        return self.store.as_retriever(search_kwargs={"k": k or self.settings.top_k})
+    def index_rules(self, name: str, rules: list[str]) -> IndexReport:
+        """솔루션 정책 규칙을 적재합니다. rules 는 한 건에 한 줄 (예: PolicyRule.describe()).
 
-    def search(self, query: str, k: int | None = None) -> list[Document]:
-        return self.store.similarity_search(query, k=k or self.settings.top_k)
+        규칙은 몇 줄짜리라 나누지 않습니다. 묶음(name) 단위로 바뀌었는지 보고 통째로 바꿉니다.
+        """
+        source = self.RULES_PREFIX + name
+        doc_hash = self._digest("\n".join(rules))
+        chunks = [
+            Document(page_content=rule, metadata={"source": source, "doc_hash": doc_hash})
+            for rule in rules
+        ]
+        report = IndexReport()
+        self._replace(source, doc_hash, chunks, report)
+        return report
+
+    def _replace(
+        self, name: str, doc_hash: str, chunks: list[Document], report: IndexReport, rebuild: bool = False
+    ) -> None:
+        stored = None if rebuild else self._stored_hash(name)
+        if stored == doc_hash:
+            report.skipped.append(name)
+            return
+        if stored is not None:
+            self.store.delete(expr=self._expr(name))
+        self.store.add_documents(
+            chunks, ids=[self._digest(f"{name}|{i}", 32) for i in range(len(chunks))]
+        )
+        report.indexed.append(name)
+        report.chunks += len(chunks)
+
+    def _search_kwargs(self, k: int | None, kind: str | None) -> dict:
+        kwargs: dict = {"k": k or self.settings.top_k}
+        if kind:
+            kwargs["expr"] = self.KIND_EXPR[kind]
+        return kwargs
+
+    def retriever(self, k: int | None = None, kind: str | None = None):
+        """kind: "clause" · "rule" · None(전부)."""
+        return self.store.as_retriever(search_kwargs=self._search_kwargs(k, kind))
+
+    def search(self, query: str, k: int | None = None, kind: str | None = None) -> list[Document]:
+        return self.store.similarity_search(query, **self._search_kwargs(k, kind))
 
     def is_empty(self) -> bool:
         try:

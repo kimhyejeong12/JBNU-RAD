@@ -7,7 +7,7 @@
     engine.rag_chain().invoke("급여 정보 접근 승인은 누가?")
 """
 
-from .chain import Engine
+from .engine import Engine
 from .config import Settings
 from .prompt import Prompts
 from .rag import DocumentStore, IndexReport
