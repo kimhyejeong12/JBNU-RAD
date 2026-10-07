@@ -20,6 +20,10 @@ RAD-LMENGINE/
 │   ├── types.py                출력 타입 Verdict · PolicyReview · Answer
 │   ├── config.py               Settings — .env 읽기
 │   └── cli.py                  make health · index · ask 등이 부르는 CLI
+├── rad_data/                 검토 대상 데이터 계층 (양현성) — 엔진과 독립. 소스(CSV · JSON · 메모리) × 매퍼
+│   ├── types.py                SecurityEvent · AccessRequest · PolicyRule · LoadResult
+│   ├── source.py               RowSource — CsvSource · JsonSource · MemorySource, 확장자로 고르는 open_source
+│   └── mapper.py               Mapper — EventMapper(Sentinel 로그) · AccessRequestMapper · PolicyRuleMapper
 ├── docs/                     판정 근거 기준 문서 — 수정 금지
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
