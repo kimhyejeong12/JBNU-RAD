@@ -81,14 +81,18 @@ class Cli:
         print()
         return 0
 
-    @staticmethod
-    def parser() -> argparse.ArgumentParser:
-        parser = argparse.ArgumentParser(
-            prog="sentinelai.engine.cli",
-            description="SentinelAI 엔진 — 로컬 LLM·RAG 코어 (전북대학교 RAD · SK쉴더스)",
-        )
-        sub = parser.add_subparsers(dest="command", required=True)
+    PROG = "sentinelai.engine.cli"
+    DESCRIPTION = "SentinelAI 엔진 — 로컬 LLM·RAG 코어 (전북대학교 RAD · SK쉴더스)"
 
+    @classmethod
+    def parser(cls) -> argparse.ArgumentParser:
+        parser = argparse.ArgumentParser(prog=cls.PROG, description=cls.DESCRIPTION)
+        cls.commands(parser.add_subparsers(dest="command", required=True))
+        return parser
+
+    @staticmethod
+    def commands(sub: argparse._SubParsersAction) -> None:
+        """하위 클래스(sentinelai.cli)가 명령을 더할 수 있게 parser() 에서 떼어 둡니다."""
         for name, help_text in [
             ("config", "현재 설정 출력"),
             ("health", "서버·모델·컬렉션 상태 확인"),
@@ -116,8 +120,6 @@ class Cli:
         chat.add_argument("-m", "--model", help="사용할 모델")
         chat.add_argument("--no-stream", action="store_true", help="스트리밍 없이 출력")
         chat.set_defaults(command="chat")
-
-        return parser
 
     @classmethod
     def run(cls, argv: list[str] | None = None) -> int:

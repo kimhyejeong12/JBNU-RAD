@@ -24,6 +24,8 @@ LLM · RAG 엔진 `sentinelai/engine/`(양현성) 위에 웹 대시보드 `senti
 ```
 JBNU-RAD/
 ├── sentinelai/               SentinelAI 패키지. __init__.py 는 ROOT · 버전만 두고 하위 패키지를 가져오지 않는다
+│   ├── __main__.py · cli.py    코어 CLI `python -m sentinelai` — 엔진 명령 + index-policies · monitor. 코어는 이것만으로 돈다
+│   ├── pipeline.py             data × engine 실행 흐름 — index_policies · monitor(로그 감시 1회) · Watermark · attempt(재시도)
 │   ├── engine/                 LLM · RAG 엔진 (양현성) — 수정 금지
 │   │   ├── engine.py             Engine — 설정 · LLM · DocumentStore · 체인 진입점 (engine.review_chain() 등은 chains/로 넘긴다)
 │   │   ├── chains/               체인 — 한 파일에 한 기능
@@ -33,11 +35,11 @@ JBNU-RAD/
 │   │   │   ├── event.py            event_chain — 로그 ↔ 정책 비교 (로그 감시)
 │   │   │   └── retrieval.py        종류별 검색 (조항 · 규칙) — 체인들이 함께 쓴다
 │   │   ├── rag.py                DocumentStore — 기준 조항(clause) · 솔루션 규칙(rule)을 한 컬렉션에 적재, 종류별 검색
-│   │   ├── alert.py              Notifier 인터페이스 자리 — 아직 구현 없음 (§8)
+│   │   ├── alert.py              Notifier 인터페이스 자리 — 아직 구현 없음, 부를 곳은 pipeline.monitor (§8)
 │   │   ├── prompt.py             프롬프트 (권한 검토 · 로그 검토 · 정책 검토 · 질의응답)
 │   │   ├── types.py              출력 타입 Verdict · PolicyReview · Answer
 │   │   ├── config.py             Settings — .env 의 SENTINELAI_* 읽기
-│   │   └── cli.py                make health · index · ask 등이 부르는 CLI
+│   │   └── cli.py                엔진만 있는 환경용 CLI `python -m sentinelai.engine.cli` (data · pipeline 명령 없음)
 │   ├── data/                   검토 대상 데이터 계층 (양현성) — 엔진과 독립. 소스(CSV · JSON · 메모리) × 매퍼
 │   │   ├── types.py              SecurityEvent · AccessRequest · PolicyRule · LoadResult
 │   │   ├── source.py             RowSource — CsvSource · JsonSource · MemorySource, 확장자로 고르는 open_source
@@ -56,16 +58,14 @@ JBNU-RAD/
 │   ├── policies.csv            정책 9건
 │   ├── results.json            판정 결과 캐시 — precompute가 만든다. 시연용 예시 4건이 더해져 있다 (§5)
 │   └── ask_results.json        권한 질의 예시 답변 캐시 — precompute-ask가 만든다
-├── scripts/
+├── scripts/                  웹 · 시연 · 테스트 보조. 코어 실행에는 필요 없다
 │   ├── precompute.py           전 건 판정 → data/results.json
-│   ├── review_events.py        보안 솔루션 로그 → 사용자별 event_chain 판정 (--since 로 이후 로그만)
-│   ├── index_policies.py       솔루션 정책 규칙 → RAG 적재 (sentinelai.data → DocumentStore.index_rules)
 │   ├── precompute_ask.py       권한 질의 예시 질문 3개 → data/ask_results.json (예시 질문 목록은 여기 한 곳)
 │   └── review_check.py         반복 루프 · 등급 흔들림 재현 — 수정 금지
 ├── .milvus/                  벡터 DB 파일 (Milvus Lite, git 제외)
 ├── .env · .env.example       설정. .env는 git 제외, make install이 예시에서 만든다
 ├── Makefile · requirements.txt
-└── Dockerfile · README.md    엔진 컨테이너 · 저장소 소개 (웹 계층은 컨테이너에 없음)
+└── Dockerfile · README.md    코어 컨테이너(엔진 · data · pipeline, `python -m sentinelai`) · 저장소 소개 (웹은 컨테이너에 없음)
 ```
 
 CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_access, 신청일` / `policies.csv`: `policy_id, solution, source, destination, service, action, expires_at`.
@@ -128,7 +128,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 | `make health` | 서버 · 모델 · 인덱스 확인 |
 | `make index` | `docs/` 기준 조항 적재 (바뀐 파일만 다시 임베딩) |
 | `make index-policies SRC=정책파일` | 솔루션 정책 규칙 적재 (기본 `data/policies.csv`). `sentinelai.engine.cli index --rebuild`는 규칙까지 지우므로 그 뒤에 다시 돌린다 |
-| `make review-events SRC=로그 [SINCE=시각]` | 보안 솔루션 로그를 사용자별로 판정. 마지막에 다음 실행용 `--since` 시각을 출력 |
+| `make monitor SRC=로그 [SINCE=시각] [STATE=파일]` | 로그 감시 1회 — 로그를 정책과 비교해 사용자별로 판정. `STATE`를 주면 마지막 판정 시각을 그 파일에 남겨 다음 실행이 이어서 판정한다 (cron용) |
 | `make precompute` | `data/results.json` 재계산 (맥 기준 약 25분) |
 | `make precompute-ask` | `data/ask_results.json` 재계산 (약 1분) |
 | `make web` | 대시보드 http://localhost:8000 |
@@ -143,7 +143,7 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 서버 주소가 설정 한 줄로 바뀌는 구조가 제안서의 "향후 사내 환경 이전" 요구에 해당한다.
 9/27에는 맥에서 팀 서버로 접속되지 않았다 (8초 타임아웃).
 
-**Milvus Lite 파일 락**: DB 파일은 한 프로세스만 열 수 있다. `make web`이 떠 있으면 `make precompute` · `make precompute-ask` · `make index` · `make index-policies` · `make review-events` · `make review-check`가 실패하므로 서버를 끄고 돌린다.
+**Milvus Lite 파일 락**: DB 파일은 한 프로세스만 열 수 있다. `make web`이 떠 있으면 `make precompute` · `make precompute-ask` · `make index` · `make index-policies` · `make monitor` · `make review-check`가 실패하므로 서버를 끄고 돌린다.
 
 ---
 
@@ -251,6 +251,6 @@ CSV 컬럼 — `permissions.csv`: `id, requester, requested_access, current_acce
 ## 8. 남은 일
 
 1. **팀 서버 `gpt-oss:20b`로 재계산하고 §5와 대조한다.** 코드 변경 없이 `.env` 두 줄이면 된다. 맥에서 팀 서버로 가는 접속 경로부터 확보해야 한다. 재계산하면 §5의 시연용 예시가 사라진다.
-2. **알림(Notifier) 구축** — 로그 감시의 주의 · 위험 판정을 운영자에게 보낸다. 인터페이스 자리만 `sentinelai/engine/alert.py`에 두었고, `scripts/review_events.py`에서 부를 곳을 표시했다.
+2. **알림(Notifier) 구축** — 로그 감시의 주의 · 위험 판정을 운영자에게 보낸다. 인터페이스 자리만 `sentinelai/engine/alert.py`에 두었고, `sentinelai/pipeline.py`의 `monitor`에 부를 곳을 표시했다.
 3. 기준 문서에 출력 · 매체 반출 조항이 없어 로그 감시가 근거 없이 판정한다. 절차서 14 · 17번(예외처리 · 매체 반출입) 원문이 필요하다.
 4. 이번 범위 밖: 이메일 · 메신저 알림 채널, 실제 솔루션 API 수집(`sentinelai/web/loader.py` 교체).

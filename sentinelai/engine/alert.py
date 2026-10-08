@@ -2,7 +2,7 @@
 
 event_chain 의 Verdict 중 주의 · 위험을 알림으로 내보낼 인터페이스만 정해 둡니다.
 내보내는 곳(파일 · 대시보드 · 메일 · 메신저)은 나중에 이 인터페이스를 구현해 붙입니다.
-지금은 scripts/review_events.py 가 결과를 출력 · JSON 으로 남기는 것으로 대신합니다.
+부를 곳은 sentinelai/pipeline.py 의 monitor 입니다. 지금은 `python -m sentinelai monitor` 가 결과를 출력 · JSON 으로 남기는 것으로 대신합니다.
 """
 from __future__ import annotations
 
