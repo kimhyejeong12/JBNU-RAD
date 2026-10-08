@@ -4,13 +4,13 @@ langchain-ollama>=1.0
 
 # RAG: 문서 분할 + Milvus 벡터 DB
 # Milvus 는 LF AI & Data Foundation 의 Graduated 프로젝트 (Apache 2.0).
-# 기본은 로컬 파일로 도는 Milvus Lite 이고, RAD_MILVUS_URI 만 바꾸면 서버에 붙습니다.
+# 기본은 로컬 파일로 도는 Milvus Lite 이고, SENTINELAI_MILVUS_URI 만 바꾸면 서버에 붙습니다.
 langchain-text-splitters>=1.0
 langchain-milvus>=0.4
 
 # 나중에 워크플로를 붙일 때 주석 해제
 # langgraph>=1.0
 
-# 웹 대시보드 (rad_web): API 서버
+# 웹 대시보드 (sentinelai.web): API 서버
 fastapi>=0.115
 uvicorn[standard]>=0.32

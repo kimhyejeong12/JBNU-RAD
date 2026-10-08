@@ -1,25 +1,26 @@
-"""RAD-LMENGINE — 로컬 LLM·RAG 기반 보안 정책·접근 권한 의사결정 코어.
+"""SentinelAI 엔진 — 정책을 RAG 에 쌓고 정책 이해 · 로그 감시를 판정하는 코어.
 
-    from rad_lmengine import Engine
+    from sentinelai.engine import Engine
 
     engine = Engine()
     engine.documents.index("docs")
     engine.rag_chain().invoke("급여 정보 접근 승인은 누가?")
 """
 
-from .chain import Engine
+from .engine import Engine
 from .config import Settings
 from .prompt import Prompts
 from .rag import DocumentStore, IndexReport
-from .types import Answer, PolicyIssue, PolicyReview, RiskLevel, Verdict
+from .types import Answer, LogFilter, PolicyIssue, PolicyReview, RiskLevel, Verdict
 
-__version__ = "0.6.0"
+from .. import __version__
 
 __all__ = [
     "Answer",
     "DocumentStore",
     "Engine",
     "IndexReport",
+    "LogFilter",
     "PolicyIssue",
     "PolicyReview",
     "Prompts",

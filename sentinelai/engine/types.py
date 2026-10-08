@@ -23,6 +23,19 @@ class Verdict(BaseModel):
     recommendation: str = Field(description="개선안 또는 권고 조치")
 
 
+class LogFilter(BaseModel):
+    """로그 질의에서 뽑은 조건. 언급되지 않은 조건은 빈 문자열입니다."""
+
+    user: str = Field("", description="사용자 이름 · ID (예: 홍길동)")
+    department: str = Field("", description="부서 (예: 재무)")
+    solution: str = Field("", description="보안 솔루션 (예: SecureMark)")
+    where: str = Field("", description="행위 위치 (예: VDI)")
+    how: str = Field("", description="행위 유형 (예: 출력행위)")
+    keyword: str = Field("", description="솔루션 고유 항목 조건. 항목=값 (예: Exception=1) 또는 찾을 말 (예: pptx)")
+    since: str = Field("", description="이 시각 이후, ISO 8601 UTC (예: 2026-10-05T00:00:00Z)")
+    until: str = Field("", description="이 시각까지, ISO 8601 UTC")
+
+
 class PolicyIssue(BaseModel):
     """정책 목록에서 발견된 문제 한 건."""
 

@@ -4,7 +4,8 @@ import os
 from dataclasses import dataclass, fields
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+from .. import ROOT
+
 CASTS = {"str": str, "int": int, "float": float}
 #: pymilvus 가 python-dotenv 로 .env 를 주입하기 전의 환경변수.
 BOOT_ENV = dict(os.environ)
@@ -12,7 +13,9 @@ BOOT_ENV = dict(os.environ)
 
 @dataclass(frozen=True)
 class Settings:
-    """`.env` 또는 RAD_ 환경변수에서 읽는 설정. 코드에 기본값은 없습니다."""
+    """`.env` 또는 SENTINELAI_ 환경변수에서 읽는 설정. 코드에 기본값은 없습니다."""
+
+    PREFIX = "SENTINELAI_"
 
     ollama_base_url: str
     model: str
@@ -26,10 +29,16 @@ class Settings:
     chunk_size: int
     chunk_overlap: int
     top_k: int
+    # 검토 대상 데이터 위치. 확장자로 읽는 방식을 고릅니다 (sentinelai.data.open_source).
+    requests_source: str
+    policies_source: str
+    events_source: str
+    # 판정 결과를 쌓는 파일. 웹이 재시작해도 마지막 결과를 보여줍니다.
+    results_path: str
 
     @staticmethod
     def env_file() -> Path:
-        return Path(os.environ.get("RAD_ENV_FILE", ROOT / ".env"))
+        return Path(os.environ.get("SENTINELAI_ENV_FILE", ROOT / ".env"))
 
     @classmethod
     def _from_file(cls) -> dict[str, str]:
@@ -50,7 +59,7 @@ class Settings:
         values: dict[str, object] = {}
         missing: list[str] = []
         for f in fields(cls):
-            key = f"RAD_{f.name.upper()}"
+            key = f"{cls.PREFIX}{f.name.upper()}"
             raw = BOOT_ENV.get(key) or from_file.get(key)
             if raw:
                 values[f.name] = CASTS[f.type](raw)

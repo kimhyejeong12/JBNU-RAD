@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from langchain_ollama import ChatOllama  # noqa: E402
 
-from rad_lmengine import Engine  # noqa: E402
+from sentinelai.engine import Engine  # noqa: E402
 
 # 기대 등급은 docs/접근권한_관리기준.md 3.2 / 3.3 / 4.2 기준.
 CASES = [

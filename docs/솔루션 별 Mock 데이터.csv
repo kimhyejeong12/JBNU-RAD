@@ -1,0 +1,3 @@
+TimeGenerated [UTC],UserID,UserName,SourceIP,UserGroup,Attachments,PrintCount,Exception,WHO,WHERE,HOW,TenantId,Type
+2026. 10. 6. 오전 2:47:00.000,0,김수영,1.1.1.1,재무,test.pptx,1,1,김수영,VDI,출력행위,f3fff668-fbbd-4a3f-8e54-7f5681e60423,SecureMark_CL
+2026. 10. 6. 오전 3:00:35.000,1,홍길동,1.1.1.2,전략,test.doc,73,0,홍길동,VDI,출력행위,f3fff668-fbbd-4a3f-8e54-7f5681e60423,SecureMark_CL
