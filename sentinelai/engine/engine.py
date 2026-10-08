@@ -68,6 +68,14 @@ class Engine:
         """로그 ↔ 정책 비교 — chains/event.py"""
         return chains.event_chain(self, *args, **kwargs)
 
+    def log_filter_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        """로그 질의 → 조건 — chains/logs.py"""
+        return chains.log_filter_chain(self, *args, **kwargs)
+
+    def log_answer_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        """로그 질의 답변 — chains/logs.py"""
+        return chains.log_answer_chain(self, *args, **kwargs)
+
     def answer_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         """근거를 직접 넘기는 질의응답 — chains/answer.py"""
         return chains.answer_chain(self, *args, **kwargs)

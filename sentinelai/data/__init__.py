@@ -21,7 +21,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from .events import between, event_review_input, group_by_user, latest
+from .events import between, event_review_input, group_by_user, latest, search, summarize, vocabulary
 from .mapper import AccessRequestMapper, ColumnMapper, EventMapper, Mapper, PolicyRuleMapper, parse_datetime
 from .source import CsvSource, JsonSource, MemorySource, Row, RowSource, open_source, register_source
 from .types import AccessRequest, LoadIssue, LoadResult, PolicyRule, Record, SecurityEvent
@@ -102,4 +102,7 @@ __all__ = [
     "open_source",
     "parse_datetime",
     "register_source",
+    "search",
+    "summarize",
+    "vocabulary",
 ]

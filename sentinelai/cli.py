@@ -52,6 +52,11 @@ class Cli(EngineCli):
         monitor.add_argument("--full", action="store_true", help="지난 감시 시각을 무시하고 전부 판정")
         monitor.set_defaults(command="monitor")
 
+        logs = sub.add_parser("ask-logs", help="보안 솔루션 로그에 질문 (로그 감시). 건수 · 합계는 코드가 셉니다")
+        logs.add_argument("question", help="질문 (예: 홍길동이 이번 주에 출력을 몇 번 했어?)")
+        logs.add_argument("--source", help=source_help)
+        logs.set_defaults(command="ask_logs")
+
     @property
     def store(self) -> pipeline.ResultStore:
         return pipeline.ResultStore(self.engine.settings.results_path)
@@ -103,6 +108,17 @@ class Cli(EngineCli):
         if not run["findings"]:
             print("판정할 새 로그가 없습니다.")
         return self._done(run, sum(f["failed"] for f in run["findings"]))
+
+    def ask_logs(self, args: argparse.Namespace) -> int:
+        result = pipeline.ask_logs(self.engine, args.source or self.engine.settings.events_source, args.question)
+        print(result["answer"])
+        if result["criteria"]:
+            print("\n조건:", ", ".join(f"{k}={v}" for k, v in result["criteria"].items()))
+        if result["facts"] is not None:
+            print(f"해당 로그 {result['facts']['count']}건 ({result['elapsed_sec']}초)")
+            for line in result["evidence"]:
+                print(f"  {line}")
+        return 1 if result["failed"] else 0
 
     def _done(self, section: dict[str, Any], failed: int) -> int:
         for issue in section["load_issues"]:

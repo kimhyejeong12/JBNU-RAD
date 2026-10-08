@@ -135,4 +135,11 @@ def ask(body: AskRequest) -> dict[str, Any]:
     return {**answer.model_dump(), "elapsed_sec": round(elapsed, 1), "failed": error is not None}
 
 
+@app.post("/api/ask-logs")
+def ask_logs(body: AskRequest) -> dict[str, Any]:
+    """로그 질의. 로그는 RAG 로 찾지 않고 코어가 조건에 맞춰 찾고 셉니다 (pipeline.ask_logs)."""
+    engine: Engine = state["engine"]
+    return pipeline.ask_logs(engine, engine.settings.events_source, body.question)
+
+
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

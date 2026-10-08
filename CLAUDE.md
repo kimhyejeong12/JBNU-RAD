@@ -24,8 +24,8 @@ LLM · RAG 엔진 `sentinelai/engine/`(양현성) 위에 웹 대시보드 `senti
 ```
 JBNU-RAD/
 ├── sentinelai/               SentinelAI 패키지. __init__.py 는 ROOT · 버전만 두고 하위 패키지를 가져오지 않는다
-│   ├── __main__.py · cli.py    코어 CLI `python -m sentinelai` — 엔진 명령 + index-policies · monitor. 코어는 이것만으로 돈다
-│   ├── pipeline.py             data × engine 실행 흐름 — index_policies · monitor(로그 감시 1회) · Watermark · attempt(재시도)
+│   ├── __main__.py · cli.py    코어 CLI `python -m sentinelai` — 엔진 명령 + index-policies · review-requests · review-policies · monitor · ask-logs. 코어는 이것만으로 돈다
+│   ├── pipeline.py             data × engine 실행 흐름 — review_requests · review_policies · monitor · ask_logs · ResultStore · attempt(재시도)
 │   ├── engine/                 LLM · RAG 엔진 (양현성) — 수정 금지
 │   │   ├── engine.py             Engine — 설정 · LLM · DocumentStore · 체인 진입점 (engine.review_chain() 등은 chains/로 넘긴다)
 │   │   ├── chains/               체인 — 한 파일에 한 기능
@@ -33,6 +33,7 @@ JBNU-RAD/
 │   │   │   ├── policy.py           policy_chain — 정책 모순 판정 (정책 이해)
 │   │   │   ├── answer.py           answer_chain · rag_chain — 질의응답 (정책 이해)
 │   │   │   ├── event.py            event_chain — 로그 ↔ 정책 비교 (로그 감시)
+│   │   │   ├── logs.py             log_filter_chain · log_answer_chain — 로그 질의 (로그 감시). 로그는 RAG로 찾지 않는다
 │   │   │   └── retrieval.py        종류별 검색 (조항 · 규칙) — 체인들이 함께 쓴다
 │   │   ├── rag.py                DocumentStore — 기준 조항(clause) · 솔루션 규칙(rule)을 한 컬렉션에 적재, 종류별 검색
 │   │   ├── alert.py              Notifier 인터페이스 자리 — 아직 구현 없음, 부를 곳은 pipeline.monitor (§8)
@@ -44,12 +45,12 @@ JBNU-RAD/
 │   │   ├── types.py              SecurityEvent · AccessRequest · PolicyRule · LoadResult
 │   │   ├── source.py             RowSource — CsvSource · JsonSource · MemorySource, 확장자로 고르는 open_source
 │   │   ├── mapper.py             Mapper — EventMapper(Microsoft Sentinel 로그) · AccessRequestMapper · PolicyRuleMapper
-│   │   └── events.py             로그 시각 필터(between · latest) · 사용자별 묶음 → event_chain 입력
+│   │   └── events.py             로그 시각 필터(between · latest) · 사용자별 묶음 → event_chain 입력 · 로그 질의용 search · summarize · vocabulary
 │   └── web/                    웹 계층 (김혜정) — 코어(pipeline)를 부르고 결과를 보여준다. 판정 로직은 두지 않는다
 │       ├── main.py               FastAPI — API + 화면 서빙. Engine · ResultStore · JobRunner 를 앱 시작 시 1회 만든다
 │       ├── jobs.py               JobRunner — pipeline 작업을 백그라운드 스레드로 한 번에 하나씩 (진행 상황 · 마지막 실패)
 │       ├── view.py               ResultStore → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
-│       └── static/index.html     단일 파일 대시보드 — 분석 대기열 · 정책 질의 탭 (CSS · JS · 아이콘 인라인)
+│       └── static/index.html     단일 파일 대시보드 — 메뉴(권한 신청 · 정책 관리 · 로그 감시)별 검토 현황, 정책 관리의 정책 질의 탭 (CSS · JS · 아이콘 인라인)
 ├── docs/                     판정 근거 기준 문서 — 수정 금지
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
@@ -79,6 +80,12 @@ JBNU-RAD/
 | `policies` | `index_policies` + `review_policies` | 정책 규칙을 RAG에 적재하고, 정책 전체 → `policy_chain` (기준 조항 검색) → `PolicyReview` |
 | `events` | `monitor` | 지난 감시 이후 로그 → 사용자별 묶음 → `event_chain` (조항 · 규칙 검색) → `Verdict`. 결과는 쌓이고, 마지막 로그 시각이 다음 감시의 시작점 |
 
+**로그 질의** (`pipeline.ask_logs`, 결과 파일에 쓰지 않음) — 로그는 RAG로 찾지 않는다. "몇 번 · 언제부터 · 누가"는 집계라서 비슷한 몇 줄만 찾으면 건수가 틀린다.
+1. `log_filter_chain`: 질문 + 로그에 있는 값(`vocabulary`) + 현재 시각 → `LogFilter`(사용자 · 부서 · 솔루션 · 위치 · 행위 · 항목 · 기간). 로그에 없는 표현은 비슷한 값으로 바꾸지 않는다.
+2. 코드가 찾고(`search` — 부분 일치, 항목은 `Exception=1`처럼 값까지) 센다(`summarize` — 건수 · 사용자별 · 날짜별 · 숫자 항목 합계).
+3. `log_answer_chain`: 조건 · 집계 · 해당 로그(최근 50줄)로 평문 답. 숫자는 집계 그대로, 정책 위반 여부는 판단하지 않는다 (그건 `monitor`의 몫).
+- 10/8 `gpt-oss:20b`로 질문 1건에 70~220초 (모델 호출 2번).
+
 - 판정이 실패하면 2회까지 다시 시도한다(`pipeline.attempt`). 그래도 실패하면 `failed` · `error`로 남기고, 화면은 그 건을 "주의"로 올려 이유 칸에 원인을 적는다.
 - Milvus Lite는 한 프로세스만 DB를 열 수 있다. 웹이 떠 있는 동안 판정은 웹의 작업(`/api/jobs`)으로 돌린다. 웹이 꺼져 있으면 CLI로 돌리고, 웹은 시작할 때 같은 결과 파일을 읽는다.
 
@@ -91,6 +98,7 @@ JBNU-RAD/
 | `POST /api/jobs/{kind}` | `requests` · `policies` · `events` 백그라운드 시작 (202). 한 번에 하나 — 돌고 있으면 409 |
 | `POST /api/review/{id}` | 권한 신청 1건 재판정 → 결과 파일에도 반영 (없는 ID 404, 작업 중 409) |
 | `POST /api/ask` | 정책 질의 실시간 답변. 입력 `{"question"}` (공백 제외 1~500자, 벗어나면 422) → `rag_chain` (조항 · 규칙 검색) |
+| `POST /api/ask-logs` | 로그 질의. 입력은 `/api/ask`와 같다 → `pipeline.ask_logs` → `answer · criteria · facts · evidence · failed` |
 | `GET /api/health` | 헤더 경고: 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` |
 | `GET /api/regulations` | `docs/` 원문 (근거 조항 전문 표시용) |
 
@@ -109,7 +117,8 @@ JBNU-RAD/
 | 근거 조항 | `Verdict.sources` — 기준 문서면 `docs/` 원문에서 조항을 잘라 보여주고, 솔루션 정책(`rules:`)이면 언급된 정책 ID의 원본 행을 보여준다. 정책 검토는 근거를 판단 이유에 함께 적는다 |
 | 상세 요청 · 판정한 로그 · 관련 정책 원본 | 권한 신청 원본 행 · 사용자별 로그 묶음(한 줄에 한 건) · 정책 원본 행 |
 | 운영자 결정 | 권한 신청 · 정책: 승인 · 조건부 승인 · 반려 확정. 로그 감시: 이상 없음 · 조치 필요 |
-| 정책 질의 | 답 = `Answer.answer`, 근거 = `Answer.sources` → 누르면 오른쪽 패널에 원문. 예시 질문 버튼(스크립트의 `ASK_EXAMPLES`)도 직접 입력과 똑같이 실시간으로 답을 만든다. 등급 배지는 달지 않는다 |
+| 로그 질의 | 답 = `answer`, 조건 = `criteria`, 근거 칩 "해당 로그 N건" → 누르면 오른쪽 패널에 집계(`facts`)와 로그 줄(`evidence`). 숫자는 모두 코드가 센 값이다 |
+| 정책 질의 | 답 = `Answer.answer`, 근거 = `Answer.sources` → 누르면 그때 오른쪽 패널을 열어 원문을 보여준다. 예시 질문 버튼(스크립트의 `ASK_EXAMPLES`)도 직접 입력과 똑같이 실시간으로 답을 만든다. 등급 배지는 달지 않는다 |
 | 하단 | 계산 시각 = 구역별 마지막 실행 중 가장 늦은 것. 판정 실패 · 읽지 못한 행 · 작업 실패는 있을 때만 경고. 그 아래 맨 끝에 추진 주체 표기 |
 
 ---
@@ -125,6 +134,7 @@ JBNU-RAD/
 | `make review-requests [SRC=파일]` | 권한 신청 전 건 판정 → 결과 파일 |
 | `make review-policies [SRC=파일]` | 정책 간 중복 · 충돌 · 과도한 허용 판정 → 결과 파일 |
 | `make monitor [SRC=로그] [SINCE=시각] [FULL=1]` | 로그 감시 1회 — 지난 감시 이후 로그만 판정해 결과 파일에 쌓는다 (cron용). `FULL=1`이면 처음부터 |
+| `make ask-logs Q="질문"` | 보안 솔루션 로그에 질의 (벡터 DB를 쓰지 않아 `make web`이 떠 있어도 된다) |
 | `make web` | 대시보드 http://localhost:8000 — 위 판정을 화면의 [분석 실행]으로도 돌린다 |
 
 설정은 `.env` 한 곳에서 나온다. 코드에 주소 · 모델명을 하드코딩하지 않는다. 두 환경 모두에서 동작해야 한다.
@@ -154,11 +164,13 @@ JBNU-RAD/
 
 화면 규칙 (사용자 피드백):
 - 배포된 운영자 화면 기준으로 판단한다. 운영자 판단에 쓰지 않는 정보(모델명 · 서버 주소 · 폐쇄망 배지 · "연동 예정" · "사전 계산" 표시)와 중복 정보는 두지 않고, 엔진 이상 · 판정 실패처럼 문제가 있을 때만 알린다. 시연 설명(§7)을 이유로 요소를 남기지 않는다. 화면이 바뀌면 이 문서를 고친다.
-- 예외: 추진 주체 표기("전북대학교 RAD (RAG & Decision) · SK쉴더스")는 맨 아래 푸터(`footer.credit`)에 둔다. 탭 · 화면 폭과 상관없이 늘 보인다 (계산 시각 줄 `#foot`은 정책 질의 탭에서 숨겨지므로 따로 둔다).
+- 예외: 추진 주체 표기("전북대학교 RAD (RAG & Decision) · SK쉴더스")는 맨 아래 푸터(`footer.credit`)에 둔다. 탭 · 화면 폭과 상관없이 늘 보인다 (계산 시각 줄 `#foot`은 질의 탭에서 숨겨지므로 따로 둔다).
 - 1150px 미만에서는 오른쪽 패널을 서랍으로 띄운다 (행 · 근거 칩 클릭 → 열림, × · Esc · 바깥 클릭 → 닫힘). 1150px 이상은 2단 배치.
-- 탭 줄은 맨 위에 고정하고, 탭마다 그 탭에 쓰는 것만 둔다. 요약 카드(등급 필터)와 검색창은 대기열 탭 안에 두고, 정책 질의 탭은 하단 계산 시각을 숨긴다.
+- 메뉴가 탭보다 위다. 메뉴(권한 신청 · 정책 관리 · 로그 감시)마다 쓰는 탭만 둔다 — 정책 관리는 [검토 현황 · 정책 질의], 로그 감시는 [검토 현황 · 로그 질의], 권한 신청은 검토 현황 하나라 탭 줄을 숨기고 대기열 제목("권한 신청 현황")으로 메뉴를 알린다. 질의는 그 메뉴의 기능일 때만 둔다. 질의 기록은 메뉴마다 따로다.
+- 탭마다 그 탭에 쓰는 것만 둔다. 요약 카드(등급 필터)와 검색창은 검토 현황 탭 안에 두고, 질의 탭(정책 · 로그)은 하단 계산 시각을 숨긴다.
+- 오른쪽 패널은 메뉴 · 탭의 것이다. 검토 현황에서는 그 메뉴의 항목 판단 근거 · 운영자 결정을 보여주고(메뉴를 바꾸면 그 메뉴의 첫 항목), 정책 질의에서는 근거 칩을 눌렀을 때만 인용 조항 패널을 연다 (× · Esc로 닫음, 그 전에는 질의가 전체 폭). 탭을 바꾸면 열어 둔 인용 조항은 닫힌다.
 - 통계 대시보드는 10/8에 뺐다. 도넛은 요약 카드 · 종 배지와 숫자가 겹쳤고, 부서별 막대는 이름 첫 단어로 부서를 추정해 믿을 수 없었으며, 운영자 결정에 쓰이지 않았다. 차트를 다시 넣으려면 §8의 로그 감시 이력처럼 결정에 쓰이는 질문부터 정한다.
-- 같은 동작을 하는 버튼은 한 화면에 하나만 둔다. 보기 범위(권한 신청 · 정책 관리 · 로그 감시 — 세 개만, "전체" 없음)는 좌측 사이드바가 맡고(건수는 툴팁), 사이드바가 없는 1150px 미만에서만 대기열 제목 줄에 세그먼트 버튼을 띄운다. 위험 알림은 종 배지 하나로 한다 (배너 없음).
+- 같은 동작을 하는 버튼은 한 화면에 하나만 둔다. 보기 범위(권한 신청 · 정책 관리 · 로그 감시 — 세 개만, "전체" 없음)는 좌측 사이드바가 맡고(건수는 툴팁), 사이드바가 없는 1150px 미만에서만 탭 줄 위에 세그먼트 버튼을 띄운다 (어느 탭에서든 메뉴를 바꿀 수 있게). 위험 알림은 종 배지 하나로 한다 (배너 없음).
 - 이모지 아이콘을 쓰지 않는다. 등급 표시는 CSS 점 `.ldot` (8px 점 + 같은 색 반투명 3px 링). 등급 글자는 정상 · 주의 · 위험만 쓰고 "정상 · 승인 권고"처럼 권고 문구를 붙이지 않는다.
 - 툴팁(`data-tip="제목|설명"`)은 아이콘만 있는 요소와 화면에 없는 정보를 주는 요소에만 단다. 보이는 글자를 되풀이하는 툴팁은 달지 않는다.
 - 색상: 강조 `#EA002C` · 보조 `#FF7A00` · 정상 `#2E7D5B` · 본문 `#111111`/`#666666` · 배경 `#F5F5F6` + 흰 카드. SK쉴더스 CI 컬러는 흰 배경에서만 쓴다 (예외: 상단 검은 바의 방패 로고 — CI 규정 확인 필요). 검은 바 위의 엔진 경고는 흰 알약에 빨간 글자로 띄운다.

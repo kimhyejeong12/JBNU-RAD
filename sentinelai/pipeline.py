@@ -16,7 +16,7 @@ import json
 import threading
 import time
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +24,7 @@ from . import ROOT
 from .data import (
     LoadResult,
     PolicyRule,
+    between,
     event_review_input,
     group_by_user,
     latest,
@@ -31,10 +32,15 @@ from .data import (
     load_policies,
     load_requests,
     parse_datetime,
+    search,
+    summarize,
+    vocabulary,
 )
 from .engine import Engine, IndexReport
 
 RETRIES = 2
+# 답변 프롬프트와 화면에 싣는 로그 줄 수. 건수 · 합계는 전체로 세므로 이 수에 묶이지 않습니다.
+LOG_LINES = 50
 SECTIONS = ("requests", "policies", "events")
 
 Progress = Callable[[int, int, dict[str, Any]], None]
@@ -151,6 +157,51 @@ def monitor(
         "last_event_at": last_event.isoformat() if last_event else None,
         "findings": findings,
     }
+
+
+def ask_logs(engine: Engine, source: Any, question: str, now: datetime | None = None) -> dict[str, Any]:
+    """로그 질의 — 질문 → 조건(모델) → 찾고 세기(코드) → 답변(모델).
+
+    숫자는 모델이 세지 않고 summarize 가 셉니다. 근거 로그(evidence)도 코드가 고른 그대로 돌려줍니다.
+    """
+    started = time.time()
+    events = load_events(source).records
+    now = now or datetime.now(timezone.utc)
+    result: dict[str, Any] = {"question": question, "criteria": {}, "facts": None, "evidence": [], "answer": "", "sources": []}
+
+    def done(error: str | None) -> dict[str, Any]:
+        return {**result, "failed": error is not None, "error": error, "elapsed_sec": round(time.time() - started, 1)}
+
+    log_filter, error, _ = attempt(lambda: engine.log_filter_chain().invoke({
+        "question": question,
+        "vocabulary": json.dumps(vocabulary(events), ensure_ascii=False),
+        "now": now.isoformat(timespec="seconds"),
+    }))
+    if log_filter is None:
+        result["answer"] = f"질문을 조건으로 바꾸지 못했습니다: {error}"
+        return done(error)
+
+    criteria = {k: v.strip() for k, v in log_filter.model_dump().items() if v.strip()}
+    try:
+        since = parse_datetime(criteria["since"]) if "since" in criteria else None
+        until = parse_datetime(criteria["until"]) if "until" in criteria else None
+    except ValueError as exc:  # 모델이 시각을 잘못 적으면 기간 없이 찾지 않고 실패로 알립니다.
+        result.update(criteria=criteria, answer=f"기간을 읽지 못했습니다: {exc}")
+        return done(str(exc))
+    fields = ("user", "department", "solution", "where", "how", "keyword")
+    matched = search(between(events, since, until), **{k: criteria[k] for k in fields if k in criteria})
+    facts = summarize(matched)
+    lines = [e.describe() for e in matched[-LOG_LINES:]]
+    result.update(criteria=criteria, facts=facts, evidence=lines)
+
+    answer, error, _ = attempt(lambda: engine.log_answer_chain().invoke({
+        "question": question,
+        "criteria": json.dumps(criteria, ensure_ascii=False) if criteria else "조건 없음 (전체 로그)",
+        "facts": json.dumps(facts, ensure_ascii=False),
+        "lines": "\n".join(lines) or "해당 로그 없음",
+    }))
+    result["answer"] = answer.strip() if answer is not None else f"답변 실패: {error}"
+    return done(error)
 
 
 # --- 결과 저장 --------------------------------------------------------------

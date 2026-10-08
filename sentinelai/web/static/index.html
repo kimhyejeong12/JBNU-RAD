@@ -106,7 +106,10 @@
   .main-col { display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: auto; }
   .main-col > * { flex-shrink: 0; }
   .card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
-  /* 통계 탭은 대기열 항목과 무관하므로 패널 없이 차트를 넓게 씁니다 */
+  /* 정책 질의 탭은 질의를 넓게 쓰고, 근거 칩을 눌렀을 때만 오른쪽에 인용 조항 패널을 엽니다 */
+  .workspace[data-tab="ask"]:not(.cite) { grid-template-columns: minmax(0, 1fr); }
+  .workspace[data-tab="ask"]:not(.cite) > .panel { display: none; }
+  .workspace[data-tab="ask"] .drawer-close { display: block; }
 
   /* 요약 지표 (제안서 ①) — 누르면 그 등급만 보는 필터 */
   .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -160,6 +163,7 @@
 
   /* 메인 탭 — 분석 대기열 · 통계 대시보드 · 권한 질의 */
   .main-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+  .main-tabs[hidden], .main-tab[hidden] { display: none; }
   .main-tab {
     display: inline-flex; align-items: center; gap: 7px;
     padding: 9px 14px; margin-bottom: -1px; border: none; border-bottom: 2px solid transparent;
@@ -297,7 +301,7 @@
   @media (max-width: 1150px) {
     body { height: auto; overflow: auto; grid-template-columns: 1fr; grid-template-rows: auto auto; }
     .sidebar { display: none; }
-    .seg { display: flex; }
+    .seg { display: flex; align-self: flex-start; }
     .topbar { flex-wrap: wrap; padding: 10px 16px; row-gap: 8px; }
     .workspace { grid-template-columns: 1fr; padding: 14px 16px; }
     .main-col { overflow: visible; }
@@ -322,7 +326,6 @@
 
 <header class="topbar">
   <div class="logo"><span data-icon="shield"></span>SentinelAI</div>
-  <div class="sysname">AI 보안 정책 검토 시스템</div>
   <div class="top-right">
     <span class="engine-warn" id="engine-warn" hidden><i class="ldot 위험"></i>AI 엔진 점검 필요</span>
     <button class="bell" id="bell" aria-label="위험 알림" data-tip="위험 알림">
@@ -341,9 +344,15 @@
 
 <div class="workspace" data-tab="queue">
   <div class="main-col">
+    <!-- 사이드바가 없는 좁은 화면의 메뉴. 메뉴가 탭보다 위이므로 어느 탭에서든 보이게 탭 줄 위에 둡니다 -->
+    <div class="seg" role="tablist" id="seg" aria-label="메뉴">
+      <button role="tab" data-view="permissions" aria-selected="true">권한 신청 <span id="n-perm"></span></button>
+      <button role="tab" data-view="policies" aria-selected="false">정책 관리 <span id="n-pol"></span></button>
+      <button role="tab" data-view="events" aria-selected="false">로그 감시 <span id="n-log"></span></button>
+    </div>
     <nav class="main-tabs" role="tablist" aria-label="보기 전환">
-      <button class="main-tab" role="tab" id="tab-queue" data-tab="queue" aria-selected="true" aria-controls="view-queue"><span data-icon="list" class="sm"></span>분석 대기열</button>
-      <button class="main-tab" role="tab" id="tab-ask" data-tab="ask" aria-selected="false" aria-controls="view-ask"><span data-icon="chat" class="sm"></span>정책 질의</button>
+      <button class="main-tab" role="tab" id="tab-queue" data-tab="queue" aria-selected="true" aria-controls="view-queue"><span data-icon="list" class="sm"></span>검토 현황</button>
+      <button class="main-tab" role="tab" id="tab-ask" data-tab="ask" aria-selected="false" aria-controls="view-ask"><span data-icon="chat" class="sm"></span><span id="tab-ask-label">정책 질의</span></button>
     </nav>
 
     <!-- 분석 대기열 — 요약 카드는 이 목록의 등급 필터라 탭 안에 둡니다 -->
@@ -354,16 +363,11 @@
     <!-- ② ③ ⑤ 분석 큐 — 권한 신청 · 정책 관리 · 로그 감시 중 하나를 봅니다 -->
     <section class="card queue">
       <div class="queue-head">
-        <h3>최근 자동 분석 현황</h3>
+        <h3 id="queue-title">현황</h3>
         <label class="search">
           <span data-icon="search" class="sm"></span>
           <input id="q" type="search" placeholder="정책 ID · 신청 ID · 요청자 · 사용자로 검색" autocomplete="off">
         </label>
-        <div class="seg" role="tablist" id="seg">
-          <button role="tab" data-view="permissions" aria-selected="true">권한 신청 <span id="n-perm"></span></button>
-          <button role="tab" data-view="policies" aria-selected="false">정책 관리 <span id="n-pol"></span></button>
-          <button role="tab" data-view="events" aria-selected="false">로그 감시 <span id="n-log"></span></button>
-        </div>
         <!-- 보기 범위의 분석을 코어 작업으로 돌립니다. 수 분 걸리므로 진행 상황을 버튼에 띄웁니다 -->
         <button class="rerun run" id="run"><span data-icon="activity" class="sm"></span><span id="run-txt"></span></button>
       </div>
@@ -380,14 +384,13 @@
     <section class="card ask" id="view-ask" role="tabpanel" aria-labelledby="tab-ask" hidden>
       <div class="ask-log" id="ask-log" aria-live="polite"></div>
       <div class="ask-foot">
-        <!-- 예시 질문은 스크립트의 ASK_EXAMPLES 한 곳에서 정합니다. 누르면 실제로 답을 만듭니다 -->
+        <!-- 질의는 메뉴를 따릅니다 (정책 관리 → 정책 질의, 로그 감시 → 로그 질의). 예시 · 문구는 스크립트의 ASK 한 곳에 둡니다 -->
         <div class="ask-ex" id="ask-ex"></div>
         <form class="ask-form" id="ask-form">
-          <input id="ask-input" type="text" maxlength="500" autocomplete="off" aria-label="질문"
-                 placeholder="정책 · 접근 권한에 대해 질문하세요">
+          <input id="ask-input" type="text" maxlength="500" autocomplete="off" aria-label="질문">
           <button type="submit" id="ask-send">질의</button>
         </form>
-        <p class="note">AI는 사내 기준 문서와 솔루션 정책으로 답합니다. 신청 목록의 인물 정보는 조회하지 않습니다.</p>
+        <p class="note" id="ask-note"></p>
       </div>
     </section>
 
@@ -448,12 +451,33 @@ const DECISION_SET = {
 };
 const TYPE_VIEW = { perm: "permissions", policy: "policies", event: "events" };
 const TYPE_LABEL = { perm: "권한 신청", policy: "정책 관리", event: "로그 감시" };
-// 예시 질문은 여기 한 곳에서 정합니다. 누르면 직접 입력과 똑같이 /api/ask 로 답을 만듭니다.
-const ASK_EXAMPLES = [
-  "인사팀 김민수가 급여 테이블(HR_SALARY)에 접근할 수 있어?",
-  "마케팅팀이 사내포털에 HTTPS로 접근하는 정책은 몇 개야?",
-  "개발팀 사원이 운영 DB 관리자 권한을 받아도 돼?",
-];
+// 메뉴마다 쓰는 탭만 둡니다. 정책 질의는 정책 이해 기능이라 정책 관리에만 있습니다.
+const VIEW_TABS = { permissions: ["queue"], policies: ["queue", "ask"], events: ["queue", "ask"] };
+const VIEW_LABEL = { permissions: "권한 신청", policies: "정책 관리", events: "로그 감시" };
+// 질의 탭은 메뉴의 기능을 따릅니다. 예시 질문도 여기 한 곳에서 정하고, 누르면 직접 입력과 똑같이 답을 만듭니다.
+const ASK = {
+  policy: {
+    label: "정책 질의", url: "/api/ask", placeholder: "정책 · 접근 권한에 대해 질문하세요",
+    empty: "사내 기준 문서와 솔루션 정책을 근거로 답합니다.",
+    note: "AI는 사내 기준 문서와 솔루션 정책으로 답합니다. 신청 목록의 인물 정보는 조회하지 않습니다.",
+    examples: [
+      "인사팀 김민수가 급여 테이블(HR_SALARY)에 접근할 수 있어?",
+      "마케팅팀이 사내포털에 HTTPS로 접근하는 정책은 몇 개야?",
+      "개발팀 사원이 운영 DB 관리자 권한을 받아도 돼?",
+    ],
+  },
+  log: {
+    label: "로그 질의", url: "/api/ask-logs", placeholder: "보안 솔루션 로그에 대해 질문하세요",
+    empty: "보안 솔루션 로그를 조건에 맞춰 찾고 세어서 답합니다.",
+    note: "건수 · 합계는 AI가 세지 않고 로그에서 직접 셉니다. 정책 위반 여부는 판단하지 않습니다 (검토 현황의 로그 감시 판정을 보세요).",
+    examples: [
+      "홍길동이 출력을 몇 번 했어?",
+      "10월 6일 VDI에서 출력된 페이지는 모두 몇 장이야?",
+      "예외 처리된 출력이 있었어?",
+    ],
+  },
+};
+const CRITERIA_LABEL = { user: "사용자", department: "부서", solution: "솔루션", where: "위치", how: "행위", keyword: "항목", since: "부터", until: "까지" };
 // 화면에는 등급 단어만 쓰고, 등급에서 나오는 권고 문구와 기준은 툴팁에만 둡니다.
 const LEVEL_TIP = {
   "정상": "승인 권고|기준 문서에 부합 — AI가 승인을 권고합니다",
@@ -474,7 +498,7 @@ const state = {
   decisions: {},        // key → { action, at } — 화면에만 두고 저장하지 않음
   pending: {},          // 재판정 중인 신청 id → 시작 시각
   jobs: null,           // /api/jobs — 돌고 있는 분석 작업
-  asks: [],             // 권한 질의 기록 { q, started, answer, sources, failed } — 화면에만 두고 저장하지 않음
+  asks: { policy: [], log: [] },   // 질의 기록 — 화면에만 두고 저장하지 않음
   askSource: null,      // 패널에 띄운 인용 조항 { i: 질의 순번, n: sources 순번 }
 };
 
@@ -622,7 +646,7 @@ function renderStats() {
 function renderRows() {
   const items = visible();
   if (!items.length) {
-    const label = TYPE_LABEL[Object.keys(TYPE_VIEW).find((t) => TYPE_VIEW[t] === state.view)];
+    const label = VIEW_LABEL[state.view];
     $("rows").innerHTML = queue().some(inView)
       ? `<div class="empty">조건에 맞는 항목이 없습니다.</div>`
       : `<div class="empty">아직 ${esc(label)} 결과가 없습니다. 오른쪽 위 [${esc(runKindLabel())}]을 누르세요.</div>`;
@@ -707,7 +731,7 @@ function renderPanel() {
   const panel = $("panel");
   if (!it) {
     panel.innerHTML = `<div class="panel-head"><h3>AI 판단 근거</h3>${CLOSE_BTN}</div>
-      <div class="panel-body"><div class="empty">왼쪽 분석 큐에서 항목을 선택하면<br>AI 판단 근거와 권고가 표시됩니다.</div></div>`;
+      <div class="panel-body"><div class="empty">목록에서 항목을 선택하면<br>AI 판단 근거와 권고가 표시됩니다.</div></div>`;
     return;
   }
   const r = it.raw;
@@ -818,26 +842,33 @@ async function rerunReview(id) {
   }
 }
 
-/* ── 정책 질의 — Answer 에는 등급이 없으므로 등급 배지를 달지 않습니다 ── */
+/* ── 질의 — 정책 질의(Answer)도 로그 질의도 등급이 없으므로 등급 배지를 달지 않습니다 ── */
+const askMode = () => (state.view === "events" ? "log" : "policy");
+const asks = () => state.asks[askMode()];
+
 function askWaitLabel(m) {
   return `답변 생성 중… ${Math.round((Date.now() - m.started) / 1000)}초`;
 }
 
 function renderAsk() {
   const log = $("ask-log");
-  const busy = state.asks.some((m) => m.started);
+  const mode = askMode(), cfg = ASK[mode], list = asks();
+  $("tab-ask-label").textContent = cfg.label;
+  $("ask-input").placeholder = cfg.placeholder;
+  $("ask-note").textContent = cfg.note;
+  const busy = list.some((m) => m.started);
   $("ask-send").disabled = busy;
   $("ask-ex").querySelectorAll("button").forEach((b) => { b.disabled = busy; });
-  if (!state.asks.length) {
-    log.innerHTML = `<div class="empty">사내 기준 문서와 솔루션 정책을 근거로 답합니다.<br>답변에 수십 초 이상 걸릴 수 있습니다.</div>`;
+  if (!list.length) {
+    log.innerHTML = `<div class="empty">${esc(cfg.empty)}<br>답변에 수십 초 이상 걸릴 수 있습니다.</div>`;
     return;
   }
-  log.innerHTML = state.asks.map((m, i) => {
+  log.innerHTML = list.map((m, i) => {
     let body;
     if (m.started) body = `<div class="box wait" id="ask-wait">${askWaitLabel(m)}</div>`;
     else if (m.failed) body = `<div class="box fail">${esc(m.answer)}</div>`;
     else body = `<div class="box">${esc(m.answer)}</div>`;
-    const src = m.started || m.failed ? "" : `
+    const src = m.started || m.failed ? "" : mode === "log" ? logEvidence(m, i) : `
       <div class="sec"><h4>${icon("db", "sm")}근거 조항</h4>
         ${(m.sources || []).length
           ? `<div class="chips">${m.sources.map((s, n) => {
@@ -854,13 +885,36 @@ function renderAsk() {
     state.askSource = same ? null : { i, n };
     renderAsk();
     renderPanel();
-    if (state.askSource) openDrawer();
+    syncCite();
+    if (state.askSource) openDrawer(); else closeDrawer();
   }));
+}
+
+// 로그 질의의 근거는 모델이 고른 것이 아니라 코어가 조건으로 찾은 로그입니다. 조건을 함께 보여줍니다.
+function criteriaText(c) {
+  const parts = Object.entries(c || {}).map(([k, v]) => `${CRITERIA_LABEL[k] || k} ${k === "since" || k === "until" ? stamp(v) : v}`);
+  return parts.length ? parts.join(" · ") : "조건 없음 (전체 로그)";
+}
+
+function logEvidence(m, i) {
+  const on = !!state.askSource && state.askSource.i === i;
+  return `<div class="sec"><h4>${icon("db", "sm")}근거 로그</h4>
+    <p class="note">조건: ${esc(criteriaText(m.criteria))}</p>
+    ${m.facts && m.facts.count
+      ? `<div class="chips"><button class="chip" data-src="${i}:0" aria-pressed="${on}" aria-controls="panel">${icon("file", "sm")}<span>해당 로그 ${m.facts.count}건</span><span class="open">${on ? "표시 중" : "로그 보기"}</span></button></div>`
+      : `<p class="note">조건에 맞는 로그가 없습니다.</p>`}
+  </div>`;
+}
+
+// 인용 조항 패널은 열어 둔 근거가 있을 때만 자리를 차지합니다.
+function syncCite() {
+  document.querySelector(".workspace").classList.toggle("cite", state.mainTab === "ask" && !!state.askSource);
 }
 
 function renderAskPanel() {
   const sel = state.askSource;
-  const m = sel && state.asks[sel.i];
+  const m = sel && asks()[sel.i];
+  if (m && askMode() === "log") { renderLogPanel(m, sel.i); return; }
   const source = m && m.sources[sel.n];
   $("panel").innerHTML = `<div class="panel-head"><h3>인용 조항 원문</h3>${CLOSE_BTN}</div>
     <div class="panel-body">${source
@@ -868,21 +922,41 @@ function renderAskPanel() {
         <div class="meta">Q${sel.i + 1} · ${esc(m.q)}</div>
         <div class="sec"><h4>${icon("book", "sm")}기준 문서 원문</h4><div class="clause">${esc(clauseText(source))}</div></div>
         <p class="note">모델이 밝힌 근거 문서에서 해당 조항을 잘라 보여줍니다.</p>`
-      : `<div class="empty">답변 아래 근거 조항을 누르면<br>인용한 조항 원문이 여기에 표시됩니다.</div>`}</div>`;
+      : ""}</div>`;
+}
+
+function renderLogPanel(m, i) {
+  const f = m.facts;
+  const rows = [
+    ["해당 로그", `${f.count}건`],
+    ["기간", `${stamp(f.first)} ~ ${stamp(f.last)}`],
+    ...Object.entries(f.by_user).map(([u, n]) => [u, `${n}건`]),
+    ...Object.entries(f.attribute_totals).map(([k, v]) => [`${k} 합계`, String(v)]),
+  ];
+  const more = f.count > m.evidence.length ? `<p class="note">최근 ${m.evidence.length}건만 표시합니다. 건수 · 합계는 전체 ${f.count}건 기준입니다.</p>` : "";
+  $("panel").innerHTML = `<div class="panel-head"><h3>근거 로그</h3>${CLOSE_BTN}</div>
+    <div class="panel-body">
+      <p class="subject">${esc(criteriaText(m.criteria))}</p>
+      <div class="meta">Q${i + 1} · ${esc(m.q)}</div>
+      <div class="sec"><h4>${icon("activity", "sm")}집계</h4><div class="box"><table class="kv">
+        ${rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</table></div></div>
+      <div class="sec"><h4>${icon("file", "sm")}로그</h4><div class="box pre">${esc(m.evidence.join("\n"))}</div>${more}</div>
+      <p class="note">숫자는 코어가 로그에서 직접 센 값입니다.</p>
+    </div>`;
 }
 
 async function ask(text) {
   const q = text.trim();
-  if (!q || state.asks.some((m) => m.started)) return;
+  if (!q || asks().some((m) => m.started)) return;
   $("ask-input").value = "";
-  await runAsk(q, () => getJSON("/api/ask", {
+  await runAsk(q, () => getJSON(ASK[askMode()].url, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }),
   }));
 }
 
 async function runAsk(q, fetchAnswer) {
   const m = { q, started: Date.now() };
-  state.asks.push(m);
+  asks().push(m);
   renderAsk();
   $("ask-log").scrollTop = $("ask-log").scrollHeight;
   const timer = setInterval(() => { const el = $("ask-wait"); if (el) el.textContent = askWaitLabel(m); }, 1000);
@@ -899,9 +973,10 @@ async function runAsk(q, fetchAnswer) {
 }
 
 function renderAskExamples() {
+  const examples = ASK[askMode()].examples;
   $("ask-ex").innerHTML = `<span class="label">예시</span>` +
-    ASK_EXAMPLES.map((q, n) => `<button type="button" data-n="${n}">${esc(q)}</button>`).join("");
-  $("ask-ex").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => ask(ASK_EXAMPLES[Number(b.dataset.n)])));
+    examples.map((q, n) => `<button type="button" data-n="${n}">${esc(q)}</button>`).join("");
+  $("ask-ex").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => ask(examples[Number(b.dataset.n)])));
 }
 
 $("ask-form").addEventListener("submit", (e) => { e.preventDefault(); ask($("ask-input").value); });
@@ -970,12 +1045,18 @@ $("run").addEventListener("click", startJob);
 /* ── 보기 전환 · 필터 · 검색 ─────────────── */
 function setMainTab(tab) {
   const panelChanges = (state.mainTab === "ask") !== (tab === "ask");
+  // 탭을 떠나면 열어 둔 인용 조항도 닫습니다. 패널은 그 탭의 것입니다.
+  if (panelChanges && state.askSource) {
+    state.askSource = null;
+    renderAsk();
+  }
   state.mainTab = tab;
   document.querySelectorAll(".main-tab").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === tab));
   $("view-queue").hidden = tab !== "queue";
   $("view-ask").hidden = tab !== "ask";
   $("foot").hidden = tab === "ask";   // 하단 계산 시각은 판정 결과의 것이라 질의와 무관합니다
   document.querySelector(".workspace").dataset.tab = tab;
+  syncCite();
   if (panelChanges) renderPanel();
   if (tab === "ask") $("ask-input").focus();
 }
@@ -983,11 +1064,33 @@ function setMainTab(tab) {
 document.querySelectorAll(".main-tab").forEach((b) => b.addEventListener("click", () => setMainTab(b.dataset.tab)));
 
 function setView(view) {
+  const changed = state.view !== view;
   state.view = view;
+  const tabs = VIEW_TABS[view];
+  document.querySelectorAll(".main-tab").forEach((b) => { b.hidden = !tabs.includes(b.dataset.tab); });
+  // 탭이 하나뿐이면 탭 줄 대신 대기열 제목으로 지금 메뉴를 알립니다.
+  document.querySelector(".main-tabs").hidden = tabs.length < 2;
+  $("queue-title").textContent = `${VIEW_LABEL[view]} 현황`;
+  if (!tabs.includes(state.mainTab)) setMainTab("queue");
+  // 패널도 메뉴를 따릅니다. 다른 메뉴의 항목이 남아 있으면 이 메뉴의 첫 항목으로 바꿉니다.
+  const current = queue().find((i) => i.key === state.selected);
+  if (!current || !inView(current)) {
+    const first = queue().find(inView);
+    state.selected = first ? first.key : null;
+    renderRows();
+    renderPanel();
+  }
   document.querySelectorAll("#seg button").forEach((b) => b.setAttribute("aria-selected", b.dataset.view === view));
   document.querySelectorAll(".nav[data-view]").forEach((b) => b.setAttribute("aria-current", b.dataset.view === view));
   renderStats();   // 요약 카드 숫자가 보기 범위를 따릅니다
   renderRun();     // 실행 버튼이 보기 범위의 분석을 돌립니다
+  if (changed) {
+    // 질의 탭도 메뉴를 따릅니다 (정책 질의 ↔ 로그 질의). 열어 둔 근거는 다른 질의의 것이라 닫습니다.
+    state.askSource = null;
+    renderAskExamples();
+    renderAsk();
+    syncCite();
+  }
 }
 
 document.querySelectorAll("#seg button, .nav[data-view]").forEach((b) => b.addEventListener("click", () => {
@@ -1014,7 +1117,7 @@ $("docs-modal").addEventListener("click", (e) => { if (e.target === $("docs-moda
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   $("docs-modal").classList.remove("show");
-  closeDrawer();
+  closePanel();
 });
 
 /* ── 작은 화면 서랍 — 1150px 미만에서만 패널을 오른쪽 서랍으로 띄웁니다 ── */
@@ -1034,9 +1137,19 @@ function closeDrawer() {
   document.body.classList.remove("drawer-open");
 }
 
-$("drawer-back").addEventListener("click", closeDrawer);
+// 정책 질의 탭에서 닫으면 넓은 화면에서도 인용 조항 패널을 접습니다.
+function closePanel() {
+  closeDrawer();
+  if (state.mainTab === "ask" && state.askSource) {
+    state.askSource = null;
+    renderAsk();
+    syncCite();
+  }
+}
+
+$("drawer-back").addEventListener("click", closePanel);
 // 패널 내용은 다시 그려지므로 닫기 버튼은 패널에 위임합니다.
-$("panel").addEventListener("click", (e) => { if (e.target.closest(".drawer-close")) closeDrawer(); });
+$("panel").addEventListener("click", (e) => { if (e.target.closest(".drawer-close")) closePanel(); });
 // 넓은 화면으로 바뀌면 서랍 상태를 풀어 배경 막이 남지 않게 합니다.
 narrow.addEventListener("change", (e) => { if (!e.matches) closeDrawer(); });
 
