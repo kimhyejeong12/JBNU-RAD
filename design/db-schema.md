@@ -1,7 +1,7 @@
 # 권한 DB 스키마 설계 (검토용)
 
 SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
-DDL: [`sentinelai/db/schema.sql`](../sentinelai/db/schema.sql) (권한 DB) · [`log_schema.sql`](../sentinelai/db/log_schema.sql) (Log DB, 신청 판정만) · 2026-10-11 확정 · **DB 계층과 API까지 구현** (화면은 다음 단계)
+DDL: [`sentinelai/db/schema.sql`](../sentinelai/db/schema.sql) (권한 DB) · [`log_schema.sql`](../sentinelai/db/log_schema.sql) (Log DB, 신청 판정만) · 2026-10-11 확정 · **DB 계층 · API · 화면까지 구현**
 
 ---
 
@@ -26,6 +26,7 @@ DDL: [`sentinelai/db/schema.sql`](../sentinelai/db/schema.sql) (권한 DB) · [`
 11. **(4차) 해시는 RFC 9106 권장 2** (Argon2id 64 MiB · t=3 · p=4, 로그인 약 50 ms).
 12. **(4차) 중간관리자도 회수할 수 있다.** 활성 중간관리자 · 최상급자 누구나 (자기가 1차 승인한 건으로 한정하지 않음 — 가정, §5).
 13. **(4차) AI 판정은 신청이 들어오는 즉시** 백그라운드로 돌려 Log DB에 남긴다. 실패하거나 웹이 꺼지는 사이에 못 끝낸 판정은 다음 시작 때 다시 돈다.
+14. **(5차) 정책 관리 · 로그 감시의 운영자 결정도 권한 DB에 남긴다** (`review_decisions`). 사람의 결정이라 결정자(사용자)와 같은 DB에 둔다.
 
 ---
 
@@ -35,6 +36,7 @@ DDL: [`sentinelai/db/schema.sql`](../sentinelai/db/schema.sql) (권한 DB) · [`
 |---|---|
 | 권한 신청 = CSV 파일 (지금은 지워져 없음) | 일반사용자가 화면에서 신청 → DB |
 | 승인 · 반려 = 브라우저 메모리, 새로고침하면 사라짐 | 1차 · 최종 결재와 회수가 DB에 남는다. 고치거나 지울 수 없다 |
+| 정책 · 로그 결정 = 브라우저 메모리 | 결정 · 취소가 DB에 쌓인다 (`review_decisions`) |
 | 로그인 없음 | ID/PW 로그인(Argon2id · 세션 2일), 역할 3개, 루트만 계정 생성, 감사 기록 |
 
 - SQLite (파일 하나, 서버 불필요, 표준 라이브러리). WAL 모드.
@@ -52,7 +54,10 @@ users ─┬─ sessions
        ├─ audit_log
        └─ access_requests (신청자) ─┬─ approvals   (1차 · 최종 결재, 결재자)   ─ ai_verdict_ref → Log DB
                                      └─ revocations (회수, 회수자)
+users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 ```
+
+- 스키마 파일은 차례로 적용한다 (`Database(path, "schema.sql", "decisions.sql")`). n번째 파일을 적용하면 `user_version = n`. 이미 만든 DB는 시작할 때 빠진 파일만 더 적용한다. 테이블을 더할 때는 새 파일을 뒤에 붙이고, 앞 파일은 고치지 않는다.
 
 ### 신청의 상태 (`access_requests.stage`)
 
@@ -120,9 +125,21 @@ users ─┬─ sessions
 | `reason` | 회수 사유 (필수) |
 | `revoker_id` + `revoker_name` · `revoker_department` | 회수자와 당시 사본. **활성 중간관리자 · 최상급자만** (트리거) |
 
+### `review_decisions` — 정책 · 로그 결정 1건 = 1행 (`decisions.sql`)
+| 칸 | 설명 |
+|---|---|
+| `kind` | `policy`(정책 관리 문제) · `event`(로그 감시 판정) |
+| `item_key` | 결정한 항목. 로그 감시 = 판정 id(`사용자@마지막 로그 시각`, 감시 결과가 쌓여도 그대로). 정책 = `실행 시각#순번` — 정책 검토는 돌릴 때마다 문제 목록을 새로 만들므로, 다시 돌리면 예전 결정은 새 문제에 붙지 않는다 |
+| `subject` | 결정할 때 화면에 보인 대상 (정책 ID · 문제 유형, 로그 사용자) — 결과 파일이 바뀌어도 무엇을 결정했는지 남긴다 |
+| `action` | 정책: `approve` · `cond` · `reject`, 로그: `clear` · `act`, 둘 다 `cancel`(취소) |
+| `comment` · `ai_level` | 결정 의견(선택) · 그때 AI 등급 |
+| `decider_id` + `decider_name` · `decider_department` | 결정자와 당시 사본. **활성 중간관리자 · 최상급자만** (트리거) |
+
+- 고치거나 지울 수 없다. 항목마다 마지막 기록이 지금 결정이고, 마지막이 `cancel`이면 결정이 없는 것이다.
+
 ---
 
-## 3. 화면 (권한 관리) — 초안
+## 3. 화면 (권한 관리) — 구현됨 (결재 이력 화면은 따로 두지 않고 결재함 [전체] · 패널의 결재 기록으로 대신)
 
 | 화면 | 누가 | 하는 일 |
 |---|---|---|

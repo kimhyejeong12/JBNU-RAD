@@ -12,7 +12,7 @@ from typing import Any
 from sentinelai import pipeline
 from sentinelai.engine import Engine
 
-KINDS = {"requests": "권한 신청 검토", "policies": "정책 관리 검토", "events": "로그 감시"}
+KINDS = {"policies": "정책 관리 검토", "events": "로그 감시"}
 
 
 class JobRunner:
@@ -51,9 +51,7 @@ class JobRunner:
 
     def _work(self, kind: str) -> None:
         s = self.engine.settings
-        if kind == "requests":
-            self.store.put("requests", pipeline.review_requests(self.engine, s.requests_source, self._progress))
-        elif kind == "policies":
+        if kind == "policies":
             # 정책 파일이 바뀌었으면 RAG 의 규칙도 함께 맞춥니다. 로그 감시 · 질의응답이 이 규칙을 찾습니다.
             pipeline.index_policies(self.engine, s.policies_source)
             self.store.put("policies", pipeline.review_policies(self.engine, s.policies_source))

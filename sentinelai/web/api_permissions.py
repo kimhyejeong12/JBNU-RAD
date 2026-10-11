@@ -1,4 +1,4 @@
-"""로그인 · 계정 · 권한 신청 · 결재 · 회수 API (권한 DB).
+"""로그인 · 계정 · 권한 신청 · 결재 · 회수 · 정책 · 로그 결정 API (권한 DB).
 
 세션 토큰은 HttpOnly · SameSite=Strict 쿠키로만 주고받습니다. 화면 스크립트는 토큰을 볼 수 없습니다.
 """
@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, StringConstraints
 
-from sentinelai.db import Denied, User, auth, logs, permissions
+from sentinelai.db import Denied, User, auth, decisions, logs, permissions
 
 COOKIE = "sentinelai_session"
 
@@ -159,8 +159,13 @@ def reset_password(user_id: int, body: PasswordReset, request: Request, user: An
 # --- 권한 신청 · 결재 · 회수 -------------------------------------------------
 
 
-def _with_verdict(request: Request, req: dict) -> dict:
-    """신청에 최신 AI 판정(Log DB)을 붙입니다. 판정 중이면 judging = True"""
+def _with_verdict(request: Request, req: dict, user: User) -> dict:
+    """신청에 최신 AI 판정(Log DB)을 붙입니다. 판정 중이면 judging = True
+
+    AI 판정은 결재자를 위한 것이라 일반사용자에게는 주지 않습니다.
+    """
+    if user.role == "user":
+        return req
     return {
         **req,
         "ai_verdict": logs.latest_request_verdict(request.app.state.log_db, req["request_no"]),
@@ -183,7 +188,7 @@ def submit(body: NewRequest, request: Request, user: Annotated[User, Depends(rol
     except Denied as exc:
         raise _denied(exc) from None
     request.app.state.verdicts.enqueue(req["request_no"])
-    return _with_verdict(request, req)
+    return _with_verdict(request, req, user)
 
 
 @router.get("/requests")
@@ -192,13 +197,13 @@ def list_requests(request: Request, user: Anyone, stage: str | None = None, mine
         rows = permissions.list_requests(request.app.state.main_db, user, stage, mine)
     except Denied as exc:
         raise _denied(exc) from None
-    return [_with_verdict(request, r) for r in rows]
+    return [_with_verdict(request, r, user) for r in rows]
 
 
 @router.get("/requests/{request_no}")
 def get_request(request_no: str, request: Request, user: Anyone) -> dict[str, Any]:
     try:
-        return _with_verdict(request, permissions.get(request.app.state.main_db, user, request_no))
+        return _with_verdict(request, permissions.get(request.app.state.main_db, user, request_no), user)
     except Denied as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
 
@@ -206,7 +211,7 @@ def get_request(request_no: str, request: Request, user: Anyone) -> dict[str, An
 @router.post("/requests/{request_no}/withdraw")
 def withdraw(request_no: str, request: Request, user: Anyone) -> dict[str, Any]:
     try:
-        return _with_verdict(request, permissions.withdraw(request.app.state.main_db, user, request_no))
+        return _with_verdict(request, permissions.withdraw(request.app.state.main_db, user, request_no), user)
     except Denied as exc:
         raise _denied(exc) from None
 
@@ -228,7 +233,7 @@ def decide(request_no: str, body: DecisionBody, request: Request, user: Approver
         )
     except Denied as exc:
         raise _denied(exc) from None
-    return _with_verdict(request, req)
+    return _with_verdict(request, req, user)
 
 
 class RevokeBody(BaseModel):
@@ -238,7 +243,7 @@ class RevokeBody(BaseModel):
 @router.post("/requests/{request_no}/revoke")
 def revoke(request_no: str, body: RevokeBody, request: Request, user: Approver) -> dict[str, Any]:
     try:
-        return _with_verdict(request, permissions.revoke(request.app.state.main_db, user, request_no, body.reason))
+        return _with_verdict(request, permissions.revoke(request.app.state.main_db, user, request_no, body.reason), user)
     except Denied as exc:
         raise _denied(exc) from None
 
@@ -255,4 +260,26 @@ def rejudge(request_no: str, request: Request, user: Approver) -> dict[str, Any]
 
 @router.get("/grants")
 def grants(request: Request, user: Approver) -> list[dict]:
-    return [_with_verdict(request, g) for g in permissions.active_grants(request.app.state.main_db, user)]
+    return [_with_verdict(request, g, user) for g in permissions.active_grants(request.app.state.main_db, user)]
+
+
+# --- 정책 관리 · 로그 감시 결정 -----------------------------------------------
+
+
+class ReviewDecision(BaseModel):
+    kind: str
+    item_key: Annotated[str, StringConstraints(min_length=1, max_length=300)]
+    action: str
+    subject: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] = ""
+    comment: Text = ""
+    ai_level: str | None = None
+
+
+@router.post("/decisions")
+def record_decision(body: ReviewDecision, request: Request, user: Approver) -> dict[str, Any]:
+    """정책 문제 · 로그 판정에 대한 운영자 결정. 취소(cancel)도 기록으로 남깁니다. 응답은 지금 결정(취소면 null)."""
+    try:
+        decision = decisions.record(request.app.state.main_db, user, **body.model_dump())
+    except Denied as exc:
+        raise _denied(exc) from None
+    return {"kind": body.kind, "item_key": body.item_key, "decision": decision}

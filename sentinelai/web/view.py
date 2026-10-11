@@ -35,6 +35,7 @@ def permission(review: dict[str, Any]) -> dict[str, Any]:
 def finding(item: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": item["id"],
+        "key": item["id"],
         "title": item["subject"],
         **_verdict(item),
         "detail": {"events": item["events"], "first_event_at": item["first_event_at"], "last_event_at": item["last_event_at"]},
@@ -50,7 +51,9 @@ def results(store: dict[str, Any]) -> dict[str, Any]:
     if policies and policies["failed"]:
         policy_review = {"summary": f"판정 실패: {policies['error']}", "issues": [], "elapsed_sec": policies["elapsed_sec"]}
     elif policies:
-        policy_review = {k: policies[k] for k in ("summary", "issues", "elapsed_sec")}
+        # 정책 검토는 돌릴 때마다 문제 목록을 새로 만듭니다. 운영자 결정이 그 실행의 문제에만 붙도록 실행 시각을 key 에 넣습니다.
+        issues = [{**i, "key": f"{policies['generated_at']}#{n}"} for n, i in enumerate(policies["issues"], start=1)]
+        policy_review = {"summary": policies["summary"], "issues": issues, "elapsed_sec": policies["elapsed_sec"]}
     else:
         policy_review = None
     issues = policy_review["issues"] if policy_review else []

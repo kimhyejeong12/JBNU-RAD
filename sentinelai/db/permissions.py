@@ -72,7 +72,7 @@ def get(db: Database, by: User, request_no: str) -> dict:
 
 
 def list_requests(db: Database, by: User, stage: str | None = None, mine: bool = False) -> list[dict]:
-    """일반사용자는 자기 신청만, 중간관리자 · 최상급자는 전부. stage 로 결재함을 거릅니다."""
+    """일반사용자는 자기 신청만, 중간관리자 · 최상급자는 전부. stage 로 결재함을 거릅니다. 결재 · 회수 기록까지 담습니다."""
     if stage is not None and stage not in STAGES:
         raise Denied(f"stage 는 {', '.join(STAGES)} 중 하나입니다")
     where, args = [], []
@@ -80,9 +80,9 @@ def list_requests(db: Database, by: User, stage: str | None = None, mine: bool =
         where.append("requester_id = ?"); args.append(by.id)
     if stage:
         where.append("stage = ?"); args.append(stage)
-    sql = "SELECT * FROM access_requests" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY submitted_at DESC, id DESC"
+    sql = "SELECT id FROM access_requests" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY submitted_at DESC, id DESC"
     with db.connection() as conn:
-        return [dict(r) for r in conn.execute(sql, args)]
+        return [_detail(conn, r["id"]) for r in conn.execute(sql, args).fetchall()]
 
 
 def withdraw(db: Database, by: User, request_no: str) -> dict:
@@ -135,4 +135,4 @@ def active_grants(db: Database, by: User) -> list[dict]:
     if by.role not in ("manager", "top"):
         raise Denied("권한 현황은 중간관리자 · 최상급자만 볼 수 있습니다")
     with db.connection() as conn:
-        return [dict(r) for r in conn.execute("SELECT * FROM active_grants ORDER BY closed_at DESC")]
+        return [_detail(conn, r["id"]) for r in conn.execute("SELECT id FROM active_grants ORDER BY closed_at DESC").fetchall()]

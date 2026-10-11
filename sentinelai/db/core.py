@@ -10,6 +10,25 @@ from .. import ROOT
 
 HERE = Path(__file__).resolve().parent
 
+# 트리거는 한국어로 막습니다. 제약 조건 위반만 SQLite 원문이라 화면에 보일 문장으로 바꿉니다.
+_CONSTRAINT_TEXT = {
+    "UNIQUE constraint failed: users.login_id": "이미 있는 아이디입니다",
+    "UNIQUE constraint failed: users.is_root": "루트 계정이 이미 있습니다",
+    "UNIQUE constraint failed: approvals.request_id, approvals.step": "이미 결재한 단계입니다",
+    "UNIQUE constraint failed: revocations.request_id": "이미 회수한 권한입니다",
+    "UNIQUE constraint failed: access_requests.request_no": "신청 번호가 겹쳤습니다. 다시 신청하세요",
+    "FOREIGN KEY constraint failed": "없는 계정 · 신청을 가리킵니다",
+}
+
+
+def _readable(exc: sqlite3.IntegrityError) -> str:
+    text = str(exc)
+    if text in _CONSTRAINT_TEXT:
+        return _CONSTRAINT_TEXT[text]
+    if text.startswith("CHECK constraint failed"):
+        return "허용되지 않는 값입니다"
+    return text
+
 
 class Denied(Exception):
     """규칙에 막힌 요청. 화면에 그대로 보여줄 수 있는 문장을 담습니다."""
@@ -22,10 +41,10 @@ def now() -> str:
 class Database:
     """SQLite 파일 하나. 요청마다 연결을 새로 열어 스레드 간에 연결을 나눠 쓰지 않습니다."""
 
-    def __init__(self, path: str | Path, schema: str) -> None:
+    def __init__(self, path: str | Path, *schemas: str) -> None:
         path = Path(path)
         self.path = path if path.is_absolute() else ROOT / path
-        self.schema = HERE / schema
+        self.schemas = [HERE / s for s in schemas]
 
     def connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=10, isolation_level=None)
@@ -35,12 +54,14 @@ class Database:
         return conn
 
     def init(self) -> None:
-        """처음이면 스키마를 만듭니다. 이미 만들었으면 아무것도 하지 않습니다."""
+        """아직 적용하지 않은 스키마 파일을 차례로 적용합니다. n번째 파일을 적용하면 user_version 이 n 입니다."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as conn:
-            if conn.execute("PRAGMA user_version").fetchone()[0] == 0:
+            version = conn.execute("PRAGMA user_version").fetchone()[0]
+            if version == 0:
                 conn.execute("PRAGMA journal_mode = WAL")
-                conn.executescript("BEGIN;" + self.schema.read_text(encoding="utf-8") + "PRAGMA user_version = 1; COMMIT;")
+            for n, schema in enumerate(self.schemas[version:], start=version + 1):
+                conn.executescript(f"BEGIN;{schema.read_text(encoding='utf-8')}PRAGMA user_version = {n}; COMMIT;")
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
@@ -61,7 +82,7 @@ class Database:
                 conn.execute("COMMIT")
             except sqlite3.IntegrityError as exc:
                 conn.execute("ROLLBACK")
-                raise Denied(str(exc)) from None
+                raise Denied(_readable(exc)) from None
             except BaseException:
                 conn.execute("ROLLBACK")
                 raise
