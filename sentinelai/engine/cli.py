@@ -37,8 +37,10 @@ class Cli:
         print(f"연결       : OK (모델 {len(names)}개)")
 
         chat_ok = self.engine.has_model(s.model, names)
+        qa_ok = self.engine.has_model(s.qa_model, names)
         embed_ok = self.engine.has_model(s.embedding_model, names)
-        print(f"기본 모델  : {s.model} {'OK' if chat_ok else '없음'}")
+        print(f"판정 모델  : {s.model} {'OK' if chat_ok else '없음'}")
+        print(f"질답 모델  : {s.qa_model} {'OK' if qa_ok else '없음'}")
         print(f"임베딩 모델: {s.embedding_model} {'OK' if embed_ok else '없음'}")
 
         mode = "서버" if s.milvus_is_server else "Lite"
@@ -46,7 +48,7 @@ class Cli:
         print(f"Milvus({mode}): {s.milvus_target}")
         print(f"컬렉션     : {s.milvus_collection} "
               f"{'비어 있음 (index 명령으로 적재)' if empty else 'OK'}")
-        return 0 if chat_ok and embed_ok else 1
+        return 0 if chat_ok and qa_ok and embed_ok else 1
 
     def index(self, args: argparse.Namespace) -> int:
         report = self.engine.documents.index(args.source, rebuild=args.rebuild)

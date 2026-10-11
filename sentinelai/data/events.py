@@ -19,18 +19,22 @@ def _utc(moment: datetime) -> datetime:
 
 
 def between(
-    events: Iterable[SecurityEvent], since: datetime | None = None, until: datetime | None = None
+    events: Iterable[SecurityEvent],
+    since: datetime | None = None,
+    until: datetime | None = None,
+    include_since: bool = False,
 ) -> list[SecurityEvent]:
     """since 초과 ~ until 이하. 지난 실행의 마지막 시각을 since 로 넘기면 같은 로그를 두 번 판정하지 않습니다.
 
-    시간대 없는 값은 UTC 로 봅니다.
+    질의처럼 since 시각의 로그도 포함해야 하면 include_since=True. 시간대 없는 값은 UTC 로 봅니다.
     """
     since = _utc(since) if since else None
     until = _utc(until) if until else None
-    return [
-        e for e in events
-        if (since is None or e.occurred_at > since) and (until is None or e.occurred_at <= until)
-    ]
+
+    def after(e: SecurityEvent) -> bool:
+        return since is None or (e.occurred_at >= since if include_since else e.occurred_at > since)
+
+    return [e for e in events if after(e) and (until is None or e.occurred_at <= until)]
 
 
 def latest(events: Iterable[SecurityEvent]) -> datetime | None:

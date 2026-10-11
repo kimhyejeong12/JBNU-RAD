@@ -4,13 +4,13 @@
 
     from sentinelai.data import event_review_input, group_by_user, load_events, load_requests
 
-    for event in load_events("docs/솔루션 별 Mock 데이터.csv").records:
+    for event in load_events("data/솔루션 별 Mock 데이터.csv").records:
         print(event.describe())
 
     request = load_requests("data/permissions.csv").records[0]
     engine.review_chain().invoke(request.review_input())
 
-    events = load_events("docs/솔루션 별 Mock 데이터.csv", since=last_run).records
+    events = load_events("data/솔루션 별 Mock 데이터.csv", since=last_run).records
     for group in group_by_user(events).values():
         engine.event_chain().invoke(event_review_input(group))
 

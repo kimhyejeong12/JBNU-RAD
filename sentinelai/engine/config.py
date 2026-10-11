@@ -19,6 +19,7 @@ class Settings:
 
     ollama_base_url: str
     model: str
+    qa_model: str
     embedding_model: str
     temperature: float
     num_ctx: int
@@ -29,12 +30,12 @@ class Settings:
     chunk_size: int
     chunk_overlap: int
     top_k: int
-    # 검토 대상 데이터 위치. 확장자로 읽는 방식을 고릅니다 (sentinelai.data.open_source).
     requests_source: str
     policies_source: str
     events_source: str
-    # 판정 결과를 쌓는 파일. 웹이 재시작해도 마지막 결과를 보여줍니다.
     results_path: str
+    db_path: str
+    log_db_path: str
 
     @staticmethod
     def env_file() -> Path:

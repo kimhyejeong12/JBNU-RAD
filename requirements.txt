@@ -14,3 +14,6 @@ langchain-milvus>=0.4
 # 웹 대시보드 (sentinelai.web): API 서버
 fastapi>=0.115
 uvicorn[standard]>=0.32
+
+# 권한 DB 로그인 비밀번호 해시 (Argon2id)
+argon2-cffi>=23.1

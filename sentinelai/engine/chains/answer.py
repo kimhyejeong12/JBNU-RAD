@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 def answer_chain(engine: Engine, structured: bool = False, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
     """근거를 직접 넘기는 질의응답. 입력: context, question"""
-    return engine.chain(Prompts.ANSWER, Answer if structured else None, **kwargs)
+    return engine.chain(Prompts.ANSWER, Answer if structured else None, **{"llm": engine.qa_llm, **kwargs})
 
 
 def rag_chain(
