@@ -7,10 +7,11 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import sys
 from typing import Any
 
-from . import pipeline
+from . import db, pipeline
 from .data import parse_datetime
 from .engine.cli import Cli as EngineCli
 
@@ -56,6 +57,12 @@ class Cli(EngineCli):
         logs.add_argument("question", help="질문 (예: 홍길동이 이번 주에 출력을 몇 번 했어?)")
         logs.add_argument("--source", help=source_help)
         logs.set_defaults(command="ask_logs")
+
+        root = sub.add_parser("create-root", help="초기 루트 계정(최상급자) 생성 — 서버에서 한 번만")
+        root.add_argument("--login", required=True, help="로그인 ID")
+        root.add_argument("--name", required=True, help="표시 이름")
+        root.add_argument("--department", default="", help="부서")
+        root.set_defaults(command="create_root")
 
     @property
     def store(self) -> pipeline.ResultStore:
@@ -119,6 +126,22 @@ class Cli(EngineCli):
             for line in result["evidence"]:
                 print(f"  {line}")
         return 1 if result["failed"] else 0
+
+    def create_root(self, args: argparse.Namespace) -> int:
+        main_db, _ = db.open_databases(self.engine.settings.db_path, self.engine.settings.log_db_path)
+        # 터미널이 아니면(파이프) 화면 표시 없이 한 줄씩 읽습니다.
+        ask = getpass.getpass if sys.stdin.isatty() else (lambda prompt: sys.stdin.readline().rstrip("\n"))
+        password = ask("비밀번호: ")
+        if password != ask("비밀번호 확인: "):
+            print("두 비밀번호가 다릅니다.", file=sys.stderr)
+            return 1
+        try:
+            user = db.auth.create_root(main_db, args.login, password, args.name, args.department)
+        except db.Denied as exc:
+            print(f"만들지 못했습니다: {exc}", file=sys.stderr)
+            return 1
+        print(f"루트 계정을 만들었습니다: {user.login_id} ({user.display_name}) → {main_db.path}")
+        return 0
 
     def _done(self, section: dict[str, Any], failed: int) -> int:
         for issue in section["load_issues"]:

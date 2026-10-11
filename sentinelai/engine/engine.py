@@ -25,12 +25,22 @@ class Engine:
         self.settings = settings or Settings.load()
         self.documents = DocumentStore(self.settings)
         self._llm: ChatOllama | None = None
+        self._qa_llm: ChatOllama | None = None
 
     @property
     def llm(self) -> ChatOllama:
         if self._llm is None:
             self._llm = ChatOllama(**self.settings.llm_options)
         return self._llm
+
+    @property
+    def qa_llm(self) -> ChatOllama:
+        """정책 · 로그 질의용 모델."""
+        if self.settings.qa_model == self.settings.model:
+            return self.llm
+        if self._qa_llm is None:
+            self._qa_llm = self.with_model(self.settings.qa_model)
+        return self._qa_llm
 
     def with_model(self, model: str) -> ChatOllama:
         return ChatOllama(**{**self.settings.llm_options, "model": model})

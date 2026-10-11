@@ -46,8 +46,16 @@ JBNU-RAD/
 │   │   ├── source.py             RowSource — CsvSource · JsonSource · MemorySource, 확장자로 고르는 open_source
 │   │   ├── mapper.py             Mapper — EventMapper(Microsoft Sentinel 로그) · AccessRequestMapper · PolicyRuleMapper
 │   │   └── events.py             로그 시각 필터(between · latest) · 사용자별 묶음 → event_chain 입력 · 로그 질의용 search · summarize · vocabulary
+│   ├── db/                     권한 DB · Log DB (SQLite). 엔진 · 데이터 계층은 모른다. 설계는 design/db-schema.md
+│   │   ├── schema.sql            권한 DB — 사용자 · 세션 · 감사 기록 · 신청 · 결재 · 회수. 결재 순서 · 역할은 트리거가 강제
+│   │   ├── log_schema.sql        Log DB — 권한 신청 AI 판정 (로그 · 로그 감시 판정은 나중에)
+│   │   ├── auth.py               Argon2id · 로그인 잠금 · 세션 2일 · 루트만 계정 관리
+│   │   ├── permissions.py        신청 · 철회 · 결재 · 회수 · 권한 현황
+│   │   └── logs.py               AI 판정 저장 · 조회
 │   └── web/                    웹 계층 (김혜정) — 코어(pipeline)를 부르고 결과를 보여준다. 판정 로직은 두지 않는다
-│       ├── main.py               FastAPI — API + 화면 서빙. Engine · ResultStore · JobRunner 를 앱 시작 시 1회 만든다
+│       ├── main.py               FastAPI — API + 화면 서빙. Engine · ResultStore · JobRunner · DB · 판정 작업을 앱 시작 시 1회 만든다
+│       ├── api_permissions.py    로그인 · 계정 · 권한 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests · /api/grants)
+│       ├── verdicts.py           신청이 들어오면 바로 AI 판정 (백그라운드, Log DB에 저장, 재시작 시 밀린 판정 이어서)
 │       ├── jobs.py               JobRunner — pipeline 작업을 백그라운드 스레드로 한 번에 하나씩 (진행 상황 · 마지막 실패)
 │       ├── view.py               ResultStore → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
 │       └── static/index.html     단일 파일 대시보드 — 메뉴(권한 신청 · 정책 관리 · 로그 감시)별 검토 현황, 정책 관리의 정책 질의 탭 (CSS · JS · 아이콘 인라인)
@@ -60,11 +68,13 @@ JBNU-RAD/
 │   └── review_check.py         반복 루프 · 등급 흔들림 재현 (테스트 전용) — 수정 금지
 ├── .milvus/                  벡터 DB 파일 (Milvus Lite, git 제외)
 ├── .env · .env.example       설정. .env는 git 제외, make install이 예시에서 만든다
+├── design/                   설계 문서 — db-schema.md (권한 DB 결정 경위 · 남은 질문)
+├── NOTES.md                  작업 메모 — 설정 값의 이유 · 서버 이슈 경위 · 모델 비교 결과. 설정 파일과 코드에는 설명 주석을 두지 않고 여기에 적는다
 ├── Makefile · requirements.txt
 └── Dockerfile · README.md    코어 컨테이너(엔진 · data · pipeline, `python -m sentinelai`) · 저장소 소개 (웹은 컨테이너에 없음)
 ```
 
-검토 대상 위치는 `.env`에서 정한다 — `SENTINELAI_REQUESTS_SOURCE`(권한 신청) · `SENTINELAI_POLICIES_SOURCE`(솔루션 정책) · `SENTINELAI_EVENTS_SOURCE`(보안 솔루션 로그, 지금은 `docs/솔루션 별 Mock 데이터.csv`).
+검토 대상 위치는 `.env`에서 정한다 — `SENTINELAI_REQUESTS_SOURCE`(권한 신청) · `SENTINELAI_POLICIES_SOURCE`(솔루션 정책) · `SENTINELAI_EVENTS_SOURCE`(보안 솔루션 로그, 지금은 `data/솔루션 별 Mock 데이터.csv`).
 권한 신청 · 정책 CSV(`data/permissions.csv` · `data/policies.csv`)는 10/7에 저장소에서 지웠다. 그 파일이 없으면 해당 분석은 "데이터 파일이 없습니다"로 실패하고 화면 하단에 그대로 뜬다. 예전 사례는 git 이력에 있다.
 컬럼 — 권한 신청: `id, requester, requested_access, current_access, 신청일` / 정책: `policy_id, solution, source, destination, service, action, expires_at` / 로그: Microsoft Sentinel 내보내기(`TimeGenerated`, `WHO` · `WHERE` · `HOW` 등, `sentinelai/data/mapper.py`).
 
@@ -101,8 +111,15 @@ JBNU-RAD/
 | `POST /api/ask-logs` | 로그 질의. 입력은 `/api/ask`와 같다 → `pipeline.ask_logs` → `answer · criteria · facts · evidence · failed` |
 | `GET /api/health` | 헤더 경고: 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` |
 | `GET /api/regulations` | `docs/` 원문 (근거 조항 전문 표시용) |
+| `POST /api/auth/login` · `logout` · `GET /api/auth/me` · `POST /api/auth/password` | 로그인 (세션 쿠키 HttpOnly · SameSite=Strict, 2일), 첫 로그인 비밀번호 변경 전에는 다른 API가 403 |
+| `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 — 루트만 |
+| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` · `GET /api/requests/{no}` | 신청(일반사용자) · 목록(일반사용자는 자기 것만) · 상세. 응답에 최신 AI 판정(`ai_verdict`)과 판정 중 여부(`judging`) |
+| `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(중간관리자 = 1차, 최상급자 = 최종) · 회수(중간관리자 · 최상급자) · 다시 판정 |
+| `GET /api/grants` | 지금 유효한 권한 (중간관리자 · 최상급자) |
 
-- `Engine()` · `rag_chain`은 앱 시작 시 1회만 만든다. CORS `*`는 데모 전용이다.
+- 권한 API는 로그인이 필요하다. 기존 대시보드 API(위 표의 앞부분)는 화면을 로그인으로 바꾸는 다음 단계까지 그대로 열려 있다.
+
+- `Engine()` · `rag_chain`은 앱 시작 시 1회만 만든다. CORS `*`는 데모 때 설정이라 로그인과 함께 걷어낸다.
 - 운영자 결정 · 정책 질의 기록은 화면 메모리에만 있다 (새로고침하면 사라짐). 판정 결과는 파일에 남는다.
 
 **화면 필드의 출처**
@@ -135,14 +152,17 @@ JBNU-RAD/
 | `make review-policies [SRC=파일]` | 정책 간 중복 · 충돌 · 과도한 허용 판정 → 결과 파일 |
 | `make monitor [SRC=로그] [SINCE=시각] [FULL=1]` | 로그 감시 1회 — 지난 감시 이후 로그만 판정해 결과 파일에 쌓는다 (cron용). `FULL=1`이면 처음부터 |
 | `make ask-logs Q="질문"` | 보안 솔루션 로그에 질의 (벡터 DB를 쓰지 않아 `make web`이 떠 있어도 된다) |
+| `make create-root LOGIN=아이디 NAME=이름 [DEPT=부서]` | 초기 루트 계정(최상급자) 생성 — 서버에서 한 번만. 비밀번호는 화면 표시 없이 입력 |
 | `make web` | 대시보드 http://localhost:8000 — 위 판정을 화면의 [분석 실행]으로도 돌린다 |
 
 설정은 `.env` 한 곳에서 나온다. 코드에 주소 · 모델명을 하드코딩하지 않는다. 두 환경 모두에서 동작해야 한다.
 
-| 환경 | `SENTINELAI_OLLAMA_BASE_URL` | `SENTINELAI_MODEL` |
-|---|---|---|
-| 팀 서버 | `http://210.117.182.197:11434` | `gpt-oss:20b` |
-| 개인 맥 | `http://localhost:11434` | `qwen2.5:7b` |
+| 환경 | `SENTINELAI_OLLAMA_BASE_URL` | `SENTINELAI_MODEL` (판정) | `SENTINELAI_QA_MODEL` (질답) |
+|---|---|---|---|
+| 팀 서버 | `http://210.117.182.197:11434` | `qwen3:14b` | `qwen3:14b` |
+| 개인 맥 | `http://localhost:11434` | `qwen2.5:7b` | `qwen2.5:7b` |
+
+판정 모델은 권한 · 정책 · 로그 감시 판정, 질답 모델은 정책 · 로그 질의에 쓴다. 나눈 이유와 모델 비교는 `NOTES.md`.
 
 서버 주소가 설정 한 줄로 바뀌는 구조가 제안서의 "향후 사내 환경 이전" 요구에 해당한다.
 9/27에는 맥에서 팀 서버로 접속되지 않았다 (8초 타임아웃).
@@ -157,8 +177,9 @@ JBNU-RAD/
 - ❌ 엔진 기능 재구현, 엔진 타입을 대체하는 웹 전용 스키마
 - ❌ 서버 주소 · 모델명 하드코딩 — 전부 `Settings`
 - ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제), React · Tailwind · 빌드 도구
-- ❌ 데이터베이스 · 로그인 · 파일 업로드
-- ❌ 정책 자동 수정 · 권한 자동 승인 — 운영자 결정 버튼은 화면 메모리에만 기록한다
+- ❌ 파일 업로드 (문서 데이터 읽기 · §8에서 다시 정한다)
+- 데이터베이스와 로그인(ID/PW, 운영자 분리)은 10/11에 금지를 풀었다 — 더 이상 데모가 아니다. DB 계층 · API까지 구현했다 (10/11). 화면은 다음 단계
+- ❌ 정책 자동 수정 · 권한 자동 승인 — 결정은 운영자가 한다 (지금은 화면 메모리에만 기록, DB가 들어오면 DB에)
 - ❌ 엔진 출력 항목을 손으로 고치기 · 근거 없는 목업 데이터 · 사전 계산 답을 실시간처럼 보이게 하는 연출 (10/8에 모두 걷어냈다)
 - ❌ 여러 모듈을 한꺼번에 바꾸기 — 하나씩 바꾸고 확인한다. 막히면 우회하지 말고 사용자에게 보고한다
 
@@ -214,7 +235,8 @@ JBNU-RAD/
 ## 6. 알려진 문제
 
 - **검색은 종류별로 한다.** RAG에는 기준 조항과 솔루션 규칙이 함께 있다. 한 번에 찾으면 규칙 9건에 조항 청크 4개가 밀려나므로, 권한 · 정책 검토는 조항만, 로그 검토는 조항과 규칙을 따로, 질의응답은 둘을 이어 붙여 쓴다. 조항은 아직 청크 4개뿐이라 `top_k=4`가 전부를 가져온다.
-- **`gpt-oss:20b`는 `SENTINELAI_NUM_PREDICT=1024`가 모자라다.** 답하기 전에 추론하느라 조항이 들어간 정책 검토에서 1024 토큰을 다 쓰고 빈 출력(`done_reason=length`)을 낸다. 10/7 측정에서 약 2000 토큰이 필요했고 4096이면 끝났다.
+- **팀 서버는 부팅 순서 때문에 GPU 없이 돌 수 있다.** 10/6~10/11 내내 CPU로만 돌았다. `ollama ps`의 PROCESSOR가 CPU면 의심한다. 경위와 조치는 `NOTES.md`.
+- **`gpt-oss:20b`는 `SENTINELAI_NUM_PREDICT=1024`가 모자라다 (10/11에 4096으로 올림).** 답하기 전에 추론하느라 조항이 들어간 정책 검토에서 1024 토큰을 다 쓰고 빈 출력(`done_reason=length`)을 낸다. 10/7 측정에서 약 2000 토큰이 필요했고 4096이면 끝났다.
 - **소형 모델 한계** (`qwen2.5:7b`): 반복 루프로 판정 1건이 380~417초까지 늘어나고(9/27 6건 중 3건), 같은 입력에도 등급이 바뀐다 (REQ-005: 캐시 정상 → 재판정 주의). 판정 1건은 20초대에서 7분까지 걸린다.
 - **`rag_chain`의 sources 형식이 매번 다르다.** 조항 번호가 빠지면 근거 칩에 문서 이름만 뜨고, 누르면 문서 전문이 나온다.
 - **repeat_penalty는 쓰지 않는다.** 9/27 같은 6건 + 정책으로 비교한 결과:
@@ -238,8 +260,11 @@ JBNU-RAD/
 
 ## 8. 남은 일
 
-1. **권한 신청 · 정책 데이터를 다시 정하고 `gpt-oss:20b`로 전 건 판정해 §5와 대조한다.** `data/`의 두 CSV가 지워져 있어 지금은 로그 감시만 실제로 돈다. `gpt-oss:20b`는 `SENTINELAI_NUM_PREDICT`를 4096 정도로 올려야 한다 (§6).
-2. **알림(Notifier) 구축** — 로그 감시의 주의 · 위험 판정을 운영자에게 보낸다. 인터페이스 자리만 `sentinelai/engine/alert.py`에 두었고, `sentinelai/pipeline.py`의 `monitor`에 부를 곳을 표시했다.
-3. 기준 문서에 출력 · 매체 반출 조항이 없어 로그 감시가 근거 없이 판정한다. 절차서 14 · 17번(예외처리 · 매체 반출입) 원문이 필요하다.
-4. **로그 감시 이력 화면** — 로그 감시 결과가 쌓이면 운영자가 볼 이력: 같은 사용자의 반복 주의 · 위험, 솔루션 · 행위별 추이, 마지막 감시 시각과 판정하지 못한 로그. 데이터가 쌓이고 출력 · 매체 반출 기준 조항(3번)이 들어온 뒤에 만든다.
-5. 이번 범위 밖: 이메일 · 메신저 알림 채널, 실제 솔루션 API 수집(`sentinelai.data` 에 RowSource 로 추가).
+1. **권한 신청 · 정책 데이터를 다시 정하고 `qwen3:14b`로 전 건 판정해 §5와 대조한다.** `data/`의 두 CSV가 지워져 있어 지금은 로그 감시만 실제로 돈다. (`SENTINELAI_NUM_PREDICT`는 10/11에 4096으로 올렸다.)
+2. **DB · 로그인 · 권한 신청 입력** — 권한 DB(SQLite): 일반사용자 신청 → 중간관리자 1차 승인 → 최상급자 최종 승인, ID/PW 로그인, 루트만 계정 생성. 화면은 중간관리자용(지금 대시보드) · 최상급자용 · 신청용. AI 판정 · 로그는 Log DB로 따로. DB 계층 · API 구현 완료 (10/11) — 남은 것: 로그인 · 권한 관리 화면, 기존 API에 로그인 적용. 알림 · 이력 화면보다 먼저 한다 (둘 다 DB가 필요하다).
+3. **알림(Notifier) 구축** — 로그 감시의 주의 · 위험 판정을 운영자에게 보낸다. 인터페이스 자리만 `sentinelai/engine/alert.py`에 두었고, `sentinelai/pipeline.py`의 `monitor`에 부를 곳을 표시했다.
+4. 기준 문서에 출력 · 매체 반출 조항이 없어 로그 감시가 근거 없이 판정한다. 절차서 14 · 17번(예외처리 · 매체 반출입) 원문이 필요하다.
+5. **로그 감시 이력 화면** — 로그 감시 결과가 쌓이면 운영자가 볼 이력: 같은 사용자의 반복 주의 · 위험, 솔루션 · 행위별 추이, 마지막 감시 시각과 판정하지 못한 로그. 데이터가 쌓이고 출력 · 매체 반출 기준 조항(4번)이 들어온 뒤에 만든다.
+6. **문서 데이터 읽기** — 지금 `DocumentStore`는 `.md` · `.txt`만 적재한다. 사내 정책 원문(pptx · pdf · docx 등)을 읽어 기준 조항으로 RAG에 넣는다. `docs/보안 정책 관리 업무 프로세스.pptx`는 글자 없이 이미지 4장이라 OCR까지 필요하다. 4번의 절차서 원문도 이 경로로 들어온다.
+7. **할루시네이션 검증** — 모델 출력이 근거와 맞는지 코드로 확인한다. 예: 판정 `sources`의 조항 번호 · 정책 ID가 실제로 검색된 근거에 있는지, 로그 질의 답의 숫자가 `summarize` 집계와 같은지, 로그 조건(사용자 · 기간)이 질문에 있는 말인지. 어긋나면 화면에 알리거나 다시 시도한다. 10/11에 모델이 질문에 없는 기간을 채워 답이 틀린 일이 있었다 (`NOTES.md`).
+8. 이번 범위 밖: 이메일 · 메신저 알림 채널, 실제 솔루션 API 수집(`sentinelai.data` 에 RowSource 로 추가).

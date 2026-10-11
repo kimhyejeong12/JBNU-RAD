@@ -19,9 +19,9 @@ if TYPE_CHECKING:
 
 def log_filter_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
     """질문 → LogFilter. 입력: question, vocabulary(로그에 있는 값), now(현재 시각 UTC)"""
-    return engine.chain(Prompts.LOG_FILTER, LogFilter, **kwargs)
+    return engine.chain(Prompts.LOG_FILTER, LogFilter, **{"llm": engine.qa_llm, **kwargs})
 
 
 def log_answer_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
     """조건 · 집계 · 로그 → 답변 문자열. 입력: question, criteria, facts, lines"""
-    return engine.chain(Prompts.LOG_ANSWER, None, **kwargs)
+    return engine.chain(Prompts.LOG_ANSWER, None, **{"llm": engine.qa_llm, **kwargs})

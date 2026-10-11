@@ -17,8 +17,12 @@ from pydantic import BaseModel, StringConstraints  # noqa: E402
 from sentinelai import ROOT, pipeline  # noqa: E402
 from sentinelai.engine import Answer, Engine  # noqa: E402
 
+from sentinelai.db import open_databases  # noqa: E402
+
 from . import view  # noqa: E402
+from .api_permissions import router as permissions_router  # noqa: E402
 from .jobs import KINDS, JobRunner  # noqa: E402
+from .verdicts import VerdictWorker  # noqa: E402
 
 DOCS_DIR = ROOT / "docs"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -35,7 +39,11 @@ async def lifespan(app: FastAPI):
     state["store"] = pipeline.ResultStore(engine.settings.results_path)
     state["jobs"] = JobRunner(engine, state["store"])
     state["rag_chain"] = engine.rag_chain(structured=True)
+    app.state.main_db, app.state.log_db = open_databases(engine.settings.db_path, engine.settings.log_db_path)
+    app.state.verdicts = VerdictWorker(engine, app.state.main_db, app.state.log_db)
+    app.state.verdicts.resume()
     yield
+    app.state.verdicts.stop()
     state.clear()
 
 
@@ -44,6 +52,7 @@ app = FastAPI(
     description="AI 보안 정책 검토 시스템 — 전북대학교 RAD(RAG & Decision) · SK쉴더스",
     lifespan=lifespan,
 )
+app.include_router(permissions_router)
 
 # 데모 전용 설정입니다. 사내 환경에 올릴 때는 허용 출처를 한정해야 합니다.
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -57,9 +66,11 @@ def health() -> dict[str, Any]:
     info: dict[str, Any] = {
         "base_url": s.ollama_base_url,
         "model": s.model,
+        "qa_model": s.qa_model,
         "embedding_model": s.embedding_model,
         "connected": False,
         "model_ready": False,
+        "qa_model_ready": False,
         "embedding_ready": False,
         "error": None,
     }
@@ -68,12 +79,13 @@ def health() -> dict[str, Any]:
         info.update(
             connected=True,
             model_ready=engine.has_model(s.model, models),
+            qa_model_ready=engine.has_model(s.qa_model, models),
             embedding_ready=engine.has_model(s.embedding_model, models),
         )
     except Exception as exc:
         info["error"] = f"{type(exc).__name__}: {exc}"
     info["index_ready"] = not engine.documents.is_empty()
-    info["ok"] = all(info[k] for k in ("connected", "model_ready", "embedding_ready", "index_ready"))
+    info["ok"] = all(info[k] for k in ("connected", "model_ready", "qa_model_ready", "embedding_ready", "index_ready"))
     return info
 
 

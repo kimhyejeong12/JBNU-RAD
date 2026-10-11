@@ -107,6 +107,17 @@ def review_one(engine: Engine, source: Any, request_id: str) -> dict[str, Any] |
     return {**request.model_dump(), **_judged(verdict, error, elapsed)}
 
 
+def judge_request(engine: Engine, request: dict[str, Any]) -> dict[str, Any]:
+    """권한 DB의 신청 1건 → AI 판정 (Log DB에 저장할 dict). 신청이 들어오면 바로 부릅니다."""
+    inputs = {
+        "requester": f"{request.get('requester_department', '')} {request['requester_name']}".strip(),
+        "requested_access": request["requested_access"],
+        "current_access": request.get("current_access", ""),
+    }
+    verdict, error, elapsed = attempt(lambda: engine.review_chain().invoke(inputs))
+    return _judged(verdict, error, elapsed)
+
+
 def review_policies(engine: Engine, source: Any) -> dict[str, Any]:
     """정책 전체를 policy_chain 으로 한 번에 검토합니다. → results 의 "policies" 구역"""
     loaded = load_policies(source)
@@ -174,7 +185,7 @@ def ask_logs(engine: Engine, source: Any, question: str, now: datetime | None = 
 
     log_filter, error, _ = attempt(lambda: engine.log_filter_chain().invoke({
         "question": question,
-        "vocabulary": json.dumps(vocabulary(events), ensure_ascii=False),
+        "vocabulary": json.dumps({k: v for k, v in vocabulary(events).items() if k not in ("first", "last")}, ensure_ascii=False),
         "now": now.isoformat(timespec="seconds"),
     }))
     if log_filter is None:
@@ -189,7 +200,7 @@ def ask_logs(engine: Engine, source: Any, question: str, now: datetime | None = 
         result.update(criteria=criteria, answer=f"기간을 읽지 못했습니다: {exc}")
         return done(str(exc))
     fields = ("user", "department", "solution", "where", "how", "keyword")
-    matched = search(between(events, since, until), **{k: criteria[k] for k in fields if k in criteria})
+    matched = search(between(events, since, until, include_since=True), **{k: criteria[k] for k in fields if k in criteria})
     facts = summarize(matched)
     lines = [e.describe() for e in matched[-LOG_LINES:]]
     result.update(criteria=criteria, facts=facts, evidence=lines)

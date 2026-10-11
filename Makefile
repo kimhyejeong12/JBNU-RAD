@@ -4,7 +4,7 @@ DOCKER ?= docker
 IMAGE := sentinelai:0.6.0
 DOCS ?= docs
 
-.PHONY: help install health models config index index-policies search ask chat review-check review-requests review-policies monitor ask-logs web docker-build docker-run clean
+.PHONY: help install health models config index index-policies search ask chat review-check review-requests review-policies monitor ask-logs create-root web docker-build docker-run clean
 
 help:
 	@echo "install         venv 생성 + 의존성 설치 + .env 준비"
@@ -21,6 +21,7 @@ help:
 	@echo "review-policies [SRC=파일]  정책 간 중복 · 충돌 · 과도한 허용 판정 (정책 이해)"
 	@echo "monitor [SRC=로그] [SINCE=시각] [FULL=1]  지난 감시 이후 로그를 정책과 비교 (로그 감시)"
 	@echo "ask-logs Q=\"질문\"   보안 솔루션 로그에 질의 (로그 감시 — 건수는 코드가 셈)"
+	@echo "create-root LOGIN=아이디 NAME=이름 [DEPT=부서]  초기 루트 계정(최상급자) 생성 — 비밀번호는 입력받음"
 	@echo "web             대시보드 실행 (http://localhost:8000)"
 	@echo "docker-build    이미지 빌드 (podman: make docker-build DOCKER=podman)"
 	@echo "docker-run      컨테이너에서 health 실행"
@@ -64,6 +65,9 @@ monitor:
 
 ask-logs:
 	$(PY) -m sentinelai ask-logs "$(Q)"
+
+create-root:
+	$(PY) -m sentinelai create-root --login "$(LOGIN)" --name "$(NAME)" $(if $(DEPT),--department "$(DEPT)")
 
 review-requests:
 	$(PY) -m sentinelai review-requests $(SRC)
