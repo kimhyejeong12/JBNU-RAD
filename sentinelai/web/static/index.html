@@ -1022,7 +1022,7 @@ function renderRequestPanel(it) {
       <div class="sec"><h4>${icon("activity", "sm")}AI 판단 이유</h4><div class="box">${esc(v.reason)}</div></div>
       <div class="sec"><h4>${icon("ok", "sm")}AI 권고</h4><div class="box">${esc(v.recommendation)}</div></div>
       <div class="sec"><h4>${icon("db", "sm")}근거 조항</h4>${sourceChips(it.key, v.sources)}</div>
-      <p class="note">${esc(v.model)} · ${esc(stamp(v.created_at))} 판정</p>`;
+      <p class="note">${esc(v.model)} · ${esc(stamp(v.judged_at))} 판정</p>`;
   }
 
   const steps = [
@@ -1055,7 +1055,7 @@ function renderRequestPanel(it) {
 
   const rows = [["신청자", requester(r)], ["신청 권한", r.requested_access], ["현재 보유 권한", r.current_access || "—"],
                 ["신청 사유", r.reason || "—"], ["사용 기간", period(r)], ["신청 시각", stamp(r.submitted_at)], ["상태", STAGE_LABEL[r.stage]]];
-  const rejudge = !applicant && !r.judging && (r.stage === "manager" || r.stage === "top");
+  const rejudge = !applicant && !r.judging && r.stage === "manager";
   $("panel").innerHTML = `
     <div class="panel-head">
       <h3>${applicant ? "내 신청" : "권한 신청 검토"}</h3>

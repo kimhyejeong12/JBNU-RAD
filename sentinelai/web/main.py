@@ -39,8 +39,8 @@ async def lifespan(app: FastAPI):
     state["store"] = pipeline.ResultStore(engine.settings.results_path)
     state["jobs"] = JobRunner(engine, state["store"])
     state["rag_chain"] = engine.rag_chain(structured=True)
-    app.state.main_db, app.state.log_db = open_databases(engine.settings.db_path, engine.settings.log_db_path)
-    app.state.verdicts = VerdictWorker(engine, app.state.main_db, app.state.log_db)
+    app.state.main_db, app.state.results_db = open_databases(engine.settings.db_path, engine.settings.results_db_path)
+    app.state.verdicts = VerdictWorker(engine, app.state.main_db)
     app.state.verdicts.resume()
     yield
     app.state.verdicts.stop()

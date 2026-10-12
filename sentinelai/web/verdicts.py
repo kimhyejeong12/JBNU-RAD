@@ -1,6 +1,7 @@
 """권한 신청이 들어오면 바로 AI 판정을 돌립니다 (백그라운드, 한 번에 한 건).
 
-판정 한 건에 수십 초가 걸리므로 신청 응답을 기다리게 하지 않습니다. 결과는 Log DB에 쌓이고 결재 화면이 읽어 갑니다.
+판정 한 건에 수십 초가 걸리므로 신청 응답을 기다리게 하지 않습니다. 결과는 신청 행의 AI 칸에 쓰고 결재 화면이 읽어 갑니다.
+1차 결재가 먼저 나면 판정은 버립니다 (결재자가 본 판정이 바뀌지 않도록).
 """
 from __future__ import annotations
 
@@ -9,15 +10,15 @@ import queue
 import threading
 
 from sentinelai import pipeline
-from sentinelai.db import Database, logs
+from sentinelai.db import Database, permissions
 from sentinelai.engine import Engine
 
 log = logging.getLogger(__name__)
 
 
 class VerdictWorker:
-    def __init__(self, engine: Engine, main_db: Database, log_db: Database) -> None:
-        self.engine, self.main_db, self.log_db = engine, main_db, log_db
+    def __init__(self, engine: Engine, main_db: Database) -> None:
+        self.engine, self.main_db = engine, main_db
         self._queue: queue.Queue[str] = queue.Queue()
         self._pending: set[str] = set()
         self._lock = threading.Lock()
@@ -41,10 +42,8 @@ class VerdictWorker:
             return request_no in self._pending
 
     def resume(self) -> None:
-        """결재 대기 중인데 판정이 없는 신청을 다시 줄 세웁니다 (웹을 다시 띄웠을 때)."""
-        with self.main_db.connection() as conn:
-            waiting = [r[0] for r in conn.execute("SELECT request_no FROM access_requests WHERE stage IN ('manager', 'top')")]
-        for request_no in logs.unjudged(self.log_db, waiting):
+        """1차 결재 전인데 판정이 없거나 실패한 신청을 다시 줄 세웁니다 (웹을 다시 띄웠을 때)."""
+        for request_no in permissions.unjudged(self.main_db):
             self.enqueue(request_no)
 
     def _run(self) -> None:
@@ -58,8 +57,9 @@ class VerdictWorker:
                 if row is not None:
                     result = pipeline.judge_request(self.engine, dict(row))
                     # 종료 중에 끝난 판정은 벡터 DB가 먼저 닫혀 실패했을 수 있어 남기지 않습니다.
-                    if not self._stopping.is_set():
-                        logs.save_request_verdict(self.log_db, request_no, result, self.engine.settings.model)
+                    if not self._stopping.is_set() and not permissions.save_ai_verdict(
+                            self.main_db, request_no, result, self.engine.settings.model):
+                        log.info("권한 신청 %s 은 판정 중에 1차 결재가 나서 판정을 버립니다", request_no)
             except Exception:  # 한 건이 실패해도 다음 신청은 판정해야 합니다. LLM 실패는 judge_request 가 판정 실패로 남깁니다.
                 log.exception("권한 신청 %s 판정을 저장하지 못했습니다", request_no)
             finally:

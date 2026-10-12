@@ -35,7 +35,7 @@ class Settings:
     events_source: str
     results_path: str
     db_path: str
-    log_db_path: str
+    results_db_path: str
 
     @staticmethod
     def env_file() -> Path:

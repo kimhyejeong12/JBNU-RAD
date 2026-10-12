@@ -1,4 +1,4 @@
-"""권한 신청 · 결재 · 회수 (권한 DB).
+"""권한 신청 · AI 판정 · 결재 · 회수 (권한 DB, 신청 1건 = 1행).
 
 순서 · 역할 규칙은 트리거가 강제합니다. 여기서는 트리거가 알 수 없는 것(신청자 본인인지, 볼 수 있는 범위)을 확인합니다.
 """
@@ -48,14 +48,26 @@ def _row(conn: sqlite3.Connection, request_no: str) -> sqlite3.Row:
 
 
 def _detail(conn: sqlite3.Connection, rid: int) -> dict:
-    req = dict(conn.execute("SELECT * FROM access_requests WHERE id = ?", (rid,)).fetchone())
-    req["approvals"] = [dict(r) for r in conn.execute(
-        "SELECT step, action, comment, approver_id, approver_name, approver_department, ai_verdict_ref, ai_level, decided_at"
-        " FROM approvals WHERE request_id = ? ORDER BY id", (rid,))]
-    rev = conn.execute(
-        "SELECT reason, revoker_id, revoker_name, revoker_department, revoked_at FROM revocations WHERE request_id = ?", (rid,)
-    ).fetchone()
-    req["revocation"] = dict(rev) if rev else None
+    """신청 한 행 → 화면용 dict. AI 판정 · 결재 · 회수 칸은 묶음으로 나눠 담습니다."""
+    row = dict(conn.execute("SELECT * FROM access_requests WHERE id = ?", (rid,)).fetchone())
+    req = {k: v for k, v in row.items() if not k.startswith(("ai_", "manager_", "top_", "revoke"))}
+    req["ai_verdict"] = None if row["ai_judged_at"] is None else {
+        "level": row["ai_level"], "reason": row["ai_reason"], "recommendation": row["ai_recommendation"],
+        "sources": json.loads(row["ai_sources"]), "failed": bool(row["ai_failed"]), "error": row["ai_error"],
+        "model": row["ai_model"], "elapsed_sec": row["ai_elapsed_sec"], "judged_at": row["ai_judged_at"],
+    }
+    # 1차 결재 뒤에는 AI 칸이 굳으므로, 두 결재자가 본 판정은 같은 AI 칸입니다.
+    seen = row["ai_level"] if row["ai_judged_at"] and not row["ai_failed"] else None
+    req["approvals"] = [
+        {"step": step, "action": row[f"{step}_action"], "comment": row[f"{step}_comment"], "approver_id": row[f"{step}_id"],
+         "approver_name": row[f"{step}_name"], "approver_department": row[f"{step}_department"],
+         "ai_level": seen, "decided_at": row[f"{step}_decided_at"]}
+        for step in ("manager", "top") if row[f"{step}_action"]
+    ]
+    req["revocation"] = None if row["revoked_at"] is None else {
+        "reason": row["revoke_reason"], "revoker_id": row["revoker_id"], "revoker_name": row["revoker_name"],
+        "revoker_department": row["revoker_department"], "revoked_at": row["revoked_at"],
+    }
     return req
 
 
@@ -97,23 +109,27 @@ def withdraw(db: Database, by: User, request_no: str) -> dict:
         return _detail(conn, req["id"])
 
 
-def decide(db: Database, by: User, request_no: str, action: str, comment: str = "",
-           ai_verdict_ref: str | None = None, ai_level: str | None = None) -> dict:
-    """결재. 단계는 결재자의 역할로 정합니다 (중간관리자 = 1차, 최상급자 = 최종)."""
+def _person(conn: sqlite3.Connection, by: User) -> sqlite3.Row:
+    return conn.execute("SELECT id, display_name, department FROM users WHERE id = ?", (by.id,)).fetchone()
+
+
+def decide(db: Database, by: User, request_no: str, action: str, comment: str = "") -> dict:
+    """결재. 단계는 결재자의 역할로 정합니다 (중간관리자 = 1차, 최상급자 = 최종). 결재자가 본 AI 판정은 신청 행의 AI 칸입니다."""
     if action not in ("approve", "reject"):
         raise Denied("action 은 approve · reject 중 하나입니다")
     if by.role not in ("manager", "top"):
         raise Denied("결재할 수 있는 역할이 아닙니다")
+    step = by.role
     with db.transaction() as conn:
         req = _row(conn, request_no)
+        person = _person(conn, by)
         conn.execute(
-            "INSERT INTO approvals (request_id, step, action, comment, approver_id, approver_name, approver_department,"
-            " ai_verdict_ref, ai_level, decided_at)"
-            " SELECT ?, role, ?, ?, id, display_name, department, ?, ?, ? FROM users WHERE id = ?",
-            (req["id"], action, comment.strip(), ai_verdict_ref, ai_level, now(), by.id),
+            f"UPDATE access_requests SET {step}_action = ?, {step}_comment = ?, {step}_id = ?, {step}_name = ?,"
+            f" {step}_department = ?, {step}_decided_at = ? WHERE id = ?",
+            (action, comment.strip(), person["id"], person["display_name"], person["department"], now(), req["id"]),
         )
         audit(conn, f"request_{action}", by.id, target_type="request", target_id=request_no,
-              detail=json.dumps({"step": by.role, "ai_level": ai_level}, ensure_ascii=False))
+              detail=json.dumps({"step": step, "ai_level": req["ai_level"] if not req["ai_failed"] else None}, ensure_ascii=False))
         return _detail(conn, req["id"])
 
 
@@ -122,13 +138,44 @@ def revoke(db: Database, by: User, request_no: str, reason: str) -> dict:
         raise Denied("회수 사유를 적어 주세요")
     with db.transaction() as conn:
         req = _row(conn, request_no)
+        person = _person(conn, by)
         conn.execute(
-            "INSERT INTO revocations (request_id, reason, revoker_id, revoker_name, revoker_department, revoked_at)"
-            " SELECT ?, ?, id, display_name, department, ? FROM users WHERE id = ?",
-            (req["id"], reason.strip(), now(), by.id),
+            "UPDATE access_requests SET revoke_reason = ?, revoker_id = ?, revoker_name = ?, revoker_department = ?, revoked_at = ?"
+            " WHERE id = ?",
+            (reason.strip(), person["id"], person["display_name"], person["department"], now(), req["id"]),
         )
         audit(conn, "request_revoke", by.id, target_type="request", target_id=request_no)
         return _detail(conn, req["id"])
+
+
+# --- AI 판정 (신청 행의 AI 칸) --------------------------------------------------
+
+
+def save_ai_verdict(db: Database, request_no: str, result: dict, model: str) -> bool:
+    """pipeline.judge_request 의 결과를 신청 행에 씁니다. 그사이 1차 결재가 났으면 쓰지 않고 False"""
+    with db.transaction() as conn:
+        updated = conn.execute(
+            "UPDATE access_requests SET ai_level = ?, ai_reason = ?, ai_recommendation = ?, ai_sources = ?, ai_failed = ?,"
+            " ai_error = ?, ai_model = ?, ai_elapsed_sec = ?, ai_judged_at = ?"
+            " WHERE request_no = ? AND stage = 'manager' AND manager_action IS NULL",
+            (result.get("level"), result.get("reason", ""), result.get("recommendation", ""),
+             json.dumps(result.get("sources", []), ensure_ascii=False), int(result["failed"]), result.get("error"),
+             model, result.get("elapsed_sec"), now(), request_no),
+        ).rowcount
+    return updated == 1
+
+
+def rejudgeable(db: Database, request_no: str) -> bool:
+    with db.connection() as conn:
+        return _row(conn, request_no)["stage"] == "manager"
+
+
+def unjudged(db: Database) -> list[str]:
+    """1차 결재 전인데 성공한 판정이 없는 신청. 웹을 다시 띄웠을 때 밀렸거나 실패한 판정을 다시 돌립니다."""
+    with db.connection() as conn:
+        return [r[0] for r in conn.execute(
+            "SELECT request_no FROM access_requests WHERE stage = 'manager' AND (ai_judged_at IS NULL OR ai_failed = 1)"
+            " ORDER BY id")]
 
 
 def active_grants(db: Database, by: User) -> list[dict]:

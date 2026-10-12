@@ -1,7 +1,7 @@
 # 권한 DB 스키마 설계 (검토용)
 
 SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
-DDL: [`sentinelai/db/schema.sql`](../sentinelai/db/schema.sql) (권한 DB) · [`log_schema.sql`](../sentinelai/db/log_schema.sql) (Log DB, 신청 판정만) · 2026-10-11 확정 · **DB 계층 · API · 화면까지 구현**
+DDL: [`sentinelai/db/schema.sql`](../sentinelai/db/schema.sql) (권한 DB) · Log DB는 [`log-db.md`](log-db.md) · 2026-10-11 확정 · **DB 계층 · API · 화면까지 구현**
 
 ---
 
@@ -22,11 +22,14 @@ DDL: [`sentinelai/db/schema.sql`](../sentinelai/db/schema.sql) (권한 DB) · [`
 7. **비밀번호는 가장 안전한 해시로.** → Argon2id (§2 `users`).
 8. **세션은 2일.**
 9. **화면을 권한 관리 전반으로 넓힌다.** 승인 · 반려만이 아니라 회수(revoke)까지. 지금 대시보드는 중간관리자용으로 두고, 최상급자용을 따로 만든다 (§3).
-10. **DB를 나눈다.** 권한 DB(이 문서) = 사용자 · 인증 · 감사 기록 · 신청 · 결재 · 회수. Log DB(나중에 설계) = AI 판정 · 보안 솔루션 로그 · 로그 감시 판정. 결재 기록에는 결재자가 본 AI 판정의 Log DB 참조값과 그때의 등급만 남긴다.
+10. **DB를 나눈다 — AI가 만든 것은 Log DB, 사람이 한 것은 권한 DB** (10/12 정리). 권한 DB(이 문서) = 사용자 · 인증 · 감사 기록 · 신청 · 결재 · 회수 · 운영자 결정. Log DB([`log-db.md`](log-db.md)) = AI 판정(정책 관리 검토 · 로그 감시) · 질의 기록 · 보안 솔루션 로그. 권한 신청 AI 판정은 예외로 권한 DB (결정 16).
 11. **(4차) 해시는 RFC 9106 권장 2** (Argon2id 64 MiB · t=3 · p=4, 로그인 약 50 ms).
 12. **(4차) 중간관리자도 회수할 수 있다.** 활성 중간관리자 · 최상급자 누구나 (자기가 1차 승인한 건으로 한정하지 않음 — 가정, §5).
-13. **(4차) AI 판정은 신청이 들어오는 즉시** 백그라운드로 돌려 Log DB에 남긴다. 실패하거나 웹이 꺼지는 사이에 못 끝낸 판정은 다음 시작 때 다시 돈다.
+13. **(4차) AI 판정은 신청이 들어오는 즉시** 백그라운드로 돌려 남긴다 (6차부터 신청 행의 AI 칸). 실패하거나 웹이 꺼지는 사이에 못 끝낸 판정은 다음 시작 때 다시 돈다.
 14. **(5차) 정책 관리 · 로그 감시의 운영자 결정도 권한 DB에 남긴다** (`review_decisions`). 사람의 결정이라 결정자(사용자)와 같은 DB에 둔다.
+15. **(6차, 10/12) 권한 신청 1건 = 1행.** 신청 행에 확인 칸 세 묶음 — **AI 판정 · 1차(중간관리자) 결재 · 최종(최상급자) 결재** — 을 두고 각 판단 결과와 함께 저장한다. 승인된 권한의 기록은 이 행 하나로 충분하다. `approvals` · `revocations` 테이블과 Log DB의 `request_verdicts`는 없앤다 (회수도 같은 행의 칸).
+16. **(6차) 권한 신청 AI 판정은 권한 DB에 둔다.** 최상급자까지 올라가는 결재 근거라서, Log DB 정리와 상관없이 신청과 함께 남아야 한다. 권한 DB를 계정과 신청으로 나누지 않는다 — 결재 순서 · 역할을 강제하는 트리거가 `users`를 봐야 하는데, SQLite 트리거는 다른 DB 파일을 볼 수 없다.
+17. **(6차) AI 판정은 1차 결재 전까지만 바뀐다.** 다시 판정하면 덮어쓴다. 중간관리자가 결재하면 AI 칸이 굳어서, 최상급자는 중간관리자가 본 판정을 그대로 본다. 결재 때 판정이 아직 없었거나 실패했으면 "AI 판정 없이 결재"로 남고, 그 뒤에 끝난 판정은 버린다.
 
 ---
 
@@ -52,8 +55,7 @@ DDL: [`sentinelai/db/schema.sql`](../sentinelai/db/schema.sql) (권한 DB) · [`
 ```
 users ─┬─ sessions
        ├─ audit_log
-       └─ access_requests (신청자) ─┬─ approvals   (1차 · 최종 결재, 결재자)   ─ ai_verdict_ref → Log DB
-                                     └─ revocations (회수, 회수자)
+       └─ access_requests (신청자 · AI 판정 · 1차 결재자 · 최종 결재자 · 회수자 — 한 행)
 users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 ```
 
@@ -70,8 +72,8 @@ users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 ```
 
 - 이 화살표 말고는 상태가 바뀌지 않는다 (트리거 `access_requests_stage_path`).
-- 결재 · 회수 기록을 넣으면 DB가 상태를 바꾼다. 앱은 상태를 직접 승인 · 회수로 바꾸지 않는다 (철회만 앱이 바꾼다).
-- 제출한 신청 내용(권한 · 사유 · 기간 등)은 고칠 수 없다.
+- 결재 · 회수 칸을 채우면 DB가 상태를 바꾼다. 앱은 상태를 직접 승인 · 회수로 바꾸지 않는다 (철회만 앱이 바꾼다).
+- 제출한 신청 내용(권한 · 사유 · 기간 등)과 한 번 채운 결재 · 회수 칸은 고칠 수 없다. AI 칸은 1차 결재 전까지만 바뀐다. 행은 지울 수 없다.
 - 지금 쓸 수 있는 권한 = `active_grants` 뷰: 승인됐고, 회수되지 않았고, 사용 기간이 안 끝난 것.
 
 ### `users`
@@ -110,20 +112,18 @@ users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 | `reason` · `period_start` · `period_end` | 신청 사유 · 사용 기간 (절차서 3단계 "신청 사유, 사용 기간 등 타당성 검토") |
 | `stage` · `closed_at` | 위 상태도. 승인 완료 · 반려 · 철회 · 회수 시각 |
 
-### `approvals` — 결재 1건 = 1행
-| 칸 | 설명 |
-|---|---|
-| `step` · `action` | `manager` · `top` 단계의 `approve` · `reject` |
-| `approver_id` + `approver_name` · `approver_department` | 결재자와 **결재 당시 이름 · 부서 사본** (결정 4) |
-| `ai_verdict_ref` · `ai_level` | 결재자가 본 AI 판정 (Log DB 참조값 · 등급 사본) |
-| `comment` | 결재 의견 |
+확인 칸 세 묶음 — 각 판단과 그 결과를 함께 둔다.
 
-### `revocations` — 회수 1건 = 1행
-| 칸 | 설명 |
-|---|---|
-| `request_id` | 회수한 신청. 신청당 한 번 |
-| `reason` | 회수 사유 (필수) |
-| `revoker_id` + `revoker_name` · `revoker_department` | 회수자와 당시 사본. **활성 중간관리자 · 최상급자만** (트리거) |
+| 묶음 | 칸 | 채우는 때 · 규칙 |
+|---|---|---|
+| **AI 판정** | `ai_level` · `ai_reason` · `ai_recommendation` · `ai_sources`(JSON) · `ai_failed` · `ai_error` · `ai_model` · `ai_elapsed_sec` · `ai_judged_at` | 신청 즉시 백그라운드로. 다시 판정하면 덮어씀. **1차 결재 뒤에는 바꿀 수 없다** (트리거). AI는 권고만 한다 — 이 칸은 상태를 바꾸지 않는다 |
+| **1차 결재** | `manager_action`(`approve` · `reject`) · `manager_comment` · `manager_id` + `manager_name` · `manager_department` · `manager_decided_at` | 상태가 `manager`일 때 한 번. **활성 중간관리자만** (트리거). 승인 → `top`, 반려 → `rejected` |
+| **최종 결재** | `top_action` · `top_comment` · `top_id` + `top_name` · `top_department` · `top_decided_at` | 상태가 `top`일 때 한 번. **활성 최상급자만**. 승인 → `approved`, 반려 → `rejected` |
+| 회수 | `revoke_reason`(필수) · `revoker_id` + `revoker_name` · `revoker_department` · `revoked_at` | `approved`일 때 한 번. **활성 중간관리자 · 최상급자** → `revoked` |
+
+- 결재자 · 회수자 이름 · 부서는 그때 사본이다 (결정 4).
+- 결재자가 본 AI 판정 = 그 행의 AI 칸 (결정 17로 1차 결재 뒤 굳는다). 따로 참조값 · 등급 사본을 두지 않는다.
+- 판정 실패 · 재시도 이력은 남기지 않는다 (마지막 판정만). 실패 원인은 서버 로그에 남는다.
 
 ### `review_decisions` — 정책 · 로그 결정 1건 = 1행 (`decisions.sql`)
 | 칸 | 설명 |
@@ -174,10 +174,11 @@ users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 1. **세션 2일은 절대 만료** — 무활동 만료(예: 30분 안 쓰면 끊김)도 둘까?
 2. **회수 범위** — 중간관리자는 아무 권한이나 회수할 수 있게 했다. 자기가 1차 승인한 건으로 한정해야 하나?
 3. **사용 기간 만료** — 기간이 끝난 권한은 `active_grants`에서 빠지기만 한다 (기록은 `approved` 그대로). 만료를 따로 기록하거나 알려야 하나?
+   (10/12) 신청 행 하나 구조로 바꾸면서 만든 DB는 다시 만들어야 한다 — 운영 중인 DB가 없어 스키마 파일을 고쳐 썼다.
 4. **루트가 떠나면?** 다른 최상급자에게 루트를 넘기는 절차(웹 밖)가 필요하나?
 5. **루트 아닌 최상급자의 계정 권한** — 정지 · 비밀번호 초기화는 루트만인가?
 6. **결재 이력 화면** — 중간관리자는 자기 결재만 보나, 전체를 보나?
-7. **정책 데이터 · 정책 검토 · 질의 기록** — 권한 DB도 Log DB도 아니다. 어디에 두나?
+7. ~~정책 데이터 · 정책 검토 · 질의 기록 — 어디에 두나?~~ → 정책 검토 · 질의 기록은 Log DB ([`log-db.md`](log-db.md), 10/12). 정책 데이터(솔루션 정책 원본)는 아직 파일.
 8. **초기 루트 생성 방법** — 지금은 서버에서 실행하는 CLI(`make create-root`, 비밀번호는 화면 표시 없이 입력)로 만들었다. 다른 방법으로 정하면 바꾼다.
 9. **AI 판정 입력** — 지금 판정은 신청자 · 신청 권한 · 현재 권한만 본다. 신청 사유 · 사용 기간도 보게 하려면 `review_chain` 프롬프트를 바꿔야 한다 (엔진).
 10. **비밀번호 규칙** — 지금 12자 이상만 검사. 잠금은 5회 실패 → 15분.

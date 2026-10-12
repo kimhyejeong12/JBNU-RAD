@@ -14,8 +14,6 @@ HERE = Path(__file__).resolve().parent
 _CONSTRAINT_TEXT = {
     "UNIQUE constraint failed: users.login_id": "이미 있는 아이디입니다",
     "UNIQUE constraint failed: users.is_root": "루트 계정이 이미 있습니다",
-    "UNIQUE constraint failed: approvals.request_id, approvals.step": "이미 결재한 단계입니다",
-    "UNIQUE constraint failed: revocations.request_id": "이미 회수한 권한입니다",
     "UNIQUE constraint failed: access_requests.request_no": "신청 번호가 겹쳤습니다. 다시 신청하세요",
     "FOREIGN KEY constraint failed": "없는 계정 · 신청을 가리킵니다",
 }

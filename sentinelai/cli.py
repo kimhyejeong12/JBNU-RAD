@@ -128,7 +128,7 @@ class Cli(EngineCli):
         return 1 if result["failed"] else 0
 
     def create_root(self, args: argparse.Namespace) -> int:
-        main_db, _ = db.open_databases(self.engine.settings.db_path, self.engine.settings.log_db_path)
+        main_db, _ = db.open_databases(self.engine.settings.db_path, self.engine.settings.results_db_path)
         # 터미널이 아니면(파이프) 화면 표시 없이 한 줄씩 읽습니다.
         ask = getpass.getpass if sys.stdin.isatty() else (lambda prompt: sys.stdin.readline().rstrip("\n"))
         password = ask("비밀번호: ")

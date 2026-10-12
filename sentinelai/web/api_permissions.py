@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, StringConstraints
 
-from sentinelai.db import Denied, User, auth, decisions, logs, permissions
+from sentinelai.db import Denied, User, auth, decisions, permissions
 
 COOKIE = "sentinelai_session"
 
@@ -160,17 +160,13 @@ def reset_password(user_id: int, body: PasswordReset, request: Request, user: An
 
 
 def _with_verdict(request: Request, req: dict, user: User) -> dict:
-    """신청에 최신 AI 판정(Log DB)을 붙입니다. 판정 중이면 judging = True
+    """판정 중이면 judging = True 를 붙입니다.
 
-    AI 판정은 결재자를 위한 것이라 일반사용자에게는 주지 않습니다.
+    AI 판정은 결재자를 위한 것이라 일반사용자에게는 결재 기록의 AI 등급까지 빼고 줍니다.
     """
     if user.role == "user":
-        return req
-    return {
-        **req,
-        "ai_verdict": logs.latest_request_verdict(request.app.state.log_db, req["request_no"]),
-        "judging": request.app.state.verdicts.pending(req["request_no"]),
-    }
+        return {**req, "ai_verdict": None, "approvals": [{**a, "ai_level": None} for a in req["approvals"]]}
+    return {**req, "judging": request.app.state.verdicts.pending(req["request_no"])}
 
 
 class NewRequest(BaseModel):
@@ -223,14 +219,8 @@ class DecisionBody(BaseModel):
 
 @router.post("/requests/{request_no}/decision")
 def decide(request_no: str, body: DecisionBody, request: Request, user: Approver) -> dict[str, Any]:
-    # 결재자가 본 판정은 지금 화면에 띄운 최신 판정입니다. 판정이 아직 없으면 빈 채로 남깁니다.
-    verdict = logs.latest_request_verdict(request.app.state.log_db, request_no)
     try:
-        req = permissions.decide(
-            request.app.state.main_db, user, request_no, body.action, body.comment,
-            f"request_verdicts/{verdict['id']}" if verdict else None,
-            verdict["level"] if verdict and not verdict["failed"] else None,
-        )
+        req = permissions.decide(request.app.state.main_db, user, request_no, body.action, body.comment)
     except Denied as exc:
         raise _denied(exc) from None
     return _with_verdict(request, req, user)
@@ -254,6 +244,8 @@ def rejudge(request_no: str, request: Request, user: Approver) -> dict[str, Any]
         permissions.get(request.app.state.main_db, user, request_no)
     except Denied as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
+    if not permissions.rejudgeable(request.app.state.main_db, request_no):
+        raise HTTPException(status_code=400, detail="1차 결재 뒤에는 다시 판정할 수 없습니다")
     request.app.state.verdicts.enqueue(request_no)
     return {"request_no": request_no, "judging": True}
 
