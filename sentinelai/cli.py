@@ -29,7 +29,7 @@ def _show(item: dict[str, Any]) -> None:
 
 class Cli(EngineCli):
     PROG = "sentinelai"
-    DESCRIPTION = "SentinelAI — 보안 정책 이해 · 로그 감시 코어 (전북대학교 RAD · SK쉴더스)"
+    DESCRIPTION = "SentinelAI — 보안 정책 이해 · 로그 감시 코어"
 
     @staticmethod
     def commands(sub: argparse._SubParsersAction) -> None:

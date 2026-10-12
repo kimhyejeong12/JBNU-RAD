@@ -1,6 +1,4 @@
-"""SentinelAI — 로컬 LLM · RAG 기반 보안 정책 검토 · 로그 감시 시스템.
-
-전북대학교 RAD(RAG & Decision) 팀과 SK쉴더스가 함께 추진하는 산학 프로젝트입니다.
+"""SentinelAI — 로컬 LLM · RAG 기반 보안 정책 이해 · 로그 감시.
 
     engine  정책을 RAG 에 쌓고 판정하는 코어 (정책 이해 · 로그 감시 체인)
     data    검토 대상 데이터 계층 (엔진을 가져오지 않음)

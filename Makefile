@@ -1,4 +1,4 @@
-# SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
+# SentinelAI
 PY := .venv/bin/python
 DOCKER ?= docker
 IMAGE := sentinelai:0.6.0

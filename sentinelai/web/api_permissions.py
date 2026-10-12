@@ -97,7 +97,7 @@ def change_password(body: PasswordBody, request: Request) -> dict[str, Any]:
     return _session_user(request).public()
 
 
-# --- 계정 (루트) ------------------------------------------------------------
+# --- 계정 (최상급자) ------------------------------------------------------------
 
 
 class NewUser(BaseModel):
@@ -162,10 +162,11 @@ def reset_password(user_id: int, body: PasswordReset, request: Request, user: An
 def _with_verdict(request: Request, req: dict, user: User) -> dict:
     """판정 중이면 judging = True 를 붙입니다.
 
-    AI 판정은 결재자를 위한 것이라 일반사용자에게는 결재 기록의 AI 등급까지 빼고 줍니다.
+    AI 판정은 결재자를 위한 것이라 일반사용자에게는 AI 칸(결재 기록의 그때 AI 등급까지)을 아예 빼고 줍니다.
     """
     if user.role == "user":
-        return {**req, "ai_verdict": None, "approvals": [{**a, "ai_level": None} for a in req["approvals"]]}
+        return {**{k: v for k, v in req.items() if k != "ai_verdict"},
+                "approvals": [{k: v for k, v in a.items() if k != "ai_level"} for a in req["approvals"]]}
     return {**req, "judging": request.app.state.verdicts.pending(req["request_no"])}
 
 
@@ -249,10 +250,6 @@ def rejudge(request_no: str, request: Request, user: Approver) -> dict[str, Any]
     request.app.state.verdicts.enqueue(request_no)
     return {"request_no": request_no, "judging": True}
 
-
-@router.get("/grants")
-def grants(request: Request, user: Approver) -> list[dict]:
-    return [_with_verdict(request, g, user) for g in permissions.active_grants(request.app.state.main_db, user)]
 
 
 # --- 정책 관리 · 로그 감시 결정 -----------------------------------------------

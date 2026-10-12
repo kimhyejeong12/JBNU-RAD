@@ -177,9 +177,3 @@ def unjudged(db: Database) -> list[str]:
             "SELECT request_no FROM access_requests WHERE stage = 'manager' AND (ai_judged_at IS NULL OR ai_failed = 1)"
             " ORDER BY id")]
 
-
-def active_grants(db: Database, by: User) -> list[dict]:
-    if by.role not in ("manager", "top"):
-        raise Denied("권한 현황은 중간관리자 · 최상급자만 볼 수 있습니다")
-    with db.connection() as conn:
-        return [_detail(conn, r["id"]) for r in conn.execute("SELECT id FROM active_grants ORDER BY closed_at DESC").fetchall()]

@@ -19,7 +19,7 @@ from sentinelai.engine import Answer, Engine  # noqa: E402
 from sentinelai.db import User, decisions, open_main_db, open_results_db, results as results_db  # noqa: E402
 
 from . import view  # noqa: E402
-from .api_permissions import Approver, logged_in, role  # noqa: E402
+from .api_permissions import Approver, role  # noqa: E402
 from .api_permissions import router as permissions_router  # noqa: E402
 from .jobs import KINDS, JobRunner  # noqa: E402
 from .verdicts import VerdictWorker  # noqa: E402
@@ -49,7 +49,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="SentinelAI",
-    description="AI 보안 정책 검토 시스템 — 전북대학교 RAD(RAG & Decision) · SK쉴더스",
     lifespan=lifespan,
 )
 app.include_router(permissions_router)
@@ -58,7 +57,7 @@ app.include_router(permissions_router)
 analyst = [Depends(role("manager", "top"))]
 
 
-@app.get("/api/health", dependencies=[Depends(logged_in)])
+@app.get("/api/health", dependencies=analyst)
 def health() -> dict[str, Any]:
     """Ollama 연결 · 모델 · 인덱스 상태 (화면 상단 배지)."""
     engine: Engine = state["engine"]
@@ -89,12 +88,18 @@ def health() -> dict[str, Any]:
     return info
 
 
-@app.get("/api/results", dependencies=analyst)
-def results(request: Request) -> dict[str, Any]:
-    """마지막 정책 관리 검토 · 쌓인 로그 감시 판정과 항목별 운영자 결정. 아직 돌리지 않은 구역은 비어 있습니다."""
+@app.get("/api/results")
+def results(request: Request, user: Approver) -> dict[str, Any]:
+    """마지막 정책 관리 검토 · 쌓인 로그 감시 판정과 항목별 운영자 결정. 아직 돌리지 않은 구역은 비어 있습니다.
+
+    최상급자에게는 항목별 결정 기록 전부(decision_log, 취소 포함)를 더 줍니다. 아래에서 올라온 판단을 읽는 자리입니다.
+    """
     rdb, mdb = request.app.state.results_db, request.app.state.main_db
-    return {**view.results(results_db.latest_policy_review(rdb), results_db.monitor_findings(rdb)),
-            "decisions": {kind: decisions.current(mdb, kind) for kind in decisions.ACTIONS}}
+    out = {**view.results(results_db.latest_policy_review(rdb), results_db.monitor_findings(rdb)),
+           "decisions": {kind: decisions.current(mdb, kind) for kind in decisions.ACTIONS}}
+    if user.role == "top":
+        out["decision_log"] = {kind: decisions.history(mdb, kind) for kind in decisions.ACTIONS}
+    return out
 
 
 @app.get("/api/jobs", dependencies=analyst)

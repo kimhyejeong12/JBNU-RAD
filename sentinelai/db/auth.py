@@ -1,6 +1,7 @@
 """사용자 · 로그인 · 세션 (권한 DB).
 
-계정은 루트만 만듭니다(트리거가 강제). 초기 루트만 웹 밖에서 create_root 로 만듭니다.
+계정은 최상급자가 만듭니다(트리거가 강제). 초기 루트만 웹 밖에서 create_root 로 만듭니다.
+루트 계정은 루트 자신만 고칠 수 있습니다.
 """
 from __future__ import annotations
 
@@ -77,13 +78,19 @@ def create_root(db: Database, login_id: str, password: str, display_name: str, d
         return User.of(conn.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone())
 
 
-def _require_root(by: User) -> None:
-    if not by.is_root:
-        raise Denied("계정 관리는 루트만 할 수 있습니다")
+def _require_top(by: User) -> None:
+    if by.role != "top":
+        raise Denied("계정 관리는 최상급자만 할 수 있습니다")
+
+
+def _guard_target(by: User, target: sqlite3.Row) -> None:
+    # 다른 최상급자가 루트의 비밀번호를 바꾸면 루트를 가로챌 수 있어 막습니다.
+    if target["is_root"] and not by.is_root:
+        raise Denied("루트 계정은 루트만 고칠 수 있습니다")
 
 
 def create_user(db: Database, by: User, login_id: str, password: str, display_name: str, department: str, role: str) -> User:
-    _require_root(by)
+    _require_top(by)
     if role not in ROLES:
         raise Denied(f"역할은 {', '.join(ROLES)} 중 하나입니다")
     _check_password(password)
@@ -100,7 +107,7 @@ def create_user(db: Database, by: User, login_id: str, password: str, display_na
 
 def update_user(db: Database, by: User, user_id: int, **changes: object) -> User:
     """역할 · 부서 · 이름 · 활성 여부를 바꿉니다. 정지하면 그 사람의 세션도 끊습니다."""
-    _require_root(by)
+    _require_top(by)
     allowed = {"display_name", "department", "role", "is_active"}
     fields = {k: v for k, v in changes.items() if k in allowed and v is not None}
     if not fields:
@@ -111,8 +118,12 @@ def update_user(db: Database, by: User, user_id: int, **changes: object) -> User
         target = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         if target is None:
             raise Denied("없는 계정입니다")
+        _guard_target(by, target)
         if target["is_root"] and ("role" in fields or fields.get("is_active") in (0, False)):
             raise Denied("루트의 역할을 바꾸거나 정지할 수 없습니다")
+        # 자기 역할을 낮추거나 정지하면 계정 관리 화면에서 바로 밀려나 되돌릴 수 없습니다.
+        if target["id"] == by.id and ("role" in fields or fields.get("is_active") in (0, False)):
+            raise Denied("자기 계정의 역할을 바꾸거나 정지할 수 없습니다")
         conn.execute(f"UPDATE users SET {', '.join(f'{k} = ?' for k in fields)} WHERE id = ?", (*fields.values(), user_id))
         if fields.get("is_active") in (0, False):
             conn.execute("UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL", (now(), user_id))
@@ -123,9 +134,13 @@ def update_user(db: Database, by: User, user_id: int, **changes: object) -> User
 
 def reset_password(db: Database, by: User, user_id: int, temporary_password: str) -> None:
     """임시 비밀번호로 바꾸고 다음 로그인에 바꾸게 합니다. 기존 세션은 끊습니다."""
-    _require_root(by)
+    _require_top(by)
     _check_password(temporary_password)
     with db.transaction() as conn:
+        target = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        if target is None:
+            raise Denied("없는 계정입니다")
+        _guard_target(by, target)
         if conn.execute(
             "UPDATE users SET password_hash = ?, must_change_password = 1, failed_logins = 0, locked_until = NULL WHERE id = ?",
             (HASHER.hash(temporary_password), user_id),
@@ -136,7 +151,7 @@ def reset_password(db: Database, by: User, user_id: int, temporary_password: str
 
 
 def list_users(db: Database, by: User) -> list[dict]:
-    _require_root(by)
+    _require_top(by)
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT id, login_id, display_name, department, role, is_root, is_active, must_change_password,"

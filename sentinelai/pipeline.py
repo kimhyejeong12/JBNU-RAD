@@ -93,7 +93,7 @@ def review_requests(engine: Engine, source: Any, progress: Progress | None = Non
 
 
 def judge_request(engine: Engine, request: dict[str, Any]) -> dict[str, Any]:
-    """권한 DB의 신청 1건 → AI 판정 (Log DB에 저장할 dict). 신청이 들어오면 바로 부릅니다."""
+    """권한 DB의 신청 1건 → AI 판정 (신청 행의 AI 칸에 저장할 dict). 신청이 들어오면 바로 부릅니다."""
     inputs = {
         "requester": f"{request.get('requester_department', '')} {request['requester_name']}".strip(),
         "requested_access": request["requested_access"],

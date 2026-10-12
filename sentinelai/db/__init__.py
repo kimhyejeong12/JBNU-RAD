@@ -12,7 +12,7 @@ from .core import Database, Denied
 
 def open_main_db(path: str) -> Database:
     """권한 DB. 처음이면 스키마를 만듭니다."""
-    db = Database(path, "schema.sql", "decisions.sql")
+    db = Database(path, "schema.sql", "decisions.sql", "accounts.sql")
     db.init()
     with db.connection() as conn:
         columns = {r[1] for r in conn.execute("PRAGMA table_info(access_requests)")}

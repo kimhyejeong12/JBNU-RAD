@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SentinelAI — AI 보안 정책 검토 시스템</title>
+<title>SentinelAI</title>
 <link rel="icon" href="data:,">  <!-- 브라우저가 /favicon.ico 를 요청해 404 가 콘솔에 찍히는 것을 막습니다 -->
 <!--
   단일 파일 대시보드. CSS · JS · 아이콘을 모두 인라인으로 둡니다 (외부망 차단 전제 — CDN · 웹폰트 금지).
@@ -51,7 +51,6 @@
   }
   .logo { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 17px; letter-spacing: -0.3px; }
   .logo svg { width: 24px; height: 24px; stroke: var(--accent); stroke-width: 2.2; }
-  .sysname { padding-left: 18px; border-left: 1px solid #3A3A3A; font-size: 14.5px; font-weight: 600; }
   .top-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
   /* 엔진 경고 — CI 컬러는 흰 바탕에서만 쓰므로 검은 바 위에 흰 알약으로 띄웁니다 */
   .engine-warn {
@@ -79,6 +78,8 @@
   .alert-pop .risk-item:hover { color: var(--accent); }
 
   /* ── 좌측 사이드바 ─────────────────────── */
+  body.solo { grid-template-columns: minmax(0, 1fr); }
+  body.solo .sidebar { display: none; }
   .sidebar {
     grid-row: 2; display: flex; flex-direction: column; align-items: center; gap: 6px;
     padding: 14px 0; background: var(--bg); border-right: 1px solid var(--line);
@@ -293,8 +294,6 @@
   button[data-tip], .row [data-tip] { cursor: pointer; }
 
   footer.foot { font-size: 11.5px; color: var(--ink-dim); padding: 2px 4px; }
-  /* 추진 주체는 탭 · 화면 폭과 상관없이 늘 맨 아래에 둡니다 (#foot 은 정책 질의 탭에서 숨겨짐). */
-  footer.credit { margin-top: auto; font-size: 11.5px; color: var(--ink-dim); padding: 0 4px 4px; }
   .queue-head .run { margin-left: auto; }
   .queue-head .run + .run { margin-left: 0; }
   .run[hidden], .stats[hidden], .req-form[hidden], .select[hidden], .nav[hidden], .seg[hidden] { display: none; }
@@ -346,15 +345,15 @@
   .gate-card h3 { margin: 0; font-size: 17px; }
   .gate-logo { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 20px; }
   .gate-logo svg { width: 26px; height: 26px; stroke: var(--accent); stroke-width: 2.2; }
-  .gate-sub { margin: -8px 0 4px; font-size: 13px; color: var(--ink-dim); }
   .gate-card button.primary { height: 40px; border-radius: 8px; border: none; font-weight: 700; }
-  .gate-credit { margin: 6px 0 0; font-size: 11.5px; color: var(--ink-dim); text-align: center; }
   .box.pre { white-space: pre-wrap; font-size: 12px; line-height: 1.6; }
   .warn { color: var(--accent); }
 
   @media (max-width: 1150px) {
     body { height: auto; overflow: auto; grid-template-columns: 1fr; grid-template-rows: auto auto; }
-    .sidebar { display: none; }
+    body.solo { grid-template-columns: minmax(0, 1fr); }
+  body.solo .sidebar { display: none; }
+  .sidebar { display: none; }
     .seg { display: flex; align-self: flex-start; }
     .topbar { flex-wrap: wrap; padding: 10px 16px; row-gap: 8px; }
     .workspace { grid-template-columns: 1fr; padding: 14px 16px; }
@@ -438,6 +437,7 @@
         </label>
         <select id="stage-filter" class="select" aria-label="결재 단계" hidden>
           <option value="pending">결재 대기</option>
+          <option value="active">유효 권한</option>
           <option value="all">전체</option>
         </select>
         <!-- 보기 범위의 분석을 코어 작업으로 돌립니다. 수 분 걸리므로 진행 상황을 버튼에 띄웁니다 -->
@@ -466,10 +466,9 @@
     </section>
 
     <footer class="foot" id="foot"></footer>
-    <footer class="credit">전북대학교 RAD (RAG &amp; Decision) · SK쉴더스</footer>
   </div>
 
-  <!-- ⑥ AI 판단 근거 및 권고 -->
+  <!-- ⑥ 오른쪽 패널 — 메뉴마다 내용이 다릅니다 -->
   <aside class="card panel" id="panel"></aside>
 </div>
 <div class="drawer-back" id="drawer-back"></div>
@@ -478,21 +477,18 @@
 <div class="gate" id="gate" hidden>
   <form class="gate-card" id="login-form" autocomplete="on">
     <div class="gate-logo"><span data-icon="shield"></span>SentinelAI</div>
-    <p class="gate-sub">AI 보안 정책 검토 시스템</p>
     <label>아이디<input name="login_id" autocomplete="username" required></label>
     <label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label>
     <button type="submit" class="primary">로그인</button>
     <p class="form-msg" id="login-msg"></p>
-    <p class="gate-credit">전북대학교 RAD (RAG &amp; Decision) · SK쉴더스</p>
   </form>
   <form class="gate-card" id="pw-form" hidden>
     <h3 id="pw-title">비밀번호 변경</h3>
     <p class="note" id="pw-note"></p>
     <label>지금 비밀번호<input name="current" type="password" autocomplete="current-password" required></label>
     <label>새 비밀번호<input name="new" type="password" autocomplete="new-password" required></label>
-    <label>새 비밀번호 확인<input name="confirm" type="password" autocomplete="new-password" minlength="12" required></label>
+    <label>새 비밀번호 확인<input name="confirm" type="password" autocomplete="new-password" required></label>
     <div class="form-actions"><span class="form-msg" id="pw-msg"></span><button type="button" id="pw-cancel">취소</button><button type="submit" class="primary">바꾸기</button></div>
-    <p class="gate-credit">전북대학교 RAD (RAG &amp; Decision) · SK쉴더스</p>
   </form>
 </div>
 
@@ -509,7 +505,6 @@
 /* ── 아이콘 (인라인 SVG) ─────────────────── */
 const ICONS = {
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
-  home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   server: '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
   book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
@@ -525,7 +520,6 @@ const ICONS = {
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   list: '<path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
-  key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
 };
@@ -544,31 +538,30 @@ const DECISION_SET = {
   policy: { approve: "approve", cond: "cond", reject: "reject" },
   event: { clear: "approve", act: "reject" },
 };
-const TYPE_VIEW = { req: "requests", grant: "grants", mine: "mine", user: "users", policy: "policies", event: "events" };
-const TYPE_LABEL = { req: "권한 신청", grant: "부여된 권한", mine: "내 신청", user: "계정", policy: "정책 관리", event: "로그 감시" };
+const TYPE_VIEW = { req: "requests", mine: "mine", user: "users", policy: "policies", event: "events" };
+const TYPE_LABEL = { req: "권한 신청", mine: "내 신청", user: "계정", policy: "정책 관리", event: "로그 감시" };
 const ROLE_LABEL = { top: "최상급자", manager: "중간관리자", user: "일반사용자" };
 const STAGE_LABEL = { manager: "1차 결재 대기", top: "최종 결재 대기", approved: "승인", rejected: "반려", withdrawn: "철회", revoked: "회수" };
 // 결재자의 역할이 곧 결재 단계입니다 (중간관리자 = 1차, 최상급자 = 최종).
 const STEP = { manager: "manager", top: "top" };
 // 메뉴마다 쓰는 탭 · 목록 칸만 둡니다. 정책 질의 · 로그 질의는 그 메뉴의 기능이라 정책 관리 · 로그 감시에만 있습니다.
 const VIEWS = {
-  requests: { label: "권한 신청", icon: "lock", tip: "권한 신청|결재할 권한 신청과 AI 판정",
+  requests: { label: "권한 신청", icon: "lock", tip: "권한 신청|결재할 신청 · AI 판정 · 유효 권한 회수",
               tabs: ["queue"], cols: ["번호", "신청자", "신청 권한", "신청 시각", "AI 판정"], search: "신청 번호 · 신청자 · 권한으로 검색" },
-  grants: { title: "권한 현황", label: "권한 현황", icon: "key", tip: "권한 현황|지금 유효한 권한 — 사유를 적고 회수합니다",
-            tabs: ["queue"], cols: ["번호", "신청자", "권한", "승인 시각", "AI 판정"], search: "신청 번호 · 신청자 · 권한으로 검색" },
   policies: { title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리|방화벽 · SWG · DLP · PAM 정책의 중복 · 충돌 · 과도한 허용",
               tabs: ["queue", "ask"], cols: ["분류", "대상 정책", "상세 내용", "시간", "AI 판정"], search: "정책 ID · 내용으로 검색" },
   events: { title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시|보안 솔루션 로그를 정책과 비교한 사용자별 판정",
             tabs: ["queue", "ask"], cols: ["분류", "대상 사용자", "상세 내용", "시간", "AI 판정"], search: "사용자 · 내용으로 검색" },
   mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청|권한을 신청하고 결재 상태를 봅니다",
           tabs: ["queue"], cols: ["번호", "신청 권한", "사유", "신청 시각", "상태"], search: "신청 번호 · 권한으로 검색" },
-  users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리|계정 생성 · 역할 · 정지 · 비밀번호 초기화 (루트)",
+  users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리|계정 생성 · 역할 · 정지 · 비밀번호 초기화 (최상급자)",
            tabs: ["queue"], cols: ["역할", "이름 (아이디)", "부서", "마지막 로그인", "상태"], search: "이름 · 아이디 · 부서로 검색" },
 };
-const ROLE_VIEWS = { user: ["mine"], manager: ["requests", "grants", "policies", "events"], top: ["requests", "grants"] };
-const roleViews = () => (state.me ? [...ROLE_VIEWS[state.me.role], ...(state.me.is_root ? ["users"] : [])] : []);
+// 최상급자는 중간관리자와 같은 메뉴에 계정 관리를 더합니다.
+const ROLE_VIEWS = { user: ["mine"], manager: ["requests", "policies", "events"], top: ["requests", "policies", "events", "users"] };
+const roleViews = () => (state.me ? ROLE_VIEWS[state.me.role] : []);
 const RESULT_VIEWS = new Set(["policies", "events"]);
-const LEVEL_VIEWS = new Set(["requests", "grants", "policies", "events"]);
+const LEVEL_VIEWS = new Set(["requests", "policies", "events"]);
 // 질의 탭은 메뉴의 기능을 따릅니다. 예시 질문도 여기 한 곳에서 정하고, 누르면 직접 입력과 똑같이 답을 만듭니다.
 const ASK = {
   policy: {
@@ -605,10 +598,9 @@ const EMPTY_RESULTS = { summary: { failed: 0 }, sections: {}, policies: [], even
 const state = {
   me: null,             // /api/auth/me — 로그인한 사람
   results: EMPTY_RESULTS,
-  requests: [],         // 결재자: 모든 신청
-  grants: [],           // 결재자: 지금 유효한 권한
+  requests: [],         // 결재자: 모든 신청 (유효 권한도 여기서 거릅니다)
   mine: [],             // 일반사용자: 내 신청
-  users: [],            // 루트: 계정
+  users: [],            // 최상급자: 계정
   regulations: [],
   health: null,
   mainTab: "queue",     // queue | ask
@@ -652,9 +644,9 @@ const send = (url, body, method = "POST") =>
 
 async function loadData() {
   const views = roleViews();
-  const tasks = [getJSON("/api/health").then((d) => { state.health = d; }).catch(() => { state.health = null; })];
+  const tasks = [];
+  if (state.me.role !== "user") tasks.push(getJSON("/api/health").then((d) => { state.health = d; }).catch(() => { state.health = null; }));
   if (views.includes("requests")) tasks.push(getJSON("/api/requests").then((d) => { state.requests = d; }));
-  if (views.includes("grants")) tasks.push(getJSON("/api/grants").then((d) => { state.grants = d; }));
   if (views.includes("mine")) tasks.push(getJSON("/api/requests?mine=true").then((d) => { state.mine = d; }));
   if (views.includes("users")) tasks.push(getJSON("/api/users").then((d) => { state.users = d; }));
   if (views.some((v) => RESULT_VIEWS.has(v))) {
@@ -674,18 +666,20 @@ function issues() { return (state.results.policy_review && state.results.policy_
 const period = (r) => (r.period_start || r.period_end ? `${r.period_start || "…"} ~ ${r.period_end || "…"}` : "기간 없음");
 const requester = (r) => `${r.requester_department} ${r.requester_name}`.trim();
 
-function requestItem(type) {
-  return (r) => {
-    const v = r.ai_verdict;
-    const level = v && !v.failed ? v.level : undefined;
-    return {
-      type, key: `${type}:${r.request_no}`, id: r.request_no, level,
-      who: requester(r),
-      what: r.requested_access,
-      when: stamp(type === "grant" ? r.closed_at : r.submitted_at),
-      judge: level || (r.judging ? "판정 중" : v && v.failed ? "판정 실패" : "판정 대기"),
-      sub: STAGE_LABEL[r.stage], raw: r,
-    };
+// 권한 DB의 active_grants 뷰와 같은 조건입니다 — 승인됐고 사용 기간이 끝나지 않은 신청.
+const today = () => new Date().toLocaleDateString("sv-SE");
+const isActive = (r) => r.stage === "approved" && (!r.period_end || r.period_end >= today());
+
+function requestItem(r) {
+  const v = r.ai_verdict;
+  const level = v && !v.failed ? v.level : undefined;
+  return {
+    type: "req", key: `req:${r.request_no}`, id: r.request_no, level,
+    who: requester(r),
+    what: r.requested_access,
+    when: stamp(r.submitted_at),
+    judge: level || (r.judging ? "판정 중" : v && v.failed ? "판정 실패" : "판정 대기"),
+    sub: r.stage === "approved" && !isActive(r) ? "승인 · 기간 끝" : STAGE_LABEL[r.stage], raw: r,
   };
 }
 
@@ -713,7 +707,7 @@ function queue() {
     };
   });
   const mine = state.mine.map((r) => ({
-    type: "mine", key: `mine:${r.request_no}`, id: r.request_no,
+    type: "mine", key: `mine:${r.request_no}`, id: "", typeLabel: r.request_no,
     who: r.requested_access, what: r.reason || "—", when: stamp(r.submitted_at),
     judge: STAGE_LABEL[r.stage], raw: r,
   }));
@@ -723,13 +717,14 @@ function queue() {
     judge: !u.is_active ? "정지" : u.locked_until && new Date(u.locked_until) > new Date() ? "잠김" : "활성",
     sub: u.must_change_password ? "비밀번호 변경 전" : "", raw: u,
   }));
-  return [...state.requests.map(requestItem("req")), ...state.grants.map(requestItem("grant")), ...mine, ...users, ...pol, ...log];
+  return [...state.requests.map(requestItem), ...mine, ...users, ...pol, ...log];
 }
 
 function inView(it) {
   if (TYPE_VIEW[it.type] !== state.view) return false;
-  // 결재함은 기본으로 내 단계에서 기다리는 신청만 보여줍니다.
+  // 결재함은 기본으로 내 단계에서 기다리는 신청만 보여줍니다. 유효 권한(예전 권한 현황)도 같은 목록의 거르기입니다.
   if (it.type === "req" && state.stageFilter === "pending") return it.raw.stage === STEP[state.me.role];
+  if (it.type === "req" && state.stageFilter === "active") return isActive(it.raw);
   return true;
 }
 
@@ -769,7 +764,8 @@ function engineProblems(h) {
 function renderTop() {
   $("bell").hidden = state.me.role === "user";
   // 정상일 때는 아무것도 띄우지 않고, 문제가 있을 때만 경고 1개를 띄웁니다.
-  const problems = state.health && state.health.ok ? [] : engineProblems(state.health);
+  // 일반사용자에게는 AI가 보이지 않으므로 엔진 경고도 띄우지 않습니다.
+  const problems = state.me.role === "user" || (state.health && state.health.ok) ? [] : engineProblems(state.health);
   const warn = $("engine-warn");
   warn.hidden = !problems.length;
   warn.dataset.tip = `점검 항목|${problems.join(" · ")}. 저장된 판정 결과는 계속 볼 수 있습니다`;
@@ -824,8 +820,7 @@ function emptyText() {
   if (queue().some(inView)) return "조건에 맞는 항목이 없습니다.";
   if (RESULT_VIEWS.has(state.view)) return `아직 ${VIEWS[state.view].label} 결과가 없습니다. 오른쪽 위 [${runKindLabel()}]을 누르세요.`;
   return {
-    requests: state.stageFilter === "pending" ? "지금 결재할 신청이 없습니다." : "신청이 없습니다.",
-    grants: "지금 유효한 권한이 없습니다.",
+    requests: { pending: "지금 결재할 신청이 없습니다.", active: "지금 유효한 권한이 없습니다.", all: "신청이 없습니다." }[state.stageFilter],
     mine: "아직 신청한 권한이 없습니다. 위 신청서를 채워 신청하세요.",
     users: "계정이 없습니다.",
   }[state.view];
@@ -843,7 +838,7 @@ function renderRows() {
     const judge = it.level
       ? `<span class="line lv-${it.level}">${icon(LEVEL_ICON[it.level], "sm")}${esc(it.level)}</span>`
       : `<span class="line">${esc(it.judge)}</span>`;
-    const sub = d ? `운영자 · ${DECISIONS[d.action]}` : it.sub;
+    const sub = d ? `${d.decider_name} · ${DECISIONS[d.action]}` : it.sub;
     return `<button class="tr row" data-key="${esc(it.key)}" aria-current="${it.key === state.selected}">
       <span class="cell-type">${esc(it.typeLabel || TYPE_LABEL[it.type])}<small>${esc(it.id)}</small></span>
       <span class="who">${esc(it.who)}</span>
@@ -920,11 +915,16 @@ function renderPanel() {
   const it = queue().find((i) => i.key === state.selected);
   const panel = $("panel");
   if (state.view === "users" && (!it || it.type !== "user")) { renderUserPanel(null); return; }
-  if (it && (it.type === "req" || it.type === "grant" || it.type === "mine")) { renderRequestPanel(it); return; }
+  if (it && (it.type === "req" || it.type === "mine")) { renderRequestPanel(it); return; }
   if (it && it.type === "user") { renderUserPanel(it.raw); return; }
   if (!it) {
-    panel.innerHTML = `<div class="panel-head"><h3>AI 판단 근거</h3>${CLOSE_BTN}</div>
-      <div class="panel-body"><div class="empty">목록에서 항목을 선택하면<br>AI 판단 근거와 권고가 표시됩니다.</div></div>`;
+    // 빈 패널도 메뉴를 따릅니다. 일반사용자에게는 AI 문구를 보이지 않습니다.
+    const [title, text] = {
+      mine: ["내 신청", "신청하거나 목록에서 신청을 고르면<br>결재 상태와 기록이 표시됩니다."],
+      requests: ["권한 신청 검토", "목록에서 신청을 선택하면<br>신청 내용 · AI 판정 · 결재 기록이 표시됩니다."],
+    }[state.view] || ["AI 판단 근거", "목록에서 항목을 선택하면<br>AI 판단 근거와 권고가 표시됩니다."];
+    panel.innerHTML = `<div class="panel-head"><h3>${title}</h3>${CLOSE_BTN}</div>
+      <div class="panel-body"><div class="empty">${text}</div></div>`;
     return;
   }
   const r = it.raw;
@@ -965,6 +965,7 @@ function renderPanel() {
           ? sourceChips(it.key, r.sources)
           : `<p class="note">정책 관리 검토는 근거 조항을 판단 이유에 함께 적습니다. 적용 기준은 기준 문서 5 · 6장입니다.</p>`}
       </div>
+      ${decisionLog(it)}
     </div>
     <div class="panel-foot">
       <h4>보안 운영자 의사결정</h4>
@@ -983,6 +984,19 @@ function renderPanel() {
   panel.querySelectorAll(".decide button").forEach((el) => el.addEventListener("click", () => reviewDecision(it, el.dataset.action)));
   const undo = $("undo");
   if (undo) undo.addEventListener("click", () => reviewDecision(it, "cancel"));
+}
+
+// 최상급자에게만 결정 기록 전부가 옵니다 (decision_log). 누가 어떤 판단을 했다가 취소했는지까지 읽습니다.
+function decisionLog(it) {
+  const log = state.results.decision_log;
+  if (!log) return "";
+  const rows = (log[it.type] || {})[it.itemKey] || [];
+  const steps = rows.map((d) => `<div class="step"><b>${d.action === "cancel" ? "결정 취소" : esc(DECISIONS[d.action])}</b>
+      · ${esc(d.decider_name)}${d.decider_department ? ` (${esc(d.decider_department)})` : ""}
+      <span class="when">${esc(stamp(d.decided_at))}${d.ai_level ? ` · 그때 AI 판정 ${esc(d.ai_level)}` : ""}</span>
+      ${d.comment ? `<span class="say">${esc(d.comment)}</span>` : ""}</div>`);
+  return `<div class="sec"><h4>${icon("list", "sm")}결정 기록</h4>${steps.length
+    ? `<div class="box history">${steps.join("")}</div>` : `<p class="note">아직 결정이 없습니다.</p>`}</div>`;
 }
 
 function sourceChips(key, sources) {
@@ -1086,6 +1100,7 @@ async function reviewDecision(it, action) {
     const all = state.results.decisions || (state.results.decisions = {});
     const mine = all[it.type] || (all[it.type] = {});
     if (res.decision) mine[it.itemKey] = res.decision; else delete mine[it.itemKey];
+    if (state.results.decision_log) state.results.decision_log = (await getJSON("/api/results")).decision_log;
     state.panelMsg = action === "cancel" ? "✓ 결정을 취소했습니다" : `✓ 기록했습니다 — ${DECISIONS[action]}`;
   } catch (e) {
     state.panelMsg = e.message;
@@ -1120,7 +1135,7 @@ async function requestAction(no, act) {
   await refreshRequests();
 }
 
-/* ── 계정 관리 패널 (루트) — 선택 없음 = 새 계정 ── */
+/* ── 계정 관리 패널 (최상급자) — 선택 없음 = 새 계정. 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿈 ── */
 function renderUserPanel(u) {
   const roleOptions = (sel, disabled) => `<select name="role" ${disabled ? "disabled" : ""}>${Object.entries(ROLE_LABEL)
     .map(([k, label]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${label}</option>`).join("")}</select>`;
@@ -1146,29 +1161,38 @@ function renderUserPanel(u) {
     });
     return;
   }
+  // 루트 계정은 루트만 고칩니다. 자기 계정과 루트는 역할 · 활성을 바꿀 수 없습니다 (서버도 막습니다).
+  const self = u.id === state.me.id;
+  const locked = u.is_root && !state.me.is_root;
+  const fixed = u.is_root || self;
+  const note = locked ? "루트 계정은 루트만 고칠 수 있습니다."
+    : u.is_root ? "루트는 역할을 바꾸거나 정지할 수 없습니다."
+    : self ? "자기 계정의 역할을 바꾸거나 정지할 수 없습니다."
+    : "계정은 지우지 않고 정지합니다 (결재 기록이 가리킵니다).";
   $("panel").innerHTML = `
     <div class="panel-head"><h3>계정</h3>${CLOSE_BTN}</div>
     <div class="panel-body">
       <p class="subject">${esc(u.display_name)} (${esc(u.login_id)})</p>
       <div class="meta">${esc(ROLE_LABEL[u.role])}${u.is_root ? " · 루트" : ""} · 만든 날 ${esc(stamp(u.created_at))}${u.last_login_at ? ` · 마지막 로그인 ${esc(stamp(u.last_login_at))}` : ""}</div>
-      <form class="form-grid" id="user-edit" style="padding:12px 0 0">
+      ${locked ? "" : `<form class="form-grid" id="user-edit" style="padding:12px 0 0">
         <label>이름<input name="display_name" value="${esc(u.display_name)}" maxlength="100"></label>
         <label>부서<input name="department" value="${esc(u.department)}" maxlength="100"></label>
-        <label>역할${roleOptions(u.role, u.is_root)}</label>
-        <label class="check"><input type="checkbox" name="is_active" ${u.is_active ? "checked" : ""} ${u.is_root ? "disabled" : ""}>활성 (끄면 정지 · 세션 끊김)</label>
+        <label>역할${roleOptions(u.role, fixed)}</label>
+        <label class="check"><input type="checkbox" name="is_active" ${u.is_active ? "checked" : ""} ${fixed ? "disabled" : ""}>활성 (끄면 정지 · 세션 끊김)</label>
         <div class="wide form-actions"><button type="submit" class="primary">저장</button></div>
       </form>
       <form class="form-grid" id="user-reset" style="padding:12px 0 0">
         <label class="wide">비밀번호 초기화 — 임시 비밀번호<input name="temporary_password" type="password" required autocomplete="new-password"></label>
         <div class="wide form-actions"><button type="submit">초기화</button></div>
-      </form>
+      </form>`}
     </div>
-    <div class="panel-foot">${panelMsg() || `<p class="note">${u.is_root ? "루트는 역할을 바꾸거나 정지할 수 없습니다." : "계정은 지우지 않고 정지합니다 (결재 기록이 가리킵니다)."}</p>`}</div>`;
+    <div class="panel-foot">${panelMsg() || `<p class="note">${note}</p>`}</div>`;
+  if (locked) return;
   $("user-edit").addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = e.target;
     const body = { display_name: f.display_name.value, department: f.department.value };
-    if (!u.is_root) { body.role = f.role.value; body.is_active = f.is_active.checked; }
+    if (!fixed) { body.role = f.role.value; body.is_active = f.is_active.checked; }
     try { await send(`/api/users/${u.id}`, body, "PATCH"); state.panelMsg = "✓ 저장했습니다"; }
     catch (err) { state.panelMsg = err.message; }
     await refreshUsers(`user:${u.id}`);
@@ -1193,7 +1217,6 @@ async function refreshRequests() {
   try {
     await Promise.all([
       views.includes("requests") ? getJSON("/api/requests").then((d) => { state.requests = d; }) : null,
-      views.includes("grants") ? getJSON("/api/grants").then((d) => { state.grants = d; }) : null,
       views.includes("mine") ? getJSON("/api/requests?mine=true").then((d) => { state.mine = d; }) : null,
     ]);
   } catch (e) { return; }
@@ -1211,13 +1234,12 @@ async function refreshUsers(selectKey) {
 // 판정 중인 신청이 있으면 끝날 때까지 3초마다 다시 받습니다. 입력 중인 결재 의견을 지우지 않게 패널은 판정이 끝난 그 항목일 때만 다시 그립니다.
 setInterval(async () => {
   if (!state.me || state.me.role === "user") return;
-  const judging = () => [...state.requests, ...state.grants].filter((r) => r.judging).map((r) => r.request_no);
+  const judging = () => state.requests.filter((r) => r.judging).map((r) => r.request_no);
   const before = judging();
   if (!before.length) return;
   const sel = state.selected;
   try {
-    const [reqs, grants] = await Promise.all([getJSON("/api/requests"), getJSON("/api/grants")]);
-    state.requests = reqs; state.grants = grants;
+    state.requests = await getJSON("/api/requests");
   } catch (e) { return; }
   const after = new Set(judging());
   renderTop(); renderStats(); renderRows();
@@ -1726,6 +1748,8 @@ async function boot() {
   if (state.me.must_change_password) { showPassword(true); return; }
   $("who").hidden = false;
   $("who-name").textContent = `${state.me.display_name} · ${ROLE_LABEL[state.me.role]}${state.me.is_root ? " (루트)" : ""}`;
+  // 메뉴가 하나뿐인 일반사용자는 사이드바 없이 신청 화면만 씁니다.
+  document.body.classList.toggle("solo", roleViews().length < 2);
   buildNav();
   await Promise.all([loadData(), loadAsks()]);
   const views = roleViews();

@@ -84,7 +84,7 @@ class Cli:
         return 0
 
     PROG = "sentinelai.engine.cli"
-    DESCRIPTION = "SentinelAI 엔진 — 로컬 LLM·RAG 코어 (전북대학교 RAD · SK쉴더스)"
+    DESCRIPTION = "SentinelAI 엔진 — 로컬 LLM·RAG 코어"
 
     @classmethod
     def parser(cls) -> argparse.ArgumentParser:
