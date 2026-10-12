@@ -21,7 +21,6 @@ HASHER = PasswordHasher.from_parameters(RFC_9106_LOW_MEMORY)
 SESSION_TTL = timedelta(days=2)
 MAX_FAILED_LOGINS = 5
 LOCK_TIME = timedelta(minutes=15)
-MIN_PASSWORD_LENGTH = 12
 ROLES = ("top", "manager", "user")
 
 # 없는 ID 로 로그인할 때도 같은 시간이 걸리게 대신 검증할 해시입니다. 응답 시간으로 계정 유무가 드러나지 않습니다.
@@ -52,8 +51,8 @@ class User:
 
 
 def _check_password(password: str) -> None:
-    if len(password) < MIN_PASSWORD_LENGTH:
-        raise Denied(f"비밀번호는 {MIN_PASSWORD_LENGTH}자 이상이어야 합니다")
+    if not password:
+        raise Denied("비밀번호를 입력하세요")
 
 
 def _token_hash(token: str) -> str:

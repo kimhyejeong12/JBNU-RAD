@@ -17,7 +17,7 @@ help:
 	@echo "ask Q=\"질문\"      인덱스를 근거로 질의응답 (RAG)"
 	@echo "chat Q=\"질문\"     모델에 직접 질의"
 	@echo "review-check    review_chain 반복 루프·등급 흔들림 재현 (N=회수)"
-	@echo "review-requests [SRC=파일]  권한 신청 전 건 판정 (정책 이해)"
+	@echo "review-requests [SRC=파일] [OUT=파일]  CSV 권한 신청 전 건 판정 — 평가용, DB에 쓰지 않음"
 	@echo "review-policies [SRC=파일]  정책 간 중복 · 충돌 · 과도한 허용 판정 (정책 이해)"
 	@echo "monitor [SRC=로그] [SINCE=시각] [FULL=1]  지난 감시 이후 로그를 정책과 비교 (로그 감시)"
 	@echo "ask-logs Q=\"질문\"   보안 솔루션 로그에 질의 (로그 감시 — 건수는 코드가 셈)"
@@ -70,7 +70,7 @@ create-root:
 	$(PY) -m sentinelai create-root --login "$(LOGIN)" --name "$(NAME)" $(if $(DEPT),--department "$(DEPT)")
 
 review-requests:
-	$(PY) -m sentinelai review-requests $(SRC)
+	$(PY) -m sentinelai review-requests $(SRC) $(if $(OUT),--out "$(OUT)")
 
 review-policies:
 	$(PY) -m sentinelai review-policies $(SRC)

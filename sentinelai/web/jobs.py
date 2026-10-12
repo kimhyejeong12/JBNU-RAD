@@ -10,15 +10,16 @@ from datetime import datetime
 from typing import Any
 
 from sentinelai import pipeline
+from sentinelai.db import Database, results
 from sentinelai.engine import Engine
 
 KINDS = {"policies": "정책 관리 검토", "events": "로그 감시"}
 
 
 class JobRunner:
-    def __init__(self, engine: Engine, store: pipeline.ResultStore) -> None:
+    def __init__(self, engine: Engine, results_db: Database) -> None:
         self.engine = engine
-        self.store = store
+        self.results_db = results_db
         self._lock = threading.Lock()
         self._status: dict[str, Any] = {"running": None, "done": 0, "total": 0, "started_at": None, "last": {}}
 
@@ -54,10 +55,11 @@ class JobRunner:
         if kind == "policies":
             # 정책 파일이 바뀌었으면 RAG 의 규칙도 함께 맞춥니다. 로그 감시 · 질의응답이 이 규칙을 찾습니다.
             pipeline.index_policies(self.engine, s.policies_source)
-            self.store.put("policies", pipeline.review_policies(self.engine, s.policies_source))
+            results.save_policy_review(self.results_db, pipeline.review_policies(self.engine, s.policies_source), s.model)
         else:
-            since = self.store.last_event_at()
-            self.store.add_events(pipeline.monitor(self.engine, s.events_source, since, progress=self._progress))
+            since = results.next_monitor_since(self.results_db)
+            run = pipeline.monitor(self.engine, s.events_source, since, progress=self._progress)
+            results.save_monitor_run(self.results_db, run, s.model, since.isoformat() if since else None)
 
 
 def _now() -> str:

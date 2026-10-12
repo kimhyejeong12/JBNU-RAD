@@ -33,7 +33,6 @@ class Settings:
     requests_source: str
     policies_source: str
     events_source: str
-    results_path: str
     db_path: str
     results_db_path: str
 

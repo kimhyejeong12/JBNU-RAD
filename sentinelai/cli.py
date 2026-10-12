@@ -1,14 +1,16 @@
 """SentinelAI 코어 CLI — `python -m sentinelai <command>`
 
 엔진 명령(health · index · ask …)에 data 와 engine 을 함께 쓰는 명령을 더합니다.
-대상 파일을 주지 않으면 .env 의 SENTINELAI_*_SOURCE 를 쓰고, 판정 결과는 SENTINELAI_RESULTS_PATH 에 쌓습니다 (웹과 같은 파일).
+대상 파일을 주지 않으면 .env 의 SENTINELAI_*_SOURCE 를 쓰고, 정책 관리 검토 · 로그 감시 판정은 AI 결과 DB(SENTINELAI_RESULTS_DB_PATH)에 쌓습니다 (웹과 같은 DB).
 엔진만 들어 있는 환경에서는 `python -m sentinelai.engine.cli` 를 씁니다.
 """
 from __future__ import annotations
 
 import argparse
 import getpass
+import json
 import sys
+from pathlib import Path
 from typing import Any
 
 from . import db, pipeline
@@ -38,8 +40,9 @@ class Cli(EngineCli):
         policies.add_argument("source", nargs="?", help=source_help)
         policies.set_defaults(command="index_policies")
 
-        requests = sub.add_parser("review-requests", help="권한 신청 전 건 판정 (정책 이해)")
+        requests = sub.add_parser("review-requests", help="CSV 권한 신청 전 건 판정 — 평가용, DB에 쓰지 않음 (정책 이해)")
         requests.add_argument("source", nargs="?", help=source_help)
+        requests.add_argument("--out", help="판정 결과를 이 JSON 파일로도 남김")
         requests.set_defaults(command="review_requests")
 
         review = sub.add_parser("review-policies", help="정책 간 중복 · 충돌 · 과도한 허용 판정 (정책 이해)")
@@ -65,8 +68,8 @@ class Cli(EngineCli):
         root.set_defaults(command="create_root")
 
     @property
-    def store(self) -> pipeline.ResultStore:
-        return pipeline.ResultStore(self.engine.settings.results_path)
+    def results_db(self) -> db.Database:
+        return db.open_results_db(self.engine.settings.results_db_path)
 
     def index_policies(self, args: argparse.Namespace) -> int:
         loaded, report = pipeline.index_policies(self.engine, args.source or self.engine.settings.policies_source)
@@ -82,26 +85,33 @@ class Cli(EngineCli):
             _show(review)
 
         section = pipeline.review_requests(self.engine, args.source or self.engine.settings.requests_source, progress)
-        self.store.put("requests", section)
-        return self._done(section, sum(r["failed"] for r in section["reviews"]))
+        failed = sum(r["failed"] for r in section["reviews"])
+        self._load_issues(section)
+        if args.out:
+            Path(args.out).write_text(json.dumps(section, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print(f"\n{args.out} 에 저장 — 판정 실패 {failed}건")
+        else:
+            print(f"\n판정 실패 {failed}건 (저장하지 않음 — 남기려면 --out 파일)")
+        return 1 if failed else 0
 
     def review_policies(self, args: argparse.Namespace) -> int:
         section = pipeline.review_policies(self.engine, args.source or self.engine.settings.policies_source)
-        self.store.put("policies", section)
+        results_db = self.results_db
+        db.results.save_policy_review(results_db, section, self.engine.settings.model)
         if section["failed"]:
             print(f"판정 실패: {section['error']}")
         else:
             print(f"{section['summary']} ({section['elapsed_sec']}초)")
             for issue in section["issues"]:
                 print(f"  {issue['kind']} · {issue['level']} {' ↔ '.join(issue['policy_ids'])}: {issue['reason']}")
-        return self._done(section, int(section["failed"]))
+        return self._done(section, int(section["failed"]), results_db)
 
     def monitor(self, args: argparse.Namespace) -> int:
-        store = self.store
+        results_db = self.results_db
         if args.since:
             since = parse_datetime(args.since)
         else:
-            since = None if args.full else store.last_event_at()
+            since = None if args.full else db.results.next_monitor_since(results_db)
         if since:
             print(f"{since.isoformat()} 이후 로그만 판정합니다.")
 
@@ -111,10 +121,11 @@ class Cli(EngineCli):
 
         until = parse_datetime(args.until) if args.until else None
         run = pipeline.monitor(self.engine, args.source or self.engine.settings.events_source, since, until, progress)
-        store.add_events(run)
+        db.results.save_monitor_run(results_db, run, self.engine.settings.model,
+                                    since.isoformat() if since else None, until.isoformat() if until else None)
         if not run["findings"]:
             print("판정할 새 로그가 없습니다.")
-        return self._done(run, sum(f["failed"] for f in run["findings"]))
+        return self._done(run, sum(f["failed"] for f in run["findings"]), results_db)
 
     def ask_logs(self, args: argparse.Namespace) -> int:
         result = pipeline.ask_logs(self.engine, args.source or self.engine.settings.events_source, args.question)
@@ -128,7 +139,7 @@ class Cli(EngineCli):
         return 1 if result["failed"] else 0
 
     def create_root(self, args: argparse.Namespace) -> int:
-        main_db, _ = db.open_databases(self.engine.settings.db_path, self.engine.settings.results_db_path)
+        main_db = db.open_main_db(self.engine.settings.db_path)
         # 터미널이 아니면(파이프) 화면 표시 없이 한 줄씩 읽습니다.
         ask = getpass.getpass if sys.stdin.isatty() else (lambda prompt: sys.stdin.readline().rstrip("\n"))
         password = ask("비밀번호: ")
@@ -143,10 +154,14 @@ class Cli(EngineCli):
         print(f"루트 계정을 만들었습니다: {user.login_id} ({user.display_name}) → {main_db.path}")
         return 0
 
-    def _done(self, section: dict[str, Any], failed: int) -> int:
+    @staticmethod
+    def _load_issues(section: dict[str, Any]) -> None:
         for issue in section["load_issues"]:
             print(f"  읽기 실패 {issue}")
-        print(f"\n{self.store.path} 에 저장 — 판정 실패 {failed}건")
+
+    def _done(self, section: dict[str, Any], failed: int, results_db: db.Database) -> int:
+        self._load_issues(section)
+        print(f"\n{results_db.path} 에 저장 — 판정 실패 {failed}건")
         return 1 if failed else 0
 
 

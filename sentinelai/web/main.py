@@ -16,10 +16,10 @@ from pydantic import BaseModel, StringConstraints  # noqa: E402
 from sentinelai import ROOT, pipeline  # noqa: E402
 from sentinelai.engine import Answer, Engine  # noqa: E402
 
-from sentinelai.db import decisions, open_databases  # noqa: E402
+from sentinelai.db import User, decisions, open_main_db, open_results_db, results as results_db  # noqa: E402
 
 from . import view  # noqa: E402
-from .api_permissions import logged_in, role  # noqa: E402
+from .api_permissions import Approver, logged_in, role  # noqa: E402
 from .api_permissions import router as permissions_router  # noqa: E402
 from .jobs import KINDS, JobRunner  # noqa: E402
 from .verdicts import VerdictWorker  # noqa: E402
@@ -36,10 +36,10 @@ async def lifespan(app: FastAPI):
     # Milvus Lite 는 한 프로세스만 DB 를 열 수 있으므로, 웹이 떠 있는 동안 판정은 모두 웹의 작업으로 돌립니다.
     engine = Engine()
     state["engine"] = engine
-    state["store"] = pipeline.ResultStore(engine.settings.results_path)
-    state["jobs"] = JobRunner(engine, state["store"])
+    app.state.main_db = open_main_db(engine.settings.db_path)
+    app.state.results_db = open_results_db(engine.settings.results_db_path)
+    state["jobs"] = JobRunner(engine, app.state.results_db)
     state["rag_chain"] = engine.rag_chain(structured=True)
-    app.state.main_db, app.state.results_db = open_databases(engine.settings.db_path, engine.settings.results_db_path)
     app.state.verdicts = VerdictWorker(engine, app.state.main_db)
     app.state.verdicts.resume()
     yield
@@ -91,10 +91,10 @@ def health() -> dict[str, Any]:
 
 @app.get("/api/results", dependencies=analyst)
 def results(request: Request) -> dict[str, Any]:
-    """저장된 판정 결과 전체와 항목별 운영자 결정. 아직 돌리지 않은 구역은 비어 있습니다."""
-    db = request.app.state.main_db
-    return {**view.results(state["store"].load()),
-            "decisions": {kind: decisions.current(db, kind) for kind in decisions.ACTIONS}}
+    """마지막 정책 관리 검토 · 쌓인 로그 감시 판정과 항목별 운영자 결정. 아직 돌리지 않은 구역은 비어 있습니다."""
+    rdb, mdb = request.app.state.results_db, request.app.state.main_db
+    return {**view.results(results_db.latest_policy_review(rdb), results_db.monitor_findings(rdb)),
+            "decisions": {kind: decisions.current(mdb, kind) for kind in decisions.ACTIONS}}
 
 
 @app.get("/api/jobs", dependencies=analyst)
@@ -127,20 +127,34 @@ class AskRequest(BaseModel):
     question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
 
 
-@app.post("/api/ask", dependencies=analyst)
-def ask(body: AskRequest) -> dict[str, Any]:
-    """정책 질의응답. 기준 조항과 적재된 솔루션 규칙을 검색합니다 (신청 목록은 모름)."""
+@app.post("/api/ask")
+def ask(body: AskRequest, request: Request, user: Approver) -> dict[str, Any]:
+    """정책 질의응답. 기준 조항과 적재된 솔루션 규칙을 검색합니다 (신청 목록은 모름). 질의 기록에 남깁니다."""
     answer, error, elapsed = pipeline.attempt(lambda: state["rag_chain"].invoke(body.question))
     if answer is None:
         answer = Answer(answer=f"답변 실패: {error}", sources=[])
-    return {**answer.model_dump(), "elapsed_sec": round(elapsed, 1), "failed": error is not None}
+    result = {**answer.model_dump(), "elapsed_sec": round(elapsed, 1), "failed": error is not None, "error": error}
+    return _record(request, user, "policy", body.question, result)
 
 
-@app.post("/api/ask-logs", dependencies=analyst)
-def ask_logs(body: AskRequest) -> dict[str, Any]:
-    """로그 질의. 로그는 RAG 로 찾지 않고 코어가 조건에 맞춰 찾고 셉니다 (pipeline.ask_logs)."""
+@app.post("/api/ask-logs")
+def ask_logs(body: AskRequest, request: Request, user: Approver) -> dict[str, Any]:
+    """로그 질의. 로그는 RAG 로 찾지 않고 코어가 조건에 맞춰 찾고 셉니다 (pipeline.ask_logs). 질의 기록에 남깁니다."""
     engine: Engine = state["engine"]
-    return pipeline.ask_logs(engine, engine.settings.events_source, body.question)
+    return _record(request, user, "logs", body.question, pipeline.ask_logs(engine, engine.settings.events_source, body.question))
+
+
+def _record(request: Request, user: User, kind: str, question: str, result: dict[str, Any]) -> dict[str, Any]:
+    results_db.save_qa(request.app.state.results_db, kind, question, result, state["engine"].settings.qa_model, user)
+    return result
+
+
+@app.get("/api/qa")
+def my_qa(kind: str, request: Request, user: Approver) -> list[dict[str, Any]]:
+    """내 질의 기록 (최근 50건, 오래된 것부터). 다른 사람의 질의는 주지 않습니다."""
+    if kind not in results_db.QA_KINDS:
+        raise HTTPException(status_code=422, detail=f"kind 는 {', '.join(results_db.QA_KINDS)} 중 하나입니다")
+    return list(reversed(results_db.my_qa(request.app.state.results_db, user, kind)))
 
 
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

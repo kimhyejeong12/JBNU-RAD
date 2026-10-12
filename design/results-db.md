@@ -19,7 +19,7 @@ SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
 - 권한 신청 AI 판정은 권한 DB에 둔다. 최상급자까지 올라가는 결재 근거라서 신청과 함께 남아야 한다 (`db-schema.md` 결정 15~17).
 - 권한 DB의 운영자 결정은 AI 결과 DB 행을 `테이블/id` 문자열로 가리키고, 결정에 쓴 값(AI 등급)은 사본으로 함께 둔다. 두 DB는 FK로 묶이지 않는다.
 - AI 결과 DB는 쌓기만 한다. 행을 고치지 않는다 (트리거). 지우는 것은 보관 기간 정리뿐이고, **권한 DB가 가리키는 행은 지우지 않는다** (§4).
-- 엔진 · 데이터 계층 · `pipeline`은 DB를 모른다. `pipeline`은 지금처럼 dict를 돌려주고, 저장은 `sentinelai/db/results.py`가 한다. `pipeline.ResultStore`와 `SENTINELAI_RESULTS_PATH`는 CLI · 웹을 옮기면 없앤다.
+- 엔진 · 데이터 계층 · `pipeline`은 DB를 모른다. `pipeline`은 지금처럼 dict를 돌려주고, 저장은 `sentinelai/db/results.py`가 한다. `pipeline.ResultStore`와 `SENTINELAI_RESULTS_PATH`는 없앴다 (10/12).
 
 **로그 질의는 RAG로 만들지 않는다** (10/12 재확인). "몇 번 · 언제부터 · 누가"는 집계라서 비슷한 몇 줄(`top_k`)만 찾으면 건수가 틀린다. 로그를 RAG에 넣으려면 외부 DB의 로그를 Milvus에 한 벌 더 쌓고 계속 맞춰야 한다. 지금처럼 모델이 질문을 조건(`LogFilter`)으로 바꾸고, 세는 일은 로그가 있는 곳이 한다. 외부 DB 소스를 붙이면 조건을 그 DB의 쿼리(Microsoft Sentinel이면 KQL)로 넘긴다. 지금 `ask_logs`는 로그 전체를 메모리에 읽어 세므로, 외부 소스를 붙일 때 함께 바꾼다. 조건으로 바꾸기 어려운 질문("수상한 출력 행위")의 비슷한 사례 찾기는 필요해지면 RAG를 두 번째 경로로 더한다.
 
@@ -93,13 +93,13 @@ qa_records                             (정책 질의 · 로그 질의)
 
 ## 3. 코드
 
-10/12에는 스키마와 DB 계층(`db/results.py`)까지 만들었다. CLI · 웹 작업 · `/api/results` · 질의 API를 옮기는 것은 다음 단계다 — 그때까지 화면은 `results.json`을 읽는다.
+10/12에 모두 옮겼다. CLI(`review-policies` · `monitor`)와 웹 작업이 같은 함수로 쌓고, `/api/results`는 DB에서 읽는다. CLI의 `ask-logs`는 물은 사람이 없어 질의 기록에 남기지 않는다.
 
 | 지금 | 바뀐 뒤 |
 |---|---|
-| `pipeline.ResultStore(results_path)` | `db.results` — `save_policy_review` · `save_monitor_run` · `next_monitor_since` · `latest`(화면용) |
+| `pipeline.ResultStore(results_path)` | `db.results` — `save_policy_review` · `save_monitor_run` · `next_monitor_since` · `latest_policy_review` · `monitor_findings` · `save_qa` · `my_qa` |
 | `store.put("policies", …)` · `store.add_events(…)` | 위 함수. CLI · 웹 작업이 같은 함수를 부른다 |
-| `view.results(store.load())` | `view.results(db.results.latest(results_db))` — 화면 응답 모양은 그대로, key만 바뀐다 |
+| `view.results(store.load())` | `view.results(latest_policy_review, monitor_findings)` — 화면 응답 모양은 그대로, key만 바뀐다 (`requests` 구역은 빠졌다) |
 | `/api/ask` · `/api/ask-logs` | 답한 뒤 `qa_records`에 남긴다 |
 | — | `GET /api/qa?kind=` — 내 질의 기록 (§5-1) |
 

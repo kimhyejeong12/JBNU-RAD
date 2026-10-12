@@ -489,7 +489,7 @@
     <h3 id="pw-title">비밀번호 변경</h3>
     <p class="note" id="pw-note"></p>
     <label>지금 비밀번호<input name="current" type="password" autocomplete="current-password" required></label>
-    <label>새 비밀번호 (12자 이상)<input name="new" type="password" autocomplete="new-password" minlength="12" required></label>
+    <label>새 비밀번호<input name="new" type="password" autocomplete="new-password" required></label>
     <label>새 비밀번호 확인<input name="confirm" type="password" autocomplete="new-password" minlength="12" required></label>
     <div class="form-actions"><span class="form-msg" id="pw-msg"></span><button type="button" id="pw-cancel">취소</button><button type="submit" class="primary">바꾸기</button></div>
     <p class="gate-credit">전북대학교 RAD (RAG &amp; Decision) · SK쉴더스</p>
@@ -620,7 +620,7 @@ const state = {
   expanded: new Set(),  // 펼친 근거 칩
   panelMsg: "",         // 패널 동작 결과 (오류 · 완료)
   jobs: null,           // /api/jobs — 돌고 있는 분석 작업
-  asks: { policy: [], log: [] },   // 질의 기록 — 화면에만 두고 저장하지 않음
+  asks: { policy: [], log: [] },   // 내 질의 기록 — 로그인할 때 AI 결과 DB에서 받고, 새 질의는 서버가 남깁니다
   askSource: null,      // 패널에 띄운 인용 조항 { i: 질의 순번, n: sources 순번 }
 };
 
@@ -1132,7 +1132,7 @@ function renderUserPanel(u) {
         <label>이름<input name="display_name" required maxlength="100"></label>
         <label>부서<input name="department" maxlength="100"></label>
         <label>역할${roleOptions("user")}</label>
-        <label class="wide">임시 비밀번호 (12자 이상, 첫 로그인에 바꾸게 됩니다)<input name="password" type="password" required minlength="12" autocomplete="new-password"></label>
+        <label class="wide">임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input name="password" type="password" required autocomplete="new-password"></label>
         <div class="wide form-actions">${panelMsg()}<button type="submit" class="primary">계정 만들기</button></div>
       </form>`;
     $("user-form").addEventListener("submit", async (e) => {
@@ -1159,7 +1159,7 @@ function renderUserPanel(u) {
         <div class="wide form-actions"><button type="submit" class="primary">저장</button></div>
       </form>
       <form class="form-grid" id="user-reset" style="padding:12px 0 0">
-        <label class="wide">비밀번호 초기화 — 임시 비밀번호 (12자 이상)<input name="temporary_password" type="password" minlength="12" required autocomplete="new-password"></label>
+        <label class="wide">비밀번호 초기화 — 임시 비밀번호<input name="temporary_password" type="password" required autocomplete="new-password"></label>
         <div class="wide form-actions"><button type="submit">초기화</button></div>
       </form>
     </div>
@@ -1334,6 +1334,15 @@ async function ask(text) {
   await runAsk(q, () => getJSON(ASK[askMode()].url, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }),
   }));
+}
+
+// 질의 기록은 내 것만 옵니다. 메뉴마다 따로라 정책 질의 · 로그 질의를 나눠 받습니다.
+async function loadAsks() {
+  state.asks = { policy: [], log: [] };
+  if (!roleViews().some((v) => RESULT_VIEWS.has(v))) return;
+  const toItem = (r) => ({ q: r.question, answer: r.answer, sources: r.sources, criteria: r.criteria, facts: r.facts, evidence: r.evidence, failed: r.failed });
+  const [policy, logs] = await Promise.all([getJSON("/api/qa?kind=policy"), getJSON("/api/qa?kind=logs")]);
+  state.asks = { policy: policy.map(toItem), log: logs.map(toItem) };
 }
 
 async function runAsk(q, fetchAnswer) {
@@ -1718,7 +1727,7 @@ async function boot() {
   $("who").hidden = false;
   $("who-name").textContent = `${state.me.display_name} · ${ROLE_LABEL[state.me.role]}${state.me.is_root ? " (루트)" : ""}`;
   buildNav();
-  await loadData();
+  await Promise.all([loadData(), loadAsks()]);
   const views = roleViews();
   setView(views[0]);
   renderAll();

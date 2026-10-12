@@ -1,26 +1,21 @@
 """데이터 계층(sentinelai.data)과 엔진(sentinelai.engine)을 잇는 실행 흐름.
 
 data 와 engine 은 서로를 가져오지 않습니다. 둘을 함께 쓰는 흐름은 여기에만 둡니다.
-CLI(`python -m sentinelai`)와 웹이 같은 함수를 부르고, 결과는 ResultStore 한 파일에 함께 쌓습니다.
+CLI(`python -m sentinelai`)와 웹이 같은 함수를 부릅니다. 여기 함수는 결과 dict 만 돌려주고, 저장은 sentinelai.db.results 가 합니다.
 
     engine = Engine()
-    store = ResultStore(engine.settings.results_path)
     pipeline.index_policies(engine, engine.settings.policies_source)
-    store.put("requests", pipeline.review_requests(engine, engine.settings.requests_source))
-    store.put("policies", pipeline.review_policies(engine, engine.settings.policies_source))
-    pipeline.monitor(engine, engine.settings.events_source, store)        # 지난번 이후 로그만
+    review = pipeline.review_policies(engine, engine.settings.policies_source)
+    run = pipeline.monitor(engine, engine.settings.events_source, since)   # since 이후 로그만
 """
 from __future__ import annotations
 
 import json
-import threading
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
-from . import ROOT
 from .data import (
     LoadResult,
     PolicyRule,
@@ -41,7 +36,6 @@ from .engine import Engine, IndexReport
 RETRIES = 2
 # 답변 프롬프트와 화면에 싣는 로그 줄 수. 건수 · 합계는 전체로 세므로 이 수에 묶이지 않습니다.
 LOG_LINES = 50
-SECTIONS = ("requests", "policies", "events")
 
 Progress = Callable[[int, int, dict[str, Any]], None]
 
@@ -85,7 +79,7 @@ def index_policies(engine: Engine, source: Any) -> tuple[LoadResult, IndexReport
 
 
 def review_requests(engine: Engine, source: Any, progress: Progress | None = None) -> dict[str, Any]:
-    """권한 신청 전 건을 review_chain 으로 판정합니다. → results 의 "requests" 구역"""
+    """CSV 권한 신청 전 건을 review_chain 으로 판정합니다 (평가용 — 기대 등급과 대조할 때. 저장하지 않습니다)."""
     loaded = load_requests(source)
     chain = engine.review_chain()
     reviews = []
@@ -96,15 +90,6 @@ def review_requests(engine: Engine, source: Any, progress: Progress | None = Non
         if progress:
             progress(n, len(loaded.records), review)
     return {**_loaded(loaded), "reviews": reviews}
-
-
-def review_one(engine: Engine, source: Any, request_id: str) -> dict[str, Any] | None:
-    """권한 신청 1건 재판정. 없는 ID 면 None"""
-    request = next((r for r in load_requests(source).records if r.id == request_id), None)
-    if request is None:
-        return None
-    verdict, error, elapsed = attempt(lambda: engine.review_chain().invoke(request.review_input()))
-    return {**request.model_dump(), **_judged(verdict, error, elapsed)}
 
 
 def judge_request(engine: Engine, request: dict[str, Any]) -> dict[str, Any]:
@@ -119,7 +104,7 @@ def judge_request(engine: Engine, request: dict[str, Any]) -> dict[str, Any]:
 
 
 def review_policies(engine: Engine, source: Any) -> dict[str, Any]:
-    """정책 전체를 policy_chain 으로 한 번에 검토합니다. → results 의 "policies" 구역"""
+    """정책 전체를 policy_chain 으로 한 번에 검토합니다. → db.results.save_policy_review"""
     loaded = load_policies(source)
     text = PolicyRule.format(loaded.records)
     review, error, elapsed = attempt(lambda: engine.policy_chain().invoke({"policies": text}))
@@ -140,7 +125,7 @@ def monitor(
     until: datetime | None = None,
     progress: Progress | None = None,
 ) -> dict[str, Any]:
-    """로그 감시 1회 — 읽기 → 시각 필터 → 사용자별 묶기 → event_chain 판정. → results 의 "events" 구역에 더할 묶음"""
+    """로그 감시 1회 — 읽기 → 시각 필터 → 사용자별 묶기 → event_chain 판정. → db.results.save_monitor_run"""
     loaded = load_events(source, since=since, until=until)
     findings = []
     groups = group_by_user(loaded.records)
@@ -213,65 +198,3 @@ def ask_logs(engine: Engine, source: Any, question: str, now: datetime | None = 
     }))
     result["answer"] = answer.strip() if answer is not None else f"답변 실패: {error}"
     return done(error)
-
-
-# --- 결과 저장 --------------------------------------------------------------
-
-
-class ResultStore:
-    """판정 결과 파일. 구역(requests · policies · events)마다 마지막 실행 결과를 둡니다.
-
-    events 는 덮어쓰지 않고 쌓으며, 마지막으로 판정한 로그 시각을 함께 남겨 다음 감시가 이어서 판정합니다.
-    웹은 작업 스레드와 요청 스레드가 함께 쓰므로 잠금을 겁니다.
-    """
-
-    def __init__(self, path: str | Path) -> None:
-        path = Path(path)
-        self.path = path if path.is_absolute() else ROOT / path
-        self._lock = threading.Lock()
-
-    def load(self) -> dict[str, Any]:
-        with self._lock:
-            return self._read()
-
-    def _read(self) -> dict[str, Any]:
-        data = json.loads(self.path.read_text(encoding="utf-8")) if self.path.is_file() else {}
-        return {section: data.get(section) for section in SECTIONS}
-
-    def _write(self, data: dict[str, Any]) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = self.path.with_suffix(".tmp")
-        # 쓰는 도중 읽어도 깨진 파일을 보지 않도록 다 쓴 뒤 바꿔 끼웁니다.
-        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        tmp.replace(self.path)
-
-    def put(self, section: str, value: dict[str, Any]) -> None:
-        with self._lock:
-            data = self._read()
-            data[section] = value
-            self._write(data)
-
-    def last_event_at(self) -> datetime | None:
-        events = self.load()["events"]
-        return parse_datetime(events["last_event_at"]) if events and events.get("last_event_at") else None
-
-    def add_events(self, run: dict[str, Any]) -> None:
-        """감시 결과를 쌓습니다. 새 로그가 없으면 마지막 시각은 그대로 둡니다."""
-        with self._lock:
-            data = self._read()
-            previous = data["events"] or {"findings": [], "last_event_at": None}
-            data["events"] = {
-                **run,
-                "last_event_at": run["last_event_at"] or previous.get("last_event_at"),
-                "findings": previous.get("findings", []) + run["findings"],
-            }
-            self._write(data)
-
-    def update_request(self, review: dict[str, Any]) -> None:
-        """권한 신청 1건 재판정 결과를 바꿔 끼웁니다."""
-        with self._lock:
-            data = self._read()
-            section = data["requests"]
-            if section:
-                section["reviews"] = [review if r["id"] == review["id"] else r for r in section["reviews"]]
-                self._write(data)

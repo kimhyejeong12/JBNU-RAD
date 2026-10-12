@@ -10,12 +10,23 @@ from .auth import User
 from .core import Database, Denied
 
 
-def open_databases(db_path: str, results_db_path: str) -> tuple[Database, Database]:
-    """(권한 DB, AI 결과 DB). 처음이면 스키마를 만듭니다."""
-    main, results_db = Database(db_path, "schema.sql", "decisions.sql"), Database(results_db_path, "results_schema.sql")
-    main.init()
-    results_db.init()
-    return main, results_db
+def open_main_db(path: str) -> Database:
+    """권한 DB. 처음이면 스키마를 만듭니다."""
+    db = Database(path, "schema.sql", "decisions.sql")
+    db.init()
+    with db.connection() as conn:
+        columns = {r[1] for r in conn.execute("PRAGMA table_info(access_requests)")}
+    if "ai_level" not in columns:
+        raise RuntimeError(f"{db.path} 는 10/11 구조의 권한 DB입니다 (신청 1건 = 1행으로 바뀜). "
+                           "옮길 데이터가 없으면 파일을 지우고 make create-root 로 다시 만드세요.")
+    return db
 
 
-__all__ = ["Database", "Denied", "User", "auth", "decisions", "open_databases", "permissions", "results"]
+def open_results_db(path: str) -> Database:
+    """AI 결과 DB. 처음이면 스키마를 만듭니다."""
+    db = Database(path, "results_schema.sql")
+    db.init()
+    return db
+
+
+__all__ = ["Database", "Denied", "User", "auth", "decisions", "open_main_db", "open_results_db", "permissions", "results"]
