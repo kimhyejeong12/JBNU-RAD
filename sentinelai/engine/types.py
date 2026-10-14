@@ -23,6 +23,26 @@ class Verdict(BaseModel):
     recommendation: str = Field(description="개선안 또는 권고 조치")
 
 
+class ServerGap(BaseModel):
+    """서버의 지금 상태가 기준 문서와 다른 곳 한 군데와, 맞추려면 바꿀 것."""
+
+    item: str = Field(description="어긋난 현황 항목 이름 또는 솔루션 정책 ID (예: 관리자 계정, FW-006)")
+    current: str = Field(description="지금 상태 — 현황 값이나 정책 내용 그대로")
+    required: str = Field(description="기준 문서가 요구하는 상태")
+    source: str = Field(description="근거 조항 — 기준 문서 이름과 조항 번호 (예: 정책_운영기준.md 6.2)")
+    level: RiskLevel = Field(description="이 차이의 위험 등급")
+    change: str = Field(description="기준에 맞추려면 이 환경에서 바꿀 것 — 설정 · 정책 · 계정 등 구체적 조치")
+
+
+class ServerReview(BaseModel):
+    """서버 한 대의 현황을 기준 문서와 비교한 결과."""
+
+    level: RiskLevel = Field(description="서버 전체 위험 등급 — 차이가 없으면 정상")
+    gaps: list[ServerGap] = Field(description="기준 문서와 다른 곳 목록. 없으면 빈 목록")
+    unjudged: list[str] = Field(description="다루는 조항이 없어 판단하지 않은 현황 항목 이름. 없으면 빈 목록")
+    summary: str = Field(description="한두 문장 요약")
+
+
 class LogFilter(BaseModel):
     """로그 질의에서 뽑은 조건. 언급되지 않은 조건은 빈 문자열입니다."""
 

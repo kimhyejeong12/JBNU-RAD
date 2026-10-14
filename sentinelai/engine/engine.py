@@ -74,6 +74,10 @@ class Engine:
         """정책 모순 판정 — chains/policy.py"""
         return chains.policy_chain(self, *args, **kwargs)
 
+    def server_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        """서버 현황 ↔ 정책 문서 검증 — chains/server.py"""
+        return chains.server_chain(self, *args, **kwargs)
+
     def event_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         """로그 ↔ 정책 비교 — chains/event.py"""
         return chains.event_chain(self, *args, **kwargs)

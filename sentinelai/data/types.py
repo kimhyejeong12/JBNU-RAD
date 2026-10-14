@@ -80,13 +80,33 @@ class PolicyRule(Record):
         return "\n".join(rule.describe() for rule in rules)
 
 
+class ServerState(Record):
+    """서버 현황 한 대. 호스트(또는 IP)만 정해 두고, 나머지 컬럼(용도 · 노출 · 포트 · 패치 등)은 attributes 에 그대로 담습니다.
+
+    현황 파일은 자산관리 · 점검 도구마다 컬럼이 달라 필드를 늘리지 않습니다. 판정은 컬럼 이름과 값을 그대로 읽습니다.
+    """
+
+    host: str
+    ip: str = ""
+    attributes: dict[str, str] = {}
+
+    @property
+    def name(self) -> str:
+        return f"{self.host} ({self.ip})" if self.ip and self.ip != self.host else self.host
+
+    def describe(self) -> str:
+        """server_chain 의 state 입력. 한 줄에 한 항목."""
+        return "\n".join([f"- 서버: {self.name}", *(f"- {k}: {v}" for k, v in self.attributes.items() if v)])
+
+
 @dataclass
 class LoadIssue:
     line: int
     message: str
 
     def __str__(self) -> str:
-        return f"{self.line}행: {self.message}"
+        # 0행은 파일 전체의 문제(폴더 안의 컬럼이 맞지 않는 파일 등)입니다.
+        return f"{self.line}행: {self.message}" if self.line else self.message
 
 
 @dataclass

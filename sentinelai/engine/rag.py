@@ -136,6 +136,7 @@ class DocumentStore:
         """솔루션 정책 규칙을 적재합니다. rules 는 한 건에 한 줄 (예: PolicyRule.describe()).
 
         규칙은 몇 줄짜리라 나누지 않습니다. 묶음(name) 단위로 바뀌었는지 보고 통째로 바꿉니다.
+        규칙 묶음은 하나만 둡니다. 정책 파일 · 폴더를 바꾸면 예전 묶음의 규칙이 검색에 섞이지 않게 지웁니다.
         """
         source = self.RULES_PREFIX + name
         doc_hash = self._digest("\n".join(rules))
@@ -145,7 +146,17 @@ class DocumentStore:
         ]
         report = IndexReport()
         self._replace(source, doc_hash, chunks, report)
+        stale = self.KIND_EXPR["rule"] + " and not (" + self._expr(source) + ")"
+        if self.store.search_by_metadata(expr=stale, limit=1):
+            self.store.delete(expr=stale)
         return report
+
+    def clear_rules(self) -> bool:
+        """솔루션 정책 규칙을 모두 지웁니다 (정책 폴더가 비었을 때). 지운 게 있으면 True"""
+        if not self.store.search_by_metadata(expr=self.KIND_EXPR["rule"], limit=1):
+            return False
+        self.store.delete(expr=self.KIND_EXPR["rule"])
+        return True
 
     def _replace(
         self, name: str, doc_hash: str, chunks: list[Document], report: IndexReport, rebuild: bool = False

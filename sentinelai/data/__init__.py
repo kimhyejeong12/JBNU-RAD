@@ -19,20 +19,26 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from .events import between, event_review_input, group_by_user, latest, search, summarize, vocabulary
-from .mapper import AccessRequestMapper, ColumnMapper, EventMapper, Mapper, PolicyRuleMapper, parse_datetime
-from .source import CsvSource, JsonSource, MemorySource, Row, RowSource, open_source, register_source
-from .types import AccessRequest, LoadIssue, LoadResult, PolicyRule, Record, SecurityEvent
+from .mapper import AccessRequestMapper, ColumnMapper, EventMapper, Mapper, PolicyRuleMapper, ServerStateMapper, parse_datetime
+from .servers import rules_for, server_review_input
+from .source import CsvSource, JsonSource, MemorySource, Row, RowSource, folder_files, open_source, register_source
+from .types import AccessRequest, LoadIssue, LoadResult, PolicyRule, Record, SecurityEvent, ServerState
 
 
 def load(target: Any, mapper: Mapper, strict: bool = False) -> LoadResult:
-    """target: 파일 경로 또는 소스.
+    """target: 파일 경로 · 폴더 경로 또는 소스.
 
     필수 컬럼이 없으면 파일을 잘못 고른 것이므로 바로 ValueError 를 냅니다.
     행 오류는 issues 에 모으고, strict=True 면 첫 행 오류에서 멈춥니다.
+    폴더면 안의 파일(.csv · .json 등)을 모두 읽어 합칩니다. 비어 있으면 레코드 없이 돌려줍니다.
     """
+    files = folder_files(target)
+    if files is not None:
+        return _load_folder(Path(str(target)), files, mapper, strict)
     source = open_source(target)
     result = LoadResult(source=source.name)
     checked = False
@@ -49,6 +55,22 @@ def load(target: Any, mapper: Mapper, strict: bool = False) -> LoadResult:
             if strict:
                 raise ValueError(f"{source.name} {line}행: {exc}") from None
             result.issues.append(LoadIssue(line, str(exc)))
+    return result
+
+
+def _load_folder(folder: Path, files: list[Path], mapper: Mapper, strict: bool) -> LoadResult:
+    # 솔루션마다 내보낸 파일을 한 폴더에 모으므로, 컬럼이 맞지 않는 파일 하나 때문에 나머지를 버리지 않습니다.
+    result = LoadResult(source=folder.name)
+    for path in files:
+        try:
+            part = load(path, mapper, strict)
+        except ValueError as exc:
+            if strict:
+                raise
+            result.issues.append(LoadIssue(0, str(exc)))
+            continue
+        result.records += part.records
+        result.issues += [LoadIssue(i.line, f"{path.name} {i.message}") for i in part.issues]
     return result
 
 
@@ -74,6 +96,10 @@ def load_policies(target: Any, mapper: PolicyRuleMapper | None = None, strict: b
     return load(target, mapper or PolicyRuleMapper(), strict)
 
 
+def load_servers(target: Any, mapper: ServerStateMapper | None = None, strict: bool = False) -> LoadResult:
+    return load(target, mapper or ServerStateMapper(), strict)
+
+
 __all__ = [
     "AccessRequest",
     "AccessRequestMapper",
@@ -91,14 +117,20 @@ __all__ = [
     "Row",
     "RowSource",
     "SecurityEvent",
+    "ServerState",
+    "ServerStateMapper",
     "between",
     "event_review_input",
+    "folder_files",
     "group_by_user",
     "latest",
     "load",
     "load_events",
     "load_policies",
     "load_requests",
+    "load_servers",
+    "rules_for",
+    "server_review_input",
     "open_source",
     "parse_datetime",
     "register_source",

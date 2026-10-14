@@ -60,7 +60,7 @@ users ─┬─ sessions
 users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 ```
 
-- 스키마 파일은 차례로 적용한다 (`Database(path, "schema.sql", "decisions.sql", "accounts.sql")`). n번째 파일을 적용하면 `user_version = n`. 이미 만든 DB는 시작할 때 빠진 파일만 더 적용한다. 테이블을 더할 때는 새 파일을 뒤에 붙이고, 앞 파일은 고치지 않는다.
+- 스키마 파일은 차례로 적용한다 (`Database(path, "schema.sql", "decisions.sql", "accounts.sql", "decisions_server.sql")`). n번째 파일을 적용하면 `user_version = n`. 이미 만든 DB는 시작할 때 빠진 파일만 더 적용한다. 테이블을 더할 때는 새 파일을 뒤에 붙이고, 앞 파일은 고치지 않는다.
 
 ### 신청의 상태 (`access_requests.stage`)
 
@@ -129,10 +129,10 @@ users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 ### `review_decisions` — 정책 · 로그 결정 1건 = 1행 (`decisions.sql`)
 | 칸 | 설명 |
 |---|---|
-| `kind` | `policy`(정책 관리 문제) · `event`(로그 감시 판정) |
+| `kind` | `policy`(정책 관리 문제) · `server`(서버 점검, 10/12 `decisions_server.sql`이 표를 다시 만들어 넓혔다) · `event`(로그 감시 판정) |
 | `item_key` | 결정한 항목. 로그 감시 = 판정 id(`사용자@마지막 로그 시각`, 감시 결과가 쌓여도 그대로). 정책 = `실행 시각#순번` — 정책 검토는 돌릴 때마다 문제 목록을 새로 만들므로, 다시 돌리면 예전 결정은 새 문제에 붙지 않는다 |
 | `subject` | 결정할 때 화면에 보인 대상 (정책 ID · 문제 유형, 로그 사용자) — 결과 파일이 바뀌어도 무엇을 결정했는지 남긴다 |
-| `action` | 정책: `approve` · `cond` · `reject`, 로그: `clear` · `act`, 둘 다 `cancel`(취소) |
+| `action` | 정책: `approve` · `cond` · `reject`, 서버 · 로그: `clear` · `act`, 모두 `cancel`(취소) |
 | `comment` · `ai_level` | 결정 의견(선택) · 그때 AI 등급 |
 | `decider_id` + `decider_name` · `decider_department` | 결정자와 당시 사본. **활성 중간관리자 · 최상급자만** (트리거) |
 

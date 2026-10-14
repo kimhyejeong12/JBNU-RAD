@@ -53,9 +53,9 @@ class JobRunner:
     def _work(self, kind: str) -> None:
         s = self.engine.settings
         if kind == "policies":
-            # 정책 파일이 바뀌었으면 RAG 의 규칙도 함께 맞춥니다. 로그 감시 · 질의응답이 이 규칙을 찾습니다.
-            pipeline.index_policies(self.engine, s.policies_source)
-            results.save_policy_review(self.results_db, pipeline.review_policies(self.engine, s.policies_source), s.model)
+            # 기준 문서 · 정책 규칙을 RAG 에 맞추고(바뀐 것만) 정책 간 검토 · 서버 점검을 돌립니다.
+            review = pipeline.review_policies(self.engine, s.policies_source, s.servers_source, progress=self._progress)
+            results.save_policy_review(self.results_db, review, s.model)
         else:
             since = results.next_monitor_since(self.results_db)
             run = pipeline.monitor(self.engine, s.events_source, since, progress=self._progress)

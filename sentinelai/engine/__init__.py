@@ -11,7 +11,7 @@ from .engine import Engine
 from .config import Settings
 from .prompt import Prompts
 from .rag import DocumentStore, IndexReport
-from .types import Answer, LogFilter, PolicyIssue, PolicyReview, RiskLevel, Verdict
+from .types import Answer, LogFilter, PolicyIssue, PolicyReview, RiskLevel, ServerGap, ServerReview, Verdict
 
 from .. import __version__
 
@@ -23,6 +23,8 @@ __all__ = [
     "LogFilter",
     "PolicyIssue",
     "PolicyReview",
+    "ServerGap",
+    "ServerReview",
     "Prompts",
     "RiskLevel",
     "Settings",

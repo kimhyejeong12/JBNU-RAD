@@ -45,8 +45,9 @@ class Cli(EngineCli):
         requests.add_argument("--out", help="판정 결과를 이 JSON 파일로도 남김")
         requests.set_defaults(command="review_requests")
 
-        review = sub.add_parser("review-policies", help="정책 간 중복 · 충돌 · 과도한 허용 판정 (정책 이해)")
-        review.add_argument("source", nargs="?", help=source_help)
+        review = sub.add_parser("review-policies", help="정책 간 중복 · 충돌 · 과도한 허용 + 서버 현황 검증 (정책 이해)")
+        review.add_argument("source", nargs="?", help="솔루션 정책 파일 · 폴더. 없으면 .env 의 값")
+        review.add_argument("--servers", help="서버 현황 파일 · 폴더. 없으면 .env 의 값")
         review.set_defaults(command="review_policies")
 
         monitor = sub.add_parser("monitor", help="보안 솔루션 로그를 정책과 비교해 사용자별로 판정 (로그 감시)")
@@ -95,16 +96,33 @@ class Cli(EngineCli):
         return 1 if failed else 0
 
     def review_policies(self, args: argparse.Namespace) -> int:
-        section = pipeline.review_policies(self.engine, args.source or self.engine.settings.policies_source)
+        s = self.engine.settings
+
+        def progress(n: int, total: int, item: dict[str, Any]) -> None:
+            if "host" in item:
+                print(f"\n[{n}/{total}] 서버 {item['subject']}")
+                if item["failed"]:
+                    print(f"  판정 실패: {item['error']}")
+                    return
+                print(f"  {item['level']} ({item['elapsed_sec']}초) {item['summary']}")
+                for gap in item["gaps"]:
+                    print(f"  - {gap['level']} {gap['item']}: {gap['current']} → {gap['required']} ({gap['source']})")
+                    print(f"    바꿀 것: {gap['change']}")
+                if item["unjudged"]:
+                    print(f"  조항이 없어 판단하지 않음: {', '.join(item['unjudged'])}")
+            elif item["failed"]:
+                print(f"[{n}/{total}] 정책 간 검토 실패: {item['error']}")
+            else:
+                print(f"[{n}/{total}] {item['summary']} ({item['elapsed_sec']}초)")
+                for issue in item["issues"]:
+                    print(f"  {issue['kind']} · {issue['level']} {' ↔ '.join(issue['policy_ids'])}: {issue['reason']}")
+
+        section = pipeline.review_policies(self.engine, args.source or s.policies_source, args.servers or s.servers_source, progress)
         results_db = self.results_db
-        db.results.save_policy_review(results_db, section, self.engine.settings.model)
-        if section["failed"]:
-            print(f"판정 실패: {section['error']}")
-        else:
-            print(f"{section['summary']} ({section['elapsed_sec']}초)")
-            for issue in section["issues"]:
-                print(f"  {issue['kind']} · {issue['level']} {' ↔ '.join(issue['policy_ids'])}: {issue['reason']}")
-        return self._done(section, int(section["failed"]), results_db)
+        db.results.save_policy_review(results_db, section, s.model)
+        self._load_issues(section["servers"])
+        failed = int(section["failed"]) + sum(f["failed"] for f in section["servers"]["findings"])
+        return self._done(section, failed, results_db)
 
     def monitor(self, args: argparse.Namespace) -> int:
         results_db = self.results_db

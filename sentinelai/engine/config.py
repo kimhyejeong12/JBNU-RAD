@@ -32,6 +32,7 @@ class Settings:
     top_k: int
     requests_source: str
     policies_source: str
+    servers_source: str
     events_source: str
     db_path: str
     results_db_path: str

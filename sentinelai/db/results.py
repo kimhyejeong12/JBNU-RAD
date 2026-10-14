@@ -1,7 +1,7 @@
 """AI 결과 DB — 정책 관리 검토 · 로그 감시 판정 · 질의 기록.
 
 pipeline 이 돌려준 dict 를 그대로 받아 쌓습니다. 행은 고치지 않습니다 (트리거).
-권한 DB의 운영자 결정은 여기 행을 `policy_issues/{id}` · `event_findings/{id}` 로 가리킵니다.
+권한 DB의 운영자 결정은 여기 행을 `policy_issues/{id}` · `server_findings/{id}` · `event_findings/{id}` 로 가리킵니다.
 """
 from __future__ import annotations
 
@@ -33,12 +33,23 @@ def _utc(stamp: str | None) -> str | None:
 def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
     """pipeline.review_policies 결과 1회를 쌓습니다. → policy_reviews.id"""
     with db.transaction() as conn:
+        servers = review.get("servers") or {}
         rid = conn.execute(
-            "INSERT INTO policy_reviews (source, load_issues, rules, summary, failed, error, model, elapsed_sec, created_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO policy_reviews (source, load_issues, rules, summary, failed, error, model, elapsed_sec, created_at,"
+            " servers_source, servers_load_issues) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (str(review.get("source", "")), _json(review.get("load_issues", [])), _json(review.get("rules", [])),
-             review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now()),
+             review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now(),
+             str(servers.get("source", "")), _json(servers.get("load_issues", []))),
         ).lastrowid
+        # 서버 점검은 차이(gaps)마다 근거 조항 · 바꿀 것을 따로 둡니다. reason 에는 요약, sources 에는 차이들의 조항을 모읍니다.
+        conn.executemany(
+            "INSERT INTO server_findings (review_id, seq, host, ip, state, matched, level, reason, recommendation, sources,"
+            " failed, error, elapsed_sec, gaps, unjudged) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            [(rid, n, f["host"], f.get("ip", ""), _json(f.get("state", {})), f.get("matched", ""), f.get("level"),
+              f.get("summary", ""), "", _json(list(dict.fromkeys(g["source"] for g in f.get("gaps", []) if g.get("source")))),
+              int(f["failed"]), f.get("error"), f.get("elapsed_sec"), _json(f.get("gaps", [])), _json(f.get("unjudged", [])))
+             for n, f in enumerate(servers.get("findings", []), start=1)],
+        )
         conn.executemany(
             "INSERT INTO policy_issues (review_id, seq, kind, level, policy_ids, reason, recommendation) VALUES (?,?,?,?,?,?,?)",
             [(rid, n, i["kind"], i["level"], _json(i.get("policy_ids", [])), i.get("reason", ""), i.get("recommendation", ""))
@@ -48,12 +59,13 @@ def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
 
 
 def latest_policy_review(db: Database) -> dict[str, Any] | None:
-    """마지막 정책 관리 검토와 그 문제 목록. 문제마다 운영자 결정이 가리킬 key 를 붙입니다."""
+    """마지막 정책 관리 검토 — 정책 문제 목록과 서버 점검. 항목마다 운영자 결정이 가리킬 key 를 붙입니다."""
     with db.connection() as conn:
         row = conn.execute("SELECT * FROM policy_reviews ORDER BY id DESC LIMIT 1").fetchone()
         if row is None:
             return None
         issues = conn.execute("SELECT * FROM policy_issues WHERE review_id = ? ORDER BY seq", (row["id"],)).fetchall()
+        servers = conn.execute("SELECT * FROM server_findings WHERE review_id = ? ORDER BY seq", (row["id"],)).fetchall()
     return {
         "id": row["id"],
         "generated_at": row["created_at"],
@@ -70,6 +82,18 @@ def latest_policy_review(db: Database) -> dict[str, Any] | None:
              "policy_ids": json.loads(i["policy_ids"]), "reason": i["reason"], "recommendation": i["recommendation"]}
             for i in issues
         ],
+        "servers": {
+            "source": row["servers_source"],
+            "load_issues": json.loads(row["servers_load_issues"]),
+            "findings": [
+                {"key": f"server_findings/{s['id']}", "seq": s["seq"], "host": s["host"], "ip": s["ip"],
+                 "state": json.loads(s["state"]), "matched": s["matched"], "level": s["level"], "reason": s["reason"],
+                 "recommendation": s["recommendation"], "sources": json.loads(s["sources"]), "failed": bool(s["failed"]),
+                 "error": s["error"], "elapsed_sec": s["elapsed_sec"], "gaps": json.loads(s["gaps"]),
+                 "unjudged": json.loads(s["unjudged"])}
+                for s in servers
+            ],
+        },
     }
 
 

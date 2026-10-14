@@ -4,8 +4,7 @@ data 와 engine 은 서로를 가져오지 않습니다. 둘을 함께 쓰는 �
 CLI(`python -m sentinelai`)와 웹이 같은 함수를 부릅니다. 여기 함수는 결과 dict 만 돌려주고, 저장은 sentinelai.db.results 가 합니다.
 
     engine = Engine()
-    pipeline.index_policies(engine, engine.settings.policies_source)
-    review = pipeline.review_policies(engine, engine.settings.policies_source)
+    review = pipeline.review_policies(engine, engine.settings.policies_source, engine.settings.servers_source)  # 문서 · 규칙 적재 포함
     run = pipeline.monitor(engine, engine.settings.events_source, since)   # since 이후 로그만
 """
 from __future__ import annotations
@@ -14,9 +13,11 @@ import json
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from .data import (
+    LoadIssue,
     LoadResult,
     PolicyRule,
     between,
@@ -26,13 +27,18 @@ from .data import (
     load_events,
     load_policies,
     load_requests,
+    load_servers,
     parse_datetime,
     search,
+    server_review_input,
     summarize,
     vocabulary,
 )
+from . import ROOT
 from .engine import Engine, IndexReport
 
+# 사내 기준 문서(정책 문서) 폴더. 정책 관리 검토를 돌릴 때마다 바뀐 파일만 RAG 에 다시 적재합니다.
+DOCS_DIR = ROOT / "docs"
 RETRIES = 2
 # 답변 프롬프트와 화면에 싣는 로그 줄 수. 건수 · 합계는 전체로 세므로 이 수에 묶이지 않습니다.
 LOG_LINES = 50
@@ -69,6 +75,11 @@ def _judged(verdict: Any, error: str | None, elapsed: float) -> dict[str, Any]:
 # --- 정책 이해 --------------------------------------------------------------
 
 
+def index_documents(engine: Engine, source: Any = DOCS_DIR) -> IndexReport:
+    """사내 기준 문서를 RAG 에 적재합니다 (바뀐 파일만). 서버 현황 · 정책 검증이 이 조항을 찾습니다."""
+    return engine.documents.index(source)
+
+
 def index_policies(engine: Engine, source: Any) -> tuple[LoadResult, IndexReport]:
     """솔루션 정책 규칙을 RAG 에 적재합니다. 바뀌지 않았으면 건너뜁니다."""
     loaded = load_policies(source)
@@ -103,15 +114,63 @@ def judge_request(engine: Engine, request: dict[str, Any]) -> dict[str, Any]:
     return _judged(verdict, error, elapsed)
 
 
-def review_policies(engine: Engine, source: Any) -> dict[str, Any]:
-    """정책 전체를 policy_chain 으로 한 번에 검토합니다. → db.results.save_policy_review"""
-    loaded = load_policies(source)
-    text = PolicyRule.format(loaded.records)
-    review, error, elapsed = attempt(lambda: engine.policy_chain().invoke({"policies": text}))
+def _optional(loader: Callable[[Any], LoadResult], source: Any) -> LoadResult:
+    """폴더 · 파일이 없으면 그쪽 검토만 건너뜁니다. 없다는 사실은 읽기 실패로 남겨 화면에 보입니다."""
+    try:
+        return loader(source)
+    except FileNotFoundError as exc:
+        return LoadResult(source=Path(str(source)).name, issues=[LoadIssue(0, str(exc))])
+
+
+def review_policies(engine: Engine, policies_source: Any, servers_source: Any,
+                    progress: Progress | None = None) -> dict[str, Any]:
+    """정책 관리 검토 1회 → db.results.save_policy_review
+
+    0. 기준 문서(docs/) · 솔루션 정책 규칙을 RAG 에 맞춥니다 (바뀐 것만). 판정이 지금 문서 · 규칙을 찾게 합니다.
+    1. 솔루션 정책 규칙 전체 → policy_chain (정책 간 중복 · 충돌 · 과도한 허용)
+    2. 서버 현황 한 대씩 → server_chain → ServerReview (기준 문서와 다른 곳마다 지금 · 기준 · 조항 · 바꿀 것)
+    한쪽 데이터가 없으면 그쪽은 건너뛰고, 둘 다 없으면 ValueError 를 냅니다.
+    """
+    policies = _optional(load_policies, policies_source)
+    servers = _optional(load_servers, servers_source)
+    if not policies.records and not servers.records:
+        problems = [str(i) for i in policies.issues + servers.issues]
+        raise ValueError("검토할 데이터가 없습니다 — 솔루션 정책 · 서버 현황 폴더에 CSV · JSON 을 두세요"
+                         + (f" ({'; '.join(problems)})" if problems else ""))
+    index_documents(engine)
+    # 정책 폴더가 지금 규칙의 기준입니다. 비었으면 예전 규칙이 서버 점검 · 로그 감시 검색에 섞이지 않게 지웁니다.
+    if policies.records:
+        engine.documents.index_rules(policies.source, [r.describe() for r in policies.records])
+    else:
+        engine.documents.clear_rules()
+    total = int(bool(policies.records)) + len(servers.records)
+
+    if policies.records:
+        text = PolicyRule.format(policies.records)
+        review, error, elapsed = attempt(lambda: engine.policy_chain().invoke({"policies": text}))
+        rules_part = _judged(review, error, elapsed)
+        if progress:
+            progress(1, total, rules_part)
+    else:
+        rules_part = {"summary": "솔루션 정책 규칙이 없어 정책 간 검토는 하지 않았습니다.", "issues": [],
+                      "failed": False, "error": None, "elapsed_sec": 0.0}
+
+    findings = []
+    chain = engine.server_chain() if servers.records else None
+    for n, server in enumerate(servers.records, start=1):
+        inputs = server_review_input(server, policies.records)
+        review, error, elapsed = attempt(lambda: chain.invoke(inputs))
+        # state 는 프롬프트용 글이 아니라 원본 행을 남깁니다 (화면이 컬럼 · 값 표로 보여줍니다).
+        finding = {**inputs, "host": server.host, "ip": server.ip, "state": server.raw, **_judged(review, error, elapsed)}
+        findings.append(finding)
+        if progress:
+            progress(n + int(bool(policies.records)), total, finding)
+
     return {
-        **_loaded(loaded),
-        "rules": [r.model_dump() for r in loaded.records],
-        **_judged(review, error, elapsed),
+        **_loaded(policies),
+        "rules": [r.model_dump() for r in policies.records],
+        **rules_part,
+        "servers": {**_loaded(servers), "findings": findings},
     }
 
 

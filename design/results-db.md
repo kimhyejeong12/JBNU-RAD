@@ -41,6 +41,7 @@ SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
 
 ```
 policy_reviews ── policy_issues        (정책 관리 검토 1회 ── 문제 n건)
+               └─ server_findings      (            ── 서버 점검 n건, results_servers.sql)
 monitor_runs   ── event_findings       (로그 감시 1회 ── 사용자별 판정 n건)
 qa_records                             (정책 질의 · 로그 질의)
 ```
@@ -53,12 +54,26 @@ qa_records                             (정책 질의 · 로그 질의)
 | `summary` | 검토 요약 (`PolicyReview.summary`) |
 | `failed` · `error` | 판정 실패 |
 | `model` · `elapsed_sec` · `created_at` | 판정 모델 · 걸린 시간 · 실행 시각 |
+| `servers_source` · `servers_load_issues` | 읽은 서버 현황 폴더 · 읽지 못한 행 (10/12 추가) |
 
 ### `policy_issues` — 문제 1건 = 1행
 | 칸 | 설명 |
 |---|---|
 | `review_id` · `seq` | 어느 실행의 몇 번째 문제 (화면의 `ISSUE-n`) |
 | `kind` · `level` · `policy_ids` · `reason` · `recommendation` | `PolicyIssue` 그대로 (`policy_ids`는 JSON 목록) |
+
+### `server_findings` — 서버 점검 1건 = 1행 (10/12, `results_servers.sql`)
+| 칸 | 설명 |
+|---|---|
+| `review_id` · `seq` | 어느 정책 관리 검토의 몇 번째 서버 |
+| `host` · `ip` · `state` | 서버와 그때 읽은 현황 원본 행 (JSON) |
+| `matched` | 코드가 IP · 대역 · 호스트 이름으로 찾은 규칙 (판정에 넣은 글 그대로) |
+| `level` · `failed` · `error` · `elapsed_sec` | `ServerReview.level` + 실패 · 걸린 시간 |
+| `gaps` | 기준 문서와 다른 곳 목록 (JSON) — `ServerGap` 그대로: 항목 · 지금 상태 · 기준이 요구하는 상태 · 근거 조항 · 등급 · 바꿀 것 (10/14, `results_server_gaps.sql`) |
+| `unjudged` | 다루는 조항이 없어 판단하지 않은 현황 항목 (JSON) |
+| `reason` · `sources` | `ServerReview.summary` · `gaps`의 근거 조항을 모은 것 (결정 · 근거 칩이 다른 판정과 같은 칸을 읽게). `recommendation`은 10/14부터 비우고 바꿀 것은 `gaps`에 둔다 (그 전 행은 `Verdict`라 `gaps`가 빈다) |
+
+운영자 결정은 `server_findings/{id}`를 가리킨다 (`kind = server`, 이상 없음 · 조치 필요). 정책 문제처럼 다시 돌리면 새 행이 생기므로 예전 결정은 새 점검에 붙지 않는다.
 
 ### `monitor_runs` — 로그 감시 1회 = 1행
 | 칸 | 설명 |

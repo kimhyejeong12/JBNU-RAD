@@ -1,4 +1,4 @@
-"""정책 관리 · 로그 감시의 운영자 결정 (권한 DB).
+"""정책 관리(정책 문제 · 서버 점검) · 로그 감시의 운영자 결정 (권한 DB).
 
 결정은 고치거나 지우지 않고 쌓습니다. 항목마다 마지막 기록이 지금 결정이고, 취소도 cancel 기록으로 남깁니다.
 """
@@ -9,13 +9,13 @@ import json
 from .auth import User
 from .core import Database, Denied, audit, now
 
-ACTIONS = {"policy": ("approve", "cond", "reject"), "event": ("clear", "act")}
+ACTIONS = {"policy": ("approve", "cond", "reject"), "event": ("clear", "act"), "server": ("clear", "act")}
 
 
 def record(db: Database, by: User, kind: str, item_key: str, action: str, subject: str = "",
            comment: str = "", ai_level: str | None = None) -> dict | None:
     if kind not in ACTIONS:
-        raise Denied("kind 는 policy · event 중 하나입니다")
+        raise Denied(f"kind 는 {' · '.join(ACTIONS)} 중 하나입니다")
     if action != "cancel" and action not in ACTIONS[kind]:
         raise Denied(f"action 은 {', '.join(ACTIONS[kind])} · cancel 중 하나입니다")
     with db.transaction() as conn:
