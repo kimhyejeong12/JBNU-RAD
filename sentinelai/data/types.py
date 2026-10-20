@@ -99,6 +99,32 @@ class ServerState(Record):
         return "\n".join([f"- 서버: {self.name}", *(f"- {k}: {v}" for k, v in self.attributes.items() if v)])
 
 
+MODULE_LABELS = {"ufw": "UFW", "sshd": "SSH", "pam": "PAM", "accounts": "계정 · sudo"}
+
+
+class ServerSnapshot(Record):
+    """수집 노드(node/sentinel_node) 한 곳이 한 번 읽어 온 모듈 상태.
+
+    modules 는 모듈 → 항목 → 값 (예: ufw → 상태 → 켜짐). 값은 판정에 그대로 넣을 문장입니다.
+    sections 는 모듈별 수집 원문입니다. 요약에서 빠진 것을 확인할 때 봅니다.
+    """
+
+    node: str = ""
+    host: str
+    ip: str = ""
+    collected_at: datetime  # UTC
+    collected_by: str = ""
+    modules: dict[str, dict[str, str]] = {}
+    sections: dict[str, str] = {}
+
+    def describe(self) -> str:
+        """server_chain 의 state 에 덧붙일 모듈 상태. 한 줄에 한 항목."""
+        lines = [f"- 모듈 상태 수집: {self.collected_at:%Y-%m-%d %H:%M} UTC ({self.collected_by or '수집 계정 모름'})"]
+        for module, facts in self.modules.items():
+            lines += [f"- [{MODULE_LABELS.get(module, module)}] {k}: {v}" for k, v in facts.items()]
+        return "\n".join(lines)
+
+
 @dataclass
 class LoadIssue:
     line: int

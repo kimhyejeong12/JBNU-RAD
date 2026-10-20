@@ -1,7 +1,8 @@
 """AI 결과 DB — 정책 관리 검토 · 로그 감시 판정 · 질의 기록.
 
 pipeline 이 돌려준 dict 를 그대로 받아 쌓습니다. 행은 고치지 않습니다 (트리거).
-권한 DB의 운영자 결정은 여기 행을 `policy_issues/{id}` · `server_findings/{id}` · `event_findings/{id}` 로 가리킵니다.
+수집 노드가 보낸 수집(server_snapshots, 노드 · 수집 시각이 같으면 한 번만)과 노드 점검 판정(node_findings)도 여기 쌓습니다.
+권한 DB의 운영자 결정은 여기 행을 `policy_issues/{id}` · `node_findings/{id}` · `event_findings/{id}` 로 가리킵니다.
 """
 from __future__ import annotations
 
@@ -44,10 +45,11 @@ def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
         # 서버 점검은 차이(gaps)마다 근거 조항 · 바꿀 것을 따로 둡니다. reason 에는 요약, sources 에는 차이들의 조항을 모읍니다.
         conn.executemany(
             "INSERT INTO server_findings (review_id, seq, host, ip, state, matched, level, reason, recommendation, sources,"
-            " failed, error, elapsed_sec, gaps, unjudged) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " failed, error, elapsed_sec, gaps, unjudged, snapshot) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [(rid, n, f["host"], f.get("ip", ""), _json(f.get("state", {})), f.get("matched", ""), f.get("level"),
               f.get("summary", ""), "", _json(list(dict.fromkeys(g["source"] for g in f.get("gaps", []) if g.get("source")))),
-              int(f["failed"]), f.get("error"), f.get("elapsed_sec"), _json(f.get("gaps", [])), _json(f.get("unjudged", [])))
+              int(f["failed"]), f.get("error"), f.get("elapsed_sec"), _json(f.get("gaps", [])), _json(f.get("unjudged", [])),
+              _json(f.get("snapshot") or {}))
              for n, f in enumerate(servers.get("findings", []), start=1)],
         )
         conn.executemany(
@@ -90,10 +92,96 @@ def latest_policy_review(db: Database) -> dict[str, Any] | None:
                  "state": json.loads(s["state"]), "matched": s["matched"], "level": s["level"], "reason": s["reason"],
                  "recommendation": s["recommendation"], "sources": json.loads(s["sources"]), "failed": bool(s["failed"]),
                  "error": s["error"], "elapsed_sec": s["elapsed_sec"], "gaps": json.loads(s["gaps"]),
-                 "unjudged": json.loads(s["unjudged"])}
+                 "unjudged": json.loads(s["unjudged"]), "snapshot": json.loads(s["snapshot"])}
                 for s in servers
             ],
         },
+    }
+
+
+# --- 수집 노드 -----------------------------------------------------------------
+
+
+def _snapshot(r: Any) -> dict[str, Any]:
+    return {"id": r["id"], "node": r["node"], "host": r["host"], "ip": r["ip"], "collected_at": r["collected_at"],
+            "collected_by": r["collected_by"], "modules": json.loads(r["modules"]), "changes": json.loads(r["changes"])}
+
+
+def latest_snapshot(db: Database, node: str) -> dict[str, Any] | None:
+    """이 노드의 가장 늦은 수집 — 다음 수집의 바뀐 것을 셀 때 견줍니다."""
+    with db.connection() as conn:
+        r = conn.execute("SELECT * FROM server_snapshots WHERE node = ? ORDER BY collected_at DESC LIMIT 1", (node,)).fetchone()
+    return _snapshot(r) if r else None
+
+
+def save_snapshot(db: Database, snap: dict[str, Any]) -> tuple[int | None, bool]:
+    """pipeline.snapshot_row 가 만든 수집 기록 한 건. 같은 노드 · 수집 시각이 이미 있으면 넣지 않습니다. → (id, 넣었는지)"""
+    with db.transaction() as conn:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO server_snapshots (node, host, ip, collected_at, collected_by, file, modules, sections, changes, loaded_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (snap["node"], snap["host"], snap.get("ip", ""), _utc(snap["collected_at"]), snap.get("collected_by", ""), "",
+             _json(snap.get("modules", {})), _json(snap.get("sections", {})), _json(snap.get("changes", [])), now()),
+        )
+        if cur.rowcount:
+            return cur.lastrowid, True
+        r = conn.execute("SELECT id FROM server_snapshots WHERE node = ? AND collected_at = ?",
+                         (snap["node"], _utc(snap["collected_at"]))).fetchone()
+        return (r["id"] if r else None), False
+
+
+def pending_snapshots(db: Database, nodes: set[str]) -> list[dict[str, Any]]:
+    """점검할 차례 — 노드마다 가장 늦은 수집 중 아직 판정하지 않은 것. 그사이 여러 번 왔어도 마지막 것만 봅니다."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT s.* FROM server_snapshots s WHERE s.node <> ''"
+            " AND s.collected_at = (SELECT max(collected_at) FROM server_snapshots WHERE node = s.node)"
+            " AND NOT EXISTS (SELECT 1 FROM node_findings f WHERE f.snapshot_id = s.id) ORDER BY s.node"
+        ).fetchall()
+    return [_snapshot(r) for r in rows if r["node"] in nodes]
+
+
+def save_node_finding(db: Database, f: dict[str, Any], model: str) -> int:
+    """pipeline.check_nodes 의 판정 한 건. 쌓기만 합니다."""
+    with db.transaction() as conn:
+        return conn.execute(
+            "INSERT INTO node_findings (node, snapshot_id, host, ip, state, matched, level, summary, gaps, unjudged, sources,"
+            " failed, error, elapsed_sec, model, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (f["node"], f["snapshot_id"], f.get("host", ""), f.get("ip", ""), _json(f.get("state", {})), f.get("matched", ""),
+             f.get("level"), f.get("summary", ""), _json(f.get("gaps", [])), _json(f.get("unjudged", [])),
+             _json(list(dict.fromkeys(g["source"] for g in f.get("gaps", []) if g.get("source")))),
+             int(f["failed"]), f.get("error"), f.get("elapsed_sec"), model, now()),
+        ).lastrowid
+
+
+def latest_node_findings(db: Database) -> list[dict[str, Any]]:
+    """노드마다 마지막 판정과 그때 본 수집 — 정책 관리 화면의 서버 점검. 운영자 결정은 `node_findings/{id}` 를 가리킵니다."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT f.*, s.collected_at, s.collected_by, s.modules, s.changes FROM node_findings f"
+            " JOIN server_snapshots s ON s.id = f.snapshot_id"
+            " WHERE f.id = (SELECT max(id) FROM node_findings WHERE node = f.node) ORDER BY f.node"
+        ).fetchall()
+    return [{"key": f"node_findings/{r['id']}", "node": r["node"], "host": r["host"], "ip": r["ip"],
+             "state": json.loads(r["state"]), "matched": r["matched"], "level": r["level"], "summary": r["summary"],
+             "gaps": json.loads(r["gaps"]), "unjudged": json.loads(r["unjudged"]), "sources": json.loads(r["sources"]),
+             "failed": bool(r["failed"]), "error": r["error"], "elapsed_sec": r["elapsed_sec"], "created_at": r["created_at"],
+             "snapshot": {"collected_at": r["collected_at"], "collected_by": r["collected_by"],
+                          "modules": json.loads(r["modules"]), "changes": json.loads(r["changes"])}}
+            for r in rows]
+
+
+def node_history(db: Database, node: str, limit: int = 20) -> dict[str, Any]:
+    """노드 화면 — 최근 수집(바뀐 것) · 판정 등급 기록과 가장 늦은 수집의 모듈 상태."""
+    with db.connection() as conn:
+        snaps = conn.execute("SELECT * FROM server_snapshots WHERE node = ? ORDER BY collected_at DESC LIMIT ?", (node, limit)).fetchall()
+        findings = conn.execute("SELECT f.id, f.snapshot_id, f.level, f.failed, f.summary, f.created_at FROM node_findings f"
+                                " WHERE f.node = ? ORDER BY f.id DESC LIMIT ?", (node, limit)).fetchall()
+    return {
+        "latest": _snapshot(snaps[0]) if snaps else None,
+        "snapshots": [{"id": r["id"], "collected_at": r["collected_at"], "changes": json.loads(r["changes"])} for r in snaps],
+        "findings": [{"key": f"node_findings/{r['id']}", "snapshot_id": r["snapshot_id"], "level": r["level"],
+                      "failed": bool(r["failed"]), "summary": r["summary"], "created_at": r["created_at"]} for r in findings],
     }
 
 

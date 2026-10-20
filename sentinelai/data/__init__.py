@@ -22,11 +22,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .collected import changes as snapshot_changes, load_collected, snapshot_from_payload
 from .events import PERIODS, between, event_review_input, group_by_user, latest, period_since, search, summarize, user_label, vocabulary
 from .mapper import AccessRequestMapper, ColumnMapper, EventMapper, Mapper, PolicyRuleMapper, ServerStateMapper, parse_datetime
 from .servers import rules_for, server_review_input
 from .source import CsvSource, JsonSource, MemorySource, Row, RowSource, folder_files, open_source, register_source
-from .types import AccessRequest, LoadIssue, LoadResult, PolicyRule, Record, SecurityEvent, ServerState
+from .types import AccessRequest, LoadIssue, LoadResult, PolicyRule, Record, SecurityEvent, ServerSnapshot, ServerState
 
 
 def load(target: Any, mapper: Mapper, strict: bool = False) -> LoadResult:
@@ -118,6 +119,7 @@ __all__ = [
     "Row",
     "RowSource",
     "SecurityEvent",
+    "ServerSnapshot",
     "ServerState",
     "ServerStateMapper",
     "between",
@@ -133,10 +135,13 @@ __all__ = [
     "rules_for",
     "server_review_input",
     "open_source",
+    "load_collected",
     "parse_datetime",
     "period_since",
     "register_source",
     "search",
+    "snapshot_changes",
+    "snapshot_from_payload",
     "summarize",
     "user_label",
     "vocabulary",

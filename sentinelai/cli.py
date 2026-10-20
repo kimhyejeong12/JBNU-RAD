@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Any
 
 from . import db, pipeline
-from .data import parse_datetime
+from .data import load_collected, parse_datetime
+from .data.collected import FORMAT
 from .engine.cli import Cli as EngineCli
 
 
@@ -45,10 +46,16 @@ class Cli(EngineCli):
         requests.add_argument("--out", help="판정 결과를 이 JSON 파일로도 남김")
         requests.set_defaults(command="review_requests")
 
-        review = sub.add_parser("review-policies", help="정책 간 중복 · 충돌 · 과도한 허용 + 서버 현황 검증 (정책 이해)")
+        review = sub.add_parser("review-policies", help="기준 문서 · 솔루션 정책 적재 + 정책 간 중복 · 충돌 · 과도한 허용 (정책 이해)")
         review.add_argument("source", nargs="?", help="솔루션 정책 파일 · 폴더. 없으면 .env 의 값")
-        review.add_argument("--servers", help="서버 현황 파일 · 폴더. 없으면 .env 의 값")
         review.set_defaults(command="review_policies")
+
+        nodes = sub.add_parser("check-nodes", help="새 수집이 온 노드의 서버 점검 1회 (웹이 떠 있으면 웹이 주기적으로 함)")
+        nodes.set_defaults(command="check_nodes")
+
+        imports = sub.add_parser("import-snapshots", help="망이 막힌 노드가 export 한 수집 파일(*.json) 넣기")
+        imports.add_argument("folder", help="수집 파일 폴더")
+        imports.set_defaults(command="import_snapshots")
 
         monitor = sub.add_parser("monitor", help="보안 솔루션 로그를 정책과 비교해 사용자별로 판정 (로그 감시)")
         monitor.add_argument("source", nargs="?", help=source_help)
@@ -99,30 +106,59 @@ class Cli(EngineCli):
         s = self.engine.settings
 
         def progress(n: int, total: int, item: dict[str, Any]) -> None:
-            if "host" in item:
-                print(f"\n[{n}/{total}] 서버 {item['subject']}")
-                if item["failed"]:
-                    print(f"  판정 실패: {item['error']}")
-                    return
-                print(f"  {item['level']} ({item['elapsed_sec']}초) {item['summary']}")
-                for gap in item["gaps"]:
-                    print(f"  - {gap['level']} {gap['item']}: {gap['current']} → {gap['required']} ({gap['source']})")
-                    print(f"    바꿀 것: {gap['change']}")
-                if item["unjudged"]:
-                    print(f"  조항이 없어 판단하지 않음: {', '.join(item['unjudged'])}")
-            elif item["failed"]:
-                print(f"[{n}/{total}] 정책 간 검토 실패: {item['error']}")
-            else:
-                print(f"[{n}/{total}] {item['summary']} ({item['elapsed_sec']}초)")
-                for issue in item["issues"]:
-                    print(f"  {issue['kind']} · {issue['level']} {' ↔ '.join(issue['policy_ids'])}: {issue['reason']}")
+            if item["failed"]:
+                print(f"정책 간 검토 실패: {item['error']}")
+                return
+            print(f"{item['summary']} ({item['elapsed_sec']}초)")
+            for issue in item["issues"]:
+                print(f"  {issue['kind']} · {issue['level']} {' ↔ '.join(issue['policy_ids'])}: {issue['reason']}")
 
-        section = pipeline.review_policies(self.engine, args.source or s.policies_source, args.servers or s.servers_source, progress)
+        section = pipeline.review_policies(self.engine, args.source or s.policies_source, progress)
         results_db = self.results_db
         db.results.save_policy_review(results_db, section, s.model)
-        self._load_issues(section["servers"])
-        failed = int(section["failed"]) + sum(f["failed"] for f in section["servers"]["findings"])
-        return self._done(section, failed, results_db)
+        return self._done(section, int(section["failed"]), results_db)
+
+    def check_nodes(self, args: argparse.Namespace) -> int:
+        s = self.engine.settings
+        results_db = self.results_db
+        pending = db.results.pending_snapshots(results_db, db.nodes.enabled_names(db.open_main_db(s.db_path)))
+        if not pending:
+            print("새 수집이 온 노드가 없습니다.")
+            return 0
+
+        def progress(n: int, total: int, item: dict[str, Any]) -> None:
+            db.results.save_node_finding(results_db, item, s.model)
+            print(f"\n[{n}/{total}] 노드 {item['node']} ({item['host']})")
+            if item["failed"]:
+                print(f"  판정 실패: {item['error']}")
+                return
+            print(f"  {item['level']} ({item['elapsed_sec']}초) {item['summary']}")
+            for gap in item["gaps"]:
+                print(f"  - {gap['level']} {gap['item']}: {gap['current']} → {gap['required']} ({gap['source']})")
+                print(f"    바꿀 것: {gap['change']}")
+            if item["unjudged"]:
+                print(f"  조항이 없어 판단하지 않음: {', '.join(item['unjudged'])}")
+
+        run = pipeline.check_nodes(self.engine, pending, s.policies_source, s.servers_source, progress)
+        return self._done(run, sum(f["failed"] for f in run["findings"]), results_db)
+
+    def import_snapshots(self, args: argparse.Namespace) -> int:
+        """노드가 export 한 파일을 수집 API 와 같은 규칙으로 넣습니다. 등록부에 없는 노드는 키 없이 등록해 둡니다 (화면에서 끌 수 있음)."""
+        s = self.engine.settings
+        results_db, main_db = self.results_db, db.open_main_db(s.db_path)
+        loaded = load_collected(args.folder)
+        stored = 0
+        for snap in sorted(loaded.records, key=lambda x: x.collected_at):
+            payload = {**snap.model_dump(mode="json", exclude={"raw", "modules"}), "format": FORMAT}
+            row = pipeline.snapshot_row(payload, snap.node, db.results.latest_snapshot(results_db, snap.node))
+            db.nodes.ensure(main_db, snap.node, row)
+            _, inserted = db.results.save_snapshot(results_db, row)
+            if inserted:
+                db.nodes.mark_collected(main_db, snap.node, row["collected_at"])
+            stored += inserted
+        self._load_issues({"load_issues": [str(i) for i in loaded.issues]})
+        print(f"{loaded.source}: 수집 {len(loaded.records)}건 중 새로 넣음 {stored}건 → {results_db.path}")
+        return 1 if loaded.issues else 0
 
     def monitor(self, args: argparse.Namespace) -> int:
         results_db = self.results_db

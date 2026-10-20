@@ -175,10 +175,10 @@
   .main-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
   .view-queue { display: flex; flex-direction: column; gap: 14px; }
   /* display 를 지정한 요소는 hidden 속성만으로 숨겨지지 않아 직접 끕니다. */
-  .view-queue[hidden], .ask[hidden], .logs[hidden] { display: none; }
+  .view-queue[hidden], .ask[hidden], .logs[hidden], .nodes[hidden] { display: none; }
 
   /* 로그 조회 — 지금부터 거슬러 올라가는 기간 · 사용자로 거른 로그. 집계와 원본은 오른쪽 패널에 둡니다 */
-  .logs { display: flex; flex-direction: column; min-height: 320px; }
+  .logs, .nodes { display: flex; flex-direction: column; min-height: 320px; }
   .logs-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px 10px; flex-wrap: wrap; }
   .logs-head h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
   .logs-count { margin-left: auto; font-size: 12.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
@@ -197,6 +197,9 @@
   .ltable .when { white-space: nowrap; font-variant-numeric: tabular-nums; }
   .ltable .lwho { white-space: nowrap; }
   .ltable .attrs { color: var(--ink-dim); overflow-wrap: anywhere; }
+  .nstate { font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .nstate.on { color: var(--ok); } .nstate.stale { color: var(--sub); } .nstate.off, .nstate.wait { color: var(--ink-dim); }
+  .node-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
   .pager { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 12px; font-size: 12.5px; color: var(--ink-dim); }
 
   /* 통계 대시보드 */
@@ -272,6 +275,7 @@
     background: var(--bg-soft); border-radius: 0 6px 6px 0; font-size: 12.5px; white-space: pre-wrap;
   }
   .note { font-size: 11.5px; color: var(--ink-dim); margin: 6px 0 0; }
+  .mod-name { margin: 10px 0 4px; font-size: 12px; font-weight: 700; color: var(--ink-dim); }
   .gap { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
   .gap-head { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
   .gap .kv th { width: 52px; }
@@ -433,6 +437,7 @@
     <div class="seg" role="tablist" id="seg" aria-label="메뉴"></div>
     <nav class="main-tabs" role="tablist" aria-label="보기 전환">
       <button class="main-tab" role="tab" id="tab-queue" data-tab="queue" aria-selected="true" aria-controls="view-queue"><span data-icon="list" class="sm"></span>검토 현황</button>
+      <button class="main-tab" role="tab" id="tab-nodes" data-tab="nodes" aria-selected="false" aria-controls="view-nodes"><span data-icon="server" class="sm"></span>노드</button>
       <button class="main-tab" role="tab" id="tab-logs" data-tab="logs" aria-selected="false" aria-controls="view-logs"><span data-icon="search" class="sm"></span>로그 조회</button>
       <button class="main-tab" role="tab" id="tab-ask" data-tab="ask" aria-selected="false" aria-controls="view-ask"><span data-icon="chat" class="sm"></span><span id="tab-ask-label">정책 질의</span></button>
     </nav>
@@ -480,6 +485,17 @@
     </div>
 
     <!-- 로그 조회 — 모델 없이 코어가 거르고 셉니다 (/api/logs). 기간은 지금부터 거슬러 올라갑니다 -->
+    <!-- 수집 노드 — 서버마다 도는 node/sentinel_node 가 보낸 수집. 새 수집은 서버가 주기적으로 점검해 검토 현황에 올립니다 -->
+    <section class="card nodes" id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes" hidden>
+      <div class="logs-head"><h3>수집 노드</h3><span class="logs-count" id="node-count"></span></div>
+      <div class="ltable-wrap">
+        <table class="ltable">
+          <thead><tr><th>노드</th><th>호스트</th><th>상태</th><th class="col-sol">마지막 수집</th><th>판정</th></tr></thead>
+          <tbody id="node-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="card logs" id="view-logs" role="tabpanel" aria-labelledby="tab-logs" hidden>
       <div class="logs-head">
         <h3>로그 조회</h3>
@@ -589,6 +605,7 @@ const DECISION_SET = {
   server: { clear: "approve", act: "reject" },
 };
 const TYPE_VIEW = { req: "requests", server: "policies", mine: "mine", user: "users", policy: "policies", event: "events" };
+const MODULE_LABEL = { ufw: "UFW", sshd: "SSH", pam: "PAM", accounts: "계정 · sudo" };
 const TYPE_LABEL = { req: "권한 신청", server: "서버 점검", mine: "내 신청", user: "계정", policy: "정책 관리", event: "로그 감시" };
 const ROLE_LABEL = { top: "보안 총책임자", manager: "보안 운영자", user: "일반 사용자" };
 const STAGE_LABEL = { manager: "1차 결재 대기", top: "최종 결재 대기", approved: "승인", rejected: "반려", withdrawn: "철회", revoked: "회수" };
@@ -598,8 +615,8 @@ const STEP = { manager: "manager", top: "top" };
 const VIEWS = {
   requests: { label: "권한 신청", icon: "lock", tip: "권한 신청|결재할 신청 · AI 판정 · 유효 권한 회수",
               tabs: ["queue"], cols: ["번호", "신청자", "신청 권한", "신청 시각", "AI 판정"], search: "신청 번호 · 신청자 · 권한으로 검색" },
-  policies: { title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리|솔루션 정책의 중복 · 충돌 · 과도한 허용과 서버 현황 점검",
-              tabs: ["queue", "ask"], cols: ["분류", "대상", "상세 내용", "시간", "AI 판정"], search: "정책 ID · 서버 · 내용으로 검색" },
+  policies: { title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리|솔루션 정책의 중복 · 충돌 · 과도한 허용과 수집 노드의 서버 점검",
+              tabs: ["queue", "nodes", "ask"], cols: ["분류", "대상", "상세 내용", "시간", "AI 판정"], search: "정책 ID · 서버 · 내용으로 검색" },
   events: { title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시|서버가 자동으로 돌린 로그 감시 판정 중 주의 · 위험",
             tabs: ["queue", "logs", "ask"], cols: ["분류", "대상 사용자", "상세 내용", "시간", "AI 판정"], search: "사용자 · 내용으로 검색" },
   mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청|권한을 신청하고 결재 상태를 봅니다",
@@ -653,7 +670,7 @@ const state = {
   users: [],            // 보안 총책임자: 계정
   regulations: [],
   health: null,
-  mainTab: "queue",     // queue | logs | ask
+  mainTab: "queue",     // queue | nodes | logs | ask
   view: null,
   filter: "전체",
   stageFilter: "pending",
@@ -665,6 +682,8 @@ const state = {
   asks: { policy: [], log: [] },   // 내 질의 기록 — 로그인할 때 AI 결과 DB에서 받고, 새 질의는 서버가 남깁니다
   askSource: null,      // 패널에 띄운 인용 조항 { i: 질의 순번, n: sources 순번 }
   // 로그 조회 — 조건 · 받은 결과(/api/logs) · 패널에 띄운 줄(없으면 집계)
+  // 수집 노드 — 목록(/api/nodes) · 고른 노드 · 그 노드의 자세한 기록(/api/nodes/{이름})
+  nodes: { list: null, error: "", selected: null, detail: null },
   logs: { period: "week", user: "", solution: "", how: "", page: 1, data: null, error: "", loading: false, selected: null },
 };
 
@@ -977,6 +996,7 @@ function chipLabel(source) {
 function renderPanel() {
   if (state.mainTab === "ask") { renderAskPanel(); return; }
   if (state.mainTab === "logs") { renderLogsPanel(); return; }
+  if (state.mainTab === "nodes") { renderNodesPanel(); return; }
   const it = queue().find((i) => i.key === state.selected);
   const panel = $("panel");
   if (state.view === "users" && (!it || it.type !== "user")) { renderUserPanel(null); return; }
@@ -1012,7 +1032,8 @@ function renderPanel() {
       <div class="meta">${esc(it.id)}</div>
 
       ${isServer ? `
-      <div class="sec"><h4>${icon("server", "sm")}서버 현황</h4>${kvTable(Object.entries(r.detail.state).filter(([, v]) => v))}</div>
+      ${Object.values(r.detail.state).some((v) => v) ? `<div class="sec"><h4>${icon("server", "sm")}서버 현황</h4>${kvTable(Object.entries(r.detail.state).filter(([, v]) => v))}</div>` : ""}
+      ${moduleState(r.detail.snapshot)}
       <div class="sec"><h4>${icon("file", "sm")}이 서버에 걸린 정책</h4><div class="box pre">${esc(r.detail.matched)}</div>
         <p class="note">IP · 대역 · 호스트 이름이 맞는 규칙을 코드가 찾았습니다. 그 밖의 규칙은 AI가 검색해 함께 봅니다.</p></div>` : `
       <div class="sec"><h4>${icon("file", "sm")}${isEvent ? "판정한 로그" : "관련 정책 원본"}</h4>
@@ -1069,6 +1090,21 @@ function renderPanel() {
   panel.querySelectorAll(".decide button").forEach((el) => el.addEventListener("click", () => reviewDecision(it, el.dataset.action)));
   const undo = $("undo");
   if (undo) undo.addEventListener("click", () => reviewDecision(it, "cancel"));
+}
+
+// 수집 노드가 읽어 온 모듈 상태. 직전 수집과 달라진 설정을 먼저 보여줍니다.
+function moduleState(snap) {
+  if (!snap || !snap.modules) return "";
+  const changed = (snap.changes || []).length
+    ? `<div class="box pre">${esc(snap.changes.join("\n"))}</div>` : `<p class="note">직전 수집과 달라진 설정이 없습니다.</p>`;
+  return `<div class="sec"><h4>${icon("activity", "sm")}직전 수집과 달라진 설정</h4>${changed}</div>${moduleTables(snap)}`;
+}
+
+function moduleTables(snap) {
+  return `<div class="sec"><h4>${icon("db", "sm")}모듈 상태</h4>
+      <p class="note">${esc(stamp(snap.collected_at))} 수집 · ${esc(snap.collected_by || "수집 계정 모름")}</p>
+      ${Object.entries(snap.modules).map(([m, facts]) => `<p class="mod-name">${esc(MODULE_LABEL[m] || m)}</p>${kvTable(Object.entries(facts))}`).join("")}
+    </div>`;
 }
 
 // 보안 총책임자에게만 결정 기록 전부가 옵니다 (decision_log). 누가 어떤 판단을 했다가 취소했는지까지 읽습니다.
@@ -1503,9 +1539,9 @@ function renderRun() {
   } else {
     txt.textContent = runKindLabel();
   }
-  // 정책 관리 검토가 문서 · 규칙 적재와 서버 점검까지 한다는 것이 버튼만 봐서는 보이지 않아 툴팁에 둡니다.
+  // 정책 관리 검토가 문서 · 규칙 적재까지 하고 서버 점검은 하지 않는다는 것이 버튼만 봐서는 보이지 않아 툴팁에 둡니다.
   btn.dataset.tip = VIEW_KIND[state.view] === "policies"
-      ? `${runKindLabel()}|기준 문서 · 솔루션 정책을 RAG 에 맞추고, 정책 간 중복 · 충돌 · 과도한 허용과 서버 현황을 점검합니다. 서버 한 대에 수십 초가 걸립니다`
+      ? `${runKindLabel()}|기준 문서 · 솔루션 정책을 RAG 에 맞추고 정책 간 중복 · 충돌 · 과도한 허용을 찾습니다. 서버 점검은 수집 노드가 보낸 것을 서버가 주기적으로 합니다`
       : `${runKindLabel()}|수 분 걸릴 수 있습니다`;
 }
 
@@ -1548,6 +1584,120 @@ function watchJobs(started = false) {
 }
 
 $("run").addEventListener("click", startJob);
+
+/* ── 수집 노드 — 등록 · 수집 · 점검은 서버가 하고, 화면은 상태를 보여주고 끄기 · 키 초기화만 합니다 ── */
+function nodeState(n) {
+  if (!n.enabled) return ["off", "꺼짐", "보내도 받지 않고 주기 점검에서도 빠집니다"];
+  if (!n.key_issued) return ["wait", "키 없음", "손으로 넣은 수집뿐이거나 키를 초기화했습니다. 노드가 등록 토큰으로 보내면 키를 받습니다"];
+  if (n.stale) return ["stale", "끊김", `${n.interval_min}분 간격인데 세 번 넘게 소식이 없습니다`];
+  if (!n.last_collected_at) return ["wait", "기다리는 중", "아직 받은 수집이 없습니다"];
+  return ["on", "수집 중", `${n.interval_min || "?"}분마다`];
+}
+
+async function loadNodes() {
+  try { state.nodes.list = await getJSON("/api/nodes"); state.nodes.error = ""; } catch (e) { state.nodes.error = e.message; }
+  renderNodes();
+  if (state.nodes.selected) await loadNodeDetail(state.nodes.selected); else if (state.mainTab === "nodes") renderPanel();
+}
+
+async function loadNodeDetail(name) {
+  try { state.nodes.detail = await getJSON(`/api/nodes/${encodeURIComponent(name)}`); } catch (e) { state.nodes.detail = { error: e.message }; }
+  if (state.mainTab === "nodes") renderPanel();
+}
+
+function renderNodes() {
+  const N = state.nodes, list = N.list || [];
+  $("node-count").textContent = N.list ? `${list.length}대` : "";
+  const rows = $("node-rows");
+  if (N.error) { rows.innerHTML = `<tr><td colspan="5" class="empty">노드 목록을 받지 못했습니다: ${esc(N.error)}</td></tr>`; return; }
+  if (!N.list) { rows.innerHTML = `<tr><td colspan="5" class="empty">불러오는 중…</td></tr>`; return; }
+  if (!list.length) {
+    rows.innerHTML = `<tr><td colspan="5" class="empty">아직 등록된 노드가 없습니다.<br>점검할 서버에서 node/install.sh 로 수집 노드를 깔면 처음 보낼 때 여기에 나타납니다.</td></tr>`;
+    return;
+  }
+  rows.innerHTML = list.map((n) => {
+    const [cls, label, tip] = nodeState(n);
+    return `<tr data-node="${esc(n.name)}" tabindex="0" aria-current="${n.name === N.selected}">
+      <td class="lwho">${esc(n.name)}</td><td>${esc(n.host)}${n.ip && n.ip !== n.host ? ` (${esc(n.ip)})` : ""}</td>
+      <td><span class="nstate ${cls}" data-tip="${esc(`${label}|${tip}`)}">${label}</span></td>
+      <td class="col-sol when">${esc(stamp(n.last_collected_at))}</td>
+      <td>${n.level ? `<i class="ldot ${n.level}"></i>${esc(n.level)}` : `<span class="note">${n.last_collected_at ? "점검 대기" : ""}</span>`}</td></tr>`;
+  }).join("");
+}
+
+function pickNode(name) {
+  Object.assign(state.nodes, { selected: name, detail: null });
+  state.panelMsg = "";
+  renderNodes();
+  renderPanel();
+  openDrawer();
+  loadNodeDetail(name);
+}
+$("node-rows").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-node]"); if (tr) pickNode(tr.dataset.node); });
+$("node-rows").addEventListener("keydown", (e) => {
+  const tr = e.target.closest("tr[data-node]");
+  if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickNode(tr.dataset.node); }
+});
+
+async function nodeAction(name, action) {
+  if (action === "reset" && !confirm(`${name} 의 키를 지웁니다. 노드가 등록 토큰으로 다시 보내야 받습니다. 계속할까요?`)) return;
+  try {
+    if (action === "reset") await send(`/api/nodes/${encodeURIComponent(name)}/reset-key`, {});
+    else await send(`/api/nodes/${encodeURIComponent(name)}`, { enabled: action === "on" }, "PATCH");
+    state.panelMsg = { on: "✓ 노드를 켰습니다", off: "✓ 노드를 껐습니다", reset: "✓ 키를 초기화했습니다" }[action];
+  } catch (e) {
+    state.panelMsg = e.message;
+  }
+  await loadNodes();
+}
+
+function renderNodesPanel() {
+  const N = state.nodes, d = N.detail, panel = $("panel");
+  if (!N.selected) {
+    const list = N.list || [], count = (k) => list.filter((n) => nodeState(n)[0] === k).length;
+    panel.innerHTML = `<div class="panel-head"><h3>수집 노드</h3>${CLOSE_BTN}</div>
+      <div class="panel-body">
+        <div class="sec"><h4>${icon("activity", "sm")}상태</h4>${kvTable([["노드", `${list.length}대`], ["수집 중", `${count("on")}대`],
+          ["끊김", `${count("stale")}대`], ["꺼짐 · 키 초기화 · 기다리는 중", `${count("off") + count("wait")}대`]])}</div>
+        <div class="sec"><h4>${icon("server", "sm")}노드 깔기</h4>
+          <div class="box pre">sudo sh node/install.sh --name 노드이름 \\
+  --server ${esc(location.origin)} \\
+  --token &lt;SENTINELAI_NODE_TOKEN&gt;</div>
+          <p class="note">등록 토큰은 SentinelAI 서버 .env 의 SENTINELAI_NODE_TOKEN 입니다. 처음 보낼 때 등록되고, 그 뒤로는 노드만의 키로 보냅니다. 새 수집은 서버가 주기적으로 기준 문서와 비교해 검토 현황의 서버 점검에 올립니다.</p></div>
+      </div>`;
+    return;
+  }
+  const n = (N.list || []).find((x) => x.name === N.selected);
+  if (!n) { panel.innerHTML = `<div class="panel-head"><h3>수집 노드</h3>${CLOSE_BTN}</div><div class="panel-body"><div class="empty">없는 노드입니다.</div></div>`; return; }
+  const [cls, label, tip] = nodeState(n);
+  const finding = d && d.findings && d.findings[0];
+  const item = finding && queue().find((i) => i.itemKey === finding.key);
+  panel.innerHTML = `<div class="panel-head"><h3>수집 노드</h3>${CLOSE_BTN}</div>
+    <div class="panel-body">
+      <p class="subject">${esc(n.name)}</p>
+      <div class="rec-line"><span class="nstate ${cls}">${label}</span></div>
+      <div class="meta">${esc(tip)}</div>
+      <div class="sec"><h4>${icon("server", "sm")}노드</h4>${kvTable([["호스트", n.host], ["IP", n.ip], ["수집 간격", n.interval_min ? `${n.interval_min}분` : ""],
+        ["노드 버전", n.agent_version], ["등록", stamp(n.registered_at)], ["마지막 연락", stamp(n.last_seen_at)], ["마지막 수집", stamp(n.last_collected_at)]].filter(([, v]) => v))}
+        <div class="node-actions">
+          <button class="rerun" data-act="${n.enabled ? "off" : "on"}">${n.enabled ? "노드 끄기" : "노드 켜기"}</button>
+          <button class="rerun" data-act="reset" ${n.key_issued ? "" : "disabled"}>키 초기화</button>
+        </div>${panelMsg()}</div>
+      ${!d ? `<div class="empty">불러오는 중…</div>` : d.error ? `<p class="form-msg">${esc(d.error)}</p>` : `
+      <div class="sec"><h4>${icon("activity", "sm")}마지막 서버 점검</h4>${finding
+        ? `<div class="box"><i class="ldot ${esc(finding.level || "주의")}"></i>${esc(finding.failed ? "판정 실패" : finding.level)} · ${esc(stamp(finding.created_at))}<br>${esc(finding.summary)}</div>
+           ${item ? `<button class="rerun" id="to-finding">${icon("list", "sm")}검토 현황에서 보기</button>` : ""}`
+        : `<p class="note">${d.latest ? "다음 주기 점검을 기다리고 있습니다." : "아직 받은 수집이 없습니다."}</p>`}</div>
+      <div class="sec"><h4>${icon("list", "sm")}최근 수집</h4>${d.snapshots.length
+        ? kvTable(d.snapshots.map((x) => [stamp(x.collected_at), !x.changes.length ? "달라진 설정 없음"
+            : x.changes.slice(0, 4).join(" · ") + (x.changes.length > 4 ? ` 외 ${x.changes.length - 4}개` : "")]))
+        : `<p class="note">없음</p>`}</div>
+      ${d.latest ? moduleTables(d.latest) : ""}`}
+    </div>`;
+  panel.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", () => nodeAction(n.name, b.dataset.act)));
+  const to = $("to-finding");
+  if (to) to.addEventListener("click", () => select(item.key));
+}
 
 /* ── 로그 조회 — 거르기 · 세기는 코어가 합니다. 화면은 조건을 넘기고 받은 그대로 보여줍니다 ── */
 const PERIOD_LABEL = { day: "하루", week: "일주일", month: "한 달", quarter: "3개월", half: "6개월", year: "1년", all: "전체" };
@@ -1682,12 +1832,14 @@ function setMainTab(tab) {
   $("view-queue").hidden = tab !== "queue";
   $("view-ask").hidden = tab !== "ask";
   $("view-logs").hidden = tab !== "logs";
+  $("view-nodes").hidden = tab !== "nodes";
   renderFooter();
   document.querySelector(".workspace").dataset.tab = tab;
   syncCite();
   if (panelChanges) renderPanel();
   if (tab === "ask") $("ask-input").focus();
   if (tab === "logs" && !state.logs.data && !state.logs.loading) loadLogs();
+  if (tab === "nodes") loadNodes();
 }
 
 document.querySelectorAll(".main-tab").forEach((b) => b.addEventListener("click", () => setMainTab(b.dataset.tab)));
@@ -1795,6 +1947,11 @@ function closeDrawer() {
 // 정책 질의 탭에서 닫으면 넓은 화면에서도 인용 조항 패널을 접습니다.
 function closePanel() {
   closeDrawer();
+  if (state.mainTab === "nodes" && state.nodes.selected) {
+    Object.assign(state.nodes, { selected: null, detail: null });
+    renderNodes();
+    renderPanel();
+  }
   if (state.mainTab === "logs" && state.logs.selected !== null) {
     state.logs.selected = null;
     renderLogs();

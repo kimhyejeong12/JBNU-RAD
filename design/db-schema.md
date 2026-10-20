@@ -60,7 +60,7 @@ users ─┬─ sessions
 users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 ```
 
-- 스키마 파일은 차례로 적용한다 (`Database(path, "schema.sql", "decisions.sql", "accounts.sql", "decisions_server.sql", "roles_names.sql")`). n번째 파일을 적용하면 `user_version = n`. 이미 만든 DB는 시작할 때 빠진 파일만 더 적용한다. 테이블을 더할 때는 새 파일을 뒤에 붙이고, 앞 파일은 고치지 않는다.
+- 스키마 파일은 차례로 적용한다 (`Database(path, "schema.sql", "decisions.sql", "accounts.sql", "decisions_server.sql", "roles_names.sql", "nodes.sql")`). n번째 파일을 적용하면 `user_version = n`. 이미 만든 DB는 시작할 때 빠진 파일만 더 적용한다. 테이블을 더할 때는 새 파일을 뒤에 붙이고, 앞 파일은 고치지 않는다.
 
 ### 신청의 상태 (`access_requests.stage`)
 
@@ -183,3 +183,16 @@ users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 8. **초기 루트 생성 방법** — 지금은 서버에서 실행하는 CLI(`make create-root`, 비밀번호는 화면 표시 없이 입력)로 만들었다. 다른 방법으로 정하면 바꾼다.
 9. **AI 판정 입력** — 지금 판정은 신청자 · 신청 권한 · 현재 권한만 본다. 신청 사유 · 사용 기간도 보게 하려면 `review_chain` 프롬프트를 바꿔야 한다 (엔진).
 10. ~~비밀번호 규칙~~ → 길이 제한을 두지 않는다 (10/12, 인트라넷 서비스). 빈 비밀번호만 막는다. 잠금은 5회 실패 → 15분 그대로.
+
+## 수집 노드 등록부 `nodes` (10/20, `nodes.sql`)
+
+| 칸 | 설명 |
+|---|---|
+| `name` | 노드 이름 (영문 · 숫자 · `. _ -` 1~64자, 한 번만) |
+| `key_hash` | 노드만의 키의 SHA-256. 비어 있으면(손으로 넣은 수집 · 키 초기화) 다음 요청을 등록 토큰으로 받고 새 키를 준다 |
+| `host` · `ip` · `agent_version` · `interval_min` | 노드가 마지막으로 보낸 값. 끊김 = `interval_min`의 세 배 넘게 소식 없음 |
+| `enabled` | 끄면 보내도 403, 주기 점검에서도 빠진다 |
+| `registered_at` · `last_seen_at` · `last_collected_at` | 등록 · 마지막 연락 · 마지막으로 새로 쌓인 수집 시각 |
+
+처음 보내면 자동 등록(10/20 결정 — 공용 등록 토큰 하나로 받고 이름은 첫 등록자의 키에 묶는다). 등록 · 끄기 · 키 초기화는 감사 기록(`node_register` · `node_update` · `node_reset_key` · `node_import`)에 남는다. 관리는 보안 운영자 · 보안 총책임자.
+

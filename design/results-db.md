@@ -62,6 +62,27 @@ qa_records                             (정책 질의 · 로그 질의)
 | `review_id` · `seq` | 어느 실행의 몇 번째 문제 (화면의 `ISSUE-n`) |
 | `kind` · `level` · `policy_ids` · `reason` · `recommendation` | `PolicyIssue` 그대로 (`policy_ids`는 JSON 목록) |
 
+### `server_snapshots` — 수집 1건 = 1행 (10/20, `results_server_snapshots.sql` · `results_nodes.sql`)
+| 칸 | 설명 |
+|---|---|
+| `node` · `host` · `ip` · `collected_at` · `collected_by` | 수집 노드가 보낸 본문 그대로 (수집 시각 UTC). `(node, collected_at)`은 한 번만 — 같은 수집을 다시 보내도 늘지 않는다. `file`은 10/20 첫 설계(폴더 수집)의 흔적으로 비어 있다 |
+| `modules` | 모듈 → 항목 → 값 (JSON, `ServerSnapshot.modules`). 판정 입력 · 화면이 이것을 쓴다 |
+| `sections` | 모듈별 수집 원문 (JSON). 뽑는 항목을 바꾸면 이것으로 다시 셀 수 있다 |
+| `changes` | 같은 서버의 바로 앞 수집과 달라진 항목 (예: `[UFW] 상태: 켜짐 → 꺼짐`). 처음 수집 · 늦게 도착한 옛 수집은 빈 목록 |
+| `loaded_at` | 적재 시각 |
+
+고칠 수 없다 (트리거).
+
+### `node_findings` — 노드 서버 점검 1건 = 1행 (10/20, `results_nodes.sql`)
+| 칸 | 설명 |
+|---|---|
+| `node` · `snapshot_id` | 어느 노드의 어느 수집을 보고 판정했는지 — 판정이 본 모듈 상태는 그 수집 행이다 |
+| `host` · `ip` · `state` · `matched` | 서버와 덧붙인 서버 현황 표의 행(JSON) · 코드가 찾은 규칙 |
+| `level` · `summary` · `gaps` · `unjudged` · `sources` | `ServerReview` 그대로 (`sources`는 `gaps`의 근거 조항을 모은 것) |
+| `failed` · `error` · `elapsed_sec` · `model` · `created_at` | 실패 · 걸린 시간 · 판정 모델 · 판정 시각 |
+
+주기 점검(`check_nodes`)은 노드마다 가장 늦은 수집 중 이 표에 아직 없는 것만 판정한다. 화면은 노드마다 마지막 판정을 보고, 운영자 결정은 `node_findings/{id}`를 가리킨다 (`kind = server`). 10/12 · 10/14의 `server_findings`(정책 관리 검토 안의 서버 점검)는 10/20부터 쓰지 않는다 — 예전 행만 남아 있다.
+
 ### `server_findings` — 서버 점검 1건 = 1행 (10/12, `results_servers.sql`)
 | 칸 | 설명 |
 |---|---|

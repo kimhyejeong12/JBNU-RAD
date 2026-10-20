@@ -12,20 +12,21 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from sentinelai import pipeline
-from sentinelai.db import Database, results
+from sentinelai.db import Database, nodes, results
 from sentinelai.engine import Engine
 
-KINDS = {"policies": "정책 관리 검토", "events": "로그 감시"}
-# 화면에서 시작할 수 있는 작업. 로그 감시는 every() 로만 돕니다.
+KINDS = {"policies": "정책 관리 검토", "events": "로그 감시", "nodes": "서버 점검"}
+# 화면에서 시작할 수 있는 작업. 로그 감시 · 서버 점검은 every() 로만 돕니다.
 MANUAL = {"policies"}
 # 자동 실행 차례에 다른 작업이 돌고 있으면 이만큼 뒤에 다시 시도합니다.
 RETRY = timedelta(minutes=1)
 
 
 class JobRunner:
-    def __init__(self, engine: Engine, results_db: Database) -> None:
+    def __init__(self, engine: Engine, results_db: Database, main_db: Database) -> None:
         self.engine = engine
         self.results_db = results_db
+        self.main_db = main_db
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._status: dict[str, Any] = {"running": None, "auto": False, "done": 0, "total": 0, "started_at": None, "last": {}}
@@ -89,9 +90,18 @@ class JobRunner:
     def _work(self, kind: str) -> None:
         s = self.engine.settings
         if kind == "policies":
-            # 기준 문서 · 정책 규칙을 RAG 에 맞추고(바뀐 것만) 정책 간 검토 · 서버 점검을 돌립니다.
-            review = pipeline.review_policies(self.engine, s.policies_source, s.servers_source, progress=self._progress)
+            # 기준 문서 · 정책 규칙을 RAG 에 맞추고(바뀐 것만) 정책 간 검토를 돌립니다.
+            review = pipeline.review_policies(self.engine, s.policies_source, progress=self._progress)
             results.save_policy_review(self.results_db, review, s.model)
+        elif kind == "nodes":
+            # 켜 둔 노드 중 지난 점검 뒤 새 수집이 온 것만 봅니다. 판정은 한 건씩 바로 쌓아, 중간에 꺼져도 끝난 것은 남습니다.
+            pending = results.pending_snapshots(self.results_db, nodes.enabled_names(self.main_db))
+
+            def save(done: int, total: int, finding: dict[str, Any]) -> None:
+                results.save_node_finding(self.results_db, finding, s.model)
+                self._progress(done, total, finding)
+
+            pipeline.check_nodes(self.engine, pending, s.policies_source, s.servers_source, progress=save)
         else:
             since = results.next_monitor_since(self.results_db)
             run = pipeline.monitor(self.engine, s.events_source, since, progress=self._progress)

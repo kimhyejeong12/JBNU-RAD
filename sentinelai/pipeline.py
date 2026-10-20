@@ -4,7 +4,8 @@ data 와 engine 은 서로를 가져오지 않습니다. 둘을 함께 쓰는 �
 CLI(`python -m sentinelai`)와 웹이 같은 함수를 부릅니다. 여기 함수는 결과 dict 만 돌려주고, 저장은 sentinelai.db.results 가 합니다.
 
     engine = Engine()
-    review = pipeline.review_policies(engine, engine.settings.policies_source, engine.settings.servers_source)  # 문서 · 규칙 적재 포함
+    review = pipeline.review_policies(engine, engine.settings.policies_source)  # 문서 · 규칙 적재 포함
+    nodes = pipeline.check_nodes(engine, pending, engine.settings.policies_source, engine.settings.servers_source)
     run = pipeline.monitor(engine, engine.settings.events_source, since)   # since 이후 로그만
 """
 from __future__ import annotations
@@ -20,6 +21,8 @@ from .data import (
     LoadIssue,
     LoadResult,
     PolicyRule,
+    ServerSnapshot,
+    ServerState,
     between,
     event_review_input,
     group_by_user,
@@ -32,6 +35,8 @@ from .data import (
     period_since,
     search,
     server_review_input,
+    snapshot_changes,
+    snapshot_from_payload,
     summarize,
     user_label,
     vocabulary,
@@ -125,56 +130,70 @@ def _optional(loader: Callable[[Any], LoadResult], source: Any) -> LoadResult:
         return LoadResult(source=Path(str(source)).name, issues=[LoadIssue(0, str(exc))])
 
 
-def review_policies(engine: Engine, policies_source: Any, servers_source: Any,
-                    progress: Progress | None = None) -> dict[str, Any]:
-    """정책 관리 검토 1회 → db.results.save_policy_review
+def review_policies(engine: Engine, policies_source: Any, progress: Progress | None = None) -> dict[str, Any]:
+    """정책 관리 검토 1회 (화면의 [정책 관리 검토 실행]) → db.results.save_policy_review
 
     0. 기준 문서(docs/) · 솔루션 정책 규칙을 RAG 에 맞춥니다 (바뀐 것만). 판정이 지금 문서 · 규칙을 찾게 합니다.
     1. 솔루션 정책 규칙 전체 → policy_chain (정책 간 중복 · 충돌 · 과도한 허용)
-    2. 서버 현황 한 대씩 → server_chain → ServerReview (기준 문서와 다른 곳마다 지금 · 기준 · 조항 · 바꿀 것)
-    한쪽 데이터가 없으면 그쪽은 건너뛰고, 둘 다 없으면 ValueError 를 냅니다.
+    서버 점검은 여기서 하지 않고, 수집 노드가 보낸 것을 check_nodes 가 주기적으로 봅니다.
+    """
+    policies = _optional(load_policies, policies_source)
+    if not policies.records:
+        problems = [str(i) for i in policies.issues]
+        raise ValueError("검토할 솔루션 정책이 없습니다 — 정책 폴더에 CSV · JSON 을 두세요" + (f" ({'; '.join(problems)})" if problems else ""))
+    index_documents(engine)
+    engine.documents.index_rules(policies.source, [r.describe() for r in policies.records])
+    review, error, elapsed = attempt(lambda: engine.policy_chain().invoke({"policies": PolicyRule.format(policies.records)}))
+    rules_part = _judged(review, error, elapsed)
+    if progress:
+        progress(1, 1, rules_part)
+    return {**_loaded(policies), "rules": [r.model_dump() for r in policies.records], **rules_part}
+
+
+# --- 수집 노드 · 서버 점검 -----------------------------------------------------
+
+
+def snapshot_row(payload: dict[str, Any], node: str, previous: dict[str, Any] | None) -> dict[str, Any]:
+    """노드가 보낸 본문 → db.results.save_snapshot 에 넣을 수집 기록. 형식이 틀리면 ValueError.
+
+    previous = db.results.latest_snapshot. 이번 수집이 그보다 늦을 때만 바뀐 것을 셉니다 (늦게 도착한 옛 수집은 앞뒤가 맞지 않음).
+    """
+    snap = snapshot_from_payload(payload, node)
+    at = snap.collected_at.isoformat(timespec="seconds")
+    newer = previous is None or at > previous["collected_at"]
+    return {**snap.model_dump(mode="json", exclude={"raw"}), "collected_at": at,
+            "changes": snapshot_changes(previous and previous["modules"], snap.modules) if newer else []}
+
+
+def check_nodes(engine: Engine, snapshots: list[dict[str, Any]], policies_source: Any, servers_source: Any,
+                progress: Progress | None = None) -> dict[str, Any]:
+    """서버 점검 — 새 수집이 온 노드마다 server_chain → ServerReview. → db.results.save_node_finding
+
+    snapshots = db.results.pending_snapshots. 판정 입력은 노드의 모듈 상태 · 직전 수집과 달라진 설정에
+    서버 현황 표(호스트 이름 · IP 가 같은 행, 있으면)와 그 서버를 가리키는 솔루션 정책을 더한 것입니다.
     """
     policies = _optional(load_policies, policies_source)
     servers = _optional(load_servers, servers_source)
-    if not policies.records and not servers.records:
-        problems = [str(i) for i in policies.issues + servers.issues]
-        raise ValueError("검토할 데이터가 없습니다 — 솔루션 정책 · 서버 현황 폴더에 CSV · JSON 을 두세요"
-                         + (f" ({'; '.join(problems)})" if problems else ""))
-    index_documents(engine)
-    # 정책 폴더가 지금 규칙의 기준입니다. 비었으면 예전 규칙이 서버 점검 · 로그 감시 검색에 섞이지 않게 지웁니다.
-    if policies.records:
-        engine.documents.index_rules(policies.source, [r.describe() for r in policies.records])
-    else:
-        engine.documents.clear_rules()
-    total = int(bool(policies.records)) + len(servers.records)
-
-    if policies.records:
-        text = PolicyRule.format(policies.records)
-        review, error, elapsed = attempt(lambda: engine.policy_chain().invoke({"policies": text}))
-        rules_part = _judged(review, error, elapsed)
-        if progress:
-            progress(1, total, rules_part)
-    else:
-        rules_part = {"summary": "솔루션 정책 규칙이 없어 정책 간 검토는 하지 않았습니다.", "issues": [],
-                      "failed": False, "error": None, "elapsed_sec": 0.0}
-
+    inventory = {}
+    for row in servers.records:
+        inventory[row.host.lower()] = row
+        if row.ip:
+            inventory[row.ip] = row
+    if snapshots:
+        index_documents(engine)
     findings = []
-    chain = engine.server_chain() if servers.records else None
-    for n, server in enumerate(servers.records, start=1):
-        inputs = server_review_input(server, policies.records)
+    chain = engine.server_chain() if snapshots else None
+    for n, snap in enumerate(snapshots, start=1):
+        server = inventory.get(snap["host"].lower()) or inventory.get(snap["ip"]) or ServerState(host=snap["host"], ip=snap["ip"])
+        snapshot = ServerSnapshot(**{k: snap[k] for k in ("node", "host", "ip", "collected_at", "collected_by", "modules")})
+        inputs = server_review_input(server, policies.records, snapshot, snap["changes"])
         review, error, elapsed = attempt(lambda: chain.invoke(inputs))
-        # state 는 프롬프트용 글이 아니라 원본 행을 남깁니다 (화면이 컬럼 · 값 표로 보여줍니다).
-        finding = {**inputs, "host": server.host, "ip": server.ip, "state": server.raw, **_judged(review, error, elapsed)}
+        finding = {"node": snap["node"], "snapshot_id": snap["id"], "host": snap["host"], "ip": snap["ip"] or server.ip,
+                   "state": server.raw, "matched": inputs["matched"], **_judged(review, error, elapsed)}
         findings.append(finding)
         if progress:
-            progress(n + int(bool(policies.records)), total, finding)
-
-    return {
-        **_loaded(policies),
-        "rules": [r.model_dump() for r in policies.records],
-        **rules_part,
-        "servers": {**_loaded(servers), "findings": findings},
-    }
+            progress(n, len(snapshots), finding)
+    return {"findings": findings, "load_issues": [str(i) for i in policies.issues + servers.issues]}
 
 
 # --- 로그 감시 --------------------------------------------------------------

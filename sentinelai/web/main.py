@@ -21,6 +21,7 @@ from sentinelai.db import User, auth, decisions, open_main_db, open_results_db, 
 from . import view  # noqa: E402
 from .api_permissions import Approver, role  # noqa: E402
 from .api_permissions import router as permissions_router  # noqa: E402
+from .api_nodes import router as nodes_router  # noqa: E402
 from .jobs import KINDS, MANUAL, JobRunner  # noqa: E402
 from .verdicts import VerdictWorker  # noqa: E402
 
@@ -38,8 +39,10 @@ async def lifespan(app: FastAPI):
     state["engine"] = engine
     app.state.main_db = open_main_db(engine.settings.db_path)
     app.state.results_db = open_results_db(engine.settings.results_db_path)
-    state["jobs"] = JobRunner(engine, app.state.results_db)
+    app.state.node_token = engine.settings.node_token
+    state["jobs"] = JobRunner(engine, app.state.results_db, app.state.main_db)
     state["jobs"].every("events", engine.settings.monitor_interval_min)
+    state["jobs"].every("nodes", engine.settings.monitor_interval_min)
     state["rag_chain"] = engine.rag_chain(structured=True)
     app.state.verdicts = VerdictWorker(engine, app.state.main_db)
     app.state.verdicts.resume()
@@ -56,6 +59,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(permissions_router)
+app.include_router(nodes_router)
 
 # 정책 관리 · 로그 감시 화면은 보안 운영자 · 보안 총책임자만 씁니다. 화면은 같은 출처에서만 열므로 CORS 를 열지 않습니다.
 analyst = [Depends(role("manager", "top"))]
@@ -99,7 +103,7 @@ def results(request: Request, user: Approver) -> dict[str, Any]:
     보안 총책임자에게는 항목별 결정 기록 전부(decision_log, 취소 포함)를 더 줍니다. 아래에서 올라온 판단을 읽는 자리입니다.
     """
     rdb, mdb = request.app.state.results_db, request.app.state.main_db
-    out = {**view.results(results_db.latest_policy_review(rdb), results_db.monitor_findings(rdb)),
+    out = {**view.results(results_db.latest_policy_review(rdb), results_db.monitor_findings(rdb), results_db.latest_node_findings(rdb)),
            "decisions": {kind: decisions.current(mdb, kind) for kind in decisions.ACTIONS}}
     if user.role == "top":
         out["decision_log"] = {kind: decisions.history(mdb, kind) for kind in decisions.ACTIONS}

@@ -8,7 +8,7 @@ from __future__ import annotations
 import ipaddress
 import re
 
-from .types import PolicyRule, ServerState
+from .types import PolicyRule, ServerSnapshot, ServerState
 
 _ADDRESS = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}(?:/\d{1,2})?")
 
@@ -53,11 +53,17 @@ def rules_for(server: ServerState, rules: list[PolicyRule]) -> list[tuple[Policy
     return matched
 
 
-def server_review_input(server: ServerState, rules: list[PolicyRule]) -> dict[str, str]:
-    """server_chain 입력 — subject(서버) · state(현황) · matched(코드가 찾은 규칙)."""
+def server_review_input(server: ServerState, rules: list[PolicyRule], snapshot: ServerSnapshot | None = None,
+                        changes: list[str] | None = None) -> dict[str, str]:
+    """server_chain 입력 — subject(서버) · state(현황 + 수집한 모듈 상태 + 직전 수집과 달라진 설정) · matched(코드가 찾은 규칙)."""
     matched = rules_for(server, rules)
+    state = [server.describe()]
+    if snapshot:
+        state.append(snapshot.describe())
+    if changes:
+        state.append("- 직전 수집과 달라진 설정:\n" + "\n".join(f"  - {c}" for c in changes))
     return {
         "subject": server.name,
-        "state": server.describe(),
+        "state": "\n".join(state),
         "matched": "\n".join(f"{rule.describe()} (이 서버: {why})" for rule, why in matched) or "코드가 찾은 규칙 없음",
     }

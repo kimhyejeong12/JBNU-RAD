@@ -37,6 +37,7 @@ class Settings:
     db_path: str
     results_db_path: str
     monitor_interval_min: int
+    node_token: str
 
     @staticmethod
     def env_file() -> Path:

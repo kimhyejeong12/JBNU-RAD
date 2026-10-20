@@ -18,7 +18,9 @@ help:
 	@echo "chat Q=\"질문\"     모델에 직접 질의"
 	@echo "review-check    review_chain 반복 루프·등급 흔들림 재현 (N=회수)"
 	@echo "review-requests [SRC=파일] [OUT=파일]  CSV 권한 신청 전 건 판정 — 평가용, DB에 쓰지 않음"
-	@echo "review-policies [SRC=정책] [SERVERS=서버 현황]  정책 간 중복 · 충돌 · 과도한 허용 + 서버 현황 검증 (정책 이해)"
+	@echo "review-policies [SRC=정책]                  기준 문서 · 솔루션 정책 적재 + 정책 간 중복 · 충돌 · 과도한 허용 (정책 이해)"
+	@echo "check-nodes                                  새 수집이 온 노드의 서버 점검 1회 (웹이 떠 있으면 웹이 주기적으로 함)"
+	@echo "import-snapshots DIR=폴더                     망이 막힌 노드가 export 한 수집 파일 넣기"
 	@echo "monitor [SRC=로그] [SINCE=시각] [FULL=1]  지난 감시 이후 로그를 정책과 비교 (로그 감시)"
 	@echo "ask-logs Q=\"질문\"   보안 솔루션 로그에 질의 (로그 감시 — 건수는 코드가 셈)"
 	@echo "create-root LOGIN=아이디 NAME=이름 [DEPT=부서]  초기 루트 계정(보안 총책임자) 생성 — 비밀번호는 입력받음"
@@ -31,7 +33,7 @@ install:
 	python3 -m venv .venv
 	$(PY) -m pip install --upgrade pip
 	$(PY) -m pip install -r requirements.txt
-	@test -f .env || (cp .env.example .env && echo ".env 생성됨")
+	@test -f .env || (cp .env.example .env && sed -i "s/^SENTINELAI_NODE_TOKEN=change-me$$/SENTINELAI_NODE_TOKEN=$$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')/" .env && echo ".env 생성됨 (노드 등록 토큰 새로 만듦)")
 
 health:
 	$(PY) -m sentinelai health
@@ -73,7 +75,13 @@ review-requests:
 	$(PY) -m sentinelai review-requests $(SRC) $(if $(OUT),--out "$(OUT)")
 
 review-policies:
-	$(PY) -m sentinelai review-policies $(SRC) $(if $(SERVERS),--servers "$(SERVERS)")
+	$(PY) -m sentinelai review-policies $(SRC)
+
+check-nodes:
+	$(PY) -m sentinelai check-nodes
+
+import-snapshots:
+	$(PY) -m sentinelai import-snapshots "$(DIR)"
 
 web:
 	$(PY) -m uvicorn sentinelai.web.main:app --reload --port 8000
