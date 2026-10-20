@@ -46,6 +46,8 @@ async def lifespan(app: FastAPI):
     yield
     state["jobs"].stop()
     app.state.verdicts.stop()
+    # 잠금을 풀고 끝내야 --reload 로 새로 뜨는 프로세스 · CLI 가 벡터 DB 를 열 수 있습니다.
+    engine.documents.close()
     state.clear()
 
 

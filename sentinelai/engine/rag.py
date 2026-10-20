@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -48,6 +49,7 @@ class DocumentStore:
         self.settings = settings
         self._embeddings: OllamaEmbeddings | None = None
         self._store: Milvus | None = None
+        self._lock = threading.Lock()
 
     @property
     def embeddings(self) -> OllamaEmbeddings:
@@ -60,9 +62,25 @@ class DocumentStore:
 
     @property
     def store(self) -> Milvus:
-        if self._store is None:
-            self._store = self._open()
-        return self._store
+        # 처음 쓸 때 엽니다. 여러 스레드(자동 감시 · 화면 요청)가 동시에 열면 Milvus Lite 가 같은 프로세스에서
+        # 잠금을 두 번 잡으려다 "Open local milvus failed" 로 실패하므로 한 번에 하나만 엽니다.
+        with self._lock:
+            if self._store is None:
+                self._store = self._open()
+            return self._store
+
+    def close(self) -> None:
+        """연결을 닫고 Milvus Lite 서버를 멈춰 DB 잠금을 풉니다. 다음에 쓰면 다시 엽니다."""
+        with self._lock:
+            if self._store is None:
+                return
+            self._store.client.close()
+            self._store = None
+            if not self.settings.milvus_is_server:
+                # 클라이언트를 닫아도 같은 프로세스의 Milvus Lite 서버가 잠금을 쥐고 있어, 서버까지 멈춰야 풀립니다.
+                from milvus_lite.server_manager import server_manager_instance
+
+                server_manager_instance.release_server(self.settings.milvus_target)
 
     def _open(self, drop_old: bool = False) -> Milvus:
         if not self.settings.milvus_is_server:
@@ -125,7 +143,8 @@ class DocumentStore:
         """기준 문서를 적재합니다. 바뀐 파일만 다시 임베딩하고, rebuild 면 컬렉션을 비우고 전부 새로 (규칙도 지워짐)."""
         documents = self.read(source)
         if rebuild:
-            self._store = self._open(drop_old=True)
+            with self._lock:
+                self._store = self._open(drop_old=True)
 
         report = IndexReport()
         for doc in documents:
