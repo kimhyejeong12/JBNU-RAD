@@ -1,6 +1,6 @@
 """사용자 · 로그인 · 세션 (권한 DB).
 
-계정은 최상급자가 만듭니다(트리거가 강제). 초기 루트만 웹 밖에서 create_root 로 만듭니다.
+계정은 보안 총책임자가 만듭니다(트리거가 강제). 초기 루트만 웹 밖에서 create_root 로 만듭니다.
 루트 계정은 루트 자신만 고칠 수 있습니다.
 """
 from __future__ import annotations
@@ -80,11 +80,11 @@ def create_root(db: Database, login_id: str, password: str, display_name: str, d
 
 def _require_top(by: User) -> None:
     if by.role != "top":
-        raise Denied("계정 관리는 최상급자만 할 수 있습니다")
+        raise Denied("계정 관리는 보안 총책임자만 할 수 있습니다")
 
 
 def _guard_target(by: User, target: sqlite3.Row) -> None:
-    # 다른 최상급자가 루트의 비밀번호를 바꾸면 루트를 가로챌 수 있어 막습니다.
+    # 다른 보안 총책임자가 루트의 비밀번호를 바꾸면 루트를 가로챌 수 있어 막습니다.
     if target["is_root"] and not by.is_root:
         raise Denied("루트 계정은 루트만 고칠 수 있습니다")
 

@@ -84,7 +84,7 @@ def get(db: Database, by: User, request_no: str) -> dict:
 
 
 def list_requests(db: Database, by: User, stage: str | None = None, mine: bool = False) -> list[dict]:
-    """일반사용자는 자기 신청만, 중간관리자 · 최상급자는 전부. stage 로 결재함을 거릅니다. 결재 · 회수 기록까지 담습니다."""
+    """일반 사용자는 자기 신청만, 보안 운영자 · 보안 총책임자는 전부. stage 로 결재함을 거릅니다. 결재 · 회수 기록까지 담습니다."""
     if stage is not None and stage not in STAGES:
         raise Denied(f"stage 는 {', '.join(STAGES)} 중 하나입니다")
     where, args = [], []
@@ -114,7 +114,7 @@ def _person(conn: sqlite3.Connection, by: User) -> sqlite3.Row:
 
 
 def decide(db: Database, by: User, request_no: str, action: str, comment: str = "") -> dict:
-    """결재. 단계는 결재자의 역할로 정합니다 (중간관리자 = 1차, 최상급자 = 최종). 결재자가 본 AI 판정은 신청 행의 AI 칸입니다."""
+    """결재. 단계는 결재자의 역할로 정합니다 (보안 운영자 = 1차, 보안 총책임자 = 최종). 결재자가 본 AI 판정은 신청 행의 AI 칸입니다."""
     if action not in ("approve", "reject"):
         raise Denied("action 은 approve · reject 중 하나입니다")
     if by.role not in ("manager", "top"):

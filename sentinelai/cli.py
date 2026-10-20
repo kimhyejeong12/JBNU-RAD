@@ -62,7 +62,7 @@ class Cli(EngineCli):
         logs.add_argument("--source", help=source_help)
         logs.set_defaults(command="ask_logs")
 
-        root = sub.add_parser("create-root", help="초기 루트 계정(최상급자) 생성 — 서버에서 한 번만")
+        root = sub.add_parser("create-root", help="초기 루트 계정(보안 총책임자) 생성 — 서버에서 한 번만")
         root.add_argument("--login", required=True, help="로그인 ID")
         root.add_argument("--name", required=True, help="표시 이름")
         root.add_argument("--department", default="", help="부서")

@@ -97,7 +97,7 @@ def change_password(body: PasswordBody, request: Request) -> dict[str, Any]:
     return _session_user(request).public()
 
 
-# --- 계정 (최상급자) ------------------------------------------------------------
+# --- 계정 (보안 총책임자) ------------------------------------------------------------
 
 
 class NewUser(BaseModel):
@@ -162,7 +162,7 @@ def reset_password(user_id: int, body: PasswordReset, request: Request, user: An
 def _with_verdict(request: Request, req: dict, user: User) -> dict:
     """판정 중이면 judging = True 를 붙입니다.
 
-    AI 판정은 결재자를 위한 것이라 일반사용자에게는 AI 칸(결재 기록의 그때 AI 등급까지)을 아예 빼고 줍니다.
+    AI 판정은 결재자를 위한 것이라 일반 사용자에게는 AI 칸(결재 기록의 그때 AI 등급까지)을 아예 빼고 줍니다.
     """
     if user.role == "user":
         return {**{k: v for k, v in req.items() if k != "ai_verdict"},

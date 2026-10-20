@@ -53,7 +53,7 @@ app = FastAPI(
 )
 app.include_router(permissions_router)
 
-# 정책 관리 · 로그 감시 화면은 중간관리자 · 최상급자만 씁니다. 화면은 같은 출처에서만 열므로 CORS 를 열지 않습니다.
+# 정책 관리 · 로그 감시 화면은 보안 운영자 · 보안 총책임자만 씁니다. 화면은 같은 출처에서만 열므로 CORS 를 열지 않습니다.
 analyst = [Depends(role("manager", "top"))]
 
 
@@ -92,7 +92,7 @@ def health() -> dict[str, Any]:
 def results(request: Request, user: Approver) -> dict[str, Any]:
     """마지막 정책 관리 검토 · 쌓인 로그 감시 판정과 항목별 운영자 결정. 아직 돌리지 않은 구역은 비어 있습니다.
 
-    최상급자에게는 항목별 결정 기록 전부(decision_log, 취소 포함)를 더 줍니다. 아래에서 올라온 판단을 읽는 자리입니다.
+    보안 총책임자에게는 항목별 결정 기록 전부(decision_log, 취소 포함)를 더 줍니다. 아래에서 올라온 판단을 읽는 자리입니다.
     """
     rdb, mdb = request.app.state.results_db, request.app.state.main_db
     out = {**view.results(results_db.latest_policy_review(rdb), results_db.monitor_findings(rdb)),

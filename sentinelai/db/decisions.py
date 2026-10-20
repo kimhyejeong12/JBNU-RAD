@@ -42,7 +42,7 @@ def current(db: Database, kind: str) -> dict[str, dict]:
 
 
 def history(db: Database, kind: str) -> dict[str, list[dict]]:
-    """항목 key → 결정 기록 전부 (오래된 것부터, 취소 포함). 최상급자가 아래에서 올라온 판단을 읽을 때 씁니다."""
+    """항목 key → 결정 기록 전부 (오래된 것부터, 취소 포함). 보안 총책임자가 아래에서 올라온 판단을 읽을 때 씁니다."""
     with db.connection() as conn:
         rows = conn.execute("SELECT * FROM review_decisions WHERE kind = ? ORDER BY id", (kind,)).fetchall()
     out: dict[str, list[dict]] = {}

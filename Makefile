@@ -21,7 +21,7 @@ help:
 	@echo "review-policies [SRC=정책] [SERVERS=서버 현황]  정책 간 중복 · 충돌 · 과도한 허용 + 서버 현황 검증 (정책 이해)"
 	@echo "monitor [SRC=로그] [SINCE=시각] [FULL=1]  지난 감시 이후 로그를 정책과 비교 (로그 감시)"
 	@echo "ask-logs Q=\"질문\"   보안 솔루션 로그에 질의 (로그 감시 — 건수는 코드가 셈)"
-	@echo "create-root LOGIN=아이디 NAME=이름 [DEPT=부서]  초기 루트 계정(최상급자) 생성 — 비밀번호는 입력받음"
+	@echo "create-root LOGIN=아이디 NAME=이름 [DEPT=부서]  초기 루트 계정(보안 총책임자) 생성 — 비밀번호는 입력받음"
 	@echo "web             대시보드 실행 (http://localhost:8000)"
 	@echo "docker-build    이미지 빌드 (podman: make docker-build DOCKER=podman)"
 	@echo "docker-run      컨테이너에서 health 실행"
