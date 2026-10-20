@@ -1,4 +1,4 @@
-"""로그인 · 계정 · 권한 신청 · 결재 · 회수 · 정책 · 로그 결정 API (권한 DB).
+"""로그인 · 계정 · 권한 목록 · 권한 신청 · 결재 · 회수 · 정책 · 로그 결정 API (권한 DB).
 
 세션 토큰은 HttpOnly · SameSite=Strict 쿠키로만 주고받습니다. 화면 스크립트는 토큰을 볼 수 없습니다.
 """
@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, StringConstraints
 
-from sentinelai.db import Denied, User, auth, decisions, permissions
+from sentinelai.db import Denied, User, auth, catalog, decisions, permissions
 
 COOKIE = "sentinelai_session"
 
@@ -156,6 +156,46 @@ def reset_password(user_id: int, body: PasswordReset, request: Request, user: An
     return {"ok": True}
 
 
+# --- 권한 목록 (관리는 보안 총책임자) ---------------------------------------------
+
+
+class NewAccess(BaseModel):
+    code: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+    name: Name
+    system: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = ""
+    category: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = ""
+    description: Text = ""
+
+
+class AccessChange(BaseModel):
+    name: Name | None = None
+    system: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
+    category: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
+    description: Text | None = None
+    is_active: bool | None = None
+
+
+@router.get("/access-catalog")
+def list_access(request: Request, user: Anyone) -> list[dict]:
+    return catalog.list_items(request.app.state.main_db, user)
+
+
+@router.post("/access-catalog", status_code=201)
+def create_access(body: NewAccess, request: Request, user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
+    try:
+        return catalog.create(request.app.state.main_db, user, **body.model_dump())
+    except Denied as exc:
+        raise _denied(exc) from None
+
+
+@router.patch("/access-catalog/{code}")
+def update_access(code: str, body: AccessChange, request: Request, user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
+    try:
+        return catalog.update(request.app.state.main_db, user, code, **body.model_dump(exclude_none=True))
+    except Denied as exc:
+        raise _denied(exc) from None
+
+
 # --- 권한 신청 · 결재 · 회수 -------------------------------------------------
 
 
@@ -171,8 +211,7 @@ def _with_verdict(request: Request, req: dict, user: User) -> dict:
 
 
 class NewRequest(BaseModel):
-    requested_access: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
-    current_access: Text = ""
+    access_code: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
     reason: Text = ""
     period_start: Annotated[str, StringConstraints(pattern=r"^(\d{4}-\d{2}-\d{2})?$")] = ""
     period_end: Annotated[str, StringConstraints(pattern=r"^(\d{4}-\d{2}-\d{2})?$")] = ""

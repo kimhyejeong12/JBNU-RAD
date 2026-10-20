@@ -344,7 +344,10 @@ class Engine:
     def judge_request(self, request_no: str) -> dict[str, Any] | None:
         """권한 신청 한 건의 AI 판정 (저장은 save_request_verdict). 신청이 없으면 None."""
         with self.main_db.connection() as conn:
-            row = conn.execute("SELECT * FROM access_requests WHERE request_no = ?", (request_no,)).fetchone()
+            row = conn.execute(
+                "SELECT r.*, c.system AS access_system, c.category AS access_category, c.description AS access_description"
+                " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code WHERE r.request_no = ?",
+                (request_no,)).fetchone()
         return pipeline.judge_request(self, dict(row)) if row else None
 
     def save_request_verdict(self, request_no: str, result: dict[str, Any]) -> bool:

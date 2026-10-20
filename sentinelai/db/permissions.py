@@ -8,6 +8,7 @@ import json
 import sqlite3
 from datetime import datetime
 
+from . import catalog
 from .auth import User
 from .core import Database, Denied, audit, now
 
@@ -24,17 +25,48 @@ def _next_request_no(conn: sqlite3.Connection) -> str:
     return f"REQ-{day}-{seq:03d}"
 
 
-def submit(db: Database, by: User, requested_access: str, current_access: str = "", reason: str = "",
-           period_start: str = "", period_end: str = "") -> dict:
-    if not requested_access.strip():
-        raise Denied("신청할 권한을 적어 주세요")
+def _today() -> str:
+    # 사용 기간은 날짜만 적으므로 화면과 같은 서버 현지 날짜(KST)로 끝났는지 봅니다.
+    return datetime.now().astimezone().strftime("%Y-%m-%d")
+
+
+def _held(conn: sqlite3.Connection, user_id: int) -> list[sqlite3.Row]:
+    """지금 가진 권한 = 이 시스템에서 최종 승인됐고 사용 기간이 남은 신청 (회수 · 만료는 빠집니다)."""
+    return conn.execute(
+        "SELECT request_no, access_code, requested_access, period_end FROM access_requests"
+        " WHERE requester_id = ? AND stage = 'approved' AND (period_end = '' OR period_end >= ?) ORDER BY submitted_at",
+        (user_id, _today())).fetchall()
+
+
+def _held_text(rows: list[sqlite3.Row]) -> str:
+    lines = []
+    for r in rows:
+        name = f"{r['requested_access']} ({r['access_code']})" if r["access_code"] else r["requested_access"]
+        lines.append(f"{name} — {r['period_end'] + '까지' if r['period_end'] else '기간 없음'}")
+    return "\n".join(lines)
+
+
+def submit(db: Database, by: User, access_code: str, reason: str = "", period_start: str = "", period_end: str = "") -> dict:
+    """권한 목록의 켜진 권한만 신청합니다. 신청 때 이름을 requested_access 에 남겨, 목록 이름이 바뀌어도 기록은 그대로입니다.
+
+    현재 보유 권한은 신청자가 적지 않고 신청 때 가진 권한을 읽어 current_access 에 남깁니다 (AI 판정 · 결재자가 본 그대로).
+    """
     with db.transaction() as conn:
+        item = catalog.get(conn, access_code)
+        if not item["is_active"]:
+            raise Denied("지금은 신청할 수 없는 권한입니다")
+        held = _held(conn, by.id)
+        if any(r["access_code"] == item["code"] for r in held):
+            raise Denied("이미 가진 권한입니다")
+        if conn.execute("SELECT 1 FROM access_requests WHERE requester_id = ? AND access_code = ? AND stage IN ('manager', 'top')",
+                        (by.id, item["code"])).fetchone():
+            raise Denied("같은 권한의 신청이 결재 중입니다")
         request_no = _next_request_no(conn)
         rid = conn.execute(
-            "INSERT INTO access_requests (request_no, requester_id, requester_name, requester_department, requested_access,"
-            " current_access, reason, period_start, period_end, submitted_at)"
-            " SELECT ?, id, display_name, department, ?, ?, ?, ?, ?, ? FROM users WHERE id = ?",
-            (request_no, requested_access.strip(), current_access.strip(), reason.strip(), period_start, period_end, now(), by.id),
+            "INSERT INTO access_requests (request_no, requester_id, requester_name, requester_department, access_code,"
+            " requested_access, current_access, reason, period_start, period_end, submitted_at)"
+            " SELECT ?, id, display_name, department, ?, ?, ?, ?, ?, ?, ? FROM users WHERE id = ?",
+            (request_no, item["code"], item["name"], _held_text(held), reason.strip(), period_start, period_end, now(), by.id),
         ).lastrowid
         audit(conn, "request_submit", by.id, target_type="request", target_id=request_no)
         return _detail(conn, rid)

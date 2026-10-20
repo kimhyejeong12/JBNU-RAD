@@ -169,11 +169,20 @@ def judge_request(engine: Engine, request: dict[str, Any]) -> dict[str, Any]:
     """권한 DB의 신청 1건 → AI 판정 (신청 행의 AI 칸에 저장할 dict). 신청이 들어오면 바로 부릅니다."""
     inputs = {
         "requester": f"{request.get('requester_department', '')} {request['requester_name']}".strip(),
-        "requested_access": request["requested_access"],
-        "current_access": request.get("current_access", ""),
+        "requested_access": _access_text(request),
+        "current_access": request.get("current_access") or "없음",
     }
     verdict, error, elapsed = attempt(lambda: engine.review_chain().invoke(inputs))
     return _judged(verdict, error, elapsed)
+
+
+def _access_text(request: dict[str, Any]) -> str:
+    """신청 권한 이름에 권한 목록의 코드 · 시스템 · 분류 · 설명을 붙입니다. 분류(급여정보 등)가 조항 검색과 판정의 실마리가 됩니다."""
+    lines = [f"{request['requested_access']} ({request['access_code']})" if request.get("access_code") else request["requested_access"]]
+    for label, key in (("시스템", "access_system"), ("분류", "access_category"), ("설명", "access_description")):
+        if request.get(key):
+            lines.append(f"{label}: {request[key]}")
+    return "\n".join(lines)
 
 
 def _optional(loader: Callable[[Any], LoadResult], source: Any) -> LoadResult:

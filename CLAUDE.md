@@ -44,19 +44,20 @@ JBNU-RAD/
 │   │   ├── schema.sql            권한 DB — 사용자 · 세션 · 감사 기록 · 신청(1건 = 1행: 신청 · AI 판정 · 1차 · 최종 결재 · 회수). 결재 순서 · 역할은 트리거가 강제
 │   │   ├── results_schema.sql    AI 결과 DB — 정책 관리 검토 · 로그 감시 판정 · 질의 기록 (쌓기만, 로그 자체는 쌓지 않는다). results_servers.sql 이 서버 점검을 더한다
 │   │   ├── auth.py               Argon2id · 로그인 잠금 · 세션 2일 · 보안 총책임자가 계정 관리 (루트 계정은 루트만)
-│   │   ├── permissions.py        신청 · AI 판정 저장(1차 결재 전까지만) · 철회 · 결재 · 회수
+│   │   ├── permissions.py        신청(권한 목록의 코드로, 현재 보유 권한은 승인된 유효 신청에서 읽어 남김) · AI 판정 저장(1차 결재 전까지만) · 철회 · 결재 · 회수
 │   │   ├── decisions.sql · decisions.py  정책 관리 · 로그 감시의 운영자 결정 (권한 DB, 쌓기만 하고 마지막 기록이 지금 결정, 보안 총책임자는 기록 전부)
 │   │   ├── accounts.sql          계정 생성을 루트 → 보안 총책임자로 넓힌다 (10/12)
 │   │   ├── decisions_server.sql  운영자 결정에 서버 점검(kind server)을 더한다 (10/12)
 │   │   ├── roles_names.sql       트리거 오류 문구를 사용자 용어로 바꾼다 (10/20)
 │   │   ├── results_server_snapshots.sql · results_nodes.sql  수집 기록(server_snapshots, 노드별) · 노드 서버 점검 판정(node_findings) (10/20)
+│   │   ├── access_catalog.sql · catalog.py  권한 목록 — 일반 사용자는 여기 있는 켜진 권한만 신청한다. 보안 총책임자가 등록 · 고치기 · 끄기 (지우지 않고 코드는 못 바꿈) (10/20)
 │   │   ├── nodes.sql · nodes_keys.sql · nodes_key_view.sql · nodes.py  수집 노드 등록부 — 화면에서 등록하면 노드만의 키 발급(키의 해시로 노드를 찾고, 화면에서 다시 볼 수 있게 키도 둔다), 키 다시 발급 · 끄기 (10/20)
 │   │   ├── results_server_gaps.sql  서버 점검에 다른 곳(gaps) · 판단하지 않은 항목을 더한다 (10/14)
 │   │   └── results.py            AI 결과 DB 저장 · 조회 — 정책 관리 검토 · 로그 감시(다음 감시 시작점 포함) · 내 질의 기록. CLI · 웹이 같은 DB를 쓴다
 │   └── web/                    웹 계층 (김혜정) — Engine 기능을 부르고 결과를 보여준다. 판정 로직 · 큐는 두지 않는다
 │       ├── main.py               FastAPI — API + 화면 서빙. 앱 시작 시 Engine 을 만들고 start()(작업 큐), 끌 때 stop()(큐 · 벡터 DB 잠금 해제)
 │       ├── api_nodes.py          수집 노드 API — 노드가 보내는 수집 받기(키만) · 노드 등록 · 키 발급 · 목록 · 끄기 (/api/nodes)
-│       ├── api_permissions.py    로그인 · 계정 · 권한 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 준다
+│       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 권한 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 준다
 │       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
 │       └── static/index.html     단일 파일 대시보드 — 메뉴(권한 신청 · 정책 관리 · 로그 감시)별 검토 현황, 정책 관리의 정책 질의 탭 (CSS · JS · 아이콘 인라인)
 ├── docs/                     판정 근거 기준 문서 — 수정 금지
@@ -69,7 +70,7 @@ JBNU-RAD/
 │   ├── testenv/                시험용 점검 대상 컨테이너 (Ubuntu + ufw · sshd · PAM · sudo, PROFILE=weak · strict) — make dev-targets
 │   └── sentinel-node.service · node.conf.example · README.md
 ├── scripts/
-│   ├── dev_setup.py            로컬 시험 환경 만들기 (`make dev-setup`) — .dev/ 에 시험 계정 · 연습용 노드 수집 · 이 컴퓨터용 노드 설정
+│   ├── dev_setup.py            로컬 시험 환경 만들기 (`make dev-setup`) — .dev/ 에 시험 계정 · 시험용 권한 목록 · 이 컴퓨터용 노드 설정
 │   └── dev_nodes.py            노드 수집 시험 — 시험 환경의 노드 키 꺼내기(`key`) · 흉내 노드(`sim`, make dev-sim)
 ├── .dev/                     로컬 시험 환경의 두 DB · 벡터 DB · node.conf (git 제외)
 ├── .milvus/                  벡터 DB 파일 (Milvus Lite, git 제외)
@@ -126,7 +127,8 @@ JBNU-RAD/
 | `GET /api/regulations` | `docs/` 원문 (근거 조항 전문 표시용) |
 | `POST /api/auth/login` · `logout` · `GET /api/auth/me` · `POST /api/auth/password` | 로그인 (세션 쿠키 HttpOnly · SameSite=Strict, 2일), 첫 로그인 비밀번호 변경 전에는 다른 API가 403 |
 | `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 — 보안 총책임자. 루트 계정은 루트만 고치고, 자기 역할 · 활성은 못 바꾼다 |
-| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` · `GET /api/requests/{no}` | 신청(일반 사용자) · 목록(일반 사용자는 자기 것만) · 상세. 응답에 최신 AI 판정(`ai_verdict`)과 판정 중 여부(`judging`) |
+| `GET /api/access-catalog` · `POST /api/access-catalog` · `PATCH /api/access-catalog/{코드}` | 권한 목록 — 보기(일반 사용자 · 보안 운영자는 켜진 것만, 보안 총책임자는 전부) · 등록 · 고치기 · 끄기(보안 총책임자, 감사 기록) |
+| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` · `GET /api/requests/{no}` | 신청(일반 사용자, 본문은 `access_code` — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400. 현재 보유 권한은 서버가 채운다) · 목록(일반 사용자는 자기 것만) · 상세. 응답에 최신 AI 판정(`ai_verdict`)과 판정 중 여부(`judging`) |
 | `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(보안 운영자 = 1차, 보안 총책임자 = 최종) · 회수(보안 운영자 · 보안 총책임자) · 다시 판정 |
 | `POST /api/decisions` | 정책 문제 · 서버 점검 · 로그 판정에 대한 운영자 결정 · 취소 (보안 운영자 · 보안 총책임자). 지금 결정은 `/api/results`의 `decisions`로 함께 온다 |
 
@@ -147,9 +149,10 @@ JBNU-RAD/
 | 근거 조항 | `Verdict.sources` — 기준 문서면 `docs/` 원문에서 조항을 잘라 보여주고, 솔루션 정책(`rules:`)이면 언급된 정책 ID의 원본 행을 보여준다. 정책 검토는 근거를 판단 이유에 함께 적는다 |
 | 상세 요청 · 판정한 로그 · 관련 정책 원본 | 권한 신청 원본 행 · 사용자별 로그 묶음(한 줄에 한 건) · 정책 원본 행 |
 | 로그인 · 상단 바 | 로그인 전에는 로그인 화면이 앱을 덮는다. 첫 로그인 · 비밀번호 초기화 뒤에는 비밀번호부터 바꾼다. 상단 바 오른쪽에 이름 · 역할 · [비밀번호 변경] · [로그아웃] |
-| 메뉴 (역할별) | 일반 사용자: 메뉴 없음 (사이드바 · 종 없이 신청 화면 하나) / 보안 운영자: 권한 신청(1차 결재함) · 정책 관리 · 로그 감시 / 보안 총책임자: 권한 신청(최종 결재함) · 정책 관리 · 로그 감시 · 계정 관리 (루트도 같다) |
+| 메뉴 (역할별) | 일반 사용자: 메뉴 없음 (사이드바 · 종 없이 신청 화면 하나) / 보안 운영자: 권한 신청(1차 결재함) · 정책 관리 · 로그 감시 / 보안 총책임자: 권한 신청(최종 결재함) · 정책 관리 · 로그 감시 · 권한 목록 · 계정 관리 (루트도 같다) |
 | 권한 신청 (결재함) | `GET /api/requests` — 거르기 [결재 대기](기본, 내 단계에서 기다리는 것) · [유효 권한](승인됐고 기간이 남은 것 — 예전 권한 현황 메뉴, 10/12에 합침) · [전체]. 패널 = 신청 내용 · AI 판정(이유 · 권고 · 근거 칩) · 결재 기록, 아래에 결재 의견 + [승인] · [반려], 유효 권한이면 사유 + [회수]. 판정 중이면 3초마다 다시 받는다. [다시 판정]은 1차 결재 전에만 (1차 결재 뒤에는 AI 판정이 굳는다) |
-| 내 신청 (일반 사용자) | 화면 하나 — 신청서(권한 · 현재 권한 · 사유 · 사용 기간) + 내 신청 목록 · 상태 · 결재 기록. 1차 결재 전이면 [철회]. **AI의 흔적은 없다** — 응답에 AI 칸이 아예 없고, 엔진 경고 · `/api/health`(403)도 없다 |
+| 내 신청 (일반 사용자) | 화면 하나 — 신청서(권한은 권한 목록의 켜진 권한을 시스템별로 묶은 고르기 칸에서 고르고 설명이 아래 뜬다, 목록이 비면 신청 버튼이 막힌다 · 현재 보유 권한은 적지 않고 승인된 유효 권한을 보여준다 — 서버가 신청 때 같은 조건으로 읽어 신청 행에 남긴다. 보유 중 · 결재 중인 권한은 고르기 칸에서 막힌다 · 사유 · 사용 기간) + 내 신청 목록 · 상태 · 결재 기록. 1차 결재 전이면 [철회]. **AI의 흔적은 없다** — 응답에 AI 칸이 아예 없고, 엔진 경고 · `/api/health`(403)도 없다 |
+| 권한 목록 | 보안 총책임자. 목록(시스템 · 권한 (코드) · 분류 · 설명 · 고친 시각 · 켜짐/꺼짐) · [권한 등록](코드 · 이름 · 시스템 · 분류 · 설명). 패널 = 이 권한의 신청 · 유효 건수, 이름 · 시스템 · 분류 · 설명 고치기 · 켜짐. 코드는 못 바꾸고 지우지 않는다 (지난 신청이 가리킨다). 분류 · 설명은 AI 판정에 함께 넘어간다 |
 | 계정 관리 | 보안 총책임자. 목록 · [새 계정](임시 비밀번호) · 이름 · 부서 · 역할 · 활성 · 비밀번호 초기화. 루트는 역할 · 활성을 바꿀 수 없고, 루트 계정은 루트만 고친다 (다른 보안 총책임자에게는 폼이 없다). 자기 계정의 역할 · 활성도 바꿀 수 없다 |
 | 서버 점검 (정책 관리) | 정책 관리 목록에 정책 문제와 함께 "서버 점검"으로 뜬다 — 노드마다 마지막 판정 (상세 내용 = "정책과 다른 곳 N — 요약"). 패널 = 서버 현황(표에 같은 서버가 있을 때) · 직전 수집과 달라진 설정 · 모듈 상태(수집 시각 · 계정, 모듈별 표) · 이 서버에 걸린 정책(코드가 찾은 규칙) · 요약 · 정책과 다른 곳(한 곳마다 지금 · 기준 · 바꿀 것 · 근거 조항 칩, 모델이 "정상"으로 적은 항목은 화면에서 뺀다) · 판단하지 않은 항목. 결정은 이상 없음 · 조치 필요 (`node_findings/{id}`, 새 판정이 나면 새로 결정) |
 | 노드 (정책 관리 탭) | `GET /api/nodes` — 노드 · 호스트(IP) · 상태(수집 중 · 끊김: 간격의 세 배 넘게 소식 없음 · 꺼짐 · 키 없음: 손으로 넣은 수집뿐 · 기다리는 중: 키 발급 뒤 아직 안 옴) · 마지막 수집 · 마지막 판정. 제목 줄의 [지금 점검](서버 점검을 주기를 기다리지 않고 바로, 같은 작업 큐) · [노드 등록] → 이름 → 키 발급. 패널 = 고르지 않으면 상태 집계와 까는 법, 고르면 노드 정보 · [노드 끄기/켜기] · [키 다시 발급] · 노드 키(키 · 설치 명령 복사, 해시만 남은 예전 키는 다시 발급해야 보임) · 마지막 서버 점검(→ [검토 현황에서 보기]) · 최근 수집(달라진 설정) · 모듈 상태 |
@@ -174,7 +177,7 @@ JBNU-RAD/
 | `make review-policies` | 정책 관리 검토 — 기준 문서 · 솔루션 정책 적재 + 정책 간 중복 · 충돌 · 과도한 허용 → AI 결과 DB |
 | `make check-nodes` | 서버 점검 1회 — 새 수집이 온 노드만 |
 | `make monitor [SINCE=시각] [FULL=1]` | 로그 감시 1회 — 지난 감시 이후 로그만 (웹을 띄우지 않는 서버에서 cron으로). `FULL=1`이면 처음부터 |
-| `make dev-setup [RESET=1]` | **로컬 시험 환경** — 진짜 DB · 벡터 DB 대신 `.dev/`에 만든다. 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 이 컴퓨터용 노드 `dev-local`의 키로 `.dev/node.conf`를 만들며, 모델 서버에 닿으면 기준 문서도 적재한다 |
+| `make dev-setup [RESET=1]` | **로컬 시험 환경** — 진짜 DB · 벡터 DB 대신 `.dev/`에 만든다. 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건(인사정보 · 급여 조회 · 급여 수정 · 운영 DB 관리자 · PAM 관리자 · 방화벽 변경 · CRM). 이 컴퓨터용 노드 `dev-local`의 키로 `.dev/node.conf`를 만들며, 모델 서버에 닿으면 기준 문서도 적재한다 |
 | `make dev [DEV_CHECK_MIN=5]` | 시험 환경으로 웹 실행 (http://127.0.0.1:8001, `.dev/` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 된다). 로그 감시 · 서버 점검은 `DEV_CHECK_MIN`분마다 |
 | `make dev-sim [NODES=3] [ROUNDS=3] [EVERY=5]` | **노드 수집 흉내** — 흉내 노드(sim-01…)가 잠근 Ubuntu 서버 원문(`scripts/dev_nodes.py`의 BASE)에서 시작해 차례마다 반쯤 확률로 설정 하나를 바꿔(UFW 끄기 · root · 비밀번호 로그인 열기 · NOPASSWD 더하기 · 실패 잠금 빼기) 진짜 노드와 같은 주소 · 키로 보낸다. 받기 · 바뀐 것 · 주기 점검 · 화면을 컨테이너 없이 시험 |
 | `make dev-targets` · `make dev-targets-stop` | **진짜 수집** — `node/testenv/compose.yaml`(podman compose)로 점검 대상 컨테이너 2대(`target-weak`: root · 비밀번호 로그인, NOPASSWD, 실패 잠금 없음, 22 · 3306 어디서나 / `target-strict`: 잠근 설정)를 올리고 내린다. 그 안에서 진짜 노드가 root 로 읽어 보낸다. 값은 옵션 파일 `node/testenv/targets.env`(git 제외: `SERVER` · `KEY_WEAK` · `KEY_STRICT` · `INTERVAL`) — 없으면 시험 환경 키로 만들고, 화면에서 발급한 키 · 진짜 서버(`:8000`)로 고쳐 다시 `make dev-targets` 하면 그 값으로 바꿔 띄운다. `host.containers.internal`을 호스트 127.0.0.1로 이어(pasta `--map-host-loopback`) SentinelAI를 바깥에 열지 않고, NET_ADMIN 으로 ufw 가 실제로 켜진다. podman compose 는 사용자 podman 소켓이 필요해 대상이 켠다(`systemctl --user start podman.socket`). 10/20 시험: weak 위험 · strict 정상 |

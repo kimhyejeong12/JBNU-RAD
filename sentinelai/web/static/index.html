@@ -263,6 +263,7 @@
   .box { background: var(--bg-soft); border-radius: 8px; padding: 11px 13px; font-size: 13.5px; }
   .kv { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   .kv th, .kv td { text-align: left; padding: 4px 0; vertical-align: top; }
+  .kv td { white-space: pre-line; }
   .kv th { color: var(--ink-dim); font-weight: 600; width: 36%; padding-right: 10px; white-space: nowrap; }
   .chips { display: flex; flex-direction: column; gap: 6px; }
   .chip {
@@ -361,6 +362,9 @@
   button.good { color: var(--ok); border-color: #9CCDB5; background: var(--ok-tint); }
   .form-msg { margin-right: auto; font-size: 12.5px; color: var(--accent); }
   .form-msg.ok { color: var(--ok); }
+  .held > span { font-size: 12.5px; font-weight: 600; color: var(--ink-dim); }
+  .held ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
+  .held .note { margin-top: 4px; }
   .req-form h3 { margin: 0; padding: 16px 18px 8px; font-size: 15.5px; font-weight: 700; }
   .panel-actions { display: flex; gap: 8px; margin-top: 8px; }
   .panel-actions button { flex: 1; }
@@ -451,8 +455,8 @@
     <section class="card req-form" id="req-form" hidden>
       <h3>권한 신청</h3>
       <form id="new-request" class="form-grid">
-        <label class="wide"><span>신청할 권한 <b>*</b></span><input name="requested_access" required maxlength="500" placeholder="예: 급여 테이블(HR_SALARY) 조회 권한"></label>
-        <label class="wide">현재 보유 권한<input name="current_access" maxlength="2000" placeholder="예: CRM 조회 · 수정"></label>
+        <label class="wide"><span>신청할 권한 <b>*</b></span><select name="access_code" id="req-access" required></select><span class="note" id="req-access-note"></span></label>
+        <div class="wide held"><span>현재 보유 권한</span><div id="req-held"></div></div>
         <label class="wide">신청 사유<textarea name="reason" rows="2" maxlength="2000" placeholder="업무상 왜 필요한지"></textarea></label>
         <label>사용 시작일<input type="date" name="period_start"></label>
         <label>사용 종료일<input type="date" name="period_end"></label>
@@ -479,6 +483,7 @@
         <!-- 보기 범위의 분석을 코어 작업으로 돌립니다. 수 분 걸리므로 진행 상황을 버튼에 띄웁니다 -->
         <button class="rerun run" id="run"><span data-icon="activity" class="sm"></span><span id="run-txt"></span></button>
         <button class="rerun run" id="add-user" hidden><span data-icon="plus" class="sm"></span>새 계정</button>
+        <button class="rerun run" id="add-access" hidden><span data-icon="plus" class="sm"></span>권한 등록</button>
       </div>
       <div class="table">
         <div class="tr thead" id="thead"></div>
@@ -592,6 +597,7 @@ const ICONS = {
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.3-9.3M17 6l3 3M15 8l2 2"/>',
 };
 const icon = (name, cls = "") => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ""}</svg>`;
 function paintIcons(root = document) {
@@ -609,7 +615,7 @@ const DECISION_SET = {
   event: { clear: "approve", act: "reject" },
   server: { clear: "approve", act: "reject" },
 };
-const TYPE_VIEW = { req: "requests", server: "policies", mine: "mine", user: "users", policy: "policies", event: "events" };
+const TYPE_VIEW = { req: "requests", server: "policies", mine: "mine", user: "users", access: "access", policy: "policies", event: "events" };
 const MODULE_LABEL = { ufw: "UFW", sshd: "SSH", pam: "PAM", accounts: "계정 · sudo" };
 const TYPE_LABEL = { req: "권한 신청", server: "서버 점검", mine: "내 신청", user: "계정", policy: "정책 관리", event: "로그 감시" };
 const ROLE_LABEL = { top: "보안 총책임자", manager: "보안 운영자", user: "일반 사용자" };
@@ -628,9 +634,11 @@ const VIEWS = {
           tabs: ["queue"], cols: ["번호", "신청 권한", "사유", "신청 시각", "상태"], search: "신청 번호 · 권한으로 검색" },
   users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리|계정 생성 · 역할 · 정지 · 비밀번호 초기화 (보안 총책임자)",
            tabs: ["queue"], cols: ["역할", "이름 (아이디)", "부서", "마지막 로그인", "상태"], search: "이름 · 아이디 · 부서로 검색" },
+  access: { title: "권한 목록", label: "권한 목록", icon: "key", tip: "권한 목록|일반 사용자가 신청할 수 있는 권한 — 등록 · 고치기 · 끄기 (보안 총책임자)",
+            tabs: ["queue"], cols: ["시스템", "권한 (코드)", "분류 · 설명", "고친 시각", "상태"], search: "권한 이름 · 코드 · 시스템으로 검색" },
 };
-// 보안 총책임자는 보안 운영자와 같은 메뉴에 계정 관리를 더합니다.
-const ROLE_VIEWS = { user: ["mine"], manager: ["requests", "policies", "events"], top: ["requests", "policies", "events", "users"] };
+// 보안 총책임자는 보안 운영자와 같은 메뉴에 권한 목록 · 계정 관리를 더합니다.
+const ROLE_VIEWS = { user: ["mine"], manager: ["requests", "policies", "events"], top: ["requests", "policies", "events", "access", "users"] };
 const roleViews = () => (state.me ? ROLE_VIEWS[state.me.role] : []);
 const RESULT_VIEWS = new Set(["policies", "events"]);
 const LEVEL_VIEWS = new Set(["requests", "policies", "events"]);
@@ -673,6 +681,7 @@ const state = {
   requests: [],         // 결재자: 모든 신청 (유효 권한도 여기서 거릅니다)
   mine: [],             // 일반 사용자: 내 신청
   users: [],            // 보안 총책임자: 계정
+  catalog: [],          // 권한 목록 — 일반 사용자는 켜진 것만 (신청서의 고르기 칸), 보안 총책임자는 전부
   regulations: [],
   health: null,
   mainTab: "queue",     // queue | nodes | logs | ask
@@ -725,6 +734,7 @@ async function loadData() {
   if (views.includes("requests")) tasks.push(getJSON("/api/requests").then((d) => { state.requests = d; }));
   if (views.includes("mine")) tasks.push(getJSON("/api/requests?mine=true").then((d) => { state.mine = d; }));
   if (views.includes("users")) tasks.push(getJSON("/api/users").then((d) => { state.users = d; }));
+  if (views.includes("access") || views.includes("mine")) tasks.push(getJSON("/api/access-catalog").then((d) => { state.catalog = d; }));
   if (views.some((v) => RESULT_VIEWS.has(v))) {
     tasks.push(getJSON("/api/results").then((d) => { state.results = d; }));
     tasks.push(getJSON("/api/jobs").then((d) => { state.jobs = d; }).catch(() => { state.jobs = null; }));
@@ -801,7 +811,12 @@ function queue() {
     judge: !u.is_active ? "정지" : u.locked_until && new Date(u.locked_until) > new Date() ? "잠김" : "활성",
     sub: u.must_change_password ? "비밀번호 변경 전" : "", raw: u,
   }));
-  return [...state.requests.map(requestItem), ...mine, ...users, ...pol, ...srv, ...log];
+  const access = roleViews().includes("access") ? state.catalog.map((a) => ({
+    type: "access", key: `access:${a.code}`, id: "", typeLabel: a.system || "—",
+    who: `${a.name} (${a.code})`, what: [a.category, a.description].filter(Boolean).join(" — ") || "—", when: stamp(a.updated_at),
+    judge: a.is_active ? "켜짐" : "꺼짐", raw: a,
+  })) : [];
+  return [...state.requests.map(requestItem), ...mine, ...users, ...access, ...pol, ...srv, ...log];
 }
 
 function inView(it) {
@@ -911,6 +926,7 @@ function emptyText() {
     requests: { pending: "지금 결재할 신청이 없습니다.", active: "지금 유효한 권한이 없습니다.", all: "신청이 없습니다." }[state.stageFilter],
     mine: "아직 신청한 권한이 없습니다. 위 신청서를 채워 신청하세요.",
     users: "계정이 없습니다.",
+    access: "등록한 권한이 없습니다. 오른쪽 위 [권한 등록]으로 일반 사용자가 신청할 권한을 넣으세요.",
   }[state.view];
 }
 
@@ -1007,6 +1023,7 @@ function renderPanel() {
   if (state.view === "users" && (!it || it.type !== "user")) { renderUserPanel(null); return; }
   if (it && (it.type === "req" || it.type === "mine")) { renderRequestPanel(it); return; }
   if (it && it.type === "user") { renderUserPanel(it.raw); return; }
+  if (state.view === "access") { renderAccessPanel(it && it.type === "access" ? it.raw : null); return; }
   if (!it) {
     // 빈 패널도 메뉴를 따릅니다. 일반 사용자에게는 AI 문구를 보이지 않습니다.
     const [title, text] = {
@@ -1193,7 +1210,7 @@ function renderRequestPanel(it) {
       : r.stage === "manager" || r.stage === "top" ? `${STAGE_LABEL[r.stage]} — 내 결재 단계가 아닙니다.` : "더 할 결재가 없습니다."}</p>`;
   }
 
-  const rows = [["신청자", requester(r)], ["신청 권한", r.requested_access], ["현재 보유 권한", r.current_access || "—"],
+  const rows = [["신청자", requester(r)], ["신청 권한", r.access_code ? `${r.requested_access} (${r.access_code})` : r.requested_access], ["신청 때 보유 권한", r.current_access || "—"],
                 ["신청 사유", r.reason || "—"], ["사용 기간", period(r)], ["신청 시각", stamp(r.submitted_at)], ["상태", STAGE_LABEL[r.stage]]];
   const rejudge = !applicant && !r.judging && r.stage === "manager";
   $("panel").innerHTML = `
@@ -1333,6 +1350,98 @@ function renderUserPanel(u) {
   });
 }
 
+/* ── 권한 목록 패널 (보안 총책임자) — 선택 없음 = 권한 등록. 지난 신청이 코드를 가리키므로 코드는 못 바꾸고, 지우지 않고 끕니다 ── */
+function renderAccessPanel(a) {
+  const fields = (v = {}) => `
+        <label>이름<input name="name" required maxlength="100" value="${esc(v.name)}" placeholder="예: 급여 테이블 조회"></label>
+        <label>시스템<input name="system" maxlength="100" value="${esc(v.system)}" placeholder="예: 인사 시스템"></label>
+        <label>분류<input name="category" maxlength="100" value="${esc(v.category)}" placeholder="예: 급여정보 · 인사정보 · 관리자"></label>
+        <label class="wide">설명 (AI 판정에도 함께 넘깁니다)<textarea name="description" rows="2" maxlength="2000" placeholder="무엇을 할 수 있는 권한인지">${esc(v.description)}</textarea></label>`;
+  if (!a) {
+    $("panel").innerHTML = `
+      <div class="panel-head"><h3>권한 등록</h3>${CLOSE_BTN}</div>
+      <form class="panel-body form-grid" id="access-form" style="padding:16px 18px">
+        <label>코드 (바꿀 수 없음)<input name="code" required maxlength="64" pattern="[A-Za-z0-9_.\-]+" autocomplete="off" placeholder="예: HR_SALARY_READ"></label>
+        ${fields()}
+        <div class="wide form-actions">${panelMsg()}<button type="submit" class="primary">등록</button></div>
+      </form>`;
+    $("access-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        const made = await send("/api/access-catalog", Object.fromEntries(new FormData(e.target)));
+        state.panelMsg = `✓ ${made.code} 를 등록했습니다`;
+        await refreshCatalog(`access:${made.code}`);
+      } catch (err) { state.panelMsg = err.message; renderPanel(); }
+    });
+    return;
+  }
+  const used = state.requests.filter((r) => r.access_code === a.code);
+  const active = used.filter(isActive).length;
+  $("panel").innerHTML = `
+    <div class="panel-head"><h3>권한</h3>${CLOSE_BTN}</div>
+    <div class="panel-body">
+      <p class="subject">${esc(a.name)} (${esc(a.code)})</p>
+      <div class="meta">${a.is_active ? "켜짐 — 일반 사용자가 신청할 수 있습니다" : "꺼짐 — 새로 신청할 수 없습니다"} · 신청 ${used.length}건 · 유효 ${active}건 · 등록 ${esc(stamp(a.created_at))}</div>
+      <form class="form-grid" id="access-edit" style="padding:12px 0 0">
+        ${fields(a)}
+        <label class="check wide"><input type="checkbox" name="is_active" ${a.is_active ? "checked" : ""}>켜짐 (끄면 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로)</label>
+        <div class="wide form-actions"><button type="submit" class="primary">저장</button></div>
+      </form>
+    </div>
+    <div class="panel-foot">${panelMsg() || `<p class="note">이름을 바꿔도 이미 낸 신청에는 신청 때 이름이 남습니다.</p>`}</div>`;
+  $("access-edit").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const body = { name: f.name.value, system: f.system.value, category: f.category.value, description: f.description.value, is_active: f.is_active.checked };
+    try { await send(`/api/access-catalog/${encodeURIComponent(a.code)}`, body, "PATCH"); state.panelMsg = "✓ 저장했습니다"; }
+    catch (err) { state.panelMsg = err.message; }
+    await refreshCatalog(`access:${a.code}`);
+  });
+}
+
+/* ── 신청서 — 권한은 권한 목록의 켜진 권한만 시스템별로 고르고, 현재 보유 권한은 적지 않고 승인된 유효 권한을 보여줍니다 ── */
+function renderAccessSelect() {
+  const held = new Set(state.mine.filter(isActive).map((r) => r.access_code));
+  const pending = new Set(state.mine.filter((r) => r.stage === "manager" || r.stage === "top").map((r) => r.access_code));
+  const items = state.catalog.filter((a) => a.is_active);
+  const groups = {};
+  items.forEach((a) => { (groups[a.system || "기타"] ||= []).push(a); });
+  const option = (a) => {
+    const why = held.has(a.code) ? " (보유 중)" : pending.has(a.code) ? " (결재 중)" : "";
+    return `<option value="${esc(a.code)}" ${why ? "disabled" : ""}>${esc(a.name)}${a.category ? ` · ${esc(a.category)}` : ""}${why}</option>`;
+  };
+  const prev = $("req-access").value;
+  $("req-access").innerHTML = items.length
+    ? `<option value="">권한을 고르세요</option>` + Object.entries(groups).map(([sys, list]) =>
+        `<optgroup label="${esc(sys)}">${list.map(option).join("")}</optgroup>`).join("")
+    : `<option value="">신청할 수 있는 권한이 없습니다</option>`;
+  if (prev && !held.has(prev) && !pending.has(prev)) $("req-access").value = prev;
+  $("req-access").disabled = !items.length;
+  $("new-request").querySelector("button[type=submit]").disabled = !items.length;
+  renderAccessNote();
+  renderHeld();
+}
+
+// 서버도 신청 때 같은 조건(최종 승인 · 기간 남음)으로 읽어 신청 행에 남기므로, 여기서는 보여주기만 합니다.
+function renderHeld() {
+  const held = state.mine.filter(isActive);
+  $("req-held").innerHTML = held.length
+    ? `<ul>${held.map((r) => `<li>${esc(r.requested_access)} <span class="note">${r.period_end ? `${esc(r.period_end)}까지` : "기간 없음"}</span></li>`).join("")}</ul>`
+    : `<p class="note">이 시스템에서 승인받은 유효 권한이 없습니다.</p>`;
+}
+
+function renderAccessNote() {
+  const a = state.catalog.find((x) => x.code === $("req-access").value);
+  $("req-access-note").textContent = a ? a.description || "" : state.catalog.some((x) => x.is_active) ? ""
+    : "보안 총책임자가 권한 목록을 등록하면 신청할 수 있습니다. 필요한 권한이 목록에 없으면 보안 총책임자에게 등록을 요청하세요.";
+}
+
+async function refreshCatalog(selectKey) {
+  try { state.catalog = await getJSON("/api/access-catalog"); } catch (e) { return; }
+  state.selected = selectKey || state.selected;
+  renderStats(); renderRows(); renderPanel();
+}
+
 function renderAfterChange() {
   renderTop(); renderRows(); renderPanel();
 }
@@ -1348,6 +1457,7 @@ async function refreshRequests() {
   } catch (e) { return; }
   // 결재 · 회수로 목록에서 빠진 항목을 고르고 있었으면 같은 신청을 다른 메뉴에서 찾지 않고 그대로 비웁니다.
   if (!queue().some((i) => i.key === state.selected)) state.selected = null;
+  if (state.view === "mine") renderAccessSelect();
   renderTop(); renderStats(); renderRows(); renderPanel();
 }
 
@@ -1924,6 +2034,8 @@ function setView(view) {
   $("req-form").hidden = view !== "mine";
   $("stage-filter").hidden = view !== "requests";
   $("add-user").hidden = view !== "users";
+  $("add-access").hidden = view !== "access";
+  if (view === "mine") renderAccessSelect();
   if (!meta.tabs.includes(state.mainTab)) setMainTab("queue");
   if (changed) { state.filter = "전체"; state.panelMsg = ""; }
   // 패널도 메뉴를 따릅니다. 다른 메뉴의 항목이 남아 있으면 이 메뉴의 첫 항목으로 바꿉니다.
@@ -1966,6 +2078,14 @@ $("stage-filter").addEventListener("change", (e) => {
   state.stageFilter = e.target.value;
   setView(state.view);
 });
+$("add-access").addEventListener("click", () => {
+  state.selected = null;
+  state.panelMsg = "";
+  renderRows();
+  renderPanel();
+  openDrawer();
+});
+$("req-access").addEventListener("change", renderAccessNote);
 $("add-user").addEventListener("click", () => {
   state.selected = null;
   state.panelMsg = "";
@@ -2113,6 +2233,7 @@ $("new-request").addEventListener("submit", async (e) => {
   try {
     const made = await send("/api/requests", Object.fromEntries(new FormData(f)));
     f.reset();
+    renderAccessNote();
     $("req-form-msg").className = "form-msg ok";
     $("req-form-msg").textContent = `${made.request_no} 신청했습니다. 보안 운영자의 1차 결재를 기다립니다.`;
     state.selected = `mine:${made.request_no}`;
