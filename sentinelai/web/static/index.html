@@ -175,7 +175,29 @@
   .main-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
   .view-queue { display: flex; flex-direction: column; gap: 14px; }
   /* display 를 지정한 요소는 hidden 속성만으로 숨겨지지 않아 직접 끕니다. */
-  .view-queue[hidden], .ask[hidden] { display: none; }
+  .view-queue[hidden], .ask[hidden], .logs[hidden] { display: none; }
+
+  /* 로그 조회 — 지금부터 거슬러 올라가는 기간 · 사용자로 거른 로그. 집계와 원본은 오른쪽 패널에 둡니다 */
+  .logs { display: flex; flex-direction: column; min-height: 320px; }
+  .logs-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px 10px; flex-wrap: wrap; }
+  .logs-head h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
+  .logs-count { margin-left: auto; font-size: 12.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .periods { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; background: var(--bg-soft); border-radius: 8px; }
+  .periods button { border: none; background: none; padding: 5px 11px; border-radius: 6px; font-size: 12.5px; color: var(--ink-dim); font-weight: 600; }
+  .periods button[aria-pressed="true"] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .logs-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 18px 12px; }
+  .logs-filters .select { max-width: 100%; }
+  .ltable-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
+  .ltable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .ltable th { text-align: left; padding: 9px 12px; font-weight: 600; color: var(--ink-dim); border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .ltable td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .ltable tbody tr { cursor: pointer; }
+  .ltable tbody tr:hover { background: var(--bg-soft); }
+  .ltable tbody tr[aria-current="true"] { background: var(--warn-tint); }
+  .ltable .when { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ltable .lwho { white-space: nowrap; }
+  .ltable .attrs { color: var(--ink-dim); overflow-wrap: anywhere; }
+  .pager { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 12px; font-size: 12.5px; color: var(--ink-dim); }
 
   /* 통계 대시보드 */
 
@@ -378,6 +400,7 @@
     .form-grid { grid-template-columns: 1fr; }
     .whoami #who-name { display: none; }
     .tr > :nth-child(3), .tr > :nth-child(4), .tr > :nth-child(6) { display: none; }
+    .ltable .col-sol, .ltable .col-where, .ltable .col-how { display: none; }
   }
 </style>
 </head>
@@ -410,6 +433,7 @@
     <div class="seg" role="tablist" id="seg" aria-label="메뉴"></div>
     <nav class="main-tabs" role="tablist" aria-label="보기 전환">
       <button class="main-tab" role="tab" id="tab-queue" data-tab="queue" aria-selected="true" aria-controls="view-queue"><span data-icon="list" class="sm"></span>검토 현황</button>
+      <button class="main-tab" role="tab" id="tab-logs" data-tab="logs" aria-selected="false" aria-controls="view-logs"><span data-icon="search" class="sm"></span>로그 조회</button>
       <button class="main-tab" role="tab" id="tab-ask" data-tab="ask" aria-selected="false" aria-controls="view-ask"><span data-icon="chat" class="sm"></span><span id="tab-ask-label">정책 질의</span></button>
     </nav>
 
@@ -454,6 +478,27 @@
       </div>
     </section>
     </div>
+
+    <!-- 로그 조회 — 모델 없이 코어가 거르고 셉니다 (/api/logs). 기간은 지금부터 거슬러 올라갑니다 -->
+    <section class="card logs" id="view-logs" role="tabpanel" aria-labelledby="tab-logs" hidden>
+      <div class="logs-head">
+        <h3>로그 조회</h3>
+        <div class="periods" id="log-periods" role="group" aria-label="기간"></div>
+        <span class="logs-count" id="log-count"></span>
+      </div>
+      <div class="logs-filters">
+        <select id="log-user" class="select" aria-label="사용자"></select>
+        <select id="log-solution" class="select" aria-label="솔루션"></select>
+        <select id="log-how" class="select" aria-label="행위"></select>
+      </div>
+      <div class="ltable-wrap">
+        <table class="ltable">
+          <thead><tr><th>시각</th><th>사용자</th><th class="col-sol">솔루션</th><th class="col-where">위치</th><th class="col-how">행위</th><th>항목</th></tr></thead>
+          <tbody id="log-rows"></tbody>
+        </table>
+      </div>
+      <div class="pager" id="log-pager"></div>
+    </section>
 
     <!-- 정책 질의 — rag_chain 은 기준 조항과 적재된 솔루션 규칙을 검색하고, 신청 목록은 보지 않습니다 -->
     <section class="card ask" id="view-ask" role="tabpanel" aria-labelledby="tab-ask" hidden>
@@ -556,7 +601,7 @@ const VIEWS = {
   policies: { title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리|솔루션 정책의 중복 · 충돌 · 과도한 허용과 서버 현황 점검",
               tabs: ["queue", "ask"], cols: ["분류", "대상", "상세 내용", "시간", "AI 판정"], search: "정책 ID · 서버 · 내용으로 검색" },
   events: { title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시|보안 솔루션 로그를 정책과 비교한 사용자별 판정",
-            tabs: ["queue", "ask"], cols: ["분류", "대상 사용자", "상세 내용", "시간", "AI 판정"], search: "사용자 · 내용으로 검색" },
+            tabs: ["queue", "logs", "ask"], cols: ["분류", "대상 사용자", "상세 내용", "시간", "AI 판정"], search: "사용자 · 내용으로 검색" },
   mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청|권한을 신청하고 결재 상태를 봅니다",
           tabs: ["queue"], cols: ["번호", "신청 권한", "사유", "신청 시각", "상태"], search: "신청 번호 · 권한으로 검색" },
   users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리|계정 생성 · 역할 · 정지 · 비밀번호 초기화 (보안 총책임자)",
@@ -608,7 +653,7 @@ const state = {
   users: [],            // 보안 총책임자: 계정
   regulations: [],
   health: null,
-  mainTab: "queue",     // queue | ask
+  mainTab: "queue",     // queue | logs | ask
   view: null,
   filter: "전체",
   stageFilter: "pending",
@@ -619,6 +664,8 @@ const state = {
   jobs: null,           // /api/jobs — 돌고 있는 분석 작업
   asks: { policy: [], log: [] },   // 내 질의 기록 — 로그인할 때 AI 결과 DB에서 받고, 새 질의는 서버가 남깁니다
   askSource: null,      // 패널에 띄운 인용 조항 { i: 질의 순번, n: sources 순번 }
+  // 로그 조회 — 조건 · 받은 결과(/api/logs) · 패널에 띄운 줄(없으면 집계)
+  logs: { period: "week", user: "", solution: "", how: "", page: 1, data: null, error: "", loading: false, selected: null },
 };
 
 const $ = (id) => document.getElementById(id);
@@ -925,6 +972,7 @@ function chipLabel(source) {
 /* ── 우측 패널 ──────────────────────────── */
 function renderPanel() {
   if (state.mainTab === "ask") { renderAskPanel(); return; }
+  if (state.mainTab === "logs") { renderLogsPanel(); return; }
   const it = queue().find((i) => i.key === state.selected);
   const panel = $("panel");
   if (state.view === "users" && (!it || it.type !== "user")) { renderUserPanel(null); return; }
@@ -965,7 +1013,8 @@ function renderPanel() {
         <p class="note">IP · 대역 · 호스트 이름이 맞는 규칙을 코드가 찾았습니다. 그 밖의 규칙은 AI가 검색해 함께 봅니다.</p></div>` : `
       <div class="sec"><h4>${icon("file", "sm")}${isEvent ? "판정한 로그" : "관련 정책 원본"}</h4>
         ${isEvent
-          ? `<div class="box pre">${esc((r.detail && r.detail.events) || "로그 없음")}</div>`
+          ? `<div class="box pre">${esc((r.detail && r.detail.events) || "로그 없음")}</div>
+            <button class="rerun" id="to-logs">${icon("search", "sm")}이 사용자의 최근 한 달 로그</button>`
           : `<div class="box"><table class="kv">
           ${table.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("") || "<tr><td>정보 없음</td></tr>"}
         </table></div>`}
@@ -1011,6 +1060,8 @@ function renderPanel() {
     </div>`;
 
   bindChips(panel);
+  const toLogs = $("to-logs");
+  if (toLogs) toLogs.addEventListener("click", () => openLogs({ user: r.title, period: "month" }));
   panel.querySelectorAll(".decide button").forEach((el) => el.addEventListener("click", () => reviewDecision(it, el.dataset.action)));
   const undo = $("undo");
   if (undo) undo.addEventListener("click", () => reviewDecision(it, "cancel"));
@@ -1489,9 +1540,129 @@ function watchJobs(started = false) {
 
 $("run").addEventListener("click", startJob);
 
+/* ── 로그 조회 — 거르기 · 세기는 코어가 합니다. 화면은 조건을 넘기고 받은 그대로 보여줍니다 ── */
+const PERIOD_LABEL = { day: "하루", week: "일주일", month: "한 달", quarter: "3개월", half: "6개월", year: "1년", all: "전체" };
+const LOG_FILTERS = [["user", "log-user", "전체 사용자", "users"], ["solution", "log-solution", "전체 솔루션", "solutions"], ["how", "log-how", "전체 행위", "how"]];
+let logsSeq = 0;
+
+// 늦게 온 응답이 새 조건의 결과를 덮지 않게 마지막 요청만 받습니다.
+async function loadLogs() {
+  const L = state.logs, seq = ++logsSeq;
+  L.loading = true;
+  renderLogs();
+  const params = new URLSearchParams({ period: L.period, page: L.page });
+  LOG_FILTERS.forEach(([k]) => { if (L[k]) params.set(k, L[k]); });
+  let data = null, error = "";
+  try { data = await getJSON(`/api/logs?${params}`); } catch (e) { error = e.message; }
+  if (seq !== logsSeq) return;
+  Object.assign(L, { data: data || L.data, error, loading: false, selected: null });
+  renderLogs();
+  if (state.mainTab === "logs") renderPanel();
+}
+
+// 다른 화면(로그 감시 판정)에서 조건을 정해 엽니다.
+function openLogs(cond) {
+  Object.assign(state.logs, { user: "", solution: "", how: "", page: 1 }, cond);
+  setMainTab("logs");
+  loadLogs();
+}
+
+const logAttrs = (e) => Object.entries(e.attributes || {}).map(([k, v]) => `${k}=${v}`).join(" · ");
+
+function renderLogs() {
+  const L = state.logs, d = L.data;
+  $("log-periods").innerHTML = Object.entries(PERIOD_LABEL).map(([k, label]) =>
+    `<button data-period="${k}" aria-pressed="${k === L.period}">${label}</button>`).join("");
+  LOG_FILTERS.forEach(([k, id, all, opt]) => {
+    // 고른 값이 로그에 없더라도(판정에서 넘어온 사용자 등) 칸에서 사라지지 않게 둡니다.
+    const values = [...((d && d.options[opt]) || [])];
+    if (L[k] && !values.includes(L[k])) values.unshift(L[k]);
+    $(id).innerHTML = `<option value="">${all}</option>` + values.map((v) => `<option${v === L[k] ? " selected" : ""}>${esc(v)}</option>`).join("");
+  });
+  $("log-count").textContent = L.loading ? "불러오는 중…" : d ? `${d.total.toLocaleString()}건` : "";
+  const rows = $("log-rows");
+  if (L.error) rows.innerHTML = `<tr><td colspan="6" class="empty">로그를 불러오지 못했습니다: ${esc(L.error)}</td></tr>`;
+  else if (!d) rows.innerHTML = `<tr><td colspan="6" class="empty">불러오는 중…</td></tr>`;
+  else if (!d.events.length) rows.innerHTML = `<tr><td colspan="6" class="empty">${esc(PERIOD_LABEL[d.period])} 안에 조건에 맞는 로그가 없습니다.</td></tr>`;
+  else rows.innerHTML = d.events.map((e, n) => `<tr data-n="${n}" tabindex="0" aria-current="${n === L.selected}">
+      <td class="when">${esc(stamp(e.occurred_at))}</td><td class="lwho">${esc(e.user)}</td><td class="col-sol">${esc(e.solution)}</td>
+      <td class="col-where">${esc(e.where)}</td><td class="col-how">${esc(e.how)}</td><td class="attrs">${esc(logAttrs(e))}</td></tr>`).join("");
+  const pages = d ? Math.max(1, Math.ceil(d.total / d.page_size)) : 1;
+  $("log-pager").innerHTML = d && pages > 1
+    ? `<button class="rerun" data-page="${L.page - 1}" ${L.page <= 1 ? "disabled" : ""}>이전</button><span>${L.page} / ${pages}쪽</span>
+       <button class="rerun" data-page="${L.page + 1}" ${L.page >= pages ? "disabled" : ""}>다음</button>`
+    : "";
+}
+
+$("log-periods").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-period]");
+  if (!b || b.dataset.period === state.logs.period) return;
+  Object.assign(state.logs, { period: b.dataset.period, page: 1 });
+  loadLogs();
+});
+LOG_FILTERS.forEach(([k, id]) => $(id).addEventListener("change", (e) => {
+  Object.assign(state.logs, { [k]: e.target.value, page: 1 });
+  loadLogs();
+}));
+$("log-pager").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-page]");
+  if (!b || b.disabled) return;
+  state.logs.page = Number(b.dataset.page);
+  loadLogs();
+  $("view-logs").scrollIntoView({ block: "start" });
+});
+function pickLog(tr) {
+  state.logs.selected = Number(tr.dataset.n);
+  renderLogs();
+  renderPanel();
+  openDrawer();
+}
+$("log-rows").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-n]"); if (tr) pickLog(tr); });
+$("log-rows").addEventListener("keydown", (e) => {
+  const tr = e.target.closest("tr[data-n]");
+  if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickLog(tr); }
+});
+
+// 패널: 고른 줄이 있으면 그 로그의 원본, 없으면 지금 조건의 집계. 숫자는 모두 코어가 센 값입니다.
+function renderLogsPanel() {
+  const L = state.logs, d = L.data, e = d && L.selected !== null ? d.events[L.selected] : null;
+  const panel = $("panel");
+  if (e) {
+    const fields = [["시각", stamp(e.occurred_at)], ["사용자", e.user], ["사용자 ID", e.user_id], ["솔루션", e.solution],
+      ["위치", e.where], ["행위", e.how], ["IP", e.source_ip], ...Object.entries(e.attributes || {})].filter(([, v]) => v);
+    panel.innerHTML = `<div class="panel-head"><h3>로그 원본</h3>${CLOSE_BTN}</div>
+      <div class="panel-body">
+        <p class="subject">${esc(e.user)}</p>
+        <div class="meta">${esc(stamp(e.occurred_at))} · ${esc(e.solution)}</div>
+        <div class="sec"><h4>${icon("list", "sm")}내용</h4>${kvTable(fields)}</div>
+        <div class="sec"><h4>${icon("file", "sm")}내보낸 행 그대로</h4>${kvTable(Object.entries(e.raw || {}))}</div>
+        <button class="rerun" id="log-back">${icon("activity", "sm")}집계로 돌아가기</button>
+      </div>`;
+    $("log-back").addEventListener("click", closePanel);
+    return;
+  }
+  const f = d && d.facts;
+  const cond = d ? [PERIOD_LABEL[d.period], ...Object.values(d.criteria)].join(" · ") : "";
+  const list = (obj, limit) => {
+    const rows = Object.entries(obj || {});
+    return rows.length ? kvTable(rows.slice(0, limit).map(([k, v]) => [k, `${v}건`])) + (rows.length > limit ? `<p class="note">상위 ${limit}개만 표시합니다.</p>` : "") : `<p class="note">없음</p>`;
+  };
+  panel.innerHTML = `<div class="panel-head"><h3>조회 집계</h3>${CLOSE_BTN}</div>
+    <div class="panel-body">${!f ? `<div class="empty">${L.error ? esc(L.error) : "불러오는 중…"}</div>` : `
+      <p class="subject">${esc(cond)}</p>
+      <div class="meta">${esc(stamp(d.since) || "처음")} ~ ${esc(stamp(d.until))}</div>
+      <div class="sec"><h4>${icon("activity", "sm")}합계</h4>${kvTable([["해당 로그", `${f.count.toLocaleString()}건`],
+        ...(f.count ? [["처음 · 마지막", `${stamp(f.first)} ~ ${stamp(f.last)}`]] : []),
+        ...Object.entries(f.attribute_totals).map(([k, v]) => [`${k} 합계`, String(v)])])}</div>
+      <div class="sec"><h4>${icon("users", "sm")}사용자별</h4>${list(f.by_user, 20)}</div>
+      <div class="sec"><h4>${icon("list", "sm")}날짜별 (많은 순)</h4>${list(f.by_day, 14)}</div>
+      <p class="note">숫자는 코어가 로그에서 직접 센 값입니다. 목록에서 줄을 고르면 그 로그의 원본을 봅니다.</p>`}
+    </div>`;
+}
+
 /* ── 보기 전환 · 필터 · 검색 ─────────────── */
 function setMainTab(tab) {
-  const panelChanges = (state.mainTab === "ask") !== (tab === "ask");
+  const panelChanges = state.mainTab !== tab;
   // 탭을 떠나면 열어 둔 인용 조항도 닫습니다. 패널은 그 탭의 것입니다.
   if (panelChanges && state.askSource) {
     state.askSource = null;
@@ -1501,11 +1672,13 @@ function setMainTab(tab) {
   document.querySelectorAll(".main-tab").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === tab));
   $("view-queue").hidden = tab !== "queue";
   $("view-ask").hidden = tab !== "ask";
+  $("view-logs").hidden = tab !== "logs";
   renderFooter();
   document.querySelector(".workspace").dataset.tab = tab;
   syncCite();
   if (panelChanges) renderPanel();
   if (tab === "ask") $("ask-input").focus();
+  if (tab === "logs" && !state.logs.data && !state.logs.loading) loadLogs();
 }
 
 document.querySelectorAll(".main-tab").forEach((b) => b.addEventListener("click", () => setMainTab(b.dataset.tab)));
@@ -1613,6 +1786,11 @@ function closeDrawer() {
 // 정책 질의 탭에서 닫으면 넓은 화면에서도 인용 조항 패널을 접습니다.
 function closePanel() {
   closeDrawer();
+  if (state.mainTab === "logs" && state.logs.selected !== null) {
+    state.logs.selected = null;
+    renderLogs();
+    renderPanel();
+  }
   if (state.mainTab === "ask" && state.askSource) {
     state.askSource = null;
     renderAsk();
@@ -1628,7 +1806,7 @@ narrow.addEventListener("change", (e) => { if (!e.matches) closeDrawer(); });
 
 function renderFooter() {
   // 계산 시각 · 분석 경고는 정책 관리 · 로그 감시 결과의 것이라 그 메뉴에서만 보입니다.
-  $("foot").hidden = state.mainTab === "ask" || !RESULT_VIEWS.has(state.view);
+  $("foot").hidden = state.mainTab !== "queue" || !RESULT_VIEWS.has(state.view);
   if ($("foot").hidden) return;
   const r = state.results, s = r.summary;
   // 판정 실패 · 읽지 못한 행 · 작업 실패는 문제가 있을 때만 알립니다.
@@ -1645,7 +1823,7 @@ function renderFooter() {
 }
 
 function renderAll() {
-  renderTop(); renderStats(); renderRun(); renderRows(); renderAskExamples(); renderAsk(); renderPanel(); renderFooter();
+  renderTop(); renderStats(); renderRun(); renderRows(); renderAskExamples(); renderAsk(); renderLogs(); renderPanel(); renderFooter();
 }
 
 /* ── 로그인 · 비밀번호 · 로그아웃 ───────────── */
