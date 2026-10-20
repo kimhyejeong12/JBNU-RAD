@@ -9,14 +9,14 @@ from typing import Annotated, Any
 # Milvus Lite 의 gRPC keepalive 경고를 숨깁니다 (동작 영향 없음). import 전에 설정해야 합니다.
 os.environ.setdefault("GRPC_VERBOSITY", "NONE")
 
-from fastapi import Depends, FastAPI, HTTPException, Request  # noqa: E402
+from fastapi import Depends, FastAPI, HTTPException, Query, Request  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, StringConstraints  # noqa: E402
 
 from sentinelai import ROOT, pipeline  # noqa: E402
 from sentinelai.engine import Answer, Engine  # noqa: E402
 
-from sentinelai.db import User, decisions, open_main_db, open_results_db, results as results_db  # noqa: E402
+from sentinelai.db import User, auth, decisions, open_main_db, open_results_db, results as results_db  # noqa: E402
 
 from . import view  # noqa: E402
 from .api_permissions import Approver, role  # noqa: E402
@@ -147,6 +147,28 @@ def ask_logs(body: AskRequest, request: Request, user: Approver) -> dict[str, An
     """로그 질의. 로그는 RAG 로 찾지 않고 코어가 조건에 맞춰 찾고 셉니다 (pipeline.ask_logs). 질의 기록에 남깁니다."""
     engine: Engine = state["engine"]
     return _record(request, user, "logs", body.question, pipeline.ask_logs(engine, engine.settings.events_source, body.question))
+
+
+Filter = Annotated[str, Query(max_length=200)]
+
+
+@app.get("/api/logs")
+def browse_logs(request: Request, user: Approver, period: str,
+                who: Annotated[str, Query(alias="user", max_length=200)] = "", solution: Filter = "", how: Filter = "",
+                page: Annotated[int, Query(ge=1)] = 1) -> dict[str, Any]:
+    """로그 조회 — 지금부터 period(day · week · month · quarter · half · year · all), 사용자(user = "부서 이름") 등으로 거릅니다.
+
+    모델을 부르지 않습니다. 거르기 칸의 값(options)도 함께 줍니다. 조회할 때마다 누가 어떤 조건으로 봤는지 감사 기록에 남깁니다.
+    """
+    try:
+        result = pipeline.browse_logs(state["engine"].settings.events_source, period, who, solution, how, page)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    except ValueError as exc:  # 없는 기간 · 컬럼이 맞지 않는 로그 파일
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    auth.record_log_view(request.app.state.main_db, user, {"period": period, **result["criteria"], "page": page},
+                         request.client.host if request.client else None)
+    return result
 
 
 def _record(request: Request, user: User, kind: str, question: str, result: dict[str, Any]) -> dict[str, Any]:

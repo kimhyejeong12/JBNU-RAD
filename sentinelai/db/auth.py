@@ -257,3 +257,10 @@ def change_password(db: Database, user: User, current: str, new: str, token: str
         conn.execute("UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND token_hash IS NOT ?",
                      (stamp, user.id, _token_hash(token) if token else None))
         audit(conn, "password_change", user.id)
+
+
+def record_log_view(db: Database, by: User, criteria: dict, ip: str | None = None) -> None:
+    """로그 조회를 감사 기록에 남깁니다. 특정 사람의 로그를 꺼내 본 것 자체가 남아야 할 일입니다."""
+    with db.transaction() as conn:
+        audit(conn, "log_view", by.id, target_type="logs", target_id=criteria.get("user") or None,
+              detail=json.dumps(criteria, ensure_ascii=False), ip=ip)

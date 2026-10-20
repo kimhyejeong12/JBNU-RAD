@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .events import between, event_review_input, group_by_user, latest, search, summarize, vocabulary
+from .events import PERIODS, between, event_review_input, group_by_user, latest, period_since, search, summarize, user_label, vocabulary
 from .mapper import AccessRequestMapper, ColumnMapper, EventMapper, Mapper, PolicyRuleMapper, ServerStateMapper, parse_datetime
 from .servers import rules_for, server_review_input
 from .source import CsvSource, JsonSource, MemorySource, Row, RowSource, folder_files, open_source, register_source
@@ -101,6 +101,7 @@ def load_servers(target: Any, mapper: ServerStateMapper | None = None, strict: b
 
 
 __all__ = [
+    "PERIODS",
     "AccessRequest",
     "AccessRequestMapper",
     "ColumnMapper",
@@ -133,8 +134,10 @@ __all__ = [
     "server_review_input",
     "open_source",
     "parse_datetime",
+    "period_since",
     "register_source",
     "search",
     "summarize",
+    "user_label",
     "vocabulary",
 ]

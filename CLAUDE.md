@@ -98,6 +98,7 @@ JBNU-RAD/
 | (평가용) | `review_requests` | CSV 권한 신청 전 건 → `review_chain` → `Verdict`. 기대 등급과 대조할 때만 쓰고 저장하지 않는다 (`--out`이면 JSON). 실제 신청은 권한 DB로 들어와 바로 판정된다 |
 | 정책 관리 | `review_policies` | 기준 문서(`docs/`) · 정책 규칙을 RAG에 맞추고(바뀐 것만, 규칙 묶음은 하나만, 정책 폴더가 비면 규칙을 지운다), ① 정책 전체 → `policy_chain` (기준 조항 검색) → `PolicyReview`, ② 서버 현황 한 대씩 → `server_chain` → `ServerReview` (기준 문서와 다른 곳마다 지금 상태 · 기준이 요구하는 상태 · 근거 조항 · 등급 · 이 환경에서 바꿀 것, 다루는 조항이 없는 항목은 판단하지 않고 이름만). 서버 점검 입력은 현황 + 코드가 IP · 대역 · 호스트 이름으로 찾은 규칙 + RAG로 찾은 조항 · 규칙 (서버 한 대에 30초 안팎). 실행마다 쌓고 화면은 마지막 실행을 본다 |
 | 로그 감시 | `monitor` | 지난 감시 이후 로그 → 사용자별 묶음 → `event_chain` (조항 · 규칙 검색) → `Verdict`. 결과는 쌓이고, 지금까지 읽은 가장 늦은 로그 시각이 다음 감시의 시작점 |
+| 로그 조회 | `browse_logs` | 기간(지금부터 하루 · 일주일 · 한 달 · 3개월 · 6개월 · 1년 · 전체 — 달력 단위 아님) · 사용자 · 솔루션 · 행위로 거르고 센다. 판정 · 모델 없이 코드만, 저장하지 않는다 |
 
 **로그 질의** (`pipeline.ask_logs`, 웹에서 물으면 질의 기록에 남는다) — 로그는 RAG로 찾지 않는다. "몇 번 · 언제부터 · 누가"는 집계라서 비슷한 몇 줄만 찾으면 건수가 틀린다.
 1. `log_filter_chain`: 질문 + 로그에 있는 값(`vocabulary`) + 현재 시각 → `LogFilter`(사용자 · 부서 · 솔루션 · 위치 · 행위 · 항목 · 기간). 로그에 없는 표현은 비슷한 값으로 바꾸지 않는다.
@@ -117,6 +118,7 @@ JBNU-RAD/
 | `POST /api/jobs/{kind}` | `policies` · `events` 백그라운드 시작 (202). 한 번에 하나 — 돌고 있으면 409 |
 | `POST /api/ask` | 정책 질의 실시간 답변. 입력 `{"question"}` (공백 제외 1~500자, 벗어나면 422) → `rag_chain` (조항 · 규칙 검색). 질의 기록에 남긴다 |
 | `POST /api/ask-logs` | 로그 질의. 입력은 `/api/ask`와 같다 → `pipeline.ask_logs` → `answer · criteria · facts · evidence · failed`. 질의 기록에 남긴다 |
+| `GET /api/logs?period=day\|week\|month\|quarter\|half\|year\|all[&user=&solution=&how=&page=]` | 로그 조회 — 지금부터 1 · 7 · 30 · 90 · 180 · 365일 안, 또는 전체 로그를 거른다 (`pipeline.browse_logs`, 모델 없음). 사용자는 "부서 이름"이 같은 것만 (부분 일치 아님). 최신순 100건씩 + 집계(`facts`) + 거르기 칸 값(`options`, 조건과 상관없이 로그 전체의 사용자 · 솔루션 · 행위). 조회마다 감사 기록(`log_view`: 누가 · 조건 · IP) |
 | `GET /api/qa?kind=policy\|logs` | 내 질의 기록 (최근 50건). 다른 사람 것은 주지 않는다 |
 | `GET /api/health` | 헤더 경고: 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` (보안 운영자 · 보안 총책임자) |
 | `GET /api/regulations` | `docs/` 원문 (근거 조항 전문 표시용) |
@@ -126,7 +128,7 @@ JBNU-RAD/
 | `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(보안 운영자 = 1차, 보안 총책임자 = 최종) · 회수(보안 운영자 · 보안 총책임자) · 다시 판정 |
 | `POST /api/decisions` | 정책 문제 · 서버 점검 · 로그 판정에 대한 운영자 결정 · 취소 (보안 운영자 · 보안 총책임자). 지금 결정은 `/api/results`의 `decisions`로 함께 온다 |
 
-- **모든 API는 로그인이 필요하다** (`/api/auth/login` 빼고). 정책 관리 · 로그 감시 API(`results` · `jobs` · `ask` · `ask-logs` · `qa` · `regulations`)는 보안 운영자 · 보안 총책임자만. 예전 CSV 권한 신청 재판정(`/api/review`)과 `requests` 작업은 DB 신청으로 바뀌어 없앴다.
+- **모든 API는 로그인이 필요하다** (`/api/auth/login` 빼고). 정책 관리 · 로그 감시 API(`results` · `jobs` · `ask` · `ask-logs` · `logs` · `qa` · `regulations`)는 보안 운영자 · 보안 총책임자만. 예전 CSV 권한 신청 재판정(`/api/review`)과 `requests` 작업은 DB 신청으로 바뀌어 없앴다.
 
 - `Engine()` · `rag_chain`은 앱 시작 시 1회만 만든다. 화면은 같은 출처에서만 열므로 CORS를 열지 않는다.
 - 권한 신청의 결재 · 회수와 정책 관리 · 로그 감시의 운영자 결정은 권한 DB에 남는다. 질의 기록은 AI 결과 DB에 남고, 화면은 로그인할 때 내 기록을 받아 메뉴마다 보여준다.

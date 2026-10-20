@@ -29,9 +29,11 @@ from .data import (
     load_requests,
     load_servers,
     parse_datetime,
+    period_since,
     search,
     server_review_input,
     summarize,
+    user_label,
     vocabulary,
 )
 from . import ROOT
@@ -42,6 +44,7 @@ DOCS_DIR = ROOT / "docs"
 RETRIES = 2
 # 답변 프롬프트와 화면에 싣는 로그 줄 수. 건수 · 합계는 전체로 세므로 이 수에 묶이지 않습니다.
 LOG_LINES = 50
+BROWSE_PAGE = 100
 
 Progress = Callable[[int, int, dict[str, Any]], None]
 
@@ -211,6 +214,45 @@ def monitor(
         **_loaded(loaded),
         "last_event_at": last_event.isoformat() if last_event else None,
         "findings": findings,
+    }
+
+
+def browse_logs(
+    source: Any,
+    period: str,
+    user: str = "",
+    solution: str = "",
+    how: str = "",
+    page: int = 1,
+    page_size: int = BROWSE_PAGE,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """로그 조회 — 지금부터 period(PERIODS) 안의 로그를 사용자 · 솔루션 · 행위로 고르고 셉니다.
+
+    거르기만 하므로 모델을 부르지 않습니다. 사용자는 화면이 고른 "부서 이름"과 같아야 합니다
+    (부분 일치면 다른 사람의 로그가 섞일 수 있습니다). 최신 로그부터 page_size 건씩 돌려줍니다.
+    options 는 거르기 칸에 띄울 값입니다. 고른 조건과 상관없이 로그 전체에서 뽑아 칸이 줄어들지 않게 합니다.
+    """
+    now = now or datetime.now(timezone.utc)
+    since = period_since(period, now)
+    loaded = load_events(source)
+    matched = search(between(loaded.records, since, now, include_since=True), solution=solution, how=how)
+    if user:
+        matched = [e for e in matched if user_label(e) == user]
+    page = max(page, 1)
+    newest = matched[::-1][(page - 1) * page_size:page * page_size]
+    return {
+        "period": period,
+        "since": since.isoformat(timespec="seconds") if since else None,
+        "until": now.isoformat(timespec="seconds"),
+        "criteria": {k: v for k, v in (("user", user), ("solution", solution), ("how", how)) if v},
+        "total": len(matched),
+        "page": page,
+        "page_size": page_size,
+        "facts": summarize(matched),
+        "events": [{**e.model_dump(mode="json"), "user": user_label(e)} for e in newest],
+        "options": {k: v for k, v in vocabulary(loaded.records).items() if k in ("users", "solutions", "how", "first", "last")},
+        "load_issues": [str(i) for i in loaded.issues],
     }
 
 
