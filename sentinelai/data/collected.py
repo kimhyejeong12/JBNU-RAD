@@ -162,13 +162,14 @@ PARSERS = {"ufw": ufw, "sshd": sshd, "pam": pam, "accounts": accounts}
 def snapshot_from_payload(payload: dict, node: str | None = None) -> ServerSnapshot:
     """노드가 보낸 본문 하나 → ServerSnapshot. 형식이 맞지 않으면 ValueError.
 
-    node 를 주면(수집 API 의 주소에 든 이름) 본문의 node 와 같아야 합니다.
+    node = 이 수집의 노드 이름 (수집 API 는 키로 찾은 노드, import 는 지정한 이름). 노드는 본문에 이름을 싣지 않으므로
+    주지 않으면 본문의 node(예전 형식 · 연습용 파일)를 씁니다.
     """
     if not isinstance(payload, dict) or payload.get("format") != FORMAT:
         raise ValueError(f"수집 노드 본문이 아닙니다 (format 이 {FORMAT!r} 이어야 함)")
     name = node or payload.get("node", "")
-    if not NODE_NAME.match(str(name)) or payload.get("node") != name:
-        raise ValueError("노드 이름이 없거나 주소의 이름과 다릅니다")
+    if not NODE_NAME.match(str(name)):
+        raise ValueError("어느 노드의 수집인지 모릅니다 — 노드 이름을 지정하세요")
     sections = payload.get("sections")
     if not isinstance(sections, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in sections.items()):
         raise ValueError("sections 는 모듈 이름 → 원문(문자열)이어야 합니다")
@@ -181,15 +182,16 @@ def snapshot_from_payload(payload: dict, node: str | None = None) -> ServerSnaps
     )
 
 
-def load_collected(target: Any) -> LoadResult:
-    """노드가 export 한 파일(*.json) 폴더 — 망이 막힌 서버의 수집을 손으로 넣을 때 씁니다. 폴더가 없으면 FileNotFoundError."""
+def load_collected(target: Any, node: str | None = None) -> LoadResult:
+    """노드가 export 한 파일(*.json) 폴더 — 망이 막힌 서버의 수집을 손으로 넣을 때 씁니다. node = 이 파일들의 노드 이름.
+    폴더가 없으면 FileNotFoundError."""
     folder = Path(target)
     if not folder.is_dir():
         raise FileNotFoundError(f"수집 폴더가 없습니다: {folder}")
     result = LoadResult(source=folder.name)
     for path in sorted(folder.glob("*.json")):
         try:
-            result.records.append(snapshot_from_payload(json.loads(path.read_text(encoding="utf-8"))))
+            result.records.append(snapshot_from_payload(json.loads(path.read_text(encoding="utf-8")), node))
         except ValueError as exc:  # json.JSONDecodeError 도 ValueError 입니다.
             result.issues.append(LoadIssue(0, f"{path.name}: {exc}"))
     return result

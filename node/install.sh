@@ -1,10 +1,12 @@
 #!/bin/sh
 # SentinelAI 수집 노드 설치 — 점검 대상 서버에서 root 로 돌립니다.
 #
-#   sudo sh install.sh --name cust-db01 --server http://sentinelai.internal:8000 --token <SENTINELAI_NODE_TOKEN> [--interval 30]
+#   sudo sh install.sh --server http://sentinelai.internal:8000 --key <노드 키> [--interval 30]
 #   sudo sh install.sh --uninstall [--purge]     # 서비스 · 프로그램 제거 (--purge 면 설정 · 키까지)
 #
-# /opt/sentinel-node 에 프로그램, /etc/sentinel-node/node.conf 에 설정(0600), /var/lib/sentinel-node 에 키 · 못 보낸 수집,
+# 노드 키는 SentinelAI 정책 관리 → [노드]에서 노드를 등록할 때 한 번 나옵니다 (잃으면 [키 다시 발급] 뒤 --key 로 다시 돌림).
+#
+# /opt/sentinel-node 에 프로그램, /etc/sentinel-node/node.conf 에 설정 · 키(0600), /var/lib/sentinel-node 에 못 보낸 수집,
 # systemd 서비스 sentinel-node 를 켭니다. 다시 돌리면 프로그램만 바꾸고 이미 있는 설정은 그대로 둡니다 (값을 주면 그 값만 바꿉니다).
 set -eu
 
@@ -15,12 +17,11 @@ STATE=/var/lib/sentinel-node
 UNIT=/etc/systemd/system/sentinel-node.service
 HERE=$(cd "$(dirname "$0")" && pwd)
 
-name="" server="" token="" interval="" uninstall=0 purge=0
+server="" key="" interval="" uninstall=0 purge=0
 while [ $# -gt 0 ]; do
     case "$1" in
-        --name) name=$2; shift 2 ;;
         --server) server=$2; shift 2 ;;
-        --token) token=$2; shift 2 ;;
+        --key) key=$2; shift 2 ;;
         --interval) interval=$2; shift 2 ;;
         --uninstall) uninstall=1; shift ;;
         --purge) purge=1; shift ;;
@@ -48,15 +49,15 @@ find "$PREFIX" -name '__pycache__' -prune -exec rm -rf {} +
 
 install -d -m 700 "$CONF_DIR" "$STATE"
 if [ ! -f "$CONF" ]; then
-    [ -n "$name" ] && [ -n "$server" ] && [ -n "$token" ] || { echo "처음 설치에는 --name · --server · --token 이 필요합니다" >&2; exit 2; }
+    [ -n "$server" ] && [ -n "$key" ] || { echo "처음 설치에는 --server · --key 가 필요합니다" >&2; exit 2; }
     install -m 600 "$HERE/node.conf.example" "$CONF"
 fi
 # 준 값만 설정 파일에 반영합니다 (sed 구분자와 겹치지 않게 | 를 씁니다).
 set_conf() { [ -n "$2" ] && sed -i "s|^$1 *=.*|$1 = $2|" "$CONF"; return 0; }
-set_conf name "$name"; set_conf server "$server"; set_conf token "$token"; set_conf interval_min "$interval"
+set_conf server "$server"; set_conf key "$key"; set_conf interval_min "$interval"
 chmod 600 "$CONF"
 
-PYTHONPATH="$PREFIX" python3 -c 'from sentinel_node import config; c = config.load(); print(f"설정 확인: 노드 {c.name} → {c.server}, {c.interval_min}분마다")'
+PYTHONPATH="$PREFIX" python3 -c 'from sentinel_node import config; c = config.load(); print(f"설정 확인: → {c.server}, {c.interval_min}분마다")'
 
 install -m 644 "$HERE/sentinel-node.service" "$UNIT"
 systemctl daemon-reload

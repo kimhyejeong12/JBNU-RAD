@@ -60,7 +60,7 @@ users ─┬─ sessions
 users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 ```
 
-- 스키마 파일은 차례로 적용한다 (`Database(path, "schema.sql", "decisions.sql", "accounts.sql", "decisions_server.sql", "roles_names.sql", "nodes.sql")`). n번째 파일을 적용하면 `user_version = n`. 이미 만든 DB는 시작할 때 빠진 파일만 더 적용한다. 테이블을 더할 때는 새 파일을 뒤에 붙이고, 앞 파일은 고치지 않는다.
+- 스키마 파일은 차례로 적용한다 (`Database(path, "schema.sql", "decisions.sql", "accounts.sql", "decisions_server.sql", "roles_names.sql", "nodes.sql", "nodes_keys.sql")`). n번째 파일을 적용하면 `user_version = n`. 이미 만든 DB는 시작할 때 빠진 파일만 더 적용한다. 테이블을 더할 때는 새 파일을 뒤에 붙이고, 앞 파일은 고치지 않는다.
 
 ### 신청의 상태 (`access_requests.stage`)
 
@@ -189,10 +189,10 @@ users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 | 칸 | 설명 |
 |---|---|
 | `name` | 노드 이름 (영문 · 숫자 · `. _ -` 1~64자, 한 번만) |
-| `key_hash` | 노드만의 키의 SHA-256. 비어 있으면(손으로 넣은 수집 · 키 초기화) 다음 요청을 등록 토큰으로 받고 새 키를 준다 |
+| `key_hash` | 노드만의 키의 SHA-256 (한 번만, `nodes_keys.sql`의 인덱스로 키 → 노드를 찾는다). 키는 32바이트 무작위 값이라 느린 해시가 필요 없다. 비어 있으면(손으로 넣은 수집뿐) 노드가 보낼 수 없다 |
 | `host` · `ip` · `agent_version` · `interval_min` | 노드가 마지막으로 보낸 값. 끊김 = `interval_min`의 세 배 넘게 소식 없음 |
 | `enabled` | 끄면 보내도 403, 주기 점검에서도 빠진다 |
 | `registered_at` · `last_seen_at` · `last_collected_at` | 등록 · 마지막 연락 · 마지막으로 새로 쌓인 수집 시각 |
 
-처음 보내면 자동 등록(10/20 결정 — 공용 등록 토큰 하나로 받고 이름은 첫 등록자의 키에 묶는다). 등록 · 끄기 · 키 초기화는 감사 기록(`node_register` · `node_update` · `node_reset_key` · `node_import`)에 남는다. 관리는 보안 운영자 · 보안 총책임자.
+노드는 화면에서 등록하고(보안 운영자 · 보안 총책임자) 그때 키를 한 번 보여준다. 노드는 이름 없이 키만 보낸다. 처음에는 공용 등록 토큰으로 처음 보낸 노드를 자동 등록했으나(10/20 오전) 같은 날 "메인에서 서버당 키를 발급"으로 바꿨다 — 토큰 하나가 새면 아무 이름이나 등록할 수 있었다. 등록 · 키 발급 · 끄기는 감사 기록(`node_create` · `node_key_issue` · `node_update` · `node_import`)에 남는다.
 

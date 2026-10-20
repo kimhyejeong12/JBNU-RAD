@@ -95,12 +95,11 @@ def _ip(server: str) -> str:
         return ""
 
 
-def collect(node: str, server: str, modules: List[str], interval_min: int) -> dict:
-    """한 번 읽은 결과 = 서버로 보내는 본문."""
+def collect(server: str, modules: List[str], interval_min: int) -> dict:
+    """한 번 읽은 결과 = 서버로 보내는 본문. 노드 이름은 싣지 않습니다 (서버가 키로 찾음)."""
     return {
         "format": FORMAT,
         "agent_version": VERSION,
-        "node": node,
         "host": socket.gethostname().split(".")[0],
         "ip": _ip(server),
         "collected_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

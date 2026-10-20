@@ -1,17 +1,14 @@
 """SentinelAI 서버로 보내기 — 못 보낸 수집은 쌓아 두었다가 다음 차례에 먼저 보냅니다.
 
-처음에는 공용 등록 토큰으로 보내고, 서버가 돌려준 이 노드만의 키를 state_dir/node.key 에 둡니다.
-그 뒤로는 키로만 보냅니다. 키를 잃으면(재설치) 서버 화면에서 [키 초기화] 뒤 다시 등록합니다.
+노드는 이름을 보내지 않고, SentinelAI 화면에서 발급한 키만 보냅니다. 서버가 키로 어느 노드인지 찾습니다.
 """
 from __future__ import annotations
 
 import json
 import logging
-import os
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Optional
 
 from .config import Config
 
@@ -21,31 +18,15 @@ TIMEOUT = 20
 
 
 class Rejected(Exception):
-    """서버가 받지 않음 (인증 · 꺼진 노드 · 형식). 다시 보내도 같으므로 쌓지 않습니다."""
-
-
-def _key(cfg: Config) -> Optional[str]:
-    try:
-        return cfg.key_file.read_text().strip() or None
-    except OSError:
-        return None
-
-
-def _save_key(cfg: Config, key: str) -> None:
-    cfg.state_dir.mkdir(parents=True, exist_ok=True)
-    tmp = cfg.key_file.with_suffix(".tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
-        f.write(key)
-    tmp.replace(cfg.key_file)
+    """서버가 받지 않음 (모르는 키 · 꺼진 노드 · 형식). 다시 보내도 같으므로 쌓지 않습니다."""
 
 
 def post(cfg: Config, payload: dict) -> dict:
     """한 건 보내기. 네트워크 · 서버 오류는 OSError, 받지 않으면 Rejected."""
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(
-        f"{cfg.server}/api/nodes/{cfg.name}/snapshots", data=body, method="POST",
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {_key(cfg) or cfg.token}"},
+        f"{cfg.server}/api/nodes/snapshots", data=body, method="POST",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {cfg.key}"},
     )
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as res:
@@ -55,9 +36,6 @@ def post(cfg: Config, payload: dict) -> dict:
         if exc.code >= 500:
             raise OSError(f"서버 오류 {exc.code}: {detail}") from None
         raise Rejected(f"{exc.code}: {detail}") from None
-    if answer.get("key"):
-        _save_key(cfg, answer["key"])
-        log.info("서버에 노드 %s 로 등록했습니다 (키 저장: %s)", cfg.name, cfg.key_file)
     return answer
 
 
@@ -96,13 +74,13 @@ def deliver(cfg: Config, payload: dict) -> bool:
     except Rejected as exc:
         log.error("서버가 받지 않았습니다: %s", exc)
         return False
-    log.info("보냄 %s (서버 저장: %s)", payload["collected_at"], answer.get("stored"))
+    log.info("보냄 %s → 노드 %s (서버 저장: %s)", payload["collected_at"], answer.get("node"), answer.get("stored"))
     return True
 
 
 def write_file(out_dir: Path, payload: dict) -> Path:
-    """망이 막힌 서버용 — 보내지 않고 파일로 남깁니다. SentinelAI 서버에서 `python -m sentinelai import-snapshots` 로 넣습니다."""
+    """망이 막힌 서버용 — 보내지 않고 파일로 남깁니다. SentinelAI 서버에서 `python -m sentinelai import-snapshots 폴더 --node 이름` 으로 넣습니다."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / f"{payload['node']}_{payload['collected_at'].replace(':', '')}.json"
+    path = out_dir / f"{payload['host']}_{payload['collected_at'].replace(':', '')}.json"
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
     return path

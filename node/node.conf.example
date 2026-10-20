@@ -1,7 +1,6 @@
 [node]
-name = cust-db01
 server = http://sentinelai.internal:8000
-token = 여기에-SENTINELAI_NODE_TOKEN-값
+key = 여기에-정책관리-노드에서-발급한-키
 interval_min = 30
 modules = ufw, sshd, pam, accounts
 state_dir = /var/lib/sentinel-node

@@ -72,7 +72,6 @@ class Settings:
     db_path: str
     results_db_path: str
     monitor_interval_min: int
-    node_token: str
 
     @staticmethod
     def env_file() -> Path:
@@ -140,8 +139,6 @@ class Settings:
 KINDS = {"policies": "정책 관리 검토", "events": "로그 감시", "nodes": "서버 점검"}
 # 화면에서 시작할 수 있는 작업. 로그 감시 · 서버 점검은 서버가 스스로 돌립니다.
 MANUAL = {"policies"}
-# .env.example 의 자리 표시 값입니다. 이 값 그대로면 아무 노드나 등록되므로 등록을 막습니다.
-TOKEN_PLACEHOLDER = "change-me"
 
 
 class Engine:
@@ -316,23 +313,23 @@ class Engine:
         auth.record_log_view(self.main_db, user, {"period": period, **result["criteria"], "page": page}, ip)
         return result
 
-    def receive_snapshot(self, name: str, presented: str, payload: dict[str, Any]) -> dict[str, Any]:
-        """수집 노드가 보낸 수집 한 건. 형식이 틀리면 ValueError, 토큰 · 키가 틀리면 nodes.Unauthorized, 꺼진 노드는 Denied.
+    def receive_snapshot(self, presented: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """수집 노드가 보낸 수집 한 건 — 노드는 키만 보내고, 키로 어느 노드인지 찾습니다.
 
-        형식을 먼저 보고(등록부를 건드리기 전에) 노드를 확인한 뒤 쌓습니다. 처음 · 키 초기화 뒤면 새 키를 돌려줍니다.
+        형식이 틀리면 ValueError, 모르는 키는 nodes.Unauthorized, 꺼진 노드는 Denied. 형식을 먼저 봅니다 (등록부를 건드리기 전에).
         """
-        pipeline.snapshot_row(payload, name, None)
-        token = "" if self.settings.node_token == TOKEN_PLACEHOLDER else self.settings.node_token
-        _, key = nodes.authenticate(self.main_db, name, presented, token, payload)
+        pipeline.snapshot_row(payload, "_", None)
+        name = nodes.authenticate(self.main_db, presented, payload)["name"]
         row = pipeline.snapshot_row(payload, name, results.latest_snapshot(self.results_db, name))
         _, stored = results.save_snapshot(self.results_db, row)
         if stored:
             nodes.mark_collected(self.main_db, name, row["collected_at"])
-        return {"node": name, "stored": stored, **({"key": key} if key else {})}
+        return {"node": name, "stored": stored}
 
-    def import_snapshots(self, folder: Any) -> tuple[LoadResult, int]:
-        """망이 막힌 노드가 export 한 수집 파일을 같은 규칙으로 넣습니다. 등록부에 없는 노드는 키 없이 등록해 둡니다. → (읽은 결과, 새로 넣은 수)"""
-        loaded = load_collected(folder)
+    def import_snapshots(self, folder: Any, node: str | None = None) -> tuple[LoadResult, int]:
+        """망이 막힌 노드가 export 한 수집 파일을 같은 규칙으로 넣습니다. node = 이 파일들의 노드 이름.
+        등록부에 없는 노드는 키 없이 등록해 둡니다. → (읽은 결과, 새로 넣은 수)"""
+        loaded = load_collected(folder, node)
         stored = 0
         for snap in sorted(loaded.records, key=lambda x: x.collected_at):
             payload = {**snap.model_dump(mode="json", exclude={"raw", "modules"}), "format": FORMAT}

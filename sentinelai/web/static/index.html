@@ -200,6 +200,9 @@
   .nstate { font-size: 12px; font-weight: 700; white-space: nowrap; }
   .nstate.on { color: var(--ok); } .nstate.stale { color: var(--sub); } .nstate.off, .nstate.wait { color: var(--ink-dim); }
   .node-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .key-box { border: 1px solid var(--sub); background: var(--warn-tint); border-radius: 8px; padding: 12px; }
+  .key-box input { width: 100%; font: 12.5px ui-monospace, monospace; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+  .key-box .node-actions { margin-top: 8px; }
   .pager { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 12px; font-size: 12.5px; color: var(--ink-dim); }
 
   /* 통계 대시보드 */
@@ -487,7 +490,8 @@
     <!-- 로그 조회 — 모델 없이 코어가 거르고 셉니다 (/api/logs). 기간은 지금부터 거슬러 올라갑니다 -->
     <!-- 수집 노드 — 서버마다 도는 node/sentinel_node 가 보낸 수집. 새 수집은 서버가 주기적으로 점검해 검토 현황에 올립니다 -->
     <section class="card nodes" id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes" hidden>
-      <div class="logs-head"><h3>수집 노드</h3><span class="logs-count" id="node-count"></span></div>
+      <div class="logs-head"><h3>수집 노드</h3><span class="logs-count" id="node-count"></span>
+        <button class="rerun run" id="add-node"><span data-icon="plus" class="sm"></span>노드 등록</button></div>
       <div class="ltable-wrap">
         <table class="ltable">
           <thead><tr><th>노드</th><th>호스트</th><th>상태</th><th class="col-sol">마지막 수집</th><th>판정</th></tr></thead>
@@ -683,7 +687,7 @@ const state = {
   askSource: null,      // 패널에 띄운 인용 조항 { i: 질의 순번, n: sources 순번 }
   // 로그 조회 — 조건 · 받은 결과(/api/logs) · 패널에 띄운 줄(없으면 집계)
   // 수집 노드 — 목록(/api/nodes) · 고른 노드 · 그 노드의 자세한 기록(/api/nodes/{이름})
-  nodes: { list: null, error: "", selected: null, detail: null },
+  nodes: { list: null, error: "", selected: null, detail: null, adding: false, issued: null },   // issued = 방금 발급한 키 (한 번만 보여줌)
   logs: { period: "week", user: "", solution: "", how: "", page: 1, data: null, error: "", loading: false, selected: null },
 };
 
@@ -1585,12 +1589,12 @@ function watchJobs(started = false) {
 
 $("run").addEventListener("click", startJob);
 
-/* ── 수집 노드 — 등록 · 수집 · 점검은 서버가 하고, 화면은 상태를 보여주고 끄기 · 키 초기화만 합니다 ── */
+/* ── 수집 노드 — 화면에서 노드를 등록해 키를 발급하고(키는 한 번만 보임), 상태를 보고 끄거나 키를 다시 발급합니다 ── */
 function nodeState(n) {
   if (!n.enabled) return ["off", "꺼짐", "보내도 받지 않고 주기 점검에서도 빠집니다"];
-  if (!n.key_issued) return ["wait", "키 없음", "손으로 넣은 수집뿐이거나 키를 초기화했습니다. 노드가 등록 토큰으로 보내면 키를 받습니다"];
+  if (!n.key_issued) return ["wait", "키 없음", "손으로 넣은 수집뿐입니다. 키를 발급해 노드에 넣으면 직접 보낼 수 있습니다"];
   if (n.stale) return ["stale", "끊김", `${n.interval_min}분 간격인데 세 번 넘게 소식이 없습니다`];
-  if (!n.last_collected_at) return ["wait", "기다리는 중", "아직 받은 수집이 없습니다"];
+  if (!n.last_collected_at) return ["wait", "기다리는 중", "키를 발급했지만 아직 받은 수집이 없습니다"];
   return ["on", "수집 중", `${n.interval_min || "?"}분마다`];
 }
 
@@ -1612,7 +1616,7 @@ function renderNodes() {
   if (N.error) { rows.innerHTML = `<tr><td colspan="5" class="empty">노드 목록을 받지 못했습니다: ${esc(N.error)}</td></tr>`; return; }
   if (!N.list) { rows.innerHTML = `<tr><td colspan="5" class="empty">불러오는 중…</td></tr>`; return; }
   if (!list.length) {
-    rows.innerHTML = `<tr><td colspan="5" class="empty">아직 등록된 노드가 없습니다.<br>점검할 서버에서 node/install.sh 로 수집 노드를 깔면 처음 보낼 때 여기에 나타납니다.</td></tr>`;
+    rows.innerHTML = `<tr><td colspan="5" class="empty">아직 등록된 노드가 없습니다.<br>[노드 등록]으로 서버마다 키를 발급하고, 그 서버에 node/install.sh 로 노드를 까세요.</td></tr>`;
     return;
   }
   rows.innerHTML = list.map((n) => {
@@ -1626,7 +1630,7 @@ function renderNodes() {
 }
 
 function pickNode(name) {
-  Object.assign(state.nodes, { selected: name, detail: null });
+  Object.assign(state.nodes, { selected: name, detail: null, adding: false, issued: null });
   state.panelMsg = "";
   renderNodes();
   renderPanel();
@@ -1639,31 +1643,88 @@ $("node-rows").addEventListener("keydown", (e) => {
   if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickNode(tr.dataset.node); }
 });
 
-async function nodeAction(name, action) {
-  if (action === "reset" && !confirm(`${name} 의 키를 지웁니다. 노드가 등록 토큰으로 다시 보내야 받습니다. 계속할까요?`)) return;
+$("add-node").addEventListener("click", () => {
+  Object.assign(state.nodes, { selected: null, detail: null, adding: true, issued: null });
+  state.panelMsg = "";
+  renderNodes();
+  renderPanel();
+  openDrawer();
+  const input = $("node-name");
+  if (input) input.focus();
+});
+
+async function createNode(name) {
   try {
-    if (action === "reset") await send(`/api/nodes/${encodeURIComponent(name)}/reset-key`, {});
-    else await send(`/api/nodes/${encodeURIComponent(name)}`, { enabled: action === "on" }, "PATCH");
-    state.panelMsg = { on: "✓ 노드를 켰습니다", off: "✓ 노드를 껐습니다", reset: "✓ 키를 초기화했습니다" }[action];
+    const made = await send("/api/nodes", { name });
+    Object.assign(state.nodes, { adding: false, selected: made.name, detail: null, issued: { name: made.name, key: made.key } });
+    state.panelMsg = "";
+  } catch (e) {
+    state.panelMsg = e.message;
+    renderPanel();
+    return;
+  }
+  await loadNodes();
+}
+
+async function nodeAction(name, action) {
+  const issuing = action === "key";
+  if (issuing && !confirm(`${name} 의 키를 새로 발급합니다. 지금 키는 바로 못 쓰게 되어, 그 서버의 node.conf 를 새 키로 바꿔야 다시 보냅니다. 계속할까요?`)) return;
+  try {
+    if (issuing) {
+      const made = await send(`/api/nodes/${encodeURIComponent(name)}/key`, {});
+      state.nodes.issued = { name, key: made.key };
+      state.panelMsg = "";
+    } else {
+      await send(`/api/nodes/${encodeURIComponent(name)}`, { enabled: action === "on" }, "PATCH");
+      state.panelMsg = action === "on" ? "✓ 노드를 켰습니다" : "✓ 노드를 껐습니다";
+    }
   } catch (e) {
     state.panelMsg = e.message;
   }
   await loadNodes();
 }
 
+// 발급한 키는 해시만 남아 다시 볼 수 없습니다. 이 칸을 벗어나면(다른 노드 · 탭) 사라집니다.
+function issuedKey(name) {
+  const k = state.nodes.issued;
+  if (!k || k.name !== name) return "";
+  const cmd = `sudo sh node/install.sh --server ${location.origin} --key ${k.key}`;
+  return `<div class="sec key-box"><h4>${icon("lock", "sm")}발급한 키 — 지금 한 번만 보입니다</h4>
+      <input id="issued-key" readonly value="${esc(k.key)}" aria-label="노드 키">
+      <p class="note">점검할 서버에서:</p><div class="box pre">${esc(cmd)}</div>
+      <div class="node-actions"><button class="rerun" data-copy="${esc(k.key)}">키 복사</button><button class="rerun" data-copy="${esc(cmd)}">설치 명령 복사</button></div>
+    </div>`;
+}
+
+// 사내망의 http 화면에서는 클립보드 API 를 못 쓸 수 있어, 그때는 키 칸을 골라 둡니다 (Ctrl+C).
+async function copyText(text, button) {
+  try { await navigator.clipboard.writeText(text); button.textContent = "복사했습니다"; }
+  catch (e) { const input = $("issued-key"); input.focus(); input.select(); button.textContent = "Ctrl+C 로 복사하세요"; }
+}
+
 function renderNodesPanel() {
   const N = state.nodes, d = N.detail, panel = $("panel");
+  if (N.adding) {
+    panel.innerHTML = `<div class="panel-head"><h3>노드 등록</h3>${CLOSE_BTN}</div>
+      <div class="panel-body">
+        <form id="node-form" class="form-grid">
+          <label class="wide"><span>노드 이름 <b>*</b></span><input id="node-name" required maxlength="64" pattern="[A-Za-z0-9._\-]+" placeholder="예: cust-db01"></label>
+          <div class="wide form-actions">${panelMsg()}<button type="submit" class="primary">등록하고 키 발급</button></div>
+        </form>
+        <p class="note">점검할 서버 하나에 노드 하나입니다. 이름은 영문 · 숫자 · . _ - 로 짓고, 등록하면 그 서버에 넣을 키가 한 번 나옵니다. 노드는 이름 없이 키만 보내고, SentinelAI 가 키로 어느 노드인지 찾습니다.</p>
+      </div>`;
+    $("node-form").addEventListener("submit", (e) => { e.preventDefault(); createNode($("node-name").value.trim()); });
+    return;
+  }
   if (!N.selected) {
     const list = N.list || [], count = (k) => list.filter((n) => nodeState(n)[0] === k).length;
     panel.innerHTML = `<div class="panel-head"><h3>수집 노드</h3>${CLOSE_BTN}</div>
       <div class="panel-body">
         <div class="sec"><h4>${icon("activity", "sm")}상태</h4>${kvTable([["노드", `${list.length}대`], ["수집 중", `${count("on")}대`],
-          ["끊김", `${count("stale")}대`], ["꺼짐 · 키 초기화 · 기다리는 중", `${count("off") + count("wait")}대`]])}</div>
+          ["끊김", `${count("stale")}대`], ["꺼짐 · 키 없음 · 기다리는 중", `${count("off") + count("wait")}대`]])}</div>
         <div class="sec"><h4>${icon("server", "sm")}노드 깔기</h4>
-          <div class="box pre">sudo sh node/install.sh --name 노드이름 \\
-  --server ${esc(location.origin)} \\
-  --token &lt;SENTINELAI_NODE_TOKEN&gt;</div>
-          <p class="note">등록 토큰은 SentinelAI 서버 .env 의 SENTINELAI_NODE_TOKEN 입니다. 처음 보낼 때 등록되고, 그 뒤로는 노드만의 키로 보냅니다. 새 수집은 서버가 주기적으로 기준 문서와 비교해 검토 현황의 서버 점검에 올립니다.</p></div>
+          <p class="note">1. [노드 등록]으로 서버 이름을 넣고 키를 받습니다 (한 번만 보임).<br>2. 그 서버에서 node/install.sh --server ${esc(location.origin)} --key &lt;키&gt;<br>
+          새 수집은 서버가 주기적으로 기준 문서와 비교해 검토 현황의 서버 점검에 올립니다.</p></div>
       </div>`;
     return;
   }
@@ -1677,11 +1738,12 @@ function renderNodesPanel() {
       <p class="subject">${esc(n.name)}</p>
       <div class="rec-line"><span class="nstate ${cls}">${label}</span></div>
       <div class="meta">${esc(tip)}</div>
+      ${issuedKey(n.name)}
       <div class="sec"><h4>${icon("server", "sm")}노드</h4>${kvTable([["호스트", n.host], ["IP", n.ip], ["수집 간격", n.interval_min ? `${n.interval_min}분` : ""],
         ["노드 버전", n.agent_version], ["등록", stamp(n.registered_at)], ["마지막 연락", stamp(n.last_seen_at)], ["마지막 수집", stamp(n.last_collected_at)]].filter(([, v]) => v))}
         <div class="node-actions">
           <button class="rerun" data-act="${n.enabled ? "off" : "on"}">${n.enabled ? "노드 끄기" : "노드 켜기"}</button>
-          <button class="rerun" data-act="reset" ${n.key_issued ? "" : "disabled"}>키 초기화</button>
+          <button class="rerun" data-act="key">${n.key_issued ? "키 다시 발급" : "키 발급"}</button>
         </div>${panelMsg()}</div>
       ${!d ? `<div class="empty">불러오는 중…</div>` : d.error ? `<p class="form-msg">${esc(d.error)}</p>` : `
       <div class="sec"><h4>${icon("activity", "sm")}마지막 서버 점검</h4>${finding
@@ -1695,6 +1757,7 @@ function renderNodesPanel() {
       ${d.latest ? moduleTables(d.latest) : ""}`}
     </div>`;
   panel.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", () => nodeAction(n.name, b.dataset.act)));
+  panel.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => copyText(b.dataset.copy, b)));
   const to = $("to-finding");
   if (to) to.addEventListener("click", () => select(item.key));
 }
@@ -1840,6 +1903,7 @@ function setMainTab(tab) {
   if (tab === "ask") $("ask-input").focus();
   if (tab === "logs" && !state.logs.data && !state.logs.loading) loadLogs();
   if (tab === "nodes") loadNodes();
+  if (tab !== "nodes") state.nodes.issued = null;
 }
 
 document.querySelectorAll(".main-tab").forEach((b) => b.addEventListener("click", () => setMainTab(b.dataset.tab)));
@@ -1947,8 +2011,8 @@ function closeDrawer() {
 // 정책 질의 탭에서 닫으면 넓은 화면에서도 인용 조항 패널을 접습니다.
 function closePanel() {
   closeDrawer();
-  if (state.mainTab === "nodes" && state.nodes.selected) {
-    Object.assign(state.nodes, { selected: null, detail: null });
+  if (state.mainTab === "nodes" && (state.nodes.selected || state.nodes.adding)) {
+    Object.assign(state.nodes, { selected: null, detail: null, adding: false, issued: null });
     renderNodes();
     renderPanel();
   }

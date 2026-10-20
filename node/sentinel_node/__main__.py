@@ -20,15 +20,14 @@ from . import VERSION, client, collect, config
 
 
 def _payload(cfg: config.Config) -> dict:
-    return collect.collect(cfg.name, cfg.server, cfg.modules, cfg.interval_min)
+    return collect.collect(cfg.server, cfg.modules, cfg.interval_min)
 
 
 def run(cfg: config.Config) -> int:
     stop = threading.Event()
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: stop.set())
-    logging.getLogger("sentinel-node").info("시작: 노드 %s → %s, %d분마다 (%s)", cfg.name, cfg.server, cfg.interval_min,
-                                            ", ".join(cfg.modules))
+    logging.getLogger("sentinel-node").info("시작: → %s, %d분마다 (%s)", cfg.server, cfg.interval_min, ", ".join(cfg.modules))
     while not stop.is_set():
         try:
             client.deliver(cfg, _payload(cfg))

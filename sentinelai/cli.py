@@ -107,7 +107,7 @@ def monitor(engine: Engine, args: argparse.Namespace) -> int:
 
 
 def import_snapshots(engine: Engine, args: argparse.Namespace) -> int:
-    loaded, stored = engine.import_snapshots(args.folder)
+    loaded, stored = engine.import_snapshots(args.folder, args.node)
     _issues([str(i) for i in loaded.issues])
     print(f"{loaded.source}: 수집 {len(loaded.records)}건 중 새로 넣음 {stored}건 → {engine.results_db.path}")
     return 1 if loaded.issues else 0
@@ -146,6 +146,7 @@ def parser() -> argparse.ArgumentParser:
     cmd.set_defaults(run=monitor)
     cmd = sub.add_parser("import-snapshots", help="망이 막힌 노드가 export 한 수집 파일(*.json) 넣기")
     cmd.add_argument("folder", help="수집 파일 폴더")
+    cmd.add_argument("--node", help="이 파일들의 노드 이름 (노드는 본문에 이름을 싣지 않습니다. 화면에 등록한 이름)")
     cmd.set_defaults(run=import_snapshots)
     cmd = sub.add_parser("create-root", help="초기 루트 계정(보안 총책임자) 만들기 — 서버에서 한 번만")
     cmd.add_argument("--login", required=True, help="로그인 ID")
