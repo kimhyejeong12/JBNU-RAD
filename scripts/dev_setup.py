@@ -1,7 +1,8 @@
 """로컬 시험 환경 — `make dev-setup` 이 부릅니다.
 
 진짜 DB · 벡터 DB 는 건드리지 않고 .dev/ 에 따로 만듭니다 (위치는 Makefile 의 DEV_ENV).
-역할마다 시험 계정 · 연습용 노드 수집 · 이 컴퓨터에서 돌릴 노드 설정(.dev/node.conf)을 넣고, 모델 서버에 닿으면 기준 문서도 적재합니다.
+역할마다 시험 계정과 이 컴퓨터에서 돌릴 노드 설정(.dev/node.conf)을 넣고, 모델 서버에 닿으면 기준 문서도 적재합니다.
+노드 수집은 make dev-targets (컨테이너) · make dev-sim (흉내 노드)로 넣습니다.
 다시 만들려면 `make dev-setup RESET=1`.
 """
 from __future__ import annotations
@@ -43,7 +44,6 @@ def main() -> int:
     with db.connection() as conn:
         root = User.of(conn.execute("SELECT * FROM users WHERE is_root = 1").fetchone())
 
-    loaded, stored = engine.import_snapshots(ROOT / "data" / "연습용_노드")
     _, key = nodes.create(db, root, "dev-local")
     (DEV / "node.conf").write_text(
         f"[node]\nserver = http://127.0.0.1:{PORT}\nkey = {key}\ninterval_min = 1\nstate_dir = {DEV / 'node-state'}\n",
@@ -58,11 +58,11 @@ def main() -> int:
 
     print(f"""시험 환경을 만들었습니다 → {DEV}
   계정 (비밀번호 {PASSWORD}): dev-root (보안 총책임자 · 루트) · dev-op (보안 운영자) · dev-user (일반 사용자)
-  연습용 노드 수집: {stored}건 · 이 컴퓨터용 노드 dev-local (설정 .dev/node.conf)
+  이 컴퓨터용 노드 dev-local (설정 .dev/node.conf)
   기준 문서: {indexed}
 
   make dev        웹 http://127.0.0.1:{PORT} (진짜 DB 대신 .dev/)
-  make dev-node   이 컴퓨터를 노드로 한 번 보내기 (make dev 가 떠 있을 때)""")
+  make dev-targets · make dev-sim · make dev-node   노드 수집 넣기 (make dev 가 떠 있을 때)""")
     return 0
 
 

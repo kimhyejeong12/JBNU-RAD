@@ -12,7 +12,7 @@ DEV_ENV := SENTINELAI_DB_PATH=.dev/sentinelai.db SENTINELAI_RESULTS_DB_PATH=.dev
 PODMAN ?= podman
 TARGETS := cd node/testenv && $(PODMAN) compose --env-file targets.env
 
-.PHONY: dev-setup dev dev-node dev-sim dev-targets dev-targets-stop help install health index review-policies check-nodes monitor import-snapshots create-root review-check web docker-build docker-run clean
+.PHONY: dev-setup dev dev-node dev-sim dev-targets dev-targets-stop help install health index review-policies check-nodes monitor import-snapshots create-root web docker-build docker-run clean
 
 help:
 	@echo "install                        venv 생성 + 의존성 설치 + .env 준비"
@@ -25,9 +25,8 @@ help:
 	@echo "review-policies                정책 관리 검토 — 문서 · 솔루션 정책 적재 + 정책 간 검토"
 	@echo "check-nodes                    서버 점검 — 새 수집이 온 노드만"
 	@echo "monitor [SINCE=시각] [FULL=1]   로그 감시 — 지난 감시 이후 로그만 (cron 용)"
-	@echo "review-check [N=회수]           review_chain 반복 루프 · 등급 흔들림 재현"
 	@echo "--- 로컬 시험 환경 (.dev/, 진짜 DB 는 건드리지 않음) ---"
-	@echo "dev-setup [RESET=1]            시험 계정(비밀번호 dev-pass-1234) · 연습용 노드 수집 · 이 컴퓨터용 노드 설정 만들기"
+	@echo "dev-setup [RESET=1]            시험 계정(비밀번호 dev-pass-1234) · 이 컴퓨터용 노드 설정 만들기"
 	@echo "dev [DEV_CHECK_MIN=5]          시험 환경으로 웹 실행 (http://127.0.0.1:$(DEV_PORT)), 서버 점검 5분마다"
 	@echo "--- 노드 수집 시험 (make dev 가 떠 있을 때) ---"
 	@echo "dev-sim [NODES=3] [ROUNDS=3] [EVERY=5]  흉내 노드가 설정을 조금씩 바꿔 가며 보냄 (컨테이너 없이)"
@@ -63,9 +62,6 @@ import-snapshots:
 
 create-root:
 	$(PY) -m sentinelai create-root --login "$(LOGIN)" --name "$(NAME)" $(if $(DEPT),--department "$(DEPT)")
-
-review-check:
-	$(PY) scripts/review_check.py -n $(or $(N),3)
 
 web:
 	$(PY) -m uvicorn sentinelai.web.main:app --reload --port 8000

@@ -190,12 +190,17 @@ def review_policies(engine: Engine, policies_source: Any, progress: Progress | N
     0. 기준 문서(docs/) · 솔루션 정책 규칙을 RAG 에 맞춥니다 (바뀐 것만). 판정이 지금 문서 · 규칙을 찾게 합니다.
     1. 솔루션 정책 규칙 전체 → policy_chain (정책 간 중복 · 충돌 · 과도한 허용)
     서버 점검은 여기서 하지 않고, 수집 노드가 보낸 것을 check_nodes 가 주기적으로 봅니다.
+    정책 폴더가 비었으면 RAG 의 규칙을 지우고 빈 검토를 돌려줍니다 — 예전 규칙이 서버 점검 · 로그 감시 검색에 섞이지 않게 합니다.
     """
     policies = _optional(load_policies, policies_source)
-    if not policies.records:
-        problems = [str(i) for i in policies.issues]
-        raise ValueError("검토할 솔루션 정책이 없습니다 — 정책 폴더에 CSV · JSON 을 두세요" + (f" ({'; '.join(problems)})" if problems else ""))
     index_documents(engine)
+    if not policies.records:
+        engine.documents.clear_rules()
+        empty = {"summary": "솔루션 정책이 없어 정책 간 검토를 하지 않았습니다 (RAG 의 예전 규칙도 지웠습니다).", "issues": [],
+                 "failed": False, "error": None, "elapsed_sec": 0.0}
+        if progress:
+            progress(1, 1, empty)
+        return {**_loaded(policies), "rules": [], **empty}
     engine.documents.index_rules(policies.source, [r.describe() for r in policies.records])
     review, error, elapsed = attempt(lambda: engine.policy_chain().invoke({"policies": PolicyRule.format(policies.records)}))
     rules_part = _judged(review, error, elapsed)

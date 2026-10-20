@@ -491,6 +491,7 @@
     <!-- 수집 노드 — 서버마다 도는 node/sentinel_node 가 보낸 수집. 새 수집은 서버가 주기적으로 점검해 검토 현황에 올립니다 -->
     <section class="card nodes" id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes" hidden>
       <div class="logs-head"><h3>수집 노드</h3><span class="logs-count" id="node-count"></span>
+        <button class="rerun run" id="check-now" data-tip="지금 점검|새 수집이 온 노드를 주기(30분)를 기다리지 않고 지금 기준 문서와 비교합니다"><span data-icon="activity" class="sm"></span><span id="check-now-txt">지금 점검</span></button>
         <button class="rerun run" id="add-node"><span data-icon="plus" class="sm"></span>노드 등록</button></div>
       <div class="ltable-wrap">
         <table class="ltable">
@@ -1531,6 +1532,9 @@ function runKindLabel() {
 
 function renderRun() {
   const j = state.jobs;
+  // 노드 탭의 [지금 점검]도 같은 작업 큐를 씁니다. 다른 작업이 돌면 기다립니다.
+  $("check-now").disabled = !j || !!j.running;
+  $("check-now-txt").textContent = j && j.running === "nodes" ? `점검 중…${j.total ? ` ${j.done}/${j.total}` : ""}` : "지금 점검";
   const btn = $("run"), txt = $("run-txt");
   // 분석 실행은 정책 관리 · 로그 감시만 합니다. 권한 신청은 들어오면 바로 판정됩니다.
   btn.hidden = !VIEW_KIND[state.view];
@@ -1549,9 +1553,9 @@ function renderRun() {
       : `${runKindLabel()}|수 분 걸릴 수 있습니다`;
 }
 
-async function startJob() {
+async function startJob(kind = VIEW_KIND[state.view]) {
   try {
-    state.jobs = await getJSON(`/api/jobs/${VIEW_KIND[state.view]}`, { method: "POST" });
+    state.jobs = await getJSON(`/api/jobs/${kind}`, { method: "POST" });
   } catch (e) {
     alert(`분석을 시작하지 못했습니다: ${e.message}`);
   }
@@ -1566,6 +1570,7 @@ function watchJobs(started = false) {
   const refresh = async () => {
     state.results = await getJSON("/api/results");
     renderAll();
+    if (state.mainTab === "nodes") loadNodes();
   };
   if (!roleViews().some((v) => RESULT_VIEWS.has(v))) return;
   if (!state.jobs || !state.jobs.running) {
@@ -1587,7 +1592,8 @@ function watchJobs(started = false) {
   }, 2000);
 }
 
-$("run").addEventListener("click", startJob);
+$("run").addEventListener("click", () => startJob());
+$("check-now").addEventListener("click", () => startJob("nodes"));
 
 /* ── 수집 노드 — 화면에서 노드를 등록해 키를 발급하고, 상태 · 키를 보고 끄거나 키를 다시 발급합니다 ── */
 function nodeState(n) {

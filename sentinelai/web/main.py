@@ -80,7 +80,7 @@ def jobs(request: Request) -> dict[str, Any]:
 
 @app.post("/api/jobs/{kind}", status_code=202, dependencies=analyst)
 def start_job(kind: str, request: Request) -> dict[str, Any]:
-    """정책 관리 검토를 백그라운드로 시작합니다. 한 번에 하나만 돕니다. 로그 감시 · 서버 점검은 서버가 정해진 간격마다 스스로 돌립니다."""
+    """정책 관리 검토 · 서버 점검을 백그라운드로 시작합니다. 한 번에 하나만 돕니다. 서버 점검 · 로그 감시는 서버가 정해진 간격마다 스스로도 돌립니다."""
     if kind not in MANUAL:
         raise HTTPException(status_code=404, detail=f"화면에서 시작할 수 없는 작업입니다: {kind} (가능: {', '.join(MANUAL)})")
     if not _engine(request).jobs.start(kind):
