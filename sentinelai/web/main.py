@@ -21,7 +21,7 @@ from sentinelai.db import User, auth, decisions, open_main_db, open_results_db, 
 from . import view  # noqa: E402
 from .api_permissions import Approver, role  # noqa: E402
 from .api_permissions import router as permissions_router  # noqa: E402
-from .jobs import KINDS, JobRunner  # noqa: E402
+from .jobs import KINDS, MANUAL, JobRunner  # noqa: E402
 from .verdicts import VerdictWorker  # noqa: E402
 
 DOCS_DIR = ROOT / "docs"
@@ -39,10 +39,12 @@ async def lifespan(app: FastAPI):
     app.state.main_db = open_main_db(engine.settings.db_path)
     app.state.results_db = open_results_db(engine.settings.results_db_path)
     state["jobs"] = JobRunner(engine, app.state.results_db)
+    state["jobs"].every("events", engine.settings.monitor_interval_min)
     state["rag_chain"] = engine.rag_chain(structured=True)
     app.state.verdicts = VerdictWorker(engine, app.state.main_db)
     app.state.verdicts.resume()
     yield
+    state["jobs"].stop()
     app.state.verdicts.stop()
     state.clear()
 
@@ -110,9 +112,9 @@ def jobs() -> dict[str, Any]:
 
 @app.post("/api/jobs/{kind}", status_code=202, dependencies=analyst)
 def start_job(kind: str) -> dict[str, Any]:
-    """권한 신청 검토 · 정책 관리 검토 · 로그 감시를 백그라운드로 시작합니다. 한 번에 하나만 돕니다."""
-    if kind not in KINDS:
-        raise HTTPException(status_code=404, detail=f"없는 작업입니다: {kind} (가능: {', '.join(KINDS)})")
+    """정책 관리 검토를 백그라운드로 시작합니다. 한 번에 하나만 돕니다. 로그 감시는 웹이 정해진 간격마다 스스로 돌립니다."""
+    if kind not in MANUAL:
+        raise HTTPException(status_code=404, detail=f"화면에서 시작할 수 없는 작업입니다: {kind} (가능: {', '.join(MANUAL)})")
     if not state["jobs"].start(kind):
         raise HTTPException(status_code=409, detail="다른 작업이 돌고 있습니다. 끝난 뒤 다시 시도하세요.")
     return jobs()
@@ -182,6 +184,30 @@ def my_qa(kind: str, request: Request, user: Approver) -> list[dict[str, Any]]:
     if kind not in results_db.QA_KINDS:
         raise HTTPException(status_code=422, detail=f"kind 는 {', '.join(results_db.QA_KINDS)} 중 하나입니다")
     return list(reversed(results_db.my_qa(request.app.state.results_db, user, kind)))
+
+
+# --- 내부 상태 (서버 자신만) ---------------------------------------------------
+
+
+def local_only(request: Request) -> None:
+    """서버 자신(127.0.0.1)에서 온 요청만 받습니다. 없는 주소처럼 404 로 막습니다.
+
+    역방향 프록시 뒤에서는 모든 요청이 127.0.0.1 에서 온 것처럼 보이므로, 전달 헤더가 붙은 요청은 밖에서 온 것으로 봅니다.
+    """
+    host = request.client.host if request.client else ""
+    forwarded = any(h in request.headers for h in ("x-forwarded-for", "x-real-ip", "forwarded"))
+    if host not in ("127.0.0.1", "::1") or forwarded:
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+@app.get("/internal/status", dependencies=[Depends(local_only)])
+def internal_status(request: Request) -> dict[str, Any]:
+    """웹 안에서 도는 것 — 작업 큐(진행 · 마지막 결과) · 자동 실행 예약 · 권한 신청 AI 판정 대기열. 화면은 쓰지 않습니다.
+
+    서버에서 `curl -s localhost:8000/internal/status` 로 봅니다.
+    """
+    return {"jobs": {**state["jobs"].status(), "kinds": KINDS}, "schedule": state["jobs"].schedule(),
+            "verdicts": request.app.state.verdicts.snapshot()}
 
 
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

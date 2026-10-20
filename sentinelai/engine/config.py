@@ -36,6 +36,7 @@ class Settings:
     events_source: str
     db_path: str
     results_db_path: str
+    monitor_interval_min: int
 
     @staticmethod
     def env_file() -> Path:

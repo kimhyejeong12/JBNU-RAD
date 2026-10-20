@@ -21,6 +21,7 @@ class VerdictWorker:
         self.engine, self.main_db = engine, main_db
         self._queue: queue.Queue[str] = queue.Queue()
         self._pending: set[str] = set()
+        self._current: str | None = None
         self._lock = threading.Lock()
         self._stopping = threading.Event()
         threading.Thread(target=self._run, daemon=True).start()
@@ -41,6 +42,11 @@ class VerdictWorker:
         with self._lock:
             return request_no in self._pending
 
+    def snapshot(self) -> dict[str, object]:
+        """지금 판정 중인 신청과 기다리는 신청 (내부 상태 API)."""
+        with self._lock:
+            return {"current": self._current, "waiting": sorted(self._pending - {self._current})}
+
     def resume(self) -> None:
         """1차 결재 전인데 판정이 없거나 실패한 신청을 다시 줄 세웁니다 (웹을 다시 띄웠을 때)."""
         for request_no in permissions.unjudged(self.main_db):
@@ -51,6 +57,8 @@ class VerdictWorker:
             request_no = self._queue.get()
             if self._stopping.is_set():
                 return
+            with self._lock:
+                self._current = request_no
             try:
                 with self.main_db.connection() as conn:
                     row = conn.execute("SELECT * FROM access_requests WHERE request_no = ?", (request_no,)).fetchone()
@@ -65,3 +73,4 @@ class VerdictWorker:
             finally:
                 with self._lock:
                     self._pending.discard(request_no)
+                    self._current = None

@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 LEVELS = ("정상", "주의", "위험")
+REVIEW_LEVELS = ("주의", "위험")
 
 
 def _verdict(item: dict[str, Any]) -> dict[str, Any]:
@@ -50,7 +51,8 @@ def server(item: dict[str, Any]) -> dict[str, Any]:
 
 def results(policies: dict[str, Any] | None, events: dict[str, Any] | None) -> dict[str, Any]:
     """policies = db.results.latest_policy_review, events = db.results.monitor_findings (없으면 None)"""
-    findings = [finding(f) for f in events["findings"]] if events else []
+    # 로그 감시는 주의 이상만 운영자 검토에 올립니다 (판정 실패도 "주의"라 빠지지 않습니다). 정상 판정은 AI 결과 DB에만 남습니다.
+    findings = [f for f in (finding(f) for f in events["findings"]) if f["level"] in REVIEW_LEVELS] if events else []
     servers = [server(s) for s in policies["servers"]["findings"]] if policies else []
     if policies and policies["failed"]:
         policy_review = {"summary": f"판정 실패: {policies['error']}", "issues": [], "elapsed_sec": policies["elapsed_sec"]}
