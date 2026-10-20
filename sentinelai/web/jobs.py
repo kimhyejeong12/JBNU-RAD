@@ -51,9 +51,10 @@ class JobRunner:
         return True
 
     def every(self, kind: str, minutes: int) -> None:
-        """kind 작업을 minutes 분마다 자동으로 시작합니다 (0 이하면 끔). 첫 실행은 minutes 분 뒤입니다.
+        """kind 작업을 웹이 뜨자마자 한 번 돌리고, 그 뒤 minutes 분마다 자동으로 시작합니다 (0 이하면 끔).
 
-        웹을 다시 띄울 때마다(--reload) 곧바로 판정이 돌지 않게 바로 시작하지 않습니다.
+        웹이 꺼져 있던 동안 쌓인 로그를 바로 따라잡게 합니다. 로그 감시는 지난 감시 이후만 판정하므로
+        다시 띄워도 이미 판정한 로그를 또 판정하지 않습니다.
         """
         if minutes > 0:
             threading.Thread(target=self._every, args=(kind, timedelta(minutes=minutes)), daemon=True).start()
@@ -62,7 +63,7 @@ class JobRunner:
         self._stop.set()
 
     def _every(self, kind: str, interval: timedelta) -> None:
-        wait = interval
+        wait = timedelta(0)
         while True:
             with self._lock:
                 self._schedule[kind] = {"every_min": int(interval.total_seconds() // 60),
