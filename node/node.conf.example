@@ -1,0 +1,7 @@
+[node]
+name = cust-db01
+server = http://sentinelai.internal:8000
+token = 여기에-SENTINELAI_NODE_TOKEN-값
+interval_min = 30
+modules = ufw, sshd, pam, accounts
+state_dir = /var/lib/sentinel-node
