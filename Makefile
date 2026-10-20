@@ -7,11 +7,10 @@ DEV_PORT ?= 8001
 DEV_CHECK_MIN ?= 5
 # 로컬 시험 환경 — 진짜 DB · 벡터 DB 대신 .dev/ 를 씁니다 (모델 서버 주소 등 나머지는 .env 그대로). 주기 점검은 DEV_CHECK_MIN 분마다.
 DEV_ENV := SENTINELAI_DB_PATH=.dev/sentinelai.db SENTINELAI_RESULTS_DB_PATH=.dev/results.db SENTINELAI_MILVUS_URI=.dev/milvus.db SENTINELAI_MONITOR_INTERVAL_MIN=$(DEV_CHECK_MIN) DEV_PORT=$(DEV_PORT)
-# 시험용 점검 대상 컨테이너 — 노드가 그 안에서 root 로 읽어 호스트의 make dev 로 보냅니다.
-# host.containers.internal 을 호스트의 127.0.0.1 로 이어, make dev 를 바깥에 열지 않습니다. NET_ADMIN 이 있어야 ufw 가 실제로 켜집니다.
+# 시험용 점검 대상 컨테이너 (node/testenv/compose.yaml) — 노드가 그 안에서 root 로 읽어 보냅니다. 값은 node/testenv/targets.env.
+# podman compose 는 docker-compose 를 쓰므로 사용자 podman 소켓이 떠 있어야 합니다 (systemctl --user start podman.socket).
 PODMAN ?= podman
-TARGET_IMAGE := sentinel-target
-TARGET_RUN := $(PODMAN) run -d --network pasta:--map-host-loopback,169.254.1.2 --cap-add NET_ADMIN --cap-add NET_RAW -e SERVER=http://host.containers.internal:$(DEV_PORT) -e INTERVAL=$(or $(INTERVAL),1)
+TARGETS := cd node/testenv && $(PODMAN) compose --env-file targets.env
 
 .PHONY: dev-setup dev dev-node dev-sim dev-targets dev-targets-stop help install health index review-policies check-nodes monitor import-snapshots create-root review-check web docker-build docker-run clean
 
@@ -32,8 +31,9 @@ help:
 	@echo "dev [DEV_CHECK_MIN=5]          시험 환경으로 웹 실행 (http://127.0.0.1:$(DEV_PORT)), 서버 점검 5분마다"
 	@echo "--- 노드 수집 시험 (make dev 가 떠 있을 때) ---"
 	@echo "dev-sim [NODES=3] [ROUNDS=3] [EVERY=5]  흉내 노드가 설정을 조금씩 바꿔 가며 보냄 (컨테이너 없이)"
-	@echo "dev-targets [INTERVAL=1]       점검 대상 컨테이너 2대(weak · strict)를 띄워 진짜 노드가 root 로 수집해 보냄 (podman)"
-	@echo "dev-targets-stop               위 컨테이너 지우기"
+	@echo "dev-targets                    점검 대상 컨테이너 2대(weak · strict) 올리기 — 진짜 노드가 root 로 수집해 보냄 (podman compose)"
+	@echo "                               값은 node/testenv/targets.env (없으면 시험 환경 키로 만듦, 고쳐서 다른 키 · 서버로)"
+	@echo "dev-targets-stop               위 컨테이너 내리기"
 	@echo "dev-node                       이 컴퓨터를 노드로 한 번 보내기 (root 가 아니면 SSH · sudo 는 확인 못함)"
 	@echo "docker-build · docker-run · clean"
 
@@ -84,16 +84,18 @@ dev-sim:
 	$(DEV_ENV) $(PY) scripts/dev_nodes.py sim -n $(or $(NODES),3) -r $(or $(ROUNDS),3) -e $(or $(EVERY),5)
 
 dev-targets:
-	@test -d .dev || (echo "먼저 make dev-setup" && exit 1)
-	cd node && $(PODMAN) build -q -t $(TARGET_IMAGE) -f testenv/Containerfile . >/dev/null
-	@for p in weak strict; do \
-		$(PODMAN) rm -f sentinel-target-$$p >/dev/null 2>&1; \
-		$(TARGET_RUN) --name sentinel-target-$$p --hostname target-$$p -e PROFILE=$$p \
-			-e KEY=$$($(DEV_ENV) $(PY) scripts/dev_nodes.py key target-$$p) $(TARGET_IMAGE) >/dev/null && echo "target-$$p 실행 — 기록: $(PODMAN) logs -f sentinel-target-$$p"; \
-	done
+	@test -f node/testenv/targets.env || (test -d .dev || (echo "먼저 make dev-setup (또는 node/testenv/targets.env.example 을 targets.env 로 복사해 키를 넣으세요)" && exit 1); \
+		printf 'SERVER=http://host.containers.internal:%s\nKEY_WEAK=%s\nKEY_STRICT=%s\nINTERVAL=1\n' $(DEV_PORT) \
+			"$$($(DEV_ENV) $(PY) scripts/dev_nodes.py key target-weak)" "$$($(DEV_ENV) $(PY) scripts/dev_nodes.py key target-strict)" > node/testenv/targets.env; \
+		echo "node/testenv/targets.env 를 시험 환경 키로 만들었습니다")
+	@port=$$(sed -n 's#^SERVER=.*:\([0-9][0-9]*\).*#\1#p' node/testenv/targets.env); \
+		curl -s -m 2 -o /dev/null http://127.0.0.1:$$port/ || echo "경고: 127.0.0.1:$$port 에 SentinelAI 가 없습니다 — targets.env 의 SERVER 를 확인하세요 (make web 은 8000, make dev 는 8001, 키는 그 서버 화면에서 발급한 것)"
+	@systemctl --user start podman.socket 2>/dev/null || true
+	$(TARGETS) up -d --build
+	@echo "기록: cd node/testenv && $(PODMAN) compose --env-file targets.env logs -f"
 
 dev-targets-stop:
-	$(PODMAN) rm -f sentinel-target-weak sentinel-target-strict
+	$(TARGETS) down
 
 docker-build:
 	$(DOCKER) build -t $(IMAGE) .
