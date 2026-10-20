@@ -68,7 +68,9 @@ JBNU-RAD/
 │   ├── install.sh              /opt/sentinel-node · /etc/sentinel-node/node.conf · systemd sentinel-node 설치 · 제거
 │   └── sentinel-node.service · node.conf.example · README.md
 ├── scripts/
-│   └── review_check.py         반복 루프 · 등급 흔들림 재현 (테스트 전용) — 수정 금지
+│   ├── review_check.py         반복 루프 · 등급 흔들림 재현 (테스트 전용) — 수정 금지
+│   └── dev_setup.py            로컬 시험 환경 만들기 (`make dev-setup`) — .dev/ 에 시험 계정 · 연습용 노드 수집 · 이 컴퓨터용 노드 설정
+├── .dev/                     로컬 시험 환경의 두 DB · 벡터 DB · node.conf (git 제외)
 ├── .milvus/                  벡터 DB 파일 (Milvus Lite, git 제외)
 ├── .env · .env.example       설정. .env는 git 제외, make install이 예시에서 만든다
 ├── design/                   설계 문서 — db-schema.md (권한 DB 결정 경위 · 남은 질문) · results-db.md (AI 결과 DB)
@@ -172,6 +174,8 @@ JBNU-RAD/
 | `make check-nodes` | 서버 점검 1회 — 새 수집이 온 노드만 |
 | `make monitor [SINCE=시각] [FULL=1]` | 로그 감시 1회 — 지난 감시 이후 로그만 (웹을 띄우지 않는 서버에서 cron으로). `FULL=1`이면 처음부터 |
 | `make review-check [N=회수]` | `scripts/review_check.py` — review_chain 반복 루프 · 등급 흔들림 재현 |
+| `make dev-setup [RESET=1]` | **로컬 시험 환경** — 진짜 DB · 벡터 DB 대신 `.dev/`에 만든다. 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 연습용 노드 수집을 넣고 이 컴퓨터용 노드 `dev-local`의 키로 `.dev/node.conf`를 만들며, 모델 서버에 닿으면 기준 문서도 적재한다 |
+| `make dev` · `make dev-node` | 시험 환경으로 웹 실행 (http://127.0.0.1:8001, `.dev/` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 된다) · 이 컴퓨터를 노드로 한 번 보내기 |
 
 10/20에 CLI를 줄였다 — `config` · `models` · `search` · `ask` · `chat` · `index-policies` · `review-requests`(CSV 권한 신청 평가) · `ask-logs`는 없앴다 (질의는 화면에서, 규칙 적재는 `review-policies`가 한다). 대상 위치는 모두 `.env`에서만 정한다.
 
