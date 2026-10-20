@@ -66,10 +66,12 @@ JBNU-RAD/
 ├── node/                     수집 노드 — 점검 대상 서버에 까는 데몬 (SentinelAI 패키지와 따로, 표준 라이브러리만, Python 3.8+)
 │   ├── sentinel_node/          collect(모듈별 원문 읽기) · client(보내기 · 못 보낸 것 쌓아 두기 · 키 저장) · config · __main__(run · once · show · export)
 │   ├── install.sh              /opt/sentinel-node · /etc/sentinel-node/node.conf · systemd sentinel-node 설치 · 제거
+│   ├── testenv/                시험용 점검 대상 컨테이너 (Ubuntu + ufw · sshd · PAM · sudo, PROFILE=weak · strict) — make dev-targets
 │   └── sentinel-node.service · node.conf.example · README.md
 ├── scripts/
 │   ├── review_check.py         반복 루프 · 등급 흔들림 재현 (테스트 전용) — 수정 금지
-│   └── dev_setup.py            로컬 시험 환경 만들기 (`make dev-setup`) — .dev/ 에 시험 계정 · 연습용 노드 수집 · 이 컴퓨터용 노드 설정
+│   ├── dev_setup.py            로컬 시험 환경 만들기 (`make dev-setup`) — .dev/ 에 시험 계정 · 연습용 노드 수집 · 이 컴퓨터용 노드 설정
+│   └── dev_nodes.py            노드 수집 시험 — 시험 환경의 노드 키 꺼내기(`key`) · 흉내 노드(`sim`, make dev-sim)
 ├── .dev/                     로컬 시험 환경의 두 DB · 벡터 DB · node.conf (git 제외)
 ├── .milvus/                  벡터 DB 파일 (Milvus Lite, git 제외)
 ├── .env · .env.example       설정. .env는 git 제외, make install이 예시에서 만든다
@@ -175,7 +177,10 @@ JBNU-RAD/
 | `make monitor [SINCE=시각] [FULL=1]` | 로그 감시 1회 — 지난 감시 이후 로그만 (웹을 띄우지 않는 서버에서 cron으로). `FULL=1`이면 처음부터 |
 | `make review-check [N=회수]` | `scripts/review_check.py` — review_chain 반복 루프 · 등급 흔들림 재현 |
 | `make dev-setup [RESET=1]` | **로컬 시험 환경** — 진짜 DB · 벡터 DB 대신 `.dev/`에 만든다. 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 연습용 노드 수집을 넣고 이 컴퓨터용 노드 `dev-local`의 키로 `.dev/node.conf`를 만들며, 모델 서버에 닿으면 기준 문서도 적재한다 |
-| `make dev` · `make dev-node` | 시험 환경으로 웹 실행 (http://127.0.0.1:8001, `.dev/` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 된다) · 이 컴퓨터를 노드로 한 번 보내기 |
+| `make dev [DEV_CHECK_MIN=5]` | 시험 환경으로 웹 실행 (http://127.0.0.1:8001, `.dev/` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 된다). 로그 감시 · 서버 점검은 `DEV_CHECK_MIN`분마다 |
+| `make dev-sim [NODES=3] [ROUNDS=3] [EVERY=5]` | **노드 수집 흉내** — 흉내 노드(sim-01…)가 연습용 노드 원문을 바탕으로 차례마다 반쯤 확률로 설정 하나를 바꿔(UFW 끄기 · root · 비밀번호 로그인 열기 · NOPASSWD 더하기 · 실패 잠금 빼기) 진짜 노드와 같은 주소 · 키로 보낸다. 받기 · 바뀐 것 · 주기 점검 · 화면을 컨테이너 없이 시험 |
+| `make dev-targets [INTERVAL=1]` · `make dev-targets-stop` | **진짜 수집** — podman 으로 점검 대상 컨테이너 2대(`target-weak`: root · 비밀번호 로그인, NOPASSWD, 실패 잠금 없음, 22 · 3306 어디서나 / `target-strict`: 잠근 설정)를 띄우고, 그 안에서 진짜 노드가 root 로 읽어 `make dev`로 보낸다. 키는 시험 환경에서 자동 발급. `host.containers.internal`을 호스트 127.0.0.1로 이어(pasta `--map-host-loopback`) `make dev`를 바깥에 열지 않고, NET_ADMIN 으로 ufw 가 실제로 켜진다 (없으면 "확인 못함"). 10/20 시험: weak 위험 · strict 정상 |
+| `make dev-node` | 이 컴퓨터를 노드로 한 번 보내기 (root 가 아니면 SSH · sudo 는 "확인 못함") |
 
 10/20에 CLI를 줄였다 — `config` · `models` · `search` · `ask` · `chat` · `index-policies` · `review-requests`(CSV 권한 신청 평가) · `ask-logs`는 없앴다 (질의는 화면에서, 규칙 적재는 `review-policies`가 한다). 대상 위치는 모두 `.env`에서만 정한다.
 

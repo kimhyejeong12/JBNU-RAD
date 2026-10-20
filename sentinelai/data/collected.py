@@ -39,7 +39,7 @@ def _missing(text: str) -> bool:
 
 
 def _unreadable(text: str) -> bool:
-    return "(읽을 수 없음" in text or "need to be root" in text
+    return any(m in text for m in ("(읽을 수 없음", "need to be root", "must be root", "problem running iptables"))
 
 
 def ufw(text: str) -> dict[str, str]:

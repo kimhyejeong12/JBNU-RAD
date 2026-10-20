@@ -38,3 +38,18 @@ sudo sh install.sh --uninstall [--purge]                              # 제거
 ```
 
 망이 막힌 서버에서 `export`한 파일은 SentinelAI 서버에서 `python -m sentinelai import-snapshots <폴더> --node <이름>`으로 넣습니다.
+
+## 시험
+
+SentinelAI 저장소에서 (진짜 DB 를 건드리지 않는 `.dev/` 시험 환경):
+
+```sh
+make dev-setup && make dev            # 시험용 웹 http://127.0.0.1:8001 (계정 dev-op / dev-pass-1234)
+make dev-targets                      # 점검 대상 컨테이너 2대(weak · strict) — 진짜 노드가 root 로 수집해 보냄 (podman)
+make dev-sim                          # 흉내 노드 3대 — 설정을 조금씩 바꿔 가며 보냄
+make dev-targets-stop
+```
+
+컨테이너는 `testenv/Containerfile`(Ubuntu + ufw · sshd · PAM · sudo)이고, `testenv/target.sh`가 `PROFILE`대로 설정을 맞춘 뒤 노드를 돌립니다.
+`SHOW=1`이면 보내지 않고 수집한 본문만 출력합니다: `podman run --rm --cap-add NET_ADMIN -e PROFILE=weak -e SERVER=x -e KEY=x -e SHOW=1 sentinel-target`
+
