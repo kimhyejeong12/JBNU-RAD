@@ -82,9 +82,9 @@ JBNU-RAD/
 └── Dockerfile · README.md    코어 컨테이너(엔진 · data · pipeline, `python -m sentinelai`) · 저장소 소개 (웹은 컨테이너에 없음)
 ```
 
-검토 대상 위치는 `.env`에서 정한다 — `SENTINELAI_REQUESTS_SOURCE`(권한 신청) · `SENTINELAI_POLICIES_SOURCE`(솔루션 정책, 기본 `data/policies/` 폴더) · `SENTINELAI_SERVERS_SOURCE`(서버 현황, 기본 `data/servers/` 폴더) · `SENTINELAI_EVENTS_SOURCE`(보안 솔루션 로그, 지금은 `data/솔루션 별 Mock 데이터.csv`).
+검토 대상 위치는 `.env`에서 정한다 — `SENTINELAI_REQUESTS_SOURCE`(권한 신청) · `SENTINELAI_POLICIES_SOURCE`(솔루션 정책, 기본 `data/policies/` 폴더) · `SENTINELAI_SERVERS_SOURCE`(서버 현황, 기본 `data/servers/` 폴더) · `SENTINELAI_EVENTS_SOURCE`(보안 솔루션 로그, 지금은 `data/연습용_로그_원본+합성.csv`).
 파일 대신 폴더를 가리키면 안의 `.csv` · `.json` · `.jsonl`을 모두 읽는다 (솔루션 · 점검 도구마다 내보낸 파일을 그대로 둔다). 컬럼이 맞지 않는 파일은 건너뛰고 화면 하단에 알린다. 폴더가 없거나 비면 그 검토만 건너뛴다. 사내 기준 문서(정책 문서)는 `docs/`에 두면 정책 관리 검토를 돌릴 때 바뀐 것만 RAG에 다시 적재한다.
-권한 신청 · 정책 CSV(`data/permissions.csv` · `data/policies.csv`)는 10/7에 저장소에서 지웠다 (예전 사례는 git 이력 `8eb0e1d^`). 10/14에 **연습용** 데이터를 넣었다 — `data/policies/연습용_솔루션정책.csv`(예전 규칙 9건, 규칙마다 기준 조항 하나에 걸리게 만든 것) · `data/servers/연습용_서버현황.csv`(지어낸 서버 4대: cust-db01 · portal01 · ops-app03은 위 규칙 · 6.2에 걸리고, backup01은 걸리는 규칙 없이 PAM 경유라 정상이 기대값 — 오탐 확인용). 실제 솔루션 · 서버에서 내보낸 데이터가 아니므로 결과를 실제 환경 평가로 쓰지 않는다. 실제 데이터가 오면 연습용 파일을 빼고 둔다.
+권한 신청 · 정책 CSV(`data/permissions.csv` · `data/policies.csv`)는 10/7에 저장소에서 지웠다 (예전 사례는 git 이력 `8eb0e1d^`). 10/14에 **연습용** 데이터를 넣었다 — `data/policies/연습용_솔루션정책.csv`(예전 규칙 9건, 규칙마다 기준 조항 하나에 걸리게 만든 것) · `data/servers/연습용_서버현황.csv`(지어낸 서버 4대: cust-db01 · portal01 · ops-app03은 위 규칙 · 6.2에 걸리고, backup01은 걸리는 규칙 없이 PAM 경유라 정상이 기대값 — 오탐 확인용). 로그는 받은 원본 `data/솔루션 별 Mock 데이터.csv`(2줄, 10/6)를 고치지 않고 두고, 원본 2줄 + **합성** 137줄(9/15~10/20, 사용자 6명, 한국 시간 평일 근무 시간 위주, 같은 SecureMark 컬럼)을 `data/연습용_로그_원본+합성.csv`로 따로 만들어 이것을 읽는다 (10/20, 로그 조회의 하루 · 일주일 · 한 달 시험용). 합성 로그는 날짜가 고정이라 시간이 지나면 하루 · 일주일 조회가 다시 빈다. 실제 솔루션 · 서버에서 내보낸 데이터가 아니므로 결과를 실제 환경 평가로 쓰지 않는다. 실제 데이터가 오면 연습용 파일을 빼고 둔다.
 컬럼 — 권한 신청: `id, requester, requested_access, current_access, 신청일` / 정책: `policy_id, solution, source, destination, service, action, expires_at` / 서버 현황: 호스트 이름(`host` · `hostname` · `호스트명` 등)이나 IP(`ip` · `IP` 등) 중 하나만 있으면 되고, 나머지 컬럼(용도 · 영역 · 외부 노출 · 열린 포트 · 관리자 계정 · 마지막 패치 등)은 이름 그대로 판정에 넣는다 / 로그: Microsoft Sentinel 내보내기(`TimeGenerated`, `WHO` · `WHERE` · `HOW` 등, `sentinelai/data/mapper.py`).
 
 ---
