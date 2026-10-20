@@ -19,7 +19,7 @@ SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
 - 권한 신청 AI 판정은 권한 DB에 둔다. 보안 총책임자까지 올라가는 결재 근거라서 신청과 함께 남아야 한다 (`db-schema.md` 결정 15~17).
 - 권한 DB의 운영자 결정은 AI 결과 DB 행을 `테이블/id` 문자열로 가리키고, 결정에 쓴 값(AI 등급)은 사본으로 함께 둔다. 두 DB는 FK로 묶이지 않는다.
 - AI 결과 DB는 쌓기만 한다. 행을 고치지 않는다 (트리거). 지우는 것은 보관 기간 정리뿐이고, **권한 DB가 가리키는 행은 지우지 않는다** (§4).
-- 엔진 · 데이터 계층 · `pipeline`은 DB를 모른다. `pipeline`은 지금처럼 dict를 돌려주고, 저장은 `sentinelai/db/results.py`가 한다. `pipeline.ResultStore`와 `SENTINELAI_RESULTS_PATH`는 없앴다 (10/12).
+- 엔진 · 데이터 계층 · `pipeline`은 DB를 모른다. `pipeline`은 지금처럼 dict를 돌려주고, 저장은 `sentinelai/db/results.py`가 한다. `pipeline.ResultStore`와 `SENTINELAI_RESULTS_PATH`는 없앴다 (10/12). (10/20: 흐름은 `engine/pipeline.py`로 옮겼고, 저장은 `Engine`의 `run_*` 기능이 `db.results`로 한다.)
 
 **로그 질의는 RAG로 만들지 않는다** (10/12 재확인). "몇 번 · 언제부터 · 누가"는 집계라서 비슷한 몇 줄(`top_k`)만 찾으면 건수가 틀린다. 로그를 RAG에 넣으려면 외부 DB의 로그를 Milvus에 한 벌 더 쌓고 계속 맞춰야 한다. 지금처럼 모델이 질문을 조건(`LogFilter`)으로 바꾸고, 세는 일은 로그가 있는 곳이 한다. 외부 DB 소스를 붙이면 조건을 그 DB의 쿼리(Microsoft Sentinel이면 KQL)로 넘긴다. 지금 `ask_logs`는 로그 전체를 메모리에 읽어 세므로, 외부 소스를 붙일 때 함께 바꾼다. 조건으로 바꾸기 어려운 질문("수상한 출력 행위")의 비슷한 사례 찾기는 필요해지면 RAG를 두 번째 경로로 더한다.
 
@@ -152,6 +152,6 @@ qa_records                             (정책 질의 · 로그 질의)
 ## 5. 정한 것 (10/12)
 
 1. **질의 기록은 자기 것만 본다.** 보안 운영자는 화면에서 자기 질의만 본다 (메뉴마다, 새로고침해도 남음). `GET /api/qa`는 부른 사람의 기록만 돌려준다. 전체 기록은 DB에만 있다.
-2. **CSV 권한 신청 일괄 판정(`make review-requests`)** — 권한 신청은 DB로 들어온다. 이 명령은 §8-1(전 건 판정해 기대와 대조)용 **평가 명령으로만 남기고 DB에 쓰지 않는다**. 결과는 화면에 찍고, `--out 파일`이면 JSON으로도 남긴다. `/api/results`에서 `requests` 구역을 뺀다.
+2. **CSV 권한 신청 일괄 판정(`make review-requests`)** — 권한 신청은 DB로 들어온다. 이 명령은 §8-1(전 건 판정해 기대와 대조)용 **평가 명령으로만 남기고 DB에 쓰지 않는다**. 결과는 화면에 찍고, `--out 파일`이면 JSON으로도 남긴다. `/api/results`에서 `requests` 구역을 뺀다. → 10/20에 CLI를 줄이며 없앴다.
 3. **지금 `results.json`** (로그 감시 판정 2건)은 옮기지 않는다. 필요하면 `make monitor FULL=1`로 다시 판정한다.
 4. **로그 감시 화면 범위** — 이번에는 쌓인 판정을 전부 보여준다. 기간은 로그 감시 이력 화면(§8-5)에서 정한다.

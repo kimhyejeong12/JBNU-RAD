@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field
 
@@ -71,3 +71,15 @@ class PolicyReview(BaseModel):
 
     issues: list[PolicyIssue] = Field(description="발견된 문제 목록. 없으면 빈 목록")
     summary: str = Field(description="검토 요약")
+
+
+class Notifier(Protocol):
+    """로그 감시의 주의 · 위험을 운영자에게 알리는 자리 — 아직 구현하지 않았습니다 (CLAUDE.md §8).
+
+    내보내는 곳(메일 · 메신저 등)은 이 인터페이스를 구현해 붙이고, 부를 곳은 pipeline.monitor 입니다.
+    """
+
+    def send(self, subject: str, verdict: Verdict, evidence: str) -> None:
+        """subject: 대상 사용자, evidence: 판정에 쓴 로그 (한 줄에 한 건)."""
+        ...
+

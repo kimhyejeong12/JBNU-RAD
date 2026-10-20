@@ -26,24 +26,13 @@ LLM · RAG 엔진 `sentinelai/engine/`(양현성) 위에 웹 대시보드 `senti
 ```
 JBNU-RAD/
 ├── sentinelai/               SentinelAI 패키지. __init__.py 는 ROOT · 버전만 두고 하위 패키지를 가져오지 않는다
-│   ├── __main__.py · cli.py    코어 CLI `python -m sentinelai` — 엔진 명령 + index-policies · review-requests · review-policies · check-nodes · import-snapshots · monitor · ask-logs. 코어는 이것만으로 돈다
-│   ├── pipeline.py             data × engine 실행 흐름 — review_requests · review_policies · snapshot_row · check_nodes · monitor · ask_logs · attempt(재시도). 결과 dict만 돌려주고 저장은 db.results
-│   ├── engine/                 LLM · RAG 엔진 (양현성) — 수정 금지
-│   │   ├── engine.py             Engine — 설정 · LLM · DocumentStore · 체인 진입점 (engine.review_chain() 등은 chains/로 넘긴다)
-│   │   ├── chains/               체인 — 한 파일에 한 기능
-│   │   │   ├── access.py           review_chain — 권한 신청 검토 (정책 이해)
-│   │   │   ├── policy.py           policy_chain — 정책 모순 판정 (정책 이해)
-│   │   │   ├── server.py           server_chain — 서버 현황 + 그 서버에 걸린 규칙 ↔ 기준 문서: 다른 곳 · 바꿀 것 (정책 이해)
-│   │   │   ├── answer.py           answer_chain · rag_chain — 질의응답 (정책 이해)
-│   │   │   ├── event.py            event_chain — 로그 ↔ 정책 비교 (로그 감시)
-│   │   │   ├── logs.py             log_filter_chain · log_answer_chain — 로그 질의 (로그 감시). 로그는 RAG로 찾지 않는다
-│   │   │   └── retrieval.py        종류별 검색 (조항 · 규칙) — 체인들이 함께 쓴다
-│   │   ├── rag.py                DocumentStore — 기준 조항(clause) · 솔루션 규칙(rule)을 한 컬렉션에 적재, 종류별 검색
-│   │   ├── alert.py              Notifier 인터페이스 자리 — 아직 구현 없음, 부를 곳은 pipeline.monitor (§8)
-│   │   ├── prompt.py             프롬프트 (권한 검토 · 로그 검토 · 정책 검토 · 질의응답)
-│   │   ├── types.py              출력 타입 Verdict · PolicyReview · ServerReview · Answer
-│   │   ├── config.py             Settings — .env 의 SENTINELAI_* 읽기
-│   │   └── cli.py                엔진만 있는 환경용 CLI `python -m sentinelai.engine.cli` (data · pipeline 명령 없음)
+│   ├── __main__.py · cli.py    CLI `python -m sentinelai` — 웹이 꺼져 있을 때 쓰는 최소 명령만: health · index · review-policies · check-nodes · monitor · import-snapshots · create-root. 모두 Engine 기능을 부른다
+│   ├── engine/                 엔진 (양현성) — 큰 파일 다섯 개 (10/20에 chains/ · pipeline · 작업 큐 · CLI 를 합쳤다)
+│   │   ├── engine.py             Settings(.env) · Engine — 모델 · RAG 저장소 · 두 DB를 열고, 모든 기능(run_policies · run_nodes · run_events · ask · ask_logs · browse_logs · receive_snapshot · import_snapshots · judge_request · health)과 작업 큐(JobRunner: 자동 로그 감시 · 서버 점검 · 정책 관리 검토, VerdictWorker: 권한 신청 판정)를 둔다. 웹 · CLI는 Engine 하나만 만든다
+│   │   ├── pipeline.py           체인(review · policy · server · event · log_filter · log_answer · answer · rag)과 판정 흐름(review_policies · check_nodes · snapshot_row · monitor · browse_logs · ask_logs · judge_request · attempt). 결과 dict만 돌려주고 저장 · 큐는 engine.py
+│   │   ├── rag.py                DocumentStore — 기준 조항(clause) · 솔루션 규칙(rule)을 한 컬렉션에 적재, 종류별 검색(lookup · lookup_all)
+│   │   ├── prompt.py             프롬프트 (권한 검토 · 로그 검토 · 정책 검토 · 서버 점검 · 질의응답 · 로그 질의)
+│   │   └── types.py              출력 타입 Verdict · PolicyReview · ServerReview · Answer · LogFilter, 알림 자리 Notifier (아직 구현 없음, §8)
 │   ├── data/                   검토 대상 데이터 계층 (양현성) — 엔진과 독립. 소스(CSV · JSON · 메모리) × 매퍼
 │   │   ├── types.py              SecurityEvent · AccessRequest · PolicyRule · ServerState · ServerSnapshot · LoadResult
 │   │   ├── source.py             RowSource — CsvSource · JsonSource · MemorySource, 확장자로 고르는 open_source
@@ -64,12 +53,10 @@ JBNU-RAD/
 │   │   ├── nodes.sql · nodes.py  수집 노드 등록부 — 등록 토큰으로 처음 등록하면 노드만의 키, 끄기 · 키 초기화 (10/20)
 │   │   ├── results_server_gaps.sql  서버 점검에 다른 곳(gaps) · 판단하지 않은 항목을 더한다 (10/14)
 │   │   └── results.py            AI 결과 DB 저장 · 조회 — 정책 관리 검토 · 로그 감시(다음 감시 시작점 포함) · 내 질의 기록. CLI · 웹이 같은 DB를 쓴다
-│   └── web/                    웹 계층 (김혜정) — 코어(pipeline)를 부르고 결과를 보여준다. 판정 로직은 두지 않는다
-│       ├── main.py               FastAPI — API + 화면 서빙. Engine · JobRunner · 두 DB · 판정 작업을 앱 시작 시 1회 만든다
+│   └── web/                    웹 계층 (김혜정) — Engine 기능을 부르고 결과를 보여준다. 판정 로직 · 큐는 두지 않는다
+│       ├── main.py               FastAPI — API + 화면 서빙. 앱 시작 시 Engine 을 만들고 start()(작업 큐), 끌 때 stop()(큐 · 벡터 DB 잠금 해제)
 │       ├── api_nodes.py          수집 노드 API — 노드가 보내는 수집 받기(토큰 · 키) · 노드 목록 · 끄기 · 키 초기화 (/api/nodes)
 │       ├── api_permissions.py    로그인 · 계정 · 권한 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 준다
-│       ├── verdicts.py           신청이 들어오면 바로 AI 판정 (백그라운드, 신청 행의 AI 칸에 저장, 1차 결재가 먼저 나면 버림, 재시작 시 밀린 판정 이어서)
-│       ├── jobs.py               JobRunner — pipeline 작업을 백그라운드 스레드로 한 번에 하나씩 (진행 상황 · 마지막 실패)
 │       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
 │       └── static/index.html     단일 파일 대시보드 — 메뉴(권한 신청 · 정책 관리 · 로그 감시)별 검토 현황, 정책 관리의 정책 질의 탭 (CSS · JS · 아이콘 인라인)
 ├── docs/                     판정 근거 기준 문서 — 수정 금지
@@ -87,10 +74,10 @@ JBNU-RAD/
 ├── design/                   설계 문서 — db-schema.md (권한 DB 결정 경위 · 남은 질문) · results-db.md (AI 결과 DB)
 ├── NOTES.md                  작업 메모 — 설정 값의 이유 · 서버 이슈 경위 · 모델 비교 결과. 설정 파일과 코드에는 설명 주석을 두지 않고 여기에 적는다
 ├── Makefile · requirements.txt
-└── Dockerfile · README.md    코어 컨테이너(엔진 · data · pipeline, `python -m sentinelai`) · 저장소 소개 (웹은 컨테이너에 없음)
+└── Dockerfile · README.md    코어 컨테이너(엔진 · data · db, `python -m sentinelai`) · 저장소 소개 (웹은 컨테이너에 없음)
 ```
 
-검토 대상 위치는 `.env`에서 정한다 — `SENTINELAI_REQUESTS_SOURCE`(권한 신청) · `SENTINELAI_POLICIES_SOURCE`(솔루션 정책, 기본 `data/policies/` 폴더) · `SENTINELAI_SERVERS_SOURCE`(서버 현황, 기본 `data/servers/` 폴더) · `SENTINELAI_EVENTS_SOURCE`(보안 솔루션 로그, 지금은 `data/연습용_로그_원본+합성.csv`).
+검토 대상 위치는 `.env`에서 정한다 — `SENTINELAI_POLICIES_SOURCE`(솔루션 정책, 기본 `data/policies/` 폴더) · `SENTINELAI_SERVERS_SOURCE`(서버 현황, 기본 `data/servers/` 폴더) · `SENTINELAI_EVENTS_SOURCE`(보안 솔루션 로그, 지금은 `data/연습용_로그_원본+합성.csv`).
 파일 대신 폴더를 가리키면 안의 `.csv` · `.json` · `.jsonl`을 모두 읽는다 (솔루션 · 점검 도구마다 내보낸 파일을 그대로 둔다). 컬럼이 맞지 않는 파일은 건너뛰고 화면 하단에 알린다. 폴더가 없거나 비면 그 검토만 건너뛴다. 사내 기준 문서(정책 문서)는 `docs/`에 두면 정책 관리 검토를 돌릴 때 바뀐 것만 RAG에 다시 적재한다.
 권한 신청 · 정책 CSV(`data/permissions.csv` · `data/policies.csv`)는 10/7에 저장소에서 지웠다 (예전 사례는 git 이력 `8eb0e1d^`). 10/14에 **연습용** 데이터를 넣었다 — `data/policies/연습용_솔루션정책.csv`(예전 규칙 9건, 규칙마다 기준 조항 하나에 걸리게 만든 것) · `data/servers/연습용_서버현황.csv`(지어낸 서버 4대: cust-db01 · portal01 · ops-app03은 위 규칙 · 6.2에 걸리고, backup01은 걸리는 규칙 없이 PAM 경유라 정상이 기대값 — 오탐 확인용). 로그는 받은 원본 `data/솔루션 별 Mock 데이터.csv`(2줄, 10/6)를 고치지 않고 두고, 원본 2줄 + **합성** 155줄(9/15~10/20, 사용자 7명, 한국 시간 평일 근무 시간 위주, 같은 SecureMark 컬럼. 10/20에 위험 시나리오 18줄 추가 — A 개발 박민수가 급여 · 인사평가 문서를 퇴근 뒤 예외 승인으로 출력, B 영업 최지훈이 토요일 새벽 고객 개인정보 명단 · 계약 전체 680장, C 재무 정다은이 20분 동안 12번 연속 예외 승인 출력, D 처음 보는 외주개발 이준호 계정이 아침 7시 설계 문서 230장. 10/20 `qwen3:14b` 판정: A 위험 ✅ · C 주의 ✅ · **B · D 정상 ❌** — 기준 문서에 출력량 · 시간대 · 외주 계정 조항이 없어서다 (§8 4번)) 을 `data/연습용_로그_원본+합성.csv`로 따로 만들어 이것을 읽는다 (10/20, 로그 조회의 하루 · 일주일 · 한 달 시험용). 합성 로그는 날짜가 고정이라 시간이 지나면 하루 · 일주일 조회가 다시 빈다. 실제 솔루션 · 서버에서 내보낸 데이터가 아니므로 결과를 실제 환경 평가로 쓰지 않는다. 실제 데이터가 오면 연습용 파일을 빼고 둔다.
 **수집 노드** (10/20) — 점검 대상 서버마다 `node/install.sh --name 노드이름 --server SentinelAI주소 --token 등록토큰`으로 데몬을 깐다. 노드는 정한 간격(기본 30분)마다 UFW · sshd · PAM · 계정 · sudo 원문을 **읽기만** 해서 `POST /api/nodes/{이름}/snapshots`로 보낸다. 처음에는 `.env`의 `SENTINELAI_NODE_TOKEN`(공용 등록 토큰, `make install`이 새로 만든다. `change-me` 그대로면 등록을 막는다)으로 보내고, 서버가 그 이름을 등록하며 노드만의 키를 돌려준다. 이후 그 이름은 그 키로만 받는다 (다른 서버가 같은 이름을 쓸 수 없다). 다시 깔아 키를 잃으면 화면에서 키를 초기화한다. 못 보낸 수집은 노드에 쌓였다가 다음 차례에 먼저 보낸다. 무엇을 뽑아 판정할지는 `sentinelai/data/collected.py`가 정한다 (설치 안 됨과 권한이 없어 못 읽음은 다른 값). 서버는 노드 · 수집 시각별로 AI 결과 DB(`server_snapshots`)에 쌓고 직전 수집과 달라진 설정을 센다. 망이 막힌 서버는 노드의 `export` 파일을 `python -m sentinelai import-snapshots 폴더`로 넣는다. `data/연습용_노드/*.json`은 연습용 서버 4대의 지어낸 수집이다 (portal01은 10/13 UFW 켜짐 → 10/20 꺼짐). 10/14의 서버 현황 표(`data/servers/`)는 노드 점검에 호스트 이름 · IP가 같은 행을 덧붙이는 데만 쓴다.
@@ -100,17 +87,16 @@ JBNU-RAD/
 
 ## 2. 코어와 웹
 
-판정은 모두 코어(`sentinelai.pipeline`)가 한다. CLI(`python -m sentinelai`)와 웹이 같은 함수를 부르고, 결과는 AI 결과 DB(`SENTINELAI_RESULTS_DB_PATH`, `sentinelai/db/results.py`)에 실행마다 쌓는다.
+판정은 모두 엔진(`sentinelai.engine` — 흐름은 `pipeline.py`, 실행 · 저장 · 큐는 `Engine`)이 한다. CLI(`python -m sentinelai`)와 웹이 같은 `Engine` 기능을 부르고, 결과는 AI 결과 DB(`SENTINELAI_RESULTS_DB_PATH`, `sentinelai/db/results.py`)에 실행마다 쌓는다.
 
 | 구역 | 코어 함수 | 하는 일 |
 |---|---|---|
-| (평가용) | `review_requests` | CSV 권한 신청 전 건 → `review_chain` → `Verdict`. 기대 등급과 대조할 때만 쓰고 저장하지 않는다 (`--out`이면 JSON). 실제 신청은 권한 DB로 들어와 바로 판정된다 |
 | 정책 관리 | `review_policies` | 화면의 [정책 관리 검토 실행] — 기준 문서(`docs/`) · 정책 규칙을 RAG에 맞추고(바뀐 것만, 규칙 묶음은 하나만), 정책 전체 → `policy_chain` (기준 조항 검색) → `PolicyReview`. 실행마다 쌓고 화면은 마지막 실행을 본다 |
 | 서버 점검 | `check_nodes` | 웹이 뜨자마자 한 번, 그 뒤 `SENTINELAI_MONITOR_INTERVAL_MIN`분마다 스스로 (화면에서 시작하지 않음). 켜 둔 노드 중 지난 점검 뒤 새 수집이 온 노드만, 그 노드의 가장 늦은 수집 한 건 → `server_chain` → `ServerReview` (기준 문서와 다른 곳마다 지금 · 기준 · 근거 조항 · 등급 · 이 환경에서 바꿀 것, 조항이 없거나 확인 못한 항목은 판단하지 않고 이름만). 입력 = 모듈 상태 · 직전 수집과 달라진 설정 + 서버 현황 표의 같은 서버 행 + 코드가 IP · 대역 · 호스트 이름으로 찾은 규칙 + RAG로 찾은 조항 · 규칙. 판정은 한 건씩 `node_findings`에 쌓고 화면은 노드마다 마지막 판정을 본다 (노드 한 대에 30초 안팎) |
 | 로그 감시 | `monitor` | 지난 감시 이후 로그 → 사용자별 묶음 → `event_chain` (조항 · 규칙 검색) → `Verdict`. 결과는 쌓이고, 지금까지 읽은 가장 늦은 로그 시각이 다음 감시의 시작점. 웹이 떠 있으면 `SENTINELAI_MONITOR_INTERVAL_MIN`(기본 30, 0이면 끔)분마다 스스로 돈다 (`JobRunner.every`, 웹이 뜨자마자 한 번 — 꺼져 있던 동안 쌓인 로그를 따라잡는다 — 그 뒤 그 간격마다, 다른 작업이 돌고 있으면 1분 뒤 다시 시도). 화면에서는 시작하지 않는다. 판정은 모두 쌓지만 운영자 검토(화면 목록 · 건수 · 종)에는 **주의 이상**만 올린다 (판정 실패도 "주의") |
 | 로그 조회 | `browse_logs` | 기간(지금부터 하루 · 일주일 · 한 달 · 3개월 · 6개월 · 1년 · 전체 — 달력 단위 아님) · 사용자 · 솔루션 · 행위로 거르고 센다. 판정 · 모델 없이 코드만, 저장하지 않는다 |
 
-**로그 질의** (`pipeline.ask_logs`, 웹에서 물으면 질의 기록에 남는다) — 로그는 RAG로 찾지 않는다. "몇 번 · 언제부터 · 누가"는 집계라서 비슷한 몇 줄만 찾으면 건수가 틀린다.
+**로그 질의** (`Engine.ask_logs` → `pipeline.ask_logs`, 질의 기록에 남는다) — 로그는 RAG로 찾지 않는다. "몇 번 · 언제부터 · 누가"는 집계라서 비슷한 몇 줄만 찾으면 건수가 틀린다.
 1. `log_filter_chain`: 질문 + 로그에 있는 값(`vocabulary`) + 현재 시각 → `LogFilter`(사용자 · 부서 · 솔루션 · 위치 · 행위 · 항목 · 기간). 로그에 없는 표현은 비슷한 값으로 바꾸지 않는다.
 2. 코드가 찾고(`search` — 부분 일치, 항목은 `Exception=1`처럼 값까지) 센다(`summarize` — 건수 · 사용자별 · 날짜별 · 숫자 항목 합계).
 3. `log_answer_chain`: 조건 · 집계 · 해당 로그(최근 50줄)로 평문 답. 숫자는 집계 그대로, 정책 위반 여부는 판단하지 않는다 (그건 `monitor`의 몫).
@@ -176,18 +162,18 @@ JBNU-RAD/
 
 | 명령 | 하는 일 |
 |---|---|
-| `make install` | venv · 의존성 · `.env` 준비 (처음 한 번) |
-| `make health` | 서버 · 모델 · 인덱스 확인 |
-| `make index` | `docs/` 기준 조항 적재 (바뀐 파일만 다시 임베딩) |
-| `make index-policies [SRC=파일]` | 솔루션 정책 규칙 적재 (기본 `.env`). `sentinelai.engine.cli index --rebuild`는 규칙까지 지우므로 그 뒤에 다시 돌린다 |
-| `make review-requests [SRC=파일] [OUT=파일]` | CSV 권한 신청 전 건 판정 — 평가용, DB에 쓰지 않는다 (`OUT`이면 JSON) |
-| `make review-policies [SRC=정책]` | 기준 문서 · 정책 규칙 적재 + 정책 간 중복 · 충돌 · 과도한 허용 → AI 결과 DB |
-| `make check-nodes` | 새 수집이 온 노드의 서버 점검 1회 (웹이 떠 있으면 웹이 주기적으로 하므로, 웹을 띄우지 않을 때만) |
-| `make import-snapshots DIR=폴더` | 망이 막힌 노드가 `export`한 수집 파일 넣기 (벡터 DB를 쓰지 않아 웹이 떠 있어도 된다) |
-| `make monitor [SRC=로그] [SINCE=시각] [FULL=1]` | 로그 감시 1회 — 지난 감시 이후 로그만 판정해 AI 결과 DB에 쌓는다. 웹이 떠 있으면 웹이 자동으로 돌리므로, 웹을 띄우지 않는 서버에서만 cron으로 건다. `FULL=1`이면 처음부터 |
-| `make ask-logs Q="질문"` | 보안 솔루션 로그에 질의 (벡터 DB를 쓰지 않아 `make web`이 떠 있어도 된다) |
+| `make install` | venv · 의존성 · `.env` 준비 (처음 한 번, 노드 등록 토큰을 새로 만든다) |
+| `make web` | 대시보드 http://localhost:8000 — 로그 감시 · 서버 점검은 웹이 스스로 돌리고, 정책 관리 검토는 화면의 [정책 관리 검토 실행] |
+| `make health` | 서버 · 모델 · 벡터 DB · 두 DB 위치 확인 |
 | `make create-root LOGIN=아이디 NAME=이름 [DEPT=부서]` | 초기 루트 계정(보안 총책임자) 생성 — 서버에서 한 번만. 비밀번호는 화면 표시 없이 입력 |
-| `make web` | 대시보드 http://localhost:8000 — 위 판정을 화면의 [분석 실행]으로도 돌린다 |
+| `make import-snapshots DIR=폴더` | 망이 막힌 노드가 `export`한 수집 파일 넣기 (벡터 DB를 쓰지 않아 웹이 떠 있어도 된다) |
+| `make index [DOCS=경로] [REBUILD=1]` | 기준 문서 적재 (기본 `docs/`, 바뀐 파일만). `REBUILD=1`은 규칙까지 지우므로 그 뒤에 `review-policies`를 다시 돌린다 |
+| `make review-policies` | 정책 관리 검토 — 기준 문서 · 솔루션 정책 적재 + 정책 간 중복 · 충돌 · 과도한 허용 → AI 결과 DB |
+| `make check-nodes` | 서버 점검 1회 — 새 수집이 온 노드만 |
+| `make monitor [SINCE=시각] [FULL=1]` | 로그 감시 1회 — 지난 감시 이후 로그만 (웹을 띄우지 않는 서버에서 cron으로). `FULL=1`이면 처음부터 |
+| `make review-check [N=회수]` | `scripts/review_check.py` — review_chain 반복 루프 · 등급 흔들림 재현 |
+
+10/20에 CLI를 줄였다 — `config` · `models` · `search` · `ask` · `chat` · `index-policies` · `review-requests`(CSV 권한 신청 평가) · `ask-logs`는 없앴다 (질의는 화면에서, 규칙 적재는 `review-policies`가 한다). 대상 위치는 모두 `.env`에서만 정한다.
 
 설정은 `.env` 한 곳에서 나온다. 코드에 주소 · 모델명을 하드코딩하지 않는다. 두 환경 모두에서 동작해야 한다.
 
@@ -201,7 +187,7 @@ JBNU-RAD/
 서버 주소가 설정 한 줄로 바뀌는 구조가 제안서의 "향후 사내 환경 이전" 요구에 해당한다.
 9/27에는 맥에서 팀 서버로 접속되지 않았다 (8초 타임아웃).
 
-**Milvus Lite 파일 락**: DB 파일은 한 프로세스만 열 수 있다. `make web`이 떠 있으면 `make index` · `make index-policies` · `make review-requests` · `make review-policies` · `make check-nodes` · `make monitor` · `make review-check`가 실패한다. 웹이 떠 있을 때는 화면의 [분석 실행]을 쓴다.
+**Milvus Lite 파일 락**: DB 파일은 한 프로세스만 열 수 있다. `make web`이 떠 있으면 `make health` · `make index` · `make review-policies` · `make check-nodes` · `make monitor` · `make review-check`가 실패한다. 웹이 떠 있을 때는 웹이 돌린다 (정책 관리 검토는 화면의 [정책 관리 검토 실행]).
 
 ---
 
@@ -297,7 +283,7 @@ JBNU-RAD/
 
 1. **권한 신청 · 정책 데이터를 다시 정하고 `qwen3:14b`로 전 건 판정해 §5와 대조한다.** 권한 신청 CSV는 지워져 있고, 정책 · 서버 현황은 연습용(10/14)만 있다. 서버 현황(`data/servers/`)도 실제 데이터를 받아야 한다 — 점검 도구 · 자산관리에서 내보내는 컬럼을 정한다. (`SENTINELAI_NUM_PREDICT`는 10/11에 4096으로 올렸다.)
 2. **DB · 로그인 · 권한 신청 입력** — 권한 DB(SQLite): 일반 사용자 신청 → 보안 운영자 1차 승인 → 보안 총책임자 최종 승인, ID/PW 로그인, 루트만 계정 생성 (10/12에 보안 총책임자로 넓힘). 화면은 보안 운영자용(지금 대시보드) · 보안 총책임자용 · 신청용. DB 계층 · API · 화면까지 구현 (10/11). 10/12에 신청 1건 = 1행(AI 판정 · 1차 · 최종 결재 · 회수 칸)으로 바꾸고, 정책 관리 검토 · 로그 감시 판정 · 질의 기록용 AI 결과 DB를 나눴다 (스키마 · DB 계층까지, `design/results-db.md`). CLI · 웹 작업 · `/api/results`를 AI 결과 DB로 옮기고 질의 기록을 남겼다 (보안 운영자는 자기 질의만, 10/12). `results.json`은 더 쓰지 않는다. 보안 총책임자 화면은 10/12에 보안 운영자와 같은 메뉴 + 계정 관리로 정했다. 정책 관리 · 로그 감시에서 아래(보안 운영자)의 결정 기록 전부를 읽고, 결재함에서는 1차 결재 의견을 본다. 남은 질문은 `design/db-schema.md` §5. 알림 · 이력 화면보다 먼저 한다 (둘 다 DB가 필요하다).
-3. **알림(Notifier) 구축** — 로그 감시의 주의 · 위험 판정을 운영자에게 보낸다. 인터페이스 자리만 `sentinelai/engine/alert.py`에 두었고, `sentinelai/pipeline.py`의 `monitor`에 부를 곳을 표시했다.
+3. **알림(Notifier) 구축** — 로그 감시의 주의 · 위험 판정을 운영자에게 보낸다. 인터페이스 자리(`Notifier`)만 `sentinelai/engine/types.py`에 두었고, `sentinelai/engine/pipeline.py`의 `monitor`에 부를 곳을 표시했다.
 4. 기준 문서에 출력 · 매체 반출 조항이 없어 로그 감시가 근거 없이 판정한다. 절차서 14 · 17번(예외처리 · 매체 반출입) 원문이 필요하다. 10/20 연습용 위험 시나리오 중 주말 새벽 대량 출력 · 처음 보는 외주 계정이 이 때문에 "정상"으로 나와 주의 이상 검토에서 빠졌다. **코드 규칙(출력량 · 시간대 · 새 계정)으로 먼저 올리지 않고, 절차서 원문을 RAG에 넣어 모델이 근거를 갖게 하기로 했다 (10/20).** 원문을 받으면 6번 경로로 넣고 위 시나리오로 다시 확인한다.
 5. **로그 감시 이력 화면** — 로그 감시 결과가 쌓이면 운영자가 볼 이력: 같은 사용자의 반복 주의 · 위험, 솔루션 · 행위별 추이, 마지막 감시 시각과 판정하지 못한 로그. 데이터가 쌓이고 출력 · 매체 반출 기준 조항(4번)이 들어온 뒤에 만든다.
 6. **문서 데이터 읽기** — 지금 `DocumentStore`는 `.md` · `.txt`만 적재한다. 사내 정책 원문(pptx · pdf · docx 등)을 읽어 기준 조항으로 RAG에 넣는다. `docs/보안 정책 관리 업무 프로세스.pptx`는 글자 없이 이미지 4장이라 OCR까지 필요하다. 4번의 절차서 원문도 이 경로로 들어온다.

@@ -44,7 +44,7 @@ DDL: [`sentinelai/db/schema.sql`](../sentinelai/db/schema.sql) (권한 DB) · AI
 | 로그인 없음 | ID/PW 로그인(Argon2id · 세션 2일), 역할 3개, 보안 총책임자가 계정 생성 (처음엔 루트만, 10/12에 넓힘), 감사 기록 |
 
 - SQLite (파일 하나, 서버 불필요, 표준 라이브러리). WAL 모드.
-- 엔진 · 데이터 계층은 DB를 모른다. 새 모듈 `sentinelai/db/`를 `pipeline` · `web`만 쓴다.
+- 데이터 계층 · 판정 흐름(`engine/pipeline.py`)은 DB를 모른다. `sentinelai/db/`는 `Engine`(engine.py — 10/20에 작업 큐와 함께 옮겼다)과 `web`이 쓴다.
 - **결재 규칙은 DB가 강제한다 (트리거).** 화면 · 앱 코드에 버그가 있어도 순서를 건너뛰거나, 역할이 아닌 사람이 결재 · 회수하거나, 기록을 고칠 수 없다.
 - 시각은 ISO 8601 UTC 문자열. 값은 문자열 위주, 필수 칸 최소.
 - 추가 패키지: `argon2-cffi` 하나.

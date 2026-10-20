@@ -10,7 +10,6 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from sentinelai import pipeline
 from sentinelai.data.collected import NODE_NAME
 from sentinelai.db import Denied, nodes, results
 
@@ -19,8 +18,6 @@ from .api_permissions import Approver
 router = APIRouter(prefix="/api/nodes")
 
 MAX_BODY = 2_000_000
-# .env.example 의 자리 표시 값입니다. 이 값 그대로면 아무 노드나 등록되므로 등록을 막습니다.
-PLACEHOLDER = "change-me"
 
 
 def _known(name: str) -> str:
@@ -40,23 +37,13 @@ async def receive(name: str, request: Request) -> dict[str, Any]:
     if len(body) > MAX_BODY:
         raise HTTPException(status_code=413, detail="수집 본문이 너무 큽니다")
     try:
-        payload = json.loads(body)
-        pipeline.snapshot_row(payload, name, None)          # 형식만 먼저 봅니다 (등록부를 건드리기 전에)
+        return request.app.state.engine.receive_snapshot(name, presented, json.loads(body))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from None
-    token = request.app.state.node_token
-    try:
-        node, key = nodes.authenticate(request.app.state.main_db, name, presented, "" if token == PLACEHOLDER else token, payload)
     except nodes.Unauthorized as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from None
     except Denied as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from None
-    rdb = request.app.state.results_db
-    row = pipeline.snapshot_row(payload, name, results.latest_snapshot(rdb, name))
-    _, stored = results.save_snapshot(rdb, row)
-    if stored:
-        nodes.mark_collected(request.app.state.main_db, name, row["collected_at"])
-    return {"node": name, "stored": stored, **({"key": key} if key else {})}
 
 
 @router.get("")

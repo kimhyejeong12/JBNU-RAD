@@ -4,30 +4,21 @@ DOCKER ?= docker
 IMAGE := sentinelai:0.6.0
 DOCS ?= docs
 
-.PHONY: help install health models config index index-policies search ask chat review-check review-requests review-policies monitor ask-logs create-root web docker-build docker-run clean
+.PHONY: help install health index review-policies check-nodes monitor import-snapshots create-root review-check web docker-build docker-run clean
 
 help:
-	@echo "install         venv 생성 + 의존성 설치 + .env 준비"
-	@echo "health          서버·모델·인덱스 상태 확인"
-	@echo "models          서버 모델 목록"
-	@echo "config          현재 설정 출력"
-	@echo "index [DOCS=경로] 문서로 벡터 인덱스 생성 (기본: docs)"
-	@echo "index-policies [SRC=파일]  솔루션 정책 규칙을 인덱스에 적재 (기본: .env)"
-	@echo "search Q=\"질의\"   인덱스 검색만"
-	@echo "ask Q=\"질문\"      인덱스를 근거로 질의응답 (RAG)"
-	@echo "chat Q=\"질문\"     모델에 직접 질의"
-	@echo "review-check    review_chain 반복 루프·등급 흔들림 재현 (N=회수)"
-	@echo "review-requests [SRC=파일] [OUT=파일]  CSV 권한 신청 전 건 판정 — 평가용, DB에 쓰지 않음"
-	@echo "review-policies [SRC=정책]                  기준 문서 · 솔루션 정책 적재 + 정책 간 중복 · 충돌 · 과도한 허용 (정책 이해)"
-	@echo "check-nodes                                  새 수집이 온 노드의 서버 점검 1회 (웹이 떠 있으면 웹이 주기적으로 함)"
-	@echo "import-snapshots DIR=폴더                     망이 막힌 노드가 export 한 수집 파일 넣기"
-	@echo "monitor [SRC=로그] [SINCE=시각] [FULL=1]  지난 감시 이후 로그를 정책과 비교 (로그 감시)"
-	@echo "ask-logs Q=\"질문\"   보안 솔루션 로그에 질의 (로그 감시 — 건수는 코드가 셈)"
-	@echo "create-root LOGIN=아이디 NAME=이름 [DEPT=부서]  초기 루트 계정(보안 총책임자) 생성 — 비밀번호는 입력받음"
-	@echo "web             대시보드 실행 (http://localhost:8000)"
-	@echo "docker-build    이미지 빌드 (podman: make docker-build DOCKER=podman)"
-	@echo "docker-run      컨테이너에서 health 실행"
-	@echo "clean           venv·캐시·인덱스 정리"
+	@echo "install                        venv 생성 + 의존성 설치 + .env 준비 (노드 등록 토큰 새로 만듦)"
+	@echo "web                            대시보드 (http://localhost:8000) — 로그 감시 · 서버 점검은 웹이 스스로 돌림"
+	@echo "health                         Ollama · 모델 · 벡터 DB 확인"
+	@echo "create-root LOGIN=아이디 NAME=이름 [DEPT=부서]  초기 루트 계정(보안 총책임자) — 비밀번호는 입력받음"
+	@echo "import-snapshots DIR=폴더       망이 막힌 노드가 export 한 수집 파일 넣기 (웹이 떠 있어도 됨)"
+	@echo "--- 아래는 웹이 꺼져 있을 때만 (Milvus Lite 는 한 프로세스만 엶) ---"
+	@echo "index [DOCS=경로] [REBUILD=1]   기준 문서 적재 (기본 docs, 바뀐 파일만)"
+	@echo "review-policies                정책 관리 검토 — 문서 · 솔루션 정책 적재 + 정책 간 검토"
+	@echo "check-nodes                    서버 점검 — 새 수집이 온 노드만"
+	@echo "monitor [SINCE=시각] [FULL=1]   로그 감시 — 지난 감시 이후 로그만 (cron 용)"
+	@echo "review-check [N=회수]           review_chain 반복 루프 · 등급 흔들림 재현"
+	@echo "docker-build · docker-run · clean"
 
 install:
 	python3 -m venv .venv
@@ -38,50 +29,26 @@ install:
 health:
 	$(PY) -m sentinelai health
 
-models:
-	$(PY) -m sentinelai models
-
-config:
-	$(PY) -m sentinelai config
-
 index:
-	$(PY) -m sentinelai index $(DOCS)
-
-index-policies:
-	$(PY) -m sentinelai index-policies $(SRC)
-
-search:
-	$(PY) -m sentinelai search "$(Q)"
-
-ask:
-	$(PY) -m sentinelai ask "$(Q)"
-
-chat:
-	$(PY) -m sentinelai chat "$(Q)"
-
-review-check:
-	$(PY) scripts/review_check.py -n $(or $(N),3)
-
-monitor:
-	$(PY) -m sentinelai monitor $(if $(SRC),"$(SRC)") $(if $(SINCE),--since "$(SINCE)") $(if $(FULL),--full)
-
-ask-logs:
-	$(PY) -m sentinelai ask-logs "$(Q)"
-
-create-root:
-	$(PY) -m sentinelai create-root --login "$(LOGIN)" --name "$(NAME)" $(if $(DEPT),--department "$(DEPT)")
-
-review-requests:
-	$(PY) -m sentinelai review-requests $(SRC) $(if $(OUT),--out "$(OUT)")
+	$(PY) -m sentinelai index $(DOCS) $(if $(REBUILD),--rebuild)
 
 review-policies:
-	$(PY) -m sentinelai review-policies $(SRC)
+	$(PY) -m sentinelai review-policies
 
 check-nodes:
 	$(PY) -m sentinelai check-nodes
 
+monitor:
+	$(PY) -m sentinelai monitor $(if $(SINCE),--since "$(SINCE)") $(if $(FULL),--full)
+
 import-snapshots:
 	$(PY) -m sentinelai import-snapshots "$(DIR)"
+
+create-root:
+	$(PY) -m sentinelai create-root --login "$(LOGIN)" --name "$(NAME)" $(if $(DEPT),--department "$(DEPT)")
+
+review-check:
+	$(PY) scripts/review_check.py -n $(or $(N),3)
 
 web:
 	$(PY) -m uvicorn sentinelai.web.main:app --reload --port 8000

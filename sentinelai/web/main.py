@@ -13,45 +13,32 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request  # noqa: E40
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, StringConstraints  # noqa: E402
 
-from sentinelai import ROOT, pipeline  # noqa: E402
-from sentinelai.engine import Answer, Engine  # noqa: E402
-
-from sentinelai.db import User, auth, decisions, open_main_db, open_results_db, results as results_db  # noqa: E402
+from sentinelai import ROOT  # noqa: E402
+from sentinelai.db import decisions, results as results_db  # noqa: E402
+from sentinelai.engine import KINDS, MANUAL, Engine  # noqa: E402
 
 from . import view  # noqa: E402
 from .api_permissions import Approver, role  # noqa: E402
 from .api_permissions import router as permissions_router  # noqa: E402
 from .api_nodes import router as nodes_router  # noqa: E402
-from .jobs import KINDS, MANUAL, JobRunner  # noqa: E402
-from .verdicts import VerdictWorker  # noqa: E402
 
 DOCS_DIR = ROOT / "docs"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-state: dict[str, Any] = {}
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Engine 은 앱 시작 시 1회만 만듭니다. 요청마다 만들면 모델 로딩이 반복됩니다.
-    # Milvus Lite 는 한 프로세스만 DB 를 열 수 있으므로, 웹이 떠 있는 동안 판정은 모두 웹의 작업으로 돌립니다.
+    # Engine 은 앱 시작 시 1회만 만듭니다. 모델 · DB · 작업 큐가 모두 여기 있습니다.
+    # Milvus Lite 는 한 프로세스만 DB 를 열 수 있으므로, 웹이 떠 있는 동안 판정은 모두 Engine 의 작업 큐로 돌립니다.
     engine = Engine()
-    state["engine"] = engine
-    app.state.main_db = open_main_db(engine.settings.db_path)
-    app.state.results_db = open_results_db(engine.settings.results_db_path)
-    app.state.node_token = engine.settings.node_token
-    state["jobs"] = JobRunner(engine, app.state.results_db, app.state.main_db)
-    state["jobs"].every("events", engine.settings.monitor_interval_min)
-    state["jobs"].every("nodes", engine.settings.monitor_interval_min)
-    state["rag_chain"] = engine.rag_chain(structured=True)
-    app.state.verdicts = VerdictWorker(engine, app.state.main_db)
-    app.state.verdicts.resume()
+    engine.start()
+    app.state.engine = engine
+    app.state.main_db, app.state.results_db, app.state.verdicts = engine.main_db, engine.results_db, engine.verdicts
     yield
-    state["jobs"].stop()
-    app.state.verdicts.stop()
-    # 잠금을 풀고 끝내야 --reload 로 새로 뜨는 프로세스 · CLI 가 벡터 DB 를 열 수 있습니다.
-    engine.documents.close()
-    state.clear()
+    engine.stop()
+
+
+def _engine(request: Request) -> Engine:
+    return request.app.state.engine
 
 
 app = FastAPI(
@@ -66,34 +53,9 @@ analyst = [Depends(role("manager", "top"))]
 
 
 @app.get("/api/health", dependencies=analyst)
-def health() -> dict[str, Any]:
+def health(request: Request) -> dict[str, Any]:
     """Ollama 연결 · 모델 · 인덱스 상태 (화면 상단 배지)."""
-    engine: Engine = state["engine"]
-    s = engine.settings
-    info: dict[str, Any] = {
-        "base_url": s.ollama_base_url,
-        "model": s.model,
-        "qa_model": s.qa_model,
-        "embedding_model": s.embedding_model,
-        "connected": False,
-        "model_ready": False,
-        "qa_model_ready": False,
-        "embedding_ready": False,
-        "error": None,
-    }
-    try:
-        models = engine.models()
-        info.update(
-            connected=True,
-            model_ready=engine.has_model(s.model, models),
-            qa_model_ready=engine.has_model(s.qa_model, models),
-            embedding_ready=engine.has_model(s.embedding_model, models),
-        )
-    except Exception as exc:
-        info["error"] = f"{type(exc).__name__}: {exc}"
-    info["index_ready"] = not engine.documents.is_empty()
-    info["ok"] = all(info[k] for k in ("connected", "model_ready", "qa_model_ready", "embedding_ready", "index_ready"))
-    return info
+    return _engine(request).health()
 
 
 @app.get("/api/results")
@@ -111,19 +73,19 @@ def results(request: Request, user: Approver) -> dict[str, Any]:
 
 
 @app.get("/api/jobs", dependencies=analyst)
-def jobs() -> dict[str, Any]:
+def jobs(request: Request) -> dict[str, Any]:
     """돌고 있는 작업과 진행 상황, 구역별 마지막 실행 결과."""
-    return {**state["jobs"].status(), "kinds": KINDS}
+    return {**_engine(request).jobs.status(), "kinds": KINDS}
 
 
 @app.post("/api/jobs/{kind}", status_code=202, dependencies=analyst)
-def start_job(kind: str) -> dict[str, Any]:
-    """정책 관리 검토를 백그라운드로 시작합니다. 한 번에 하나만 돕니다. 로그 감시는 웹이 정해진 간격마다 스스로 돌립니다."""
+def start_job(kind: str, request: Request) -> dict[str, Any]:
+    """정책 관리 검토를 백그라운드로 시작합니다. 한 번에 하나만 돕니다. 로그 감시 · 서버 점검은 서버가 정해진 간격마다 스스로 돌립니다."""
     if kind not in MANUAL:
         raise HTTPException(status_code=404, detail=f"화면에서 시작할 수 없는 작업입니다: {kind} (가능: {', '.join(MANUAL)})")
-    if not state["jobs"].start(kind):
+    if not _engine(request).jobs.start(kind):
         raise HTTPException(status_code=409, detail="다른 작업이 돌고 있습니다. 끝난 뒤 다시 시도하세요.")
-    return jobs()
+    return jobs(request)
 
 
 @app.get("/api/regulations", dependencies=analyst)
@@ -143,18 +105,13 @@ class AskRequest(BaseModel):
 @app.post("/api/ask")
 def ask(body: AskRequest, request: Request, user: Approver) -> dict[str, Any]:
     """정책 질의응답. 기준 조항과 적재된 솔루션 규칙을 검색합니다 (신청 목록은 모름). 질의 기록에 남깁니다."""
-    answer, error, elapsed = pipeline.attempt(lambda: state["rag_chain"].invoke(body.question))
-    if answer is None:
-        answer = Answer(answer=f"답변 실패: {error}", sources=[])
-    result = {**answer.model_dump(), "elapsed_sec": round(elapsed, 1), "failed": error is not None, "error": error}
-    return _record(request, user, "policy", body.question, result)
+    return _engine(request).ask(body.question, user)
 
 
 @app.post("/api/ask-logs")
 def ask_logs(body: AskRequest, request: Request, user: Approver) -> dict[str, Any]:
-    """로그 질의. 로그는 RAG 로 찾지 않고 코어가 조건에 맞춰 찾고 셉니다 (pipeline.ask_logs). 질의 기록에 남깁니다."""
-    engine: Engine = state["engine"]
-    return _record(request, user, "logs", body.question, pipeline.ask_logs(engine, engine.settings.events_source, body.question))
+    """로그 질의. 로그는 RAG 로 찾지 않고 코어가 조건에 맞춰 찾고 셉니다. 질의 기록에 남깁니다."""
+    return _engine(request).ask_logs(body.question, user)
 
 
 Filter = Annotated[str, Query(max_length=200)]
@@ -169,19 +126,11 @@ def browse_logs(request: Request, user: Approver, period: str,
     모델을 부르지 않습니다. 거르기 칸의 값(options)도 함께 줍니다. 조회할 때마다 누가 어떤 조건으로 봤는지 감사 기록에 남깁니다.
     """
     try:
-        result = pipeline.browse_logs(state["engine"].settings.events_source, period, who, solution, how, page)
+        return _engine(request).browse_logs(user, period, who, solution, how, page, request.client.host if request.client else None)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
     except ValueError as exc:  # 없는 기간 · 컬럼이 맞지 않는 로그 파일
         raise HTTPException(status_code=422, detail=str(exc)) from None
-    auth.record_log_view(request.app.state.main_db, user, {"period": period, **result["criteria"], "page": page},
-                         request.client.host if request.client else None)
-    return result
-
-
-def _record(request: Request, user: User, kind: str, question: str, result: dict[str, Any]) -> dict[str, Any]:
-    results_db.save_qa(request.app.state.results_db, kind, question, result, state["engine"].settings.qa_model, user)
-    return result
 
 
 @app.get("/api/qa")
@@ -212,8 +161,7 @@ def internal_status(request: Request) -> dict[str, Any]:
 
     서버에서 `curl -s localhost:8000/internal/status` 로 봅니다.
     """
-    return {"jobs": {**state["jobs"].status(), "kinds": KINDS}, "schedule": state["jobs"].schedule(),
-            "verdicts": request.app.state.verdicts.snapshot()}
+    return _engine(request).status()
 
 
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

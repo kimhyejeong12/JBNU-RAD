@@ -1,12 +1,11 @@
-"""데이터 계층(sentinelai.data)과 엔진(sentinelai.engine)을 잇는 실행 흐름.
+"""판정 흐름 — 체인(프롬프트 + 검색 + 모델)과 그것을 데이터에 돌리는 흐름을 한곳에 둡니다.
 
-data 와 engine 은 서로를 가져오지 않습니다. 둘을 함께 쓰는 흐름은 여기에만 둡니다.
-CLI(`python -m sentinelai`)와 웹이 같은 함수를 부릅니다. 여기 함수는 결과 dict 만 돌려주고, 저장은 sentinelai.db.results 가 합니다.
+체인은 LangChain Runnable 을 돌려주는 함수입니다 (engine.review_chain() 처럼 Engine 이 넘겨 줍니다).
+흐름은 데이터 계층(sentinelai.data)에서 읽어 체인에 넣고 결과 dict 만 돌려줍니다. 저장 · 큐는 Engine(engine.py)이 합니다.
+데이터 계층은 엔진을 모릅니다. 둘을 잇는 일은 여기에만 둡니다.
 
-    engine = Engine()
-    review = pipeline.review_policies(engine, engine.settings.policies_source)  # 문서 · 규칙 적재 포함
-    nodes = pipeline.check_nodes(engine, pending, engine.settings.policies_source, engine.settings.servers_source)
-    run = pipeline.monitor(engine, engine.settings.events_source, since)   # since 이후 로그만
+    정책 이해: review_chain(권한 신청) · policy_chain(정책 모순) · server_chain(서버 점검) · answer_chain · rag_chain(질의응답)
+    로그 감시: event_chain(로그 ↔ 정책) · log_filter_chain · log_answer_chain(로그 질의)
 """
 from __future__ import annotations
 
@@ -15,9 +14,12 @@ import time
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from .data import (
+from langchain_core.runnables import Runnable, RunnablePassthrough
+
+from .. import ROOT
+from ..data import (
     LoadIssue,
     LoadResult,
     PolicyRule,
@@ -29,7 +31,6 @@ from .data import (
     latest,
     load_events,
     load_policies,
-    load_requests,
     load_servers,
     parse_datetime,
     period_since,
@@ -41,8 +42,84 @@ from .data import (
     user_label,
     vocabulary,
 )
-from . import ROOT
-from .engine import Engine, IndexReport
+from .prompt import Prompts
+from .rag import IndexReport, lookup, lookup_all
+from .types import Answer, LogFilter, PolicyReview, ServerReview, Verdict
+
+if TYPE_CHECKING:
+    from .engine import Engine
+
+
+# --- 체인 --------------------------------------------------------------------
+# retrieve=False 면 검색하지 않으므로 context(· rules)도 입력으로 직접 넘겨야 합니다. k 는 종류별 검색 건수입니다.
+
+
+def review_chain(engine: Engine, retrieve: bool = True, k: int | None = None, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+    """접근 권한 신청 검토 → Verdict. 입력: requester, requested_access, current_access"""
+    reviewer = engine.chain(Prompts.ACCESS_REVIEW, Verdict, **kwargs)
+    if not retrieve:
+        return reviewer
+    query = lambda x: f"{x['requester']} / {x['requested_access']}"  # noqa: E731
+    return RunnablePassthrough.assign(context=query | lookup(engine, k, "clause")) | reviewer
+
+
+def policy_chain(engine: Engine, structured: bool = True, retrieve: bool = True, k: int | None = None,
+                 **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+    """솔루션 정책 간 중복 · 충돌 · 과도한 허용 → PolicyReview. 입력: policies (한 줄에 한 건).
+    규칙은 입력으로 받으므로 기준 조항만 찾습니다."""
+    reviewer = engine.chain(Prompts.POLICY_CONFLICT, PolicyReview if structured else None, **kwargs)
+    if not retrieve:
+        return reviewer
+    return RunnablePassthrough.assign(context=(lambda x: x["policies"]) | lookup(engine, k, "clause")) | reviewer
+
+
+def server_chain(engine: Engine, retrieve: bool = True, k: int | None = None, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+    """서버 한 대의 현황 · 모듈 상태와 그 서버에 걸린 규칙을 기준 문서에 비춥니다 → ServerReview(다른 곳 · 바꿀 것).
+
+    입력: subject(서버), state(현황, 한 줄에 한 항목), matched(코드가 IP · 대역 · 호스트 이름으로 찾은 규칙).
+    코드가 못 찾은 규칙(표기가 다른 것)은 rules 로 검색해 보탭니다.
+    """
+    reviewer = engine.chain(Prompts.SERVER_REVIEW, ServerReview, **kwargs)
+    if not retrieve:
+        return reviewer
+    query = lambda x: f"{x['subject']} / {x['state']}"  # noqa: E731
+    return RunnablePassthrough.assign(context=query | lookup(engine, k, "clause"), rules=query | lookup(engine, k, "rule")) | reviewer
+
+
+def event_chain(engine: Engine, retrieve: bool = True, k: int | None = None, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+    """로그 묶음(한 사용자)을 정책과 비교 → Verdict. 입력: subject(대상 사용자), events(한 줄에 한 건)"""
+    reviewer = engine.chain(Prompts.EVENT_REVIEW, Verdict, **kwargs)
+    if not retrieve:
+        return reviewer
+    query = lambda x: f"{x['subject']} / {x['events']}"  # noqa: E731
+    return RunnablePassthrough.assign(context=query | lookup(engine, k, "clause"), rules=query | lookup(engine, k, "rule")) | reviewer
+
+
+# 로그는 RAG 로 찾지 않습니다. "몇 번 · 언제부터 · 누가" 같은 질문은 집계라서, 비슷한 몇 줄만 찾아오면 건수가 틀립니다.
+# 모델은 질문을 조건으로 바꾸고(log_filter_chain) 코드가 센 결과로 답을 쓰기만 합니다(log_answer_chain). 둘을 잇는 것은 ask_logs 입니다.
+
+
+def log_filter_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+    """질문 → LogFilter. 입력: question, vocabulary(로그에 있는 값), now(현재 시각 UTC)"""
+    return engine.chain(Prompts.LOG_FILTER, LogFilter, **{"llm": engine.qa_llm, **kwargs})
+
+
+def log_answer_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+    """조건 · 집계 · 로그 → 답변 문자열. 입력: question, criteria, facts, lines"""
+    return engine.chain(Prompts.LOG_ANSWER, None, **{"llm": engine.qa_llm, **kwargs})
+
+
+def answer_chain(engine: Engine, structured: bool = False, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+    """근거를 직접 넘기는 질의응답. 입력: context, question"""
+    return engine.chain(Prompts.ANSWER, Answer if structured else None, **{"llm": engine.qa_llm, **kwargs})
+
+
+def rag_chain(engine: Engine, structured: bool = False, k: int | None = None, **kwargs: Any) -> Runnable[str, Any]:
+    """저장소에서 근거(조항 · 규칙)를 찾아 답합니다. 입력: 질문 문자열"""
+    return {"context": lookup_all(engine, k), "question": RunnablePassthrough()} | answer_chain(engine, structured, **kwargs)
+
+
+# --- 흐름 --------------------------------------------------------------------
 
 # 사내 기준 문서(정책 문서) 폴더. 정책 관리 검토를 돌릴 때마다 바뀐 파일만 RAG 에 다시 적재합니다.
 DOCS_DIR = ROOT / "docs"
@@ -83,32 +160,9 @@ def _judged(verdict: Any, error: str | None, elapsed: float) -> dict[str, Any]:
 # --- 정책 이해 --------------------------------------------------------------
 
 
-def index_documents(engine: Engine, source: Any = DOCS_DIR) -> IndexReport:
+def index_documents(engine: Engine, source: Any = DOCS_DIR, rebuild: bool = False) -> IndexReport:
     """사내 기준 문서를 RAG 에 적재합니다 (바뀐 파일만). 서버 현황 · 정책 검증이 이 조항을 찾습니다."""
-    return engine.documents.index(source)
-
-
-def index_policies(engine: Engine, source: Any) -> tuple[LoadResult, IndexReport]:
-    """솔루션 정책 규칙을 RAG 에 적재합니다. 바뀌지 않았으면 건너뜁니다."""
-    loaded = load_policies(source)
-    if not loaded.records:
-        raise ValueError(f"{loaded.source}: 적재할 정책이 없습니다")
-    report = engine.documents.index_rules(loaded.source, [r.describe() for r in loaded.records])
-    return loaded, report
-
-
-def review_requests(engine: Engine, source: Any, progress: Progress | None = None) -> dict[str, Any]:
-    """CSV 권한 신청 전 건을 review_chain 으로 판정합니다 (평가용 — 기대 등급과 대조할 때. 저장하지 않습니다)."""
-    loaded = load_requests(source)
-    chain = engine.review_chain()
-    reviews = []
-    for n, request in enumerate(loaded.records, start=1):
-        verdict, error, elapsed = attempt(lambda: chain.invoke(request.review_input()))
-        review = {**request.model_dump(), **_judged(verdict, error, elapsed)}
-        reviews.append(review)
-        if progress:
-            progress(n, len(loaded.records), review)
-    return {**_loaded(loaded), "reviews": reviews}
+    return engine.documents.index(source, rebuild=rebuild)
 
 
 def judge_request(engine: Engine, request: dict[str, Any]) -> dict[str, Any]:
@@ -225,7 +279,7 @@ def monitor(
             **_judged(verdict, error, elapsed),
         }
         findings.append(finding)
-        # 알림(engine/alert.py 의 Notifier)을 구축하면 주의 · 위험 판정을 여기서 보냅니다.
+        # 알림(types.py 의 Notifier)을 구축하면 주의 · 위험 판정을 여기서 보냅니다.
         if progress:
             progress(n, len(groups), finding)
     last_event = latest(loaded.records)
