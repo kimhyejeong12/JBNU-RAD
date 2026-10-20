@@ -200,7 +200,7 @@
   .nstate { font-size: 12px; font-weight: 700; white-space: nowrap; }
   .nstate.on { color: var(--ok); } .nstate.stale { color: var(--sub); } .nstate.off, .nstate.wait { color: var(--ink-dim); }
   .node-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  .key-box { border: 1px solid var(--sub); background: var(--warn-tint); border-radius: 8px; padding: 12px; }
+  .key-box { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
   .key-box input { width: 100%; font: 12.5px ui-monospace, monospace; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
   .key-box .node-actions { margin-top: 8px; }
   .pager { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 12px; font-size: 12.5px; color: var(--ink-dim); }
@@ -687,7 +687,7 @@ const state = {
   askSource: null,      // 패널에 띄운 인용 조항 { i: 질의 순번, n: sources 순번 }
   // 로그 조회 — 조건 · 받은 결과(/api/logs) · 패널에 띄운 줄(없으면 집계)
   // 수집 노드 — 목록(/api/nodes) · 고른 노드 · 그 노드의 자세한 기록(/api/nodes/{이름})
-  nodes: { list: null, error: "", selected: null, detail: null, adding: false, issued: null },   // issued = 방금 발급한 키 (한 번만 보여줌)
+  nodes: { list: null, error: "", selected: null, detail: null, adding: false },
   logs: { period: "week", user: "", solution: "", how: "", page: 1, data: null, error: "", loading: false, selected: null },
 };
 
@@ -1589,7 +1589,7 @@ function watchJobs(started = false) {
 
 $("run").addEventListener("click", startJob);
 
-/* ── 수집 노드 — 화면에서 노드를 등록해 키를 발급하고(키는 한 번만 보임), 상태를 보고 끄거나 키를 다시 발급합니다 ── */
+/* ── 수집 노드 — 화면에서 노드를 등록해 키를 발급하고, 상태 · 키를 보고 끄거나 키를 다시 발급합니다 ── */
 function nodeState(n) {
   if (!n.enabled) return ["off", "꺼짐", "보내도 받지 않고 주기 점검에서도 빠집니다"];
   if (!n.key_issued) return ["wait", "키 없음", "손으로 넣은 수집뿐입니다. 키를 발급해 노드에 넣으면 직접 보낼 수 있습니다"];
@@ -1630,7 +1630,7 @@ function renderNodes() {
 }
 
 function pickNode(name) {
-  Object.assign(state.nodes, { selected: name, detail: null, adding: false, issued: null });
+  Object.assign(state.nodes, { selected: name, detail: null, adding: false });
   state.panelMsg = "";
   renderNodes();
   renderPanel();
@@ -1644,7 +1644,7 @@ $("node-rows").addEventListener("keydown", (e) => {
 });
 
 $("add-node").addEventListener("click", () => {
-  Object.assign(state.nodes, { selected: null, detail: null, adding: true, issued: null });
+  Object.assign(state.nodes, { selected: null, detail: null, adding: true });
   state.panelMsg = "";
   renderNodes();
   renderPanel();
@@ -1656,8 +1656,8 @@ $("add-node").addEventListener("click", () => {
 async function createNode(name) {
   try {
     const made = await send("/api/nodes", { name });
-    Object.assign(state.nodes, { adding: false, selected: made.name, detail: null, issued: { name: made.name, key: made.key } });
-    state.panelMsg = "";
+    Object.assign(state.nodes, { adding: false, selected: made.name, detail: null });
+    state.panelMsg = "✓ 노드를 등록하고 키를 발급했습니다";
   } catch (e) {
     state.panelMsg = e.message;
     renderPanel();
@@ -1671,9 +1671,8 @@ async function nodeAction(name, action) {
   if (issuing && !confirm(`${name} 의 키를 새로 발급합니다. 지금 키는 바로 못 쓰게 되어, 그 서버의 node.conf 를 새 키로 바꿔야 다시 보냅니다. 계속할까요?`)) return;
   try {
     if (issuing) {
-      const made = await send(`/api/nodes/${encodeURIComponent(name)}/key`, {});
-      state.nodes.issued = { name, key: made.key };
-      state.panelMsg = "";
+      await send(`/api/nodes/${encodeURIComponent(name)}/key`, {});
+      state.panelMsg = "✓ 키를 새로 발급했습니다. 그 서버의 node.conf 를 바꾸세요";
     } else {
       await send(`/api/nodes/${encodeURIComponent(name)}`, { enabled: action === "on" }, "PATCH");
       state.panelMsg = action === "on" ? "✓ 노드를 켰습니다" : "✓ 노드를 껐습니다";
@@ -1684,16 +1683,16 @@ async function nodeAction(name, action) {
   await loadNodes();
 }
 
-// 발급한 키는 해시만 남아 다시 볼 수 없습니다. 이 칸을 벗어나면(다른 노드 · 탭) 사라집니다.
-function issuedKey(name) {
-  const k = state.nodes.issued;
-  if (!k || k.name !== name) return "";
-  const cmd = `sudo sh node/install.sh --server ${location.origin} --key ${k.key}`;
-  return `<div class="sec key-box"><h4>${icon("lock", "sm")}발급한 키 — 지금 한 번만 보입니다</h4>
-      <input id="issued-key" readonly value="${esc(k.key)}" aria-label="노드 키">
+// 내부망 서비스라 노드 키를 언제든 다시 보여줍니다. 해시만 남은 예전 키는 다시 발급해야 보입니다.
+function nodeKey(n, d) {
+  if (!d || d.error || !n.key_issued) return "";
+  if (!d.key) return `<div class="sec"><h4>${icon("lock", "sm")}노드 키</h4><p class="note">예전 방식으로 발급해 볼 수 없는 키입니다. [키 다시 발급]을 하면 여기에 보입니다.</p></div>`;
+  const cmd = `sudo sh node/install.sh --server ${location.origin} --key ${d.key}`;
+  return `<div class="sec"><h4>${icon("lock", "sm")}노드 키</h4><div class="key-box">
+      <input id="issued-key" readonly value="${esc(d.key)}" aria-label="노드 키">
       <p class="note">점검할 서버에서:</p><div class="box pre">${esc(cmd)}</div>
-      <div class="node-actions"><button class="rerun" data-copy="${esc(k.key)}">키 복사</button><button class="rerun" data-copy="${esc(cmd)}">설치 명령 복사</button></div>
-    </div>`;
+      <div class="node-actions"><button class="rerun" data-copy="${esc(d.key)}">키 복사</button><button class="rerun" data-copy="${esc(cmd)}">설치 명령 복사</button></div>
+    </div></div>`;
 }
 
 // 사내망의 http 화면에서는 클립보드 API 를 못 쓸 수 있어, 그때는 키 칸을 골라 둡니다 (Ctrl+C).
@@ -1711,7 +1710,7 @@ function renderNodesPanel() {
           <label class="wide"><span>노드 이름 <b>*</b></span><input id="node-name" required maxlength="64" pattern="[A-Za-z0-9._\-]+" placeholder="예: cust-db01"></label>
           <div class="wide form-actions">${panelMsg()}<button type="submit" class="primary">등록하고 키 발급</button></div>
         </form>
-        <p class="note">점검할 서버 하나에 노드 하나입니다. 이름은 영문 · 숫자 · . _ - 로 짓고, 등록하면 그 서버에 넣을 키가 한 번 나옵니다. 노드는 이름 없이 키만 보내고, SentinelAI 가 키로 어느 노드인지 찾습니다.</p>
+        <p class="note">점검할 서버 하나에 노드 하나입니다. 이름은 영문 · 숫자 · . _ - 로 짓고, 등록하면 그 서버에 넣을 키가 나옵니다 (노드 화면에서 언제든 다시 볼 수 있음). 노드는 이름 없이 키만 보내고, SentinelAI 가 키로 어느 노드인지 찾습니다.</p>
       </div>`;
     $("node-form").addEventListener("submit", (e) => { e.preventDefault(); createNode($("node-name").value.trim()); });
     return;
@@ -1723,7 +1722,7 @@ function renderNodesPanel() {
         <div class="sec"><h4>${icon("activity", "sm")}상태</h4>${kvTable([["노드", `${list.length}대`], ["수집 중", `${count("on")}대`],
           ["끊김", `${count("stale")}대`], ["꺼짐 · 키 없음 · 기다리는 중", `${count("off") + count("wait")}대`]])}</div>
         <div class="sec"><h4>${icon("server", "sm")}노드 깔기</h4>
-          <p class="note">1. [노드 등록]으로 서버 이름을 넣고 키를 받습니다 (한 번만 보임).<br>2. 그 서버에서 node/install.sh --server ${esc(location.origin)} --key &lt;키&gt;<br>
+          <p class="note">1. [노드 등록]으로 서버 이름을 넣고 키를 받습니다.<br>2. 그 서버에서 node/install.sh --server ${esc(location.origin)} --key &lt;키&gt;<br>
           새 수집은 서버가 주기적으로 기준 문서와 비교해 검토 현황의 서버 점검에 올립니다.</p></div>
       </div>`;
     return;
@@ -1738,13 +1737,13 @@ function renderNodesPanel() {
       <p class="subject">${esc(n.name)}</p>
       <div class="rec-line"><span class="nstate ${cls}">${label}</span></div>
       <div class="meta">${esc(tip)}</div>
-      ${issuedKey(n.name)}
       <div class="sec"><h4>${icon("server", "sm")}노드</h4>${kvTable([["호스트", n.host], ["IP", n.ip], ["수집 간격", n.interval_min ? `${n.interval_min}분` : ""],
         ["노드 버전", n.agent_version], ["등록", stamp(n.registered_at)], ["마지막 연락", stamp(n.last_seen_at)], ["마지막 수집", stamp(n.last_collected_at)]].filter(([, v]) => v))}
         <div class="node-actions">
           <button class="rerun" data-act="${n.enabled ? "off" : "on"}">${n.enabled ? "노드 끄기" : "노드 켜기"}</button>
           <button class="rerun" data-act="key">${n.key_issued ? "키 다시 발급" : "키 발급"}</button>
         </div>${panelMsg()}</div>
+      ${nodeKey(n, d)}
       ${!d ? `<div class="empty">불러오는 중…</div>` : d.error ? `<p class="form-msg">${esc(d.error)}</p>` : `
       <div class="sec"><h4>${icon("activity", "sm")}마지막 서버 점검</h4>${finding
         ? `<div class="box"><i class="ldot ${esc(finding.level || "주의")}"></i>${esc(finding.failed ? "판정 실패" : finding.level)} · ${esc(stamp(finding.created_at))}<br>${esc(finding.summary)}</div>
@@ -1903,7 +1902,6 @@ function setMainTab(tab) {
   if (tab === "ask") $("ask-input").focus();
   if (tab === "logs" && !state.logs.data && !state.logs.loading) loadLogs();
   if (tab === "nodes") loadNodes();
-  if (tab !== "nodes") state.nodes.issued = null;
 }
 
 document.querySelectorAll(".main-tab").forEach((b) => b.addEventListener("click", () => setMainTab(b.dataset.tab)));
@@ -2012,7 +2010,7 @@ function closeDrawer() {
 function closePanel() {
   closeDrawer();
   if (state.mainTab === "nodes" && (state.nodes.selected || state.nodes.adding)) {
-    Object.assign(state.nodes, { selected: null, detail: null, adding: false, issued: null });
+    Object.assign(state.nodes, { selected: null, detail: null, adding: false });
     renderNodes();
     renderPanel();
   }

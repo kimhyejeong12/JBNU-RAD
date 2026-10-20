@@ -51,7 +51,7 @@ class NewNode(BaseModel):
 
 @router.post("", status_code=201)
 def create_node(body: NewNode, request: Request, user: Approver) -> dict[str, Any]:
-    """노드(서버)를 등록하고 키를 발급합니다. 키는 이 응답에만 있습니다 — 다시 볼 수 없습니다."""
+    """노드(서버)를 등록하고 키를 발급합니다. 키는 노드 화면(GET /api/nodes/{이름})에서 다시 볼 수 있습니다."""
     try:
         node, key = nodes.create(request.app.state.main_db, user, body.name)
     except Denied as exc:
@@ -70,11 +70,12 @@ def list_nodes(request: Request, user: Approver) -> list[dict[str, Any]]:
 
 @router.get("/{name}")
 def node_detail(name: str, request: Request, user: Approver) -> dict[str, Any]:
-    """노드 하나 — 등록부 · 가장 늦은 수집의 모듈 상태 · 최근 수집(바뀐 것) · 판정 기록."""
+    """노드 하나 — 등록부 · 키 · 가장 늦은 수집의 모듈 상태 · 최근 수집(바뀐 것) · 판정 기록."""
     found = [n for n in nodes.list_nodes(request.app.state.main_db) if n["name"] == _known(name)]
     if not found:
         raise HTTPException(status_code=404, detail="없는 노드입니다")
-    return {**found[0], "stale": nodes.is_stale(found[0]), **results.node_history(request.app.state.results_db, name)}
+    return {**found[0], "stale": nodes.is_stale(found[0]), "key": nodes.key_of(request.app.state.main_db, user, name),
+            **results.node_history(request.app.state.results_db, name)}
 
 
 class NodeChange(BaseModel):
@@ -91,7 +92,7 @@ def change_node(name: str, body: NodeChange, request: Request, user: Approver) -
 
 @router.post("/{name}/key")
 def reissue_key(name: str, request: Request, user: Approver) -> dict[str, Any]:
-    """키를 다시 발급합니다. 예전 키는 바로 못 쓰게 되고, 새 키는 이 응답에만 있습니다."""
+    """키를 다시 발급합니다. 예전 키는 바로 못 쓰게 됩니다."""
     try:
         node, key = nodes.reissue_key(request.app.state.main_db, user, _known(name))
     except Denied as exc:

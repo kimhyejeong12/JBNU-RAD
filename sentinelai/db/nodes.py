@@ -1,7 +1,8 @@
 """수집 노드 등록부 (권한 DB).
 
-보안 운영자 · 보안 총책임자가 화면에서 노드(서버)를 등록하면 그 노드만의 키가 한 번 나옵니다. 키는 해시만 남기므로 다시 볼 수 없고,
-잃으면 다시 발급합니다 (예전 키는 그때 못 쓰게 됨). 노드는 이름 없이 키만 보내고, 서버가 키로 어느 노드인지 찾습니다.
+보안 운영자 · 보안 총책임자가 화면에서 노드(서버)를 등록하면 그 노드만의 키가 나옵니다. 내부망 서비스라 키를 그대로도 두어
+화면에서 언제든 다시 볼 수 있습니다 (10/20 결정). 새어 나가면 다시 발급합니다 (예전 키는 그때 못 쓰게 됨).
+노드는 이름 없이 키만 보내고, 서버가 키의 해시로 어느 노드인지 찾습니다.
 """
 from __future__ import annotations
 
@@ -62,7 +63,7 @@ def create(db: Database, by: User, name: str) -> tuple[dict[str, Any], str]:
     with db.transaction() as conn:
         if conn.execute("SELECT 1 FROM nodes WHERE name = ?", (name,)).fetchone():
             raise Denied("이미 있는 노드 이름입니다")
-        conn.execute("INSERT INTO nodes (name, key_hash, registered_at) VALUES (?,?,?)", (name, _hash(key), now()))
+        conn.execute("INSERT INTO nodes (name, key_hash, key, registered_at) VALUES (?,?,?,?)", (name, _hash(key), key, now()))
         audit(conn, "node_create", by.id, target_type="node", target_id=name)
         return _row(conn.execute("SELECT * FROM nodes WHERE name = ?", (name,)).fetchone()), key
 
@@ -70,7 +71,15 @@ def create(db: Database, by: User, name: str) -> tuple[dict[str, Any], str]:
 def reissue_key(db: Database, by: User, name: str) -> tuple[dict[str, Any], str]:
     """키를 다시 발급합니다. 예전 키는 바로 못 쓰게 됩니다. → (노드, 새 키)"""
     key = secrets.token_urlsafe(32)
-    return _change(db, by, name, "UPDATE nodes SET key_hash = ? WHERE name = ?", (_hash(key),), "node_key_issue", {}), key
+    return _change(db, by, name, "UPDATE nodes SET key_hash = ?, key = ? WHERE name = ?", (_hash(key), key), "node_key_issue", {}), key
+
+
+def key_of(db: Database, by: User, name: str) -> str | None:
+    """화면에 보여줄 노드 키. 10/20 오후 전에 발급해 해시만 있는 키는 None (다시 발급하면 보임)."""
+    _require_analyst(by)
+    with db.connection() as conn:
+        row = conn.execute("SELECT key FROM nodes WHERE name = ?", (name,)).fetchone()
+    return row["key"] if row else None
 
 
 def ensure(db: Database, name: str, info: dict[str, Any]) -> None:

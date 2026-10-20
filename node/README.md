@@ -16,14 +16,14 @@ SentinelAI는 키로 노드를 찾아 노드별로 쌓고, 새 수집이 온 노
 
 필요한 것: Python 3.8 이상 (표준 라이브러리만), systemd, root.
 
-1. SentinelAI 화면 정책 관리 → [노드] → **노드 등록**에서 서버 이름을 넣으면 그 서버의 키가 나옵니다. **한 번만 보이므로** 바로 복사합니다.
+1. SentinelAI 화면 정책 관리 → [노드] → **노드 등록**에서 서버 이름을 넣으면 그 서버의 키가 나옵니다. 노드 화면에서 언제든 다시 볼 수 있습니다.
 2. 점검할 서버에서:
 
 ```sh
 sudo sh install.sh --server http://sentinelai.internal:8000 --key <노드 키>
 ```
 
-- 노드는 이름을 보내지 않고 키만 보냅니다. SentinelAI가 키로 어느 노드인지 찾습니다. 키는 `/etc/sentinel-node/node.conf`(0600)에만 있습니다.
+- 노드는 이름을 보내지 않고 키만 보냅니다. SentinelAI가 키로 어느 노드인지 찾습니다. 서버 쪽 키는 `/etc/sentinel-node/node.conf`(0600)에 둡니다.
 - 키를 잃었거나 새어 나갔으면 [노드]에서 **키 다시 발급** → `sudo sh install.sh --key <새 키>`. 예전 키는 바로 못 쓰게 됩니다.
 - 서버에 보내지 못한 수집은 `/var/lib/sentinel-node/spool/`에 쌓였다가 다음 차례에 먼저 보냅니다 (최대 200개).
 
