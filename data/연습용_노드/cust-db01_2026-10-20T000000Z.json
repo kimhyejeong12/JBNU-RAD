@@ -1,0 +1,16 @@
+{
+ "format": "sentinel-node 1",
+ "agent_version": "1.0",
+ "node": "cust-db01",
+ "host": "cust-db01",
+ "ip": "10.0.1.5",
+ "collected_at": "2026-10-20T00:00:00Z",
+ "collected_by": "root",
+ "interval_min": 30,
+ "sections": {
+  "ufw": "Status: active\nLogging: on (low)\nDefault: deny (incoming), allow (outgoing), disabled (routed)\nNew profiles: skip\n\nTo                         Action      From\n--                         ------      ----\n22/tcp                     ALLOW IN    Anywhere\n3306/tcp                   ALLOW IN    Anywhere\n22/tcp (v6)                ALLOW IN    Anywhere (v6)\n3306/tcp (v6)              ALLOW IN    Anywhere (v6)",
+  "sshd": "port 22\naddressfamily any\nlistenaddress 0.0.0.0:22\nusepam yes\nlogingracetime 120\nx11forwarding no\nmaxsessions 10\nclientaliveinterval 0\npubkeyauthentication yes\nkbdinteractiveauthentication no\npermitemptypasswords no\npermitrootlogin yes\npasswordauthentication yes\nmaxauthtries 6",
+  "pam": "==> /etc/pam.d/common-auth <==\nauth\t[success=1 default=ignore]\tpam_unix.so\nauth\trequisite\t\t\tpam_deny.so\nauth\trequired\t\t\tpam_permit.so\n==> /etc/pam.d/common-password <==\npassword\t[success=1 default=ignore]\tpam_unix.so obscure use_authtok try_first_pass yescrypt\npassword\trequisite\tpam_deny.so\n==> /etc/pam.d/su <==\nauth       sufficient pam_rootok.so\nsession    required   pam_env.so readenv=1",
+  "accounts": "==> uid0 <==\nroot\n==> groups <==\nsudo:x:27:dbadmin,dev01\n==> /etc/sudoers <==\nroot\tALL=(ALL:ALL) ALL\n%sudo\tALL=(ALL:ALL) ALL\n==> /etc/sudoers.d/dev01 <==\ndev01 ALL=(ALL) NOPASSWD: ALL"
+ }
+}
