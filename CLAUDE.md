@@ -12,10 +12,12 @@
 정책은 RAG 저장소 한 곳에 쌓고, 두 기능 모두 거기서 근거를 찾는다. 새 작업은 둘 중 어느 쪽에 쓰이는지부터 정한다.
 
 로컬 LLM · RAG 기반 AI 보안 정책 검토 · 로그 감시 시스템. **전북대학교 RAD(RAG & Decision) 팀과 SK쉴더스가 함께 추진하는 산학 캡스톤 프로젝트**다.
-프로젝트 이름은 SentinelAI로 확정했다 (2026-10-07). 추진 주체(전북대학교 RAD · SK쉴더스)는 문서 · 화면 · 코드 설명에서 빼지 않는다. 로그 출처인 Microsoft Sentinel과 헷갈리지 않게, 그쪽은 항상 "Microsoft Sentinel"로 쓴다.
+프로젝트 이름은 SentinelAI로 확정했다 (2026-10-07). 추진 주체 표기와 "AI 보안 정책 검토 시스템" 같은 부제는 10/12에 화면 · 코드에서 뺐다 (README에만 둔다). 로그 출처인 Microsoft Sentinel과 헷갈리지 않게, 그쪽은 항상 "Microsoft Sentinel"로 쓴다.
 LLM · RAG 엔진 `sentinelai/engine/`(양현성) 위에 웹 대시보드 `sentinelai/web/`(김혜정)을 붙였다. 9월 30일 산학 자문 미팅에서 5분간 시연한다.
 
-**원칙**: AI는 근거를 제공하고 등급을 매길 뿐, 승인 · 반려의 최종 결정은 보안 운영자가 한다.
+**원칙**: AI는 근거를 제공하고 등급을 매길 뿐, 승인 · 반려의 최종 결정은 사람(보안 운영자 · 보안 총책임자)이 한다.
+
+**사용자 용어** (10/20 통일): 일반 사용자(`user`) · 보안 운영자(`manager`) · 보안 총책임자(`top`, 루트 포함). 화면 · 오류 문구 · 문서 모두 이 셋만 쓴다. 역할 코드는 그대로다.
 
 ---
 
@@ -24,126 +26,150 @@ LLM · RAG 엔진 `sentinelai/engine/`(양현성) 위에 웹 대시보드 `senti
 ```
 JBNU-RAD/
 ├── sentinelai/               SentinelAI 패키지. __init__.py 는 ROOT · 버전만 두고 하위 패키지를 가져오지 않는다
-│   ├── __main__.py · cli.py    코어 CLI `python -m sentinelai` — 엔진 명령 + index-policies · review-requests · review-policies · monitor · ask-logs. 코어는 이것만으로 돈다
-│   ├── pipeline.py             data × engine 실행 흐름 — review_requests · review_policies · monitor · ask_logs · ResultStore · attempt(재시도)
-│   ├── engine/                 LLM · RAG 엔진 (양현성) — 수정 금지
-│   │   ├── engine.py             Engine — 설정 · LLM · DocumentStore · 체인 진입점 (engine.review_chain() 등은 chains/로 넘긴다)
-│   │   ├── chains/               체인 — 한 파일에 한 기능
-│   │   │   ├── access.py           review_chain — 권한 신청 검토 (정책 이해)
-│   │   │   ├── policy.py           policy_chain — 정책 모순 판정 (정책 이해)
-│   │   │   ├── answer.py           answer_chain · rag_chain — 질의응답 (정책 이해)
-│   │   │   ├── event.py            event_chain — 로그 ↔ 정책 비교 (로그 감시)
-│   │   │   ├── logs.py             log_filter_chain · log_answer_chain — 로그 질의 (로그 감시). 로그는 RAG로 찾지 않는다
-│   │   │   └── retrieval.py        종류별 검색 (조항 · 규칙) — 체인들이 함께 쓴다
-│   │   ├── rag.py                DocumentStore — 기준 조항(clause) · 솔루션 규칙(rule)을 한 컬렉션에 적재, 종류별 검색
-│   │   ├── alert.py              Notifier 인터페이스 자리 — 아직 구현 없음, 부를 곳은 pipeline.monitor (§8)
-│   │   ├── prompt.py             프롬프트 (권한 검토 · 로그 검토 · 정책 검토 · 질의응답)
-│   │   ├── types.py              출력 타입 Verdict · PolicyReview · Answer
-│   │   ├── config.py             Settings — .env 의 SENTINELAI_* 읽기
-│   │   └── cli.py                엔진만 있는 환경용 CLI `python -m sentinelai.engine.cli` (data · pipeline 명령 없음)
+│   ├── __main__.py · cli.py    CLI `python -m sentinelai` — 웹이 꺼져 있을 때 쓰는 최소 명령만: health · index · review-policies · check-nodes · monitor · import-snapshots · create-root. 모두 Engine 기능을 부른다
+│   ├── engine/                 엔진 (양현성) — 큰 파일 다섯 개 (10/20에 chains/ · pipeline · 작업 큐 · CLI 를 합쳤다)
+│   │   ├── engine.py             Settings(.env) · Engine — 모델 · RAG 저장소 · 두 DB를 열고, 모든 기능(run_policies · run_nodes · run_events · ask · ask_servers · ask_logs · browse_logs · receive_snapshot · import_snapshots · judge_request · health)과 작업 큐(JobRunner: 자동 로그 감시 · 서버 점검 · 정책 관리 검토, VerdictWorker: 권한 신청 판정)를 둔다. 웹 · CLI는 Engine 하나만 만든다
+│   │   ├── pipeline.py           체인(review · policy · server · server_filter · server_answer · event · log_filter · log_answer · answer · rag)과 판정 흐름(review_policies · check_nodes · snapshot_row · ask_servers · monitor · browse_logs · ask_logs · judge_request · attempt). 결과 dict만 돌려주고 저장 · 큐는 engine.py
+│   │   ├── rag.py                DocumentStore — 기준 조항(clause) · 솔루션 규칙(rule)을 한 컬렉션에 적재, 종류별 검색(lookup · lookup_all)
+│   │   ├── prompt.py             프롬프트 (권한 검토 · 로그 검토 · 정책 검토 · 서버 점검 · 질의응답 · 로그 질의)
+│   │   └── types.py              출력 타입 Verdict · PolicyReview · ServerReview · Answer · LogFilter, 알림 자리 Notifier (아직 구현 없음, §8)
 │   ├── data/                   검토 대상 데이터 계층 (양현성) — 엔진과 독립. 소스(CSV · JSON · 메모리) × 매퍼
-│   │   ├── types.py              SecurityEvent · AccessRequest · PolicyRule · LoadResult
+│   │   ├── types.py              SecurityEvent · AccessRequest · PolicyRule · ServerState · ServerSnapshot · LoadResult
 │   │   ├── source.py             RowSource — CsvSource · JsonSource · MemorySource, 확장자로 고르는 open_source
 │   │   ├── mapper.py             Mapper — EventMapper(Microsoft Sentinel 로그) · AccessRequestMapper · PolicyRuleMapper
+│   │   ├── collected.py          수집 노드 본문 → 모듈별 상태 (UFW · SSH · PAM · 계정 · sudo), 직전 수집과 달라진 설정, 서버 질의용 server_digest(노드별 지금 상태 · 집계 · 기록 줄)
+│   │   ├── servers.py            서버 ↔ 규칙 맞춰 보기 (IP · 대역 · 호스트 이름, ANY 제외) → server_chain 입력
 │   │   └── events.py             로그 시각 필터(between · latest) · 사용자별 묶음 → event_chain 입력 · 로그 질의용 search · summarize · vocabulary
-│   ├── db/                     권한 DB · Log DB (SQLite). 엔진 · 데이터 계층은 모른다. 설계는 design/db-schema.md
-│   │   ├── schema.sql            권한 DB — 사용자 · 세션 · 감사 기록 · 신청 · 결재 · 회수. 결재 순서 · 역할은 트리거가 강제
-│   │   ├── log_schema.sql        Log DB — 권한 신청 AI 판정 (로그 · 로그 감시 판정은 나중에)
-│   │   ├── auth.py               Argon2id · 로그인 잠금 · 세션 2일 · 루트만 계정 관리
-│   │   ├── permissions.py        신청 · 철회 · 결재 · 회수 · 권한 현황
-│   │   ├── decisions.sql · decisions.py  정책 관리 · 로그 감시의 운영자 결정 (권한 DB, 쌓기만 하고 마지막 기록이 지금 결정)
-│   │   └── logs.py               AI 판정 저장 · 조회
-│   └── web/                    웹 계층 (김혜정) — 코어(pipeline)를 부르고 결과를 보여준다. 판정 로직은 두지 않는다
-│       ├── main.py               FastAPI — API + 화면 서빙. Engine · ResultStore · JobRunner · DB · 판정 작업을 앱 시작 시 1회 만든다
-│       ├── api_permissions.py    로그인 · 계정 · 권한 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests · /api/grants)
-│       ├── verdicts.py           신청이 들어오면 바로 AI 판정 (백그라운드, Log DB에 저장, 재시작 시 밀린 판정 이어서)
-│       ├── jobs.py               JobRunner — pipeline 작업을 백그라운드 스레드로 한 번에 하나씩 (진행 상황 · 마지막 실패)
-│       ├── view.py               ResultStore → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
-│       └── static/index.html     단일 파일 대시보드 — 메뉴(권한 신청 · 정책 관리 · 로그 감시)별 검토 현황, 정책 관리의 정책 질의 탭 (CSS · JS · 아이콘 인라인)
+│   ├── db/                     권한 DB · AI 결과 DB (SQLite). 엔진 · 데이터 계층은 모른다. 설계는 design/db-schema.md · design/results-db.md
+│   │   ├── schema.sql            권한 DB — 사용자 · 세션 · 감사 기록 · 신청(1건 = 1행: 신청 · AI 판정 · 1차 · 최종 결재 · 회수). 결재 순서 · 역할은 트리거가 강제
+│   │   ├── results_schema.sql    AI 결과 DB — 정책 관리 검토 · 로그 감시 판정 · 질의 기록 (쌓기만, 로그 자체는 쌓지 않는다). results_servers.sql 이 서버 점검을 더한다
+│   │   ├── auth.py               Argon2id · 로그인 잠금 · 세션 2일 · 보안 총책임자가 계정 관리 (루트 계정은 루트만)
+│   │   ├── permissions.py        신청(권한 목록의 코드로, 현재 보유 권한은 승인된 유효 신청에서 읽어 남김) · AI 판정 저장(1차 결재 전까지만) · 철회 · 결재 · 회수
+│   │   ├── decisions.sql · decisions.py  정책 관리 · 로그 감시의 운영자 결정 (권한 DB, 쌓기만 하고 마지막 기록이 지금 결정, 보안 총책임자는 기록 전부)
+│   │   ├── accounts.sql          계정 생성을 루트 → 보안 총책임자로 넓힌다 (10/12)
+│   │   ├── decisions_server.sql  운영자 결정에 서버 점검(kind server)을 더한다 (10/12)
+│   │   ├── roles_names.sql       트리거 오류 문구를 사용자 용어로 바꾼다 (10/20)
+│   │   ├── results_server_snapshots.sql · results_nodes.sql  수집 기록(server_snapshots, 노드별) · 노드 서버 점검 판정(node_findings) (10/20)
+│   │   ├── access_catalog.sql · catalog.py  권한 목록 — 일반 사용자는 여기 있는 켜진 권한만 신청한다. 보안 총책임자가 등록 · 고치기 · 끄기 (지우지 않고 코드는 못 바꿈) (10/20)
+│   │   ├── nodes.sql · nodes_keys.sql · nodes_key_view.sql · nodes.py  수집 노드 등록부 — 화면에서 등록하면 노드만의 키 발급(키의 해시로 노드를 찾고, 화면에서 다시 볼 수 있게 키도 둔다), 키 다시 발급 · 끄기 (10/20)
+│   │   ├── results_qa_servers.sql  질의 기록에 서버 질의(kind servers)를 더한다 (10/21)
+│   │   ├── results_server_gaps.sql  서버 점검에 다른 곳(gaps) · 판단하지 않은 항목을 더한다 (10/14)
+│   │   └── results.py            AI 결과 DB 저장 · 조회 — 정책 관리 검토 · 로그 감시(다음 감시 시작점 포함) · 내 질의 기록. CLI · 웹이 같은 DB를 쓴다
+│   └── web/                    웹 계층 (김혜정) — Engine 기능을 부르고 결과를 보여준다. 판정 로직 · 큐는 두지 않는다
+│       ├── main.py               FastAPI — API + 화면 서빙. 앱 시작 시 Engine 을 만들고 start()(작업 큐), 끌 때 stop()(큐 · 벡터 DB 잠금 해제)
+│       ├── api_nodes.py          수집 노드 API — 노드가 보내는 수집 받기(키만) · 노드 등록 · 키 발급 · 목록 · 끄기 (/api/nodes)
+│       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 권한 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 준다
+│       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
+│       └── static/index.html     단일 파일 대시보드 — 메뉴(권한 신청 · 정책 관리 · 로그 감시 · 정책 질의)별 검토 현황, 정책 관리의 서버 질의 · 로그 감시의 로그 질의 탭 (CSS · JS · 아이콘 인라인)
 ├── docs/                     판정 근거 기준 문서 — 수정 금지
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
-├── data/                     검토 대상과 판정 결과 — 위치는 .env 의 SENTINELAI_*_SOURCE · RESULTS_PATH (지금은 비어 있음, 아래 참고)
-│   └── results.json            판정 결과 저장 파일 (ResultStore) — CLI · 웹이 함께 쓴다
+├── data/                     검토 대상과 두 DB 파일 — 위치는 .env 의 SENTINELAI_*_SOURCE · SENTINELAI_DB_PATH · SENTINELAI_RESULTS_DB_PATH (DB 파일은 git 제외)
+├── node/                     수집 노드 — 점검 대상 서버에 까는 데몬 (SentinelAI 패키지와 따로, 표준 라이브러리만, Python 3.8+)
+│   ├── sentinel_node/          collect(모듈별 원문 읽기) · client(보내기 · 못 보낸 것 쌓아 두기 · 키 저장) · config · __main__(run · once · show · export)
+│   ├── install.sh              /opt/sentinel-node · /etc/sentinel-node/node.conf · systemd sentinel-node 설치 · 제거
+│   ├── testenv/                시험용 점검 대상 컨테이너 (Ubuntu + ufw · sshd · PAM · sudo, PROFILE=weak · strict) — make dev-targets
+│   └── sentinel-node.service · node.conf.example · README.md
 ├── scripts/
-│   └── review_check.py         반복 루프 · 등급 흔들림 재현 (테스트 전용) — 수정 금지
+│   ├── dev_setup.py            로컬 시험 환경 만들기 (`make dev-setup`) — .dev/ 에 시험 계정 · 시험용 권한 목록 · 이 컴퓨터용 노드 설정
+│   └── dev_nodes.py            노드 수집 시험 — 시험 환경의 노드 키 꺼내기(`key`) · 흉내 노드(`sim`, make dev-sim)
+├── .dev/                     로컬 시험 환경의 두 DB · 벡터 DB · node.conf (git 제외)
 ├── .milvus/                  벡터 DB 파일 (Milvus Lite, git 제외)
 ├── .env · .env.example       설정. .env는 git 제외, make install이 예시에서 만든다
-├── design/                   설계 문서 — db-schema.md (권한 DB 결정 경위 · 남은 질문)
+├── design/                   설계 문서 — db-schema.md (권한 DB 결정 경위 · 남은 질문) · results-db.md (AI 결과 DB)
 ├── NOTES.md                  작업 메모 — 설정 값의 이유 · 서버 이슈 경위 · 모델 비교 결과. 설정 파일과 코드에는 설명 주석을 두지 않고 여기에 적는다
 ├── Makefile · requirements.txt
-└── Dockerfile · README.md    코어 컨테이너(엔진 · data · pipeline, `python -m sentinelai`) · 저장소 소개 (웹은 컨테이너에 없음)
+└── Dockerfile · README.md    코어 컨테이너(엔진 · data · db, `python -m sentinelai`) · 저장소 소개 (웹은 컨테이너에 없음)
 ```
 
-검토 대상 위치는 `.env`에서 정한다 — `SENTINELAI_REQUESTS_SOURCE`(권한 신청) · `SENTINELAI_POLICIES_SOURCE`(솔루션 정책) · `SENTINELAI_EVENTS_SOURCE`(보안 솔루션 로그, 지금은 `data/솔루션 별 Mock 데이터.csv`).
-권한 신청 · 정책 CSV(`data/permissions.csv` · `data/policies.csv`)는 10/7에 저장소에서 지웠다. 그 파일이 없으면 해당 분석은 "데이터 파일이 없습니다"로 실패하고 화면 하단에 그대로 뜬다. 예전 사례는 git 이력에 있다.
-컬럼 — 권한 신청: `id, requester, requested_access, current_access, 신청일` / 정책: `policy_id, solution, source, destination, service, action, expires_at` / 로그: Microsoft Sentinel 내보내기(`TimeGenerated`, `WHO` · `WHERE` · `HOW` 등, `sentinelai/data/mapper.py`).
+검토 대상 위치는 `.env`에서 정한다 — `SENTINELAI_POLICIES_SOURCE`(솔루션 정책, 기본 `data/policies/` 폴더) · `SENTINELAI_SERVERS_SOURCE`(서버 현황, 기본 `data/servers/` 폴더) · `SENTINELAI_EVENTS_SOURCE`(보안 솔루션 로그, 지금은 `data/연습용_로그_원본+합성.csv`).
+파일 대신 폴더를 가리키면 안의 `.csv` · `.json` · `.jsonl`을 모두 읽는다 (솔루션 · 점검 도구마다 내보낸 파일을 그대로 둔다). 컬럼이 맞지 않는 파일은 건너뛰고 화면 하단에 알린다. 폴더가 없거나 비면 그 검토만 건너뛴다. 사내 기준 문서(정책 문서)는 `docs/`에 두면 정책 관리 검토를 돌릴 때 바뀐 것만 RAG에 다시 적재한다.
+권한 신청 · 정책 CSV(`data/permissions.csv` · `data/policies.csv`)는 10/7에 저장소에서 지웠다 (예전 사례는 git 이력 `8eb0e1d^`). 10/14에 **연습용** 데이터를 넣었다 — `data/policies/연습용_솔루션정책.csv`(예전 규칙 9건, 규칙마다 기준 조항 하나에 걸리게 만든 것. FW-001 · PAM-001 등 — **10/20에 지웠다**, 실제 노드 수집 판정만 보려고. 이력 `5604048`) · `data/servers/연습용_서버현황.csv`(지어낸 서버 4대 — 10/20에 지웠다). 로그는 받은 원본 `data/솔루션 별 Mock 데이터.csv`(2줄, 10/6)를 고치지 않고 두고, 원본 2줄 + **합성** 155줄(9/15~10/20, 사용자 7명, 한국 시간 평일 근무 시간 위주, 같은 SecureMark 컬럼. 10/20에 위험 시나리오 18줄 추가 — A 개발 박민수가 급여 · 인사평가 문서를 퇴근 뒤 예외 승인으로 출력, B 영업 최지훈이 토요일 새벽 고객 개인정보 명단 · 계약 전체 680장, C 재무 정다은이 20분 동안 12번 연속 예외 승인 출력, D 처음 보는 외주개발 이준호 계정이 아침 7시 설계 문서 230장. 10/20 `qwen3:14b` 판정: A 위험 ✅ · C 주의 ✅ · **B · D 정상 ❌** — 기준 문서에 출력량 · 시간대 · 외주 계정 조항이 없어서다 (§8 4번)) 을 `data/연습용_로그_원본+합성.csv`로 따로 만들어 이것을 읽는다 (10/20, 로그 조회의 하루 · 일주일 · 한 달 시험용). 합성 로그는 날짜가 고정이라 시간이 지나면 하루 · 일주일 조회가 다시 빈다. 실제 솔루션 · 서버에서 내보낸 데이터가 아니므로 결과를 실제 환경 평가로 쓰지 않는다. 실제 데이터가 오면 연습용 파일을 빼고 둔다.
+**수집 노드** (10/20) — 정책 관리 → [노드] → [노드 등록]에서 서버 이름을 넣으면 그 서버의 키가 나온다. 내부망 서비스라 키를 노드 화면에서 언제든 다시 볼 수 있다 (10/20 — 처음에는 한 번만 보여주고 해시만 두었다가 바꿨다). 점검 대상 서버에서 `node/install.sh --server SentinelAI주소 --key 키`로 데몬을 깐다. 노드는 정한 간격(기본 30분)마다 UFW · sshd · PAM · 계정 · sudo 원문을 **읽기만** 해서 `POST /api/nodes/snapshots`로 보낸다 — **이름 없이 키만** 보내고(`Authorization: Bearer`), 서버가 키로 어느 노드인지 찾는다. 키를 잃거나 새어 나가면 [키 다시 발급] (예전 키는 바로 못 씀). 공용 등록 토큰 · 자동 등록은 처음 설계에 있었으나 같은 날 화면 발급으로 바꿨다. 못 보낸 수집은 노드에 쌓였다가 다음 차례에 먼저 보낸다. 무엇을 뽑아 판정할지는 `sentinelai/data/collected.py`가 정한다 (설치 안 됨과 권한이 없어 못 읽음은 다른 값). 서버는 노드 · 수집 시각별로 AI 결과 DB(`server_snapshots`)에 쌓고 직전 수집과 달라진 설정을 센다. 망이 막힌 서버는 노드의 `export` 파일을 `python -m sentinelai import-snapshots 폴더 --node 이름`으로 넣는다. 서버 현황 표(`data/servers/`, 자산관리 내보내기)는 있으면 노드 점검에 호스트 이름 · IP가 같은 행을 덧붙인다. 연습용 노드 수집 · 연습용 서버 현황 표는 10/20에 지웠다 — 노드 시험은 점검 대상 컨테이너 · 흉내 노드(§3 `make dev-targets` · `make dev-sim`)로 한다.
+컬럼 — 권한 신청: `id, requester, requested_access, current_access, 신청일` / 정책: `policy_id, solution, source, destination, service, action, expires_at` / 서버 현황: 호스트 이름(`host` · `hostname` · `호스트명` 등)이나 IP(`ip` · `IP` 등) 중 하나만 있으면 되고, 나머지 컬럼(용도 · 영역 · 외부 노출 · 열린 포트 · 관리자 계정 · 마지막 패치 등)은 이름 그대로 판정에 넣는다 / 로그: Microsoft Sentinel 내보내기(`TimeGenerated`, `WHO` · `WHERE` · `HOW` 등, `sentinelai/data/mapper.py`).
 
 ---
 
 ## 2. 코어와 웹
 
-판정은 모두 코어(`sentinelai.pipeline`)가 한다. CLI(`python -m sentinelai`)와 웹이 같은 함수를 부르고, 결과는 `ResultStore`(`SENTINELAI_RESULTS_PATH`) 한 파일에 구역별로 쌓는다.
+판정은 모두 엔진(`sentinelai.engine` — 흐름은 `pipeline.py`, 실행 · 저장 · 큐는 `Engine`)이 한다. CLI(`python -m sentinelai`)와 웹이 같은 `Engine` 기능을 부르고, 결과는 AI 결과 DB(`SENTINELAI_RESULTS_DB_PATH`, `sentinelai/db/results.py`)에 실행마다 쌓는다.
 
 | 구역 | 코어 함수 | 하는 일 |
 |---|---|---|
-| `requests` | `review_requests` | 권한 신청 전 건 → `review_chain` (기준 조항 검색) → `Verdict` |
-| `policies` | `index_policies` + `review_policies` | 정책 규칙을 RAG에 적재하고, 정책 전체 → `policy_chain` (기준 조항 검색) → `PolicyReview` |
-| `events` | `monitor` | 지난 감시 이후 로그 → 사용자별 묶음 → `event_chain` (조항 · 규칙 검색) → `Verdict`. 결과는 쌓이고, 마지막 로그 시각이 다음 감시의 시작점 |
+| 정책 관리 | `review_policies` | 화면의 [정책 관리 검토 실행] — 기준 문서(`docs/`) · 정책 규칙을 RAG에 맞추고(바뀐 것만, 규칙 묶음은 하나만), 정책 전체 → `policy_chain` (기준 조항 검색) → `PolicyReview`. 정책 폴더가 비었으면 RAG의 예전 규칙을 지우고 빈 검토를 남긴다 (서버 점검 · 로그 감시가 지운 규칙을 찾지 않게). 실행마다 쌓고 화면은 마지막 실행을 본다 |
+| 서버 점검 | `check_nodes` | 웹이 뜨자마자 한 번, 그 뒤 `SENTINELAI_MONITOR_INTERVAL_MIN`분마다 스스로, 또는 노드 탭의 [지금 점검]. 켜 둔 노드 중 지난 점검 뒤 새 수집이 온 노드만, 그 노드의 가장 늦은 수집 한 건 → `server_chain` → `ServerReview` (기준 문서와 다른 곳마다 지금 · 기준 · 근거 조항 · 등급 · 이 환경에서 바꿀 것, 조항이 없거나 확인 못한 항목은 판단하지 않고 이름만). 입력 = 모듈 상태 · 직전 수집과 달라진 설정 + 서버 현황 표의 같은 서버 행 + 코드가 IP · 대역 · 호스트 이름으로 찾은 규칙 + RAG로 찾은 조항 · 규칙. 판정은 한 건씩 `node_findings`에 쌓고 화면은 노드마다 마지막 판정을 본다 (노드 한 대에 30초 안팎) |
+| 로그 감시 | `monitor` | 지난 감시 이후 로그 → 사용자별 묶음 → `event_chain` (조항 · 규칙 검색) → `Verdict`. 결과는 쌓이고, 지금까지 읽은 가장 늦은 로그 시각이 다음 감시의 시작점. 웹이 떠 있으면 `SENTINELAI_MONITOR_INTERVAL_MIN`(기본 30, 0이면 끔)분마다 스스로 돈다 (`JobRunner.every`, 웹이 뜨자마자 한 번 — 꺼져 있던 동안 쌓인 로그를 따라잡는다 — 그 뒤 그 간격마다, 다른 작업이 돌고 있으면 1분 뒤 다시 시도). 화면에서는 시작하지 않는다. 판정은 모두 쌓지만 운영자 검토(화면 목록 · 건수 · 종)에는 **주의 이상**만 올린다 (판정 실패도 "주의") |
+| 로그 조회 | `browse_logs` | 기간(지금부터 하루 · 일주일 · 한 달 · 3개월 · 6개월 · 1년 · 전체 — 달력 단위 아님) · 사용자 · 솔루션 · 행위로 거르고 센다. 판정 · 모델 없이 코드만, 저장하지 않는다 |
 
-**로그 질의** (`pipeline.ask_logs`, 결과 파일에 쓰지 않음) — 로그는 RAG로 찾지 않는다. "몇 번 · 언제부터 · 누가"는 집계라서 비슷한 몇 줄만 찾으면 건수가 틀린다.
+**서버 질의** (`Engine.ask_servers` → `pipeline.ask_servers`, 질의 기록 `servers`에 남는다, 10/21) — 정책 관리의 [서버 질의] 탭. 서버 상태도 RAG로 찾지 않는다 (기준 문서에는 서버의 지금 상태가 없다 — 정책 질의 탭에서 "방화벽에 문제가 있는 서버"를 물으면 답하지 못했다). 로그 질의와 같은 세 단계다.
+1. `server_filter_chain`: 질문 + 등록된 노드(이름 · 호스트 · IP) · 모듈(설명 붙임) + 현재 시각(UTC와 한국 시간) → `ServerFilter`(노드 · 모듈 · 기간). 질문의 시각은 한국 시간으로 본다. 모르는 노드는 비슷한 노드로 바꾸지 않는다. 모델이 모듈을 목록째 적으면 코드가 모듈 하나(또는 모든 모듈)로 줄인다.
+2. 코드가 고르고(`results.server_history` — 기간 안 수집 · 판정, 기간이 없으면 전체) 센다(`collected.server_digest` — 노드별 지금 상태 · 마지막 서버 점검의 다른 곳 · 판단하지 않은 항목, 노드별 수집 · 바뀐 설정 · 판정 건수, 바뀐 설정 · 판정 기록 줄 최근 60줄). 시각은 서버 현지 시각(KST)으로 적는다.
+3. `server_answer_chain`: 상태 · 집계 · 기록으로 평문 답. 정책과 어긋나는지는 새로 판단하지 않고 서버 점검이 적은 것만 옮긴다 (판정은 `check_nodes`의 몫).
+- 10/21 `qwen3:14b`(GPU)로 질문 1건에 9~20초 (모델 호출 2번). "방화벽이 꺼진 서버가 언제부터야?" → 바뀐 설정 기록에서 시각을 찾아 답했다.
+
+**로그 질의** (`Engine.ask_logs` → `pipeline.ask_logs`, 질의 기록에 남는다) — 로그는 RAG로 찾지 않는다. "몇 번 · 언제부터 · 누가"는 집계라서 비슷한 몇 줄만 찾으면 건수가 틀린다.
 1. `log_filter_chain`: 질문 + 로그에 있는 값(`vocabulary`) + 현재 시각 → `LogFilter`(사용자 · 부서 · 솔루션 · 위치 · 행위 · 항목 · 기간). 로그에 없는 표현은 비슷한 값으로 바꾸지 않는다.
 2. 코드가 찾고(`search` — 부분 일치, 항목은 `Exception=1`처럼 값까지) 센다(`summarize` — 건수 · 사용자별 · 날짜별 · 숫자 항목 합계).
 3. `log_answer_chain`: 조건 · 집계 · 해당 로그(최근 50줄)로 평문 답. 숫자는 집계 그대로, 정책 위반 여부는 판단하지 않는다 (그건 `monitor`의 몫).
 - 10/8 `gpt-oss:20b`로 질문 1건에 70~220초 (모델 호출 2번).
 
 - 판정이 실패하면 2회까지 다시 시도한다(`pipeline.attempt`). 그래도 실패하면 `failed` · `error`로 남기고, 화면은 그 건을 "주의"로 올려 이유 칸에 원인을 적는다.
-- Milvus Lite는 한 프로세스만 DB를 열 수 있다. 웹이 떠 있는 동안 판정은 웹의 작업(`/api/jobs`)으로 돌린다. 웹이 꺼져 있으면 CLI로 돌리고, 웹은 시작할 때 같은 결과 파일을 읽는다.
+- Milvus Lite는 한 프로세스만 DB를 열 수 있다. 웹이 떠 있는 동안 판정은 웹의 작업(`/api/jobs`)으로 돌린다. 웹이 꺼져 있으면 CLI로 돌린다. 둘 다 같은 AI 결과 DB에 쌓는다.
 
 **화면** — `make web` (`sentinelai/web/main.py`)
 
 | API | 하는 일 |
 |---|---|
-| `GET /api/results` | 저장된 판정 결과 → 화면용 dict. 아직 돌리지 않은 구역은 비어 있다 |
+| `GET /api/results` | 마지막 정책 관리 검토(정책 문제 · 서버 점검) · 쌓인 로그 감시 판정 → 화면용 dict + 운영자 결정. 보안 총책임자에게는 결정 기록 전부(`decision_log`, 취소 포함)도. 아직 돌리지 않은 구역은 비어 있다 |
 | `GET /api/jobs` | 돌고 있는 작업 · 단계 · 진행(done/total) · 작업별 마지막 실패 |
-| `POST /api/jobs/{kind}` | `requests` · `policies` · `events` 백그라운드 시작 (202). 한 번에 하나 — 돌고 있으면 409 |
-| `POST /api/ask` | 정책 질의 실시간 답변. 입력 `{"question"}` (공백 제외 1~500자, 벗어나면 422) → `rag_chain` (조항 · 규칙 검색) |
-| `POST /api/ask-logs` | 로그 질의. 입력은 `/api/ask`와 같다 → `pipeline.ask_logs` → `answer · criteria · facts · evidence · failed` |
-| `GET /api/health` | 헤더 경고: 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` |
+| `POST /api/jobs/{kind}` | `policies`(정책 관리 검토) · `nodes`(서버 점검) 백그라운드 시작 (202). 한 번에 하나 — 돌고 있으면 409. 로그 감시(`events`)는 자동으로만 돌아 404 |
+| `POST /api/nodes/snapshots` | **수집 노드 전용** — 로그인 대신 `Authorization: Bearer 노드 키`, 이름은 보내지 않는다 (키로 노드를 찾음). 본문 = 노드가 읽은 원문(`format: sentinel-node 1`, 2MB까지). 모르는 키 401, 꺼진 노드 403, 형식 400. 같은 노드 · 수집 시각은 한 번만 쌓는다(`stored`) |
+| `POST /api/nodes` · `POST /api/nodes/{이름}/key` · `GET /api/nodes` · `GET /api/nodes/{이름}` · `PATCH /api/nodes/{이름}` | 노드 등록(+ 키) · 키 다시 발급(예전 키 무효) · 노드 목록(상태 · 끊김 · 마지막 판정) · 노드 하나(키 · 최근 수집 · 바뀐 것 · 판정 기록 · 모듈 상태) · 켜기/끄기 — 보안 운영자 · 보안 총책임자, 감사 기록에 남는다 |
+| `GET /internal/status` | **내부용, 서버 자신(127.0.0.1)만** — 작업 큐(진행 · 마지막 결과) · 자동 실행 예약(간격 · 다음 시각) · 권한 신청 AI 판정 대기열(판정 중 · 기다리는 신청). 로그인 없음, 밖에서 오거나 전달 헤더(`X-Forwarded-For` 등)가 붙으면 404. 서버에서 `curl -s localhost:8000/internal/status` |
+| `POST /api/ask` | 정책 질의 실시간 답변. 입력 `{"question"}` (공백 제외 1~500자, 벗어나면 422) → `rag_chain` (조항 · 규칙 검색). 질의 기록에 남긴다 |
+| `POST /api/ask-servers` | 서버 질의. 입력은 `/api/ask`와 같다 → `pipeline.ask_servers` → `answer · criteria · facts · evidence · failed`. 질의 기록에 남긴다 |
+| `POST /api/ask-logs` | 로그 질의. 입력은 `/api/ask`와 같다 → `pipeline.ask_logs` → `answer · criteria · facts · evidence · failed`. 질의 기록에 남긴다 |
+| `GET /api/logs?period=day\|week\|month\|quarter\|half\|year\|all[&user=&solution=&how=&page=]` | 로그 조회 — 지금부터 1 · 7 · 30 · 90 · 180 · 365일 안, 또는 전체 로그를 거른다 (`pipeline.browse_logs`, 모델 없음). 사용자는 "부서 이름"이 같은 것만 (부분 일치 아님). 최신순 100건씩 + 집계(`facts`) + 거르기 칸 값(`options`, 조건과 상관없이 로그 전체의 사용자 · 솔루션 · 행위). 조회마다 감사 기록(`log_view`: 누가 · 조건 · IP) |
+| `GET /api/qa?kind=policy\|servers\|logs` | 내 질의 기록 (최근 50건). 다른 사람 것은 주지 않는다 |
+| `GET /api/health` | 헤더 경고: 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` (보안 운영자 · 보안 총책임자) |
 | `GET /api/regulations` | `docs/` 원문 (근거 조항 전문 표시용) |
 | `POST /api/auth/login` · `logout` · `GET /api/auth/me` · `POST /api/auth/password` | 로그인 (세션 쿠키 HttpOnly · SameSite=Strict, 2일), 첫 로그인 비밀번호 변경 전에는 다른 API가 403 |
-| `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 — 루트만 |
-| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` · `GET /api/requests/{no}` | 신청(일반사용자) · 목록(일반사용자는 자기 것만) · 상세. 응답에 최신 AI 판정(`ai_verdict`)과 판정 중 여부(`judging`) |
-| `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(중간관리자 = 1차, 최상급자 = 최종) · 회수(중간관리자 · 최상급자) · 다시 판정 |
-| `GET /api/grants` | 지금 유효한 권한 (중간관리자 · 최상급자) |
-| `POST /api/decisions` | 정책 문제 · 로그 판정에 대한 운영자 결정 · 취소 (중간관리자 · 최상급자). 지금 결정은 `/api/results`의 `decisions`로 함께 온다 |
+| `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 — 보안 총책임자. 루트 계정은 루트만 고치고, 자기 역할 · 활성은 못 바꾼다 |
+| `GET /api/access-catalog` · `POST /api/access-catalog` · `PATCH /api/access-catalog/{코드}` | 권한 목록 — 보기(일반 사용자 · 보안 운영자는 켜진 것만, 보안 총책임자는 전부) · 등록 · 고치기 · 끄기(보안 총책임자, 감사 기록) |
+| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` · `GET /api/requests/{no}` | 신청(일반 사용자, 본문은 `access_code` — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400. 현재 보유 권한은 서버가 채운다) · 목록(일반 사용자는 자기 것만) · 상세. 응답에 최신 AI 판정(`ai_verdict`)과 판정 중 여부(`judging`) |
+| `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(보안 운영자 = 1차, 보안 총책임자 = 최종) · 회수(보안 운영자 · 보안 총책임자) · 다시 판정 |
+| `POST /api/decisions` | 정책 문제 · 서버 점검 · 로그 판정에 대한 운영자 결정 · 취소 (보안 운영자 · 보안 총책임자). 지금 결정은 `/api/results`의 `decisions`로 함께 온다 |
 
-- **모든 API는 로그인이 필요하다** (`/api/auth/login` 빼고). 정책 관리 · 로그 감시 API(`results` · `jobs` · `ask` · `ask-logs` · `regulations`)는 중간관리자 · 최상급자만. 예전 CSV 권한 신청 재판정(`/api/review`)과 `requests` 작업은 DB 신청으로 바뀌어 없앴다.
+- **모든 API는 로그인이 필요하다** (`/api/auth/login` 빼고). 정책 관리 · 로그 감시 API(`results` · `jobs` · `ask` · `ask-servers` · `ask-logs` · `logs` · `qa` · `regulations`)는 보안 운영자 · 보안 총책임자만. 예전 CSV 권한 신청 재판정(`/api/review`)과 `requests` 작업은 DB 신청으로 바뀌어 없앴다.
 
 - `Engine()` · `rag_chain`은 앱 시작 시 1회만 만든다. 화면은 같은 출처에서만 열므로 CORS를 열지 않는다.
-- 권한 신청의 결재 · 회수와 정책 관리 · 로그 감시의 운영자 결정은 권한 DB에 남는다. 질의 기록은 아직 화면 메모리에만 있다 (새로고침하면 사라짐).
+- 권한 신청의 결재 · 회수와 정책 관리 · 로그 감시의 운영자 결정은 권한 DB에 남는다. 질의 기록은 AI 결과 DB에 남고, 화면은 로그인할 때 내 기록을 받아 메뉴마다 보여준다.
 
 **화면 필드의 출처**
 
 | 화면 | 출처 |
 |---|---|
-| 헤더 경고 | `/api/health`의 `ok`가 false일 때만 "AI 엔진 점검 필요". 원인(연결 끊김 · 모델 없음 · 인덱스 비어 있음)은 툴팁. 페이지를 열 때 한 번 확인한다 |
-| 분석 실행 버튼 | 대기열 제목 줄 오른쪽 하나. 정책 관리 → 정책 관리 검토(규칙 적재 포함), 로그 감시 → 로그 감시. 권한 신청은 들어오면 바로 판정되므로 버튼이 없다. 도는 동안 "… 중 3/8"을 띄우고 2초마다 `/api/jobs`를 본다 |
-| 요약 카드 | 정상 · 주의 · 위험 건수. 숫자는 지금 보기 범위(권한 신청 · 정책 관리 · 로그 감시)를 따른다. 누르면 그 등급만 보고, 다시 누르면 전체 |
+| 헤더 경고 | `/api/health`의 `ok`가 false일 때만 "AI 엔진 점검 필요". 원인(연결 끊김 · 모델 없음 · 인덱스 비어 있음)은 툴팁. 페이지를 열 때 한 번 확인한다. 일반 사용자에게는 띄우지 않는다 |
+| 분석 실행 버튼 | 대기열 제목 줄 오른쪽 하나, 정책 관리에만 있다 (로그 감시는 서버가 자동으로 돌린다). 자동 로그 감시가 도는 동안에는 "로그 감시(자동) 중…"으로 막힌다 (화면은 쉬는 동안 30초마다 `/api/jobs`를 보고, 자동 감시가 끝나면 결과를 다시 받는다). 정책 관리 → 정책 관리 검토(문서 · 규칙 적재와 서버 점검 포함), 로그 감시 → 로그 감시. 권한 신청은 들어오면 바로 판정되므로 버튼이 없다. 도는 동안 "… 중 3/8"을 띄우고 2초마다 `/api/jobs`를 본다 |
+| 요약 카드 | 정상 · 주의 · 위험 건수 (로그 감시는 주의 · 위험 두 장 — 정상은 검토에 올리지 않는다). 숫자는 지금 보기 범위(권한 신청 · 정책 관리 · 로그 감시)를 따른다. 누르면 그 등급만 보고, 다시 누르면 전체 |
 | 등급 · AI 판정 | `Verdict.level` · `PolicyIssue.level` — 화면에는 정상 · 주의 · 위험 세 단어만 쓴다. 정책의 문제 유형(`kind`)은 대기열의 상세 내용 칸과 패널 제목(예: "FW-004 ↔ FW-005 · 충돌")에 둔다. 등급에서 나오는 권고 문구(정상 → 승인 권고, 주의 → 추가 검토, 위험 → 반려 권고)는 요약 카드 툴팁에만 둔다 |
 | 판단 이유 · 권고 조치 | `reason` · `recommendation` — 모델이 생성 |
 | 근거 조항 | `Verdict.sources` — 기준 문서면 `docs/` 원문에서 조항을 잘라 보여주고, 솔루션 정책(`rules:`)이면 언급된 정책 ID의 원본 행을 보여준다. 정책 검토는 근거를 판단 이유에 함께 적는다 |
 | 상세 요청 · 판정한 로그 · 관련 정책 원본 | 권한 신청 원본 행 · 사용자별 로그 묶음(한 줄에 한 건) · 정책 원본 행 |
-| 로그인 · 상단 바 | 로그인 전에는 로그인 화면이 앱을 덮는다 (추진 주체 표기 포함). 첫 로그인 · 비밀번호 초기화 뒤에는 비밀번호부터 바꾼다. 상단 바 오른쪽에 이름 · 역할 · [비밀번호 변경] · [로그아웃] |
-| 메뉴 (역할별) | 일반사용자: 내 신청 / 중간관리자: 권한 신청(1차 결재함) · 권한 현황 · 정책 관리 · 로그 감시 / 최상급자: 권한 신청(최종 결재함) · 권한 현황 / 루트: 최상급자 + 계정 관리 |
-| 권한 신청 (결재함) | `GET /api/requests` — 기본은 내 단계에서 기다리는 것만, [전체]로 바꿀 수 있다. 패널 = 신청 내용 · AI 판정(이유 · 권고 · 근거 칩) · 결재 기록, 아래에 결재 의견 + [승인] · [반려]. 판정 중이면 3초마다 다시 받는다. [다시 판정]은 결재 대기 중일 때만 |
-| 권한 현황 | `GET /api/grants` — 사유를 적고 [회수] (중간관리자 · 최상급자) |
-| 내 신청 | 신청서(권한 · 현재 권한 · 사유 · 사용 기간) + 내 신청 목록 · 상태. 1차 결재 전이면 [철회]. **AI 판정은 보이지 않는다** (서버가 일반사용자에게 보내지 않는다) |
-| 계정 관리 | 루트만. 목록 · [새 계정](임시 비밀번호) · 이름 · 부서 · 역할 · 활성 · 비밀번호 초기화. 루트는 역할 · 활성을 바꿀 수 없다 |
-| 운영자 결정 (정책 · 로그) | 정책: 승인 · 조건부 승인 · 반려 확정. 로그 감시: 이상 없음 · 조치 필요. 의견(선택)과 함께 권한 DB에 남고, 결정자 · 시각 · 그때 AI 판정을 보여준다. [취소]도 기록으로 남는다. 정책 결정은 그 검토 실행의 문제에만 붙는다 (다시 돌리면 새로 결정) |
-| 로그 질의 | 답 = `answer`, 조건 = `criteria`, 근거 칩 "해당 로그 N건" → 누르면 오른쪽 패널에 집계(`facts`)와 로그 줄(`evidence`). 숫자는 모두 코드가 센 값이다 |
-| 정책 질의 | 답 = `Answer.answer`, 근거 = `Answer.sources` → 누르면 그때 오른쪽 패널을 열어 원문을 보여준다. 예시 질문 버튼(스크립트의 `ASK_EXAMPLES`)도 직접 입력과 똑같이 실시간으로 답을 만든다. 등급 배지는 달지 않는다 |
-| 하단 | 계산 시각 = 구역별 마지막 실행 중 가장 늦은 것. 판정 실패 · 읽지 못한 행 · 작업 실패는 있을 때만 경고. 그 아래 맨 끝에 추진 주체 표기 |
+| 로그인 · 상단 바 | 로그인 전에는 로그인 화면이 앱을 덮는다. 첫 로그인 · 비밀번호 초기화 뒤에는 비밀번호부터 바꾼다. 상단 바 오른쪽에 이름 · 역할 · [비밀번호 변경] · [로그아웃] |
+| 메뉴 (역할별) | 일반 사용자: 메뉴 없음 (사이드바 · 종 없이 신청 화면 하나) / 보안 운영자: 권한 신청(1차 결재함) · 정책 관리 · 로그 감시 · 정책 질의 / 보안 총책임자: 권한 신청(최종 결재함) · 정책 관리 · 로그 감시 · 정책 질의 · 권한 목록 · 계정 관리 (루트도 같다) |
+| 권한 신청 (결재함) | `GET /api/requests` — 거르기 [결재 대기](기본, 내 단계에서 기다리는 것) · [유효 권한](승인됐고 기간이 남은 것 — 예전 권한 현황 메뉴, 10/12에 합침) · [전체]. 패널 = 신청 내용 · AI 판정(이유 · 권고 · 근거 칩) · 결재 기록, 아래에 결재 의견 + [승인] · [반려], 유효 권한이면 사유 + [회수]. 판정 중이면 3초마다 다시 받는다. [다시 판정]은 1차 결재 전에만 (1차 결재 뒤에는 AI 판정이 굳는다) |
+| 내 신청 (일반 사용자) | 화면 하나 — 신청서(권한은 권한 목록의 켜진 권한을 시스템별로 묶은 고르기 칸에서 고르고 설명이 아래 뜬다, 목록이 비면 신청 버튼이 막힌다 · 현재 보유 권한은 적지 않고 승인된 유효 권한을 보여준다 — 서버가 신청 때 같은 조건으로 읽어 신청 행에 남긴다. 보유 중 · 결재 중인 권한은 고르기 칸에서 막힌다 · 사유 · 사용 기간) + 내 신청 목록 · 상태 · 결재 기록. 1차 결재 전이면 [철회]. **AI의 흔적은 없다** — 응답에 AI 칸이 아예 없고, 엔진 경고 · `/api/health`(403)도 없다 |
+| 권한 목록 | 보안 총책임자. 목록(시스템 · 권한 (코드) · 분류 · 설명 · 고친 시각 · 켜짐/꺼짐) · [권한 등록](코드 · 이름 · 시스템 · 분류 · 설명). 패널 = 이 권한의 신청 · 유효 건수, 이름 · 시스템 · 분류 · 설명 고치기 · 켜짐. 코드는 못 바꾸고 지우지 않는다 (지난 신청이 가리킨다). 분류 · 설명은 AI 판정에 함께 넘어간다 |
+| 계정 관리 | 보안 총책임자. 목록 · [새 계정](임시 비밀번호) · 이름 · 부서 · 역할 · 활성 · 비밀번호 초기화. 루트는 역할 · 활성을 바꿀 수 없고, 루트 계정은 루트만 고친다 (다른 보안 총책임자에게는 폼이 없다). 자기 계정의 역할 · 활성도 바꿀 수 없다 |
+| 서버 점검 (정책 관리) | 정책 관리 목록에 정책 문제와 함께 "서버 점검"으로 뜬다 — 노드마다 마지막 판정 (상세 내용 = "정책과 다른 곳 N — 요약"). 패널 = 서버 현황(표에 같은 서버가 있을 때) · 직전 수집과 달라진 설정 · 모듈 상태(수집 시각 · 계정, 모듈별 표) · 이 서버에 걸린 정책(코드가 찾은 규칙) · 요약 · 정책과 다른 곳(한 곳마다 지금 · 기준 · 바꿀 것 · 근거 조항 칩, 모델이 "정상"으로 적은 항목은 화면에서 뺀다) · 판단하지 않은 항목. 결정은 이상 없음 · 조치 필요 (`node_findings/{id}`, 새 판정이 나면 새로 결정) |
+| 노드 (정책 관리 탭) | `GET /api/nodes` — 노드 · 호스트(IP) · 상태(수집 중 · 끊김: 간격의 세 배 넘게 소식 없음 · 꺼짐 · 키 없음: 손으로 넣은 수집뿐 · 기다리는 중: 키 발급 뒤 아직 안 옴) · 마지막 수집 · 마지막 판정. 제목 줄의 [지금 점검](서버 점검을 주기를 기다리지 않고 바로, 같은 작업 큐) · [노드 등록] → 이름 → 키 발급. 패널 = 고르지 않으면 상태 집계와 까는 법, 고르면 노드 정보 · [노드 끄기/켜기] · [키 다시 발급] · 노드 키(키 · 설치 명령 복사, 해시만 남은 예전 키는 다시 발급해야 보임) · 마지막 서버 점검(→ [검토 현황에서 보기]) · 최근 수집(달라진 설정) · 모듈 상태 |
+| 운영자 결정 (정책 · 로그) | 정책: 승인 · 조건부 승인 · 반려 확정. 서버 점검 · 로그 감시: 이상 없음 · 조치 필요. 의견(선택)과 함께 권한 DB에 남고, 결정자 · 시각 · 그때 AI 판정을 보여준다 (목록 행에는 결정자 이름 · 결정). [취소]도 기록으로 남는다. 보안 총책임자는 패널의 "결정 기록"에서 보안 운영자들의 결정 · 취소 · 의견을 순서대로 읽는다. 정책 결정은 그 검토 실행의 문제에만 붙는다 (다시 돌리면 새로 결정) |
+| 로그 조회 | `GET /api/logs` — 기간 버튼 [하루 · 일주일 · 한 달 · 3개월 · 6개월 · 1년 · 전체](지금부터, 기본 일주일) · 사용자 · 솔루션 · 행위 선택(값은 응답의 `options`) → 건수 · 로그 표(시각 · 사용자 · 솔루션 · 위치 · 행위 · 항목, 최신순 100건씩, 이전 · 다음). 패널 = 집계(합계 · 사용자별 · 날짜별) 또는 고른 줄의 원본(내용 · 내보낸 행 그대로). 로그 감시 판정 패널의 [이 사용자의 최근 한 달 로그]로도 연다. 폰에서는 솔루션 · 위치 · 행위 칸을 숨긴다 |
+| 로그 질의 | 내 지난 질의가 먼저 보인다 (`/api/qa`). 답 = `answer`, 조건 = `criteria`, 근거 칩 "해당 로그 N건" → 누르면 오른쪽 패널에 집계(`facts`)와 로그 줄(`evidence`). 숫자는 모두 코드가 센 값이다 |
+| 서버 질의 (정책 관리 탭) | 내 지난 질의가 먼저 보인다 (`/api/qa?kind=servers`). 답 = `answer`, 조건 = `criteria`(노드 · 모듈 · 기간), 근거 칩 "서버 N대 · 기록 N줄" → 누르면 오른쪽 패널에 집계(서버 수 · 마지막 판정 등급별 · 노드별 수집 · 바뀐 설정 · 판정 건수)와 바뀐 설정 · 서버 점검 기록 줄. 숫자는 모두 코드가 센 값이다 |
+| 정책 질의 (메뉴) | 10/21에 정책 관리의 탭에서 독립 메뉴로 뺐다 (정책 질문은 어느 메뉴에도 속하지 않아서). 탭 줄 없이 질의 화면 하나, 목록 건수는 달지 않는다. 내 지난 질의가 먼저 보인다. 답 = `Answer.answer`, 근거 = `Answer.sources` → 누르면 그때 오른쪽 패널을 열어 원문을 보여준다. 예시 질문 버튼(스크립트의 `ASK_EXAMPLES`)도 직접 입력과 똑같이 실시간으로 답을 만든다. 등급 배지는 달지 않는다 |
+| 하단 | 계산 시각 = 구역별 마지막 실행 중 가장 늦은 것. 판정 실패 · 읽지 못한 행 · 작업 실패는 있을 때만 경고 |
 
 ---
 
@@ -152,15 +178,21 @@ JBNU-RAD/
 | 명령 | 하는 일 |
 |---|---|
 | `make install` | venv · 의존성 · `.env` 준비 (처음 한 번) |
-| `make health` | 서버 · 모델 · 인덱스 확인 |
-| `make index` | `docs/` 기준 조항 적재 (바뀐 파일만 다시 임베딩) |
-| `make index-policies [SRC=파일]` | 솔루션 정책 규칙 적재 (기본 `.env`). `sentinelai.engine.cli index --rebuild`는 규칙까지 지우므로 그 뒤에 다시 돌린다 |
-| `make review-requests [SRC=파일]` | 권한 신청 전 건 판정 → 결과 파일 |
-| `make review-policies [SRC=파일]` | 정책 간 중복 · 충돌 · 과도한 허용 판정 → 결과 파일 |
-| `make monitor [SRC=로그] [SINCE=시각] [FULL=1]` | 로그 감시 1회 — 지난 감시 이후 로그만 판정해 결과 파일에 쌓는다 (cron용). `FULL=1`이면 처음부터 |
-| `make ask-logs Q="질문"` | 보안 솔루션 로그에 질의 (벡터 DB를 쓰지 않아 `make web`이 떠 있어도 된다) |
-| `make create-root LOGIN=아이디 NAME=이름 [DEPT=부서]` | 초기 루트 계정(최상급자) 생성 — 서버에서 한 번만. 비밀번호는 화면 표시 없이 입력 |
-| `make web` | 대시보드 http://localhost:8000 — 위 판정을 화면의 [분석 실행]으로도 돌린다 |
+| `make web` | 대시보드 http://localhost:8000 — 로그 감시 · 서버 점검은 웹이 스스로 돌리고, 정책 관리 검토는 화면의 [정책 관리 검토 실행] |
+| `make health` | 서버 · 모델 · 벡터 DB · 두 DB 위치 확인 |
+| `make create-root LOGIN=아이디 NAME=이름 [DEPT=부서]` | 초기 루트 계정(보안 총책임자) 생성 — 서버에서 한 번만. 비밀번호는 화면 표시 없이 입력 |
+| `make import-snapshots DIR=폴더 NODE=이름` | 망이 막힌 노드가 `export`한 수집 파일 넣기 (벡터 DB를 쓰지 않아 웹이 떠 있어도 된다) |
+| `make index [DOCS=경로] [REBUILD=1]` | 기준 문서 적재 (기본 `docs/`, 바뀐 파일만). `REBUILD=1`은 규칙까지 지우므로 그 뒤에 `review-policies`를 다시 돌린다 |
+| `make review-policies` | 정책 관리 검토 — 기준 문서 · 솔루션 정책 적재 + 정책 간 중복 · 충돌 · 과도한 허용 → AI 결과 DB |
+| `make check-nodes` | 서버 점검 1회 — 새 수집이 온 노드만 |
+| `make monitor [SINCE=시각] [FULL=1]` | 로그 감시 1회 — 지난 감시 이후 로그만 (웹을 띄우지 않는 서버에서 cron으로). `FULL=1`이면 처음부터 |
+| `make dev-setup [RESET=1]` | **로컬 시험 환경** — 진짜 DB · 벡터 DB 대신 `.dev/`에 만든다. 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건(인사정보 · 급여 조회 · 급여 수정 · 운영 DB 관리자 · PAM 관리자 · 방화벽 변경 · CRM). 이 컴퓨터용 노드 `dev-local`의 키로 `.dev/node.conf`를 만들며, 모델 서버에 닿으면 기준 문서도 적재한다 |
+| `make dev [DEV_CHECK_MIN=5]` | 시험 환경으로 웹 실행 (http://127.0.0.1:8001, `.dev/` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 된다). 로그 감시 · 서버 점검은 `DEV_CHECK_MIN`분마다 |
+| `make dev-sim [NODES=3] [ROUNDS=3] [EVERY=5]` | **노드 수집 흉내** — 흉내 노드(sim-01…)가 잠근 Ubuntu 서버 원문(`scripts/dev_nodes.py`의 BASE)에서 시작해 차례마다 반쯤 확률로 설정 하나를 바꿔(UFW 끄기 · root · 비밀번호 로그인 열기 · NOPASSWD 더하기 · 실패 잠금 빼기) 진짜 노드와 같은 주소 · 키로 보낸다. 받기 · 바뀐 것 · 주기 점검 · 화면을 컨테이너 없이 시험 |
+| `make dev-targets` · `make dev-targets-stop` | **진짜 수집** — `node/testenv/compose.yaml`(podman compose)로 점검 대상 컨테이너 2대(`target-weak`: root · 비밀번호 로그인, NOPASSWD, 실패 잠금 없음, 22 · 3306 어디서나 / `target-strict`: 잠근 설정)를 올리고 내린다. 그 안에서 진짜 노드가 root 로 읽어 보낸다. 값은 옵션 파일 `node/testenv/targets.env`(git 제외: `SERVER` · `KEY_WEAK` · `KEY_STRICT` · `INTERVAL`) — 없으면 시험 환경 키로 만들고, 화면에서 발급한 키 · 진짜 서버(`:8000`)로 고쳐 다시 `make dev-targets` 하면 그 값으로 바꿔 띄운다. `host.containers.internal`을 호스트 127.0.0.1로 이어(pasta `--map-host-loopback`) SentinelAI를 바깥에 열지 않고, NET_ADMIN 으로 ufw 가 실제로 켜진다. podman compose 는 사용자 podman 소켓이 필요해 대상이 켠다(`systemctl --user start podman.socket`). 10/20 시험: weak 위험 · strict 정상 |
+| `make dev-node` | 이 컴퓨터를 노드로 한 번 보내기 (root 가 아니면 SSH · sudo 는 "확인 못함") |
+
+10/20에 CLI를 줄였다 — `config` · `models` · `search` · `ask` · `chat` · `index-policies` · `review-requests`(CSV 권한 신청 평가) · `ask-logs`는 없앴다 (질의는 화면에서, 규칙 적재는 `review-policies`가 한다). 대상 위치는 모두 `.env`에서만 정한다.
 
 설정은 `.env` 한 곳에서 나온다. 코드에 주소 · 모델명을 하드코딩하지 않는다. 두 환경 모두에서 동작해야 한다.
 
@@ -174,29 +206,29 @@ JBNU-RAD/
 서버 주소가 설정 한 줄로 바뀌는 구조가 제안서의 "향후 사내 환경 이전" 요구에 해당한다.
 9/27에는 맥에서 팀 서버로 접속되지 않았다 (8초 타임아웃).
 
-**Milvus Lite 파일 락**: DB 파일은 한 프로세스만 열 수 있다. `make web`이 떠 있으면 `make index` · `make index-policies` · `make review-requests` · `make review-policies` · `make monitor` · `make review-check`가 실패한다. 웹이 떠 있을 때는 화면의 [분석 실행]을 쓴다.
+**Milvus Lite 파일 락**: DB 파일은 한 프로세스만 열 수 있다. `make web`이 떠 있으면 `make health` · `make index` · `make review-policies` · `make check-nodes` · `make monitor`가 실패한다. 웹이 떠 있을 때는 웹이 돌린다 (정책 관리 검토는 화면의 [정책 관리 검토 실행]).
 
 ---
 
 ## 4. 규칙
 
-- ❌ `sentinelai/engine/`, `docs/`, `scripts/review_check.py` 수정. 프롬프트(`sentinelai/engine/prompt.py`)도 엔진 담당자와 상의 없이 바꾸지 않는다
+- ❌ `sentinelai/engine/`, `docs/` 수정. 프롬프트(`sentinelai/engine/prompt.py`)도 엔진 담당자와 상의 없이 바꾸지 않는다
 - ❌ 엔진 기능 재구현, 엔진 타입을 대체하는 웹 전용 스키마
 - ❌ 서버 주소 · 모델명 하드코딩 — 전부 `Settings`
 - ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제), React · Tailwind · 빌드 도구
 - ❌ 파일 업로드 (문서 데이터 읽기 · §8에서 다시 정한다)
 - 데이터베이스와 로그인(ID/PW, 운영자 분리)은 10/11에 금지를 풀었다 — 더 이상 데모가 아니다. DB · 로그인 · 권한 관리 화면까지 구현했다 (10/11)
-- ❌ 정책 자동 수정 · 권한 자동 승인 — 결정은 사람이 한다 (권한 신청은 중간관리자 · 최상급자가 결재해 DB에 남는다)
+- ❌ 정책 자동 수정 · 권한 자동 승인 — 결정은 사람이 한다 (권한 신청은 보안 운영자 · 보안 총책임자가 결재해 DB에 남는다)
 - ❌ 엔진 출력 항목을 손으로 고치기 · 근거 없는 목업 데이터 · 사전 계산 답을 실시간처럼 보이게 하는 연출 (10/8에 모두 걷어냈다)
 - ❌ 여러 모듈을 한꺼번에 바꾸기 — 하나씩 바꾸고 확인한다. 막히면 우회하지 말고 사용자에게 보고한다
 
 화면 규칙 (사용자 피드백):
 - 배포된 운영자 화면 기준으로 판단한다. 운영자 판단에 쓰지 않는 정보(모델명 · 서버 주소 · 폐쇄망 배지 · "연동 예정" · "사전 계산" 표시)와 중복 정보는 두지 않고, 엔진 이상 · 판정 실패처럼 문제가 있을 때만 알린다. 시연 설명(§7)을 이유로 요소를 남기지 않는다. 화면이 바뀌면 이 문서를 고친다.
-- 예외: 추진 주체 표기("전북대학교 RAD (RAG & Decision) · SK쉴더스")는 맨 아래 푸터(`footer.credit`)에 둔다. 탭 · 화면 폭과 상관없이 늘 보인다 (계산 시각 줄 `#foot`은 질의 탭에서 숨겨지므로 따로 둔다).
+- 추진 주체 · 부제 문구는 화면에 두지 않는다 (10/12). 로그인 화면은 로고 · SentinelAI만.
 - 1150px 미만에서는 오른쪽 패널을 서랍으로 띄운다 (행 · 근거 칩 클릭 → 열림, × · Esc · 바깥 클릭 → 닫힘). 1150px 이상은 2단 배치.
-- 메뉴는 역할에 따라 다르다 (위 표). 메뉴가 탭보다 위다. 메뉴마다 쓰는 탭만 둔다 — 정책 관리는 [검토 현황 · 정책 질의], 로그 감시는 [검토 현황 · 로그 질의], 권한 신청은 검토 현황 하나라 탭 줄을 숨기고 대기열 제목("권한 신청 현황")으로 메뉴를 알린다. 질의는 그 메뉴의 기능일 때만 둔다. 질의 기록은 메뉴마다 따로다.
-- 탭마다 그 탭에 쓰는 것만 둔다. 요약 카드(등급 필터)와 검색창은 검토 현황 탭 안에 두고, 질의 탭(정책 · 로그)은 하단 계산 시각을 숨긴다.
-- 오른쪽 패널은 메뉴 · 탭의 것이다. 검토 현황에서는 그 메뉴의 항목 판단 근거 · 운영자 결정을 보여주고(메뉴를 바꾸면 그 메뉴의 첫 항목), 정책 질의에서는 근거 칩을 눌렀을 때만 인용 조항 패널을 연다 (× · Esc로 닫음, 그 전에는 질의가 전체 폭). 탭을 바꾸면 열어 둔 인용 조항은 닫힌다.
+- 메뉴는 역할에 따라 다르다 (위 표). 메뉴가 탭보다 위다. 메뉴마다 쓰는 탭만 둔다 — 정책 관리는 [검토 현황 · 노드 · 서버 질의], 로그 감시는 [검토 현황 · 로그 조회 · 로그 질의], 정책 질의 메뉴는 질의 하나, 권한 신청은 검토 현황 하나라 탭 줄을 숨기고 대기열 제목("권한 신청 현황")으로 메뉴를 알린다. 질의는 그 메뉴의 기능일 때만 둔다. 질의 기록은 메뉴마다 따로다.
+- 탭마다 그 탭에 쓰는 것만 둔다. 요약 카드(등급 필터)와 검색창은 검토 현황 탭 안에 두고, 노드 · 로그 조회 · 질의 탭(정책 · 서버 · 로그)은 하단 계산 시각을 숨긴다.
+- 오른쪽 패널은 메뉴 · 탭의 것이다. 검토 현황에서는 그 메뉴의 항목 판단 근거 · 운영자 결정을 보여주고(메뉴를 바꾸면 그 메뉴의 첫 항목), 질의(정책 · 서버 · 로그)에서는 근거 칩을 눌렀을 때만 인용 조항 · 근거 기록 패널을 연다 (× · Esc로 닫음, 그 전에는 질의가 전체 폭). 탭을 바꾸면 열어 둔 인용 조항은 닫힌다. 로그 조회에서는 지금 조건의 집계를 보여주고, 줄을 고르면 그 로그의 원본을 띄운다 ([집계로 돌아가기] · ×).
 - 통계 대시보드는 10/8에 뺐다. 도넛은 요약 카드 · 종 배지와 숫자가 겹쳤고, 부서별 막대는 이름 첫 단어로 부서를 추정해 믿을 수 없었으며, 운영자 결정에 쓰이지 않았다. 차트를 다시 넣으려면 §8의 로그 감시 이력처럼 결정에 쓰이는 질문부터 정한다.
 - 같은 동작을 하는 버튼은 한 화면에 하나만 둔다. 보기 범위(역할별 메뉴, "전체" 없음)는 좌측 사이드바가 맡고(건수는 툴팁), 사이드바가 없는 1150px 미만에서만 탭 줄 위에 세그먼트 버튼을 띄운다 (어느 탭에서든 메뉴를 바꿀 수 있게). 위험 알림은 종 배지 하나로 한다 (배너 없음).
 - 이모지 아이콘을 쓰지 않는다. 등급 표시는 CSS 점 `.ldot` (8px 점 + 같은 색 반투명 3px 링). 등급 글자는 정상 · 주의 · 위험만 쓰고 "정상 · 승인 권고"처럼 권고 문구를 붙이지 않는다.
@@ -242,6 +274,7 @@ JBNU-RAD/
 ## 6. 알려진 문제
 
 - **검색은 종류별로 한다.** RAG에는 기준 조항과 솔루션 규칙이 함께 있다. 한 번에 찾으면 규칙 9건에 조항 청크 4개가 밀려나므로, 권한 · 정책 검토는 조항만, 로그 검토는 조항과 규칙을 따로, 질의응답은 둘을 이어 붙여 쓴다. 조항은 아직 청크 4개뿐이라 `top_k=4`가 전부를 가져온다.
+- **Milvus Lite는 같은 프로세스 안에서도 동시에 열면 실패한다** (`Open local milvus failed`). `milvus_lite`가 서버를 띄우는 동안 자기 잠금을 풀어 두어, 두 스레드가 동시에 처음 열면 둘 다 파일 잠금을 잡으려 한다. 10/20 웹이 뜨자마자 도는 자동 감시와 화면 요청(`/api/health` 등)이 겹쳐 드러났다. `DocumentStore.store`가 잠금으로 한 번에 하나만 열고, 웹을 끌 때 `DocumentStore.close()`가 Milvus Lite 서버까지 멈춰 파일 잠금을 푼다 (클라이언트만 닫으면 안 풀린다).
 - **팀 서버는 부팅 순서 때문에 GPU 없이 돌 수 있다.** 10/6~10/11 내내 CPU로만 돌았다. `ollama ps`의 PROCESSOR가 CPU면 의심한다. 경위와 조치는 `NOTES.md`.
 - **`gpt-oss:20b`는 `SENTINELAI_NUM_PREDICT=1024`가 모자라다 (10/11에 4096으로 올림).** 답하기 전에 추론하느라 조항이 들어간 정책 검토에서 1024 토큰을 다 쓰고 빈 출력(`done_reason=length`)을 낸다. 10/7 측정에서 약 2000 토큰이 필요했고 4096이면 끝났다.
 - **소형 모델 한계** (`qwen2.5:7b`): 반복 루프로 판정 1건이 380~417초까지 늘어나고(9/27 6건 중 3건), 같은 입력에도 등급이 바뀐다 (REQ-005: 캐시 정상 → 재판정 주의). 판정 1건은 20초대에서 7분까지 걸린다.
@@ -254,24 +287,27 @@ JBNU-RAD/
 | temp 0.2 + repeat_penalty 1.15 | 31~58초 | 2/6 | 1/6 | 정상 1 / 주의 9 / 위험 0 |
 | temp 0.0 + repeat_penalty 1.15 | 34~56초 | 1/6 | 1/6 | 정상 0 / 주의 10 / 위험 0 |
 
-반복 루프는 사라지지만 등급이 "주의"로 몰려 판별력을 잃는다. temperature는 원인이 아니다. 다시 재 보려면 `scripts/review_check.py --repeat-penalty 1.15`.
+반복 루프는 사라지지만 등급이 "주의"로 몰려 판별력을 잃는다. temperature는 원인이 아니다. (재현 스크립트 `scripts/review_check.py`는 10/20에 지웠다 — 이력 `5604048`.)
 
 ---
 
 ## 7. 시연 기록 (9/30 산학 자문 멘토링)
 
 9/30 시연은 사전 계산 결과(`results.json` · `ask_results.json`)와 시연용 위험 예시 4건, 예시 답 로딩 연출로 진행했다. 10/8에 이 경로를 모두 걷어내고 화면이 코어 작업을 직접 돌리게 바꿨다 (§2).
-다음에 시연하려면: 팀 서버 연결 → `make health` → `make web` → 화면에서 보기 범위마다 [… 실행] (정책 관리를 로그 감시보다 먼저 — 규칙이 적재돼야 로그 감시가 찾는다). 판정 한 건에 1~3분이 걸리므로 미리 돌려 두고, 결과 파일이 남으므로 서버를 다시 띄워도 결과가 보인다.
+다음에 시연하려면: 팀 서버 연결 → `make health` → `make web` → 화면에서 보기 범위마다 [… 실행] (정책 관리를 로그 감시보다 먼저 — 규칙이 적재돼야 로그 감시가 찾는다). 판정 한 건에 1~3분이 걸리므로 미리 돌려 두고, 결과는 AI 결과 DB에 남으므로 서버를 다시 띄워도 보인다.
 
 ---
 
 ## 8. 남은 일
 
-1. **권한 신청 · 정책 데이터를 다시 정하고 `qwen3:14b`로 전 건 판정해 §5와 대조한다.** `data/`의 두 CSV가 지워져 있어 지금은 로그 감시만 실제로 돈다. (`SENTINELAI_NUM_PREDICT`는 10/11에 4096으로 올렸다.)
-2. **DB · 로그인 · 권한 신청 입력** — 권한 DB(SQLite): 일반사용자 신청 → 중간관리자 1차 승인 → 최상급자 최종 승인, ID/PW 로그인, 루트만 계정 생성. 화면은 중간관리자용(지금 대시보드) · 최상급자용 · 신청용. AI 판정 · 로그는 Log DB로 따로. DB 계층 · API · 화면까지 구현 (10/11). **최상급자 화면은 따로 작업한다** (지금은 결재함 · 권한 현황만, 정책 관리 · 로그 감시를 둘지 미정). 남은 질문은 `design/db-schema.md` §5. 알림 · 이력 화면보다 먼저 한다 (둘 다 DB가 필요하다).
-3. **알림(Notifier) 구축** — 로그 감시의 주의 · 위험 판정을 운영자에게 보낸다. 인터페이스 자리만 `sentinelai/engine/alert.py`에 두었고, `sentinelai/pipeline.py`의 `monitor`에 부를 곳을 표시했다.
-4. 기준 문서에 출력 · 매체 반출 조항이 없어 로그 감시가 근거 없이 판정한다. 절차서 14 · 17번(예외처리 · 매체 반출입) 원문이 필요하다.
+1. **권한 신청 · 정책 데이터를 다시 정하고 `qwen3:14b`로 전 건 판정해 §5와 대조한다.** 권한 신청 CSV는 지워져 있고, 정책 · 서버 현황은 연습용(10/14)만 있다. 서버 현황(`data/servers/`)도 실제 데이터를 받아야 한다 — 점검 도구 · 자산관리에서 내보내는 컬럼을 정한다. (`SENTINELAI_NUM_PREDICT`는 10/11에 4096으로 올렸다.)
+2. **DB · 로그인 · 권한 신청 입력** — 권한 DB(SQLite): 일반 사용자 신청 → 보안 운영자 1차 승인 → 보안 총책임자 최종 승인, ID/PW 로그인, 루트만 계정 생성 (10/12에 보안 총책임자로 넓힘). 화면은 보안 운영자용(지금 대시보드) · 보안 총책임자용 · 신청용. DB 계층 · API · 화면까지 구현 (10/11). 10/12에 신청 1건 = 1행(AI 판정 · 1차 · 최종 결재 · 회수 칸)으로 바꾸고, 정책 관리 검토 · 로그 감시 판정 · 질의 기록용 AI 결과 DB를 나눴다 (스키마 · DB 계층까지, `design/results-db.md`). CLI · 웹 작업 · `/api/results`를 AI 결과 DB로 옮기고 질의 기록을 남겼다 (보안 운영자는 자기 질의만, 10/12). `results.json`은 더 쓰지 않는다. 보안 총책임자 화면은 10/12에 보안 운영자와 같은 메뉴 + 계정 관리로 정했다. 정책 관리 · 로그 감시에서 아래(보안 운영자)의 결정 기록 전부를 읽고, 결재함에서는 1차 결재 의견을 본다. 남은 질문은 `design/db-schema.md` §5. 알림 · 이력 화면보다 먼저 한다 (둘 다 DB가 필요하다).
+3. **알림(Notifier) 구축** — 로그 감시의 주의 · 위험 판정을 운영자에게 보낸다. 인터페이스 자리(`Notifier`)만 `sentinelai/engine/types.py`에 두었고, `sentinelai/engine/pipeline.py`의 `monitor`에 부를 곳을 표시했다.
+4. 기준 문서에 출력 · 매체 반출 조항이 없어 로그 감시가 근거 없이 판정한다. 절차서 14 · 17번(예외처리 · 매체 반출입) 원문이 필요하다. 10/20 연습용 위험 시나리오 중 주말 새벽 대량 출력 · 처음 보는 외주 계정이 이 때문에 "정상"으로 나와 주의 이상 검토에서 빠졌다. **코드 규칙(출력량 · 시간대 · 새 계정)으로 먼저 올리지 않고, 절차서 원문을 RAG에 넣어 모델이 근거를 갖게 하기로 했다 (10/20).** 원문을 받으면 6번 경로로 넣고 위 시나리오로 다시 확인한다.
 5. **로그 감시 이력 화면** — 로그 감시 결과가 쌓이면 운영자가 볼 이력: 같은 사용자의 반복 주의 · 위험, 솔루션 · 행위별 추이, 마지막 감시 시각과 판정하지 못한 로그. 데이터가 쌓이고 출력 · 매체 반출 기준 조항(4번)이 들어온 뒤에 만든다.
 6. **문서 데이터 읽기** — 지금 `DocumentStore`는 `.md` · `.txt`만 적재한다. 사내 정책 원문(pptx · pdf · docx 등)을 읽어 기준 조항으로 RAG에 넣는다. `docs/보안 정책 관리 업무 프로세스.pptx`는 글자 없이 이미지 4장이라 OCR까지 필요하다. 4번의 절차서 원문도 이 경로로 들어온다.
 7. **할루시네이션 검증** — 모델 출력이 근거와 맞는지 코드로 확인한다. 예: 판정 `sources`의 조항 번호 · 정책 ID가 실제로 검색된 근거에 있는지, 로그 질의 답의 숫자가 `summarize` 집계와 같은지, 로그 조건(사용자 · 기간)이 질문에 있는 말인지. 어긋나면 화면에 알리거나 다시 시도한다. 10/11에 모델이 질문에 없는 기간을 채워 답이 틀린 일이 있었다 (`NOTES.md`).
-8. 이번 범위 밖: 이메일 · 메신저 알림 채널, 실제 솔루션 API 수집(`sentinelai.data` 에 RowSource 로 추가).
+8. **내부 상태 API** — 10/20에 `/internal/status`(서버 자신만)로 작업 큐 · 자동 실행 예약 · 권한 신청 판정 대기열을 화면과 분리했다. 남은 것: 엔진 연결 · 모델 · 인덱스(`/api/health`)도 여기로 옮길지, 자동 감시가 연달아 실패하면 알릴지.
+9. **보안 대시보드** (10/21 TODO) — 권한 신청 · 정책 관리 · 서버 점검 · 로그 감시를 한눈에 보는 화면. 10/8에 통계 대시보드를 뺀 이유(숫자 중복 · 믿을 수 없는 추정 · 결정에 안 쓰임, §4 화면 규칙)를 피하도록 운영자가 무엇을 결정하는 데 쓰는지부터 정한다.
+10. **위협 미리 판정** (10/21 TODO) — 사고가 나기 전에 위협을 먼저 판정해 알린다. 무엇을 입력으로 볼지(서버 점검의 바뀐 설정 · 로그 감시 추이 · 권한 신청 등)와 알림(3번)과의 관계는 아직 정하지 않았다.
+11. 이번 범위 밖: 이메일 · 메신저 알림 채널, 실제 솔루션 API 수집(`sentinelai.data` 에 RowSource 로 추가). 로그가 외부 DB(Microsoft Sentinel 등)에 쌓이면 소스로 읽기만 하고 우리 DB에 쌓지 않는다. 그때 로그 질의 조건을 그 DB의 쿼리(KQL 등)로 넘기고, 로그 전체를 메모리에 읽는 `ask_logs`를 바꾼다 (`design/results-db.md` §0).

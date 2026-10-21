@@ -106,11 +106,23 @@ def register_source(suffix: str, factory: Any) -> None:
     _FACTORIES[suffix.lower()] = factory
 
 
+def folder_files(target: Any) -> list[Path] | None:
+    """target 이 폴더면 그 안의 읽을 수 있는 파일들 (이름 순, 하위 폴더 제외). 폴더가 아니면 None"""
+    if hasattr(target, "rows"):
+        return None
+    path = _resolve(target)
+    if not path.is_dir():
+        return None
+    return sorted(p for p in path.iterdir() if p.is_file() and p.suffix.lower() in _FACTORIES)
+
+
 def open_source(target: Any) -> RowSource:
     """경로면 확장자로 소스를 고르고, 이미 소스면 그대로 돌려줍니다."""
     if hasattr(target, "rows"):
         return target
     path = _resolve(target)
+    if not path.suffix and not path.exists():
+        raise FileNotFoundError(f"데이터 폴더가 없습니다: {path}")
     factory = _FACTORIES.get(path.suffix.lower())
     if factory is None:
         raise ValueError(f"읽을 수 없는 형식입니다: {path.name} (지원: {', '.join(_FACTORIES)})")

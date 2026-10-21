@@ -1,0 +1,21 @@
+[Unit]
+Description=SentinelAI 수집 노드
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -m sentinel_node run -c /etc/sentinel-node/node.conf
+WorkingDirectory=/opt/sentinel-node
+Environment=PYTHONPATH=/opt/sentinel-node
+Restart=on-failure
+RestartSec=30
+User=root
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+ReadWritePaths=/var/lib/sentinel-node
+
+[Install]
+WantedBy=multi-user.target

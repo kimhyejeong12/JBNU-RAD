@@ -1,0 +1,30 @@
+# 시험용 점검 대상 서버 — 값은 targets.env (make dev-targets 가 시험 환경 키로 만들어 줌, 또는 targets.env.example 을 복사해 고침)
+#   podman compose --env-file targets.env up -d --build    /    podman compose --env-file targets.env down
+# 대상을 늘리려면 서비스를 하나 더 두고 PROFILE · KEY 를 정합니다.
+x-target: &target
+  build:
+    context: ..
+    dockerfile: testenv/Containerfile
+  image: sentinel-target
+  # host.containers.internal 을 호스트의 127.0.0.1 로 이어 SentinelAI 를 바깥에 열지 않습니다. NET_ADMIN 이 있어야 ufw 가 실제로 켜집니다.
+  network_mode: "pasta:--map-host-loopback,169.254.1.2"
+  cap_add: [NET_ADMIN, NET_RAW]
+
+services:
+  target-weak:
+    <<: *target
+    hostname: target-weak
+    environment:
+      PROFILE: weak
+      SERVER: ${SERVER:?targets.env 에 SERVER 가 없습니다}
+      KEY: ${KEY_WEAK:?targets.env 에 KEY_WEAK 가 없습니다}
+      INTERVAL: ${INTERVAL:-1}
+
+  target-strict:
+    <<: *target
+    hostname: target-strict
+    environment:
+      PROFILE: strict
+      SERVER: ${SERVER:?targets.env 에 SERVER 가 없습니다}
+      KEY: ${KEY_STRICT:?targets.env 에 KEY_STRICT 가 없습니다}
+      INTERVAL: ${INTERVAL:-1}

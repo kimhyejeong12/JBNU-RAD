@@ -14,8 +14,6 @@ HERE = Path(__file__).resolve().parent
 _CONSTRAINT_TEXT = {
     "UNIQUE constraint failed: users.login_id": "이미 있는 아이디입니다",
     "UNIQUE constraint failed: users.is_root": "루트 계정이 이미 있습니다",
-    "UNIQUE constraint failed: approvals.request_id, approvals.step": "이미 결재한 단계입니다",
-    "UNIQUE constraint failed: revocations.request_id": "이미 회수한 권한입니다",
     "UNIQUE constraint failed: access_requests.request_no": "신청 번호가 겹쳤습니다. 다시 신청하세요",
     "FOREIGN KEY constraint failed": "없는 계정 · 신청을 가리킵니다",
 }
@@ -32,6 +30,19 @@ def _readable(exc: sqlite3.IntegrityError) -> str:
 
 class Denied(Exception):
     """규칙에 막힌 요청. 화면에 그대로 보여줄 수 있는 문장을 담습니다."""
+
+
+def _statements(script: str) -> Iterator[str]:
+    """SQL 파일을 문장 하나씩 나눕니다. 트리거 본문의 ; 에서는 끊지 않습니다 (complete_statement)."""
+    buffer = ""
+    for line in script.splitlines(keepends=True):
+        buffer += line
+        if sqlite3.complete_statement(buffer):
+            if buffer.strip():
+                yield buffer
+            buffer = ""
+    if buffer.strip() and sqlite3.complete_statement(buffer + ";"):
+        yield buffer
 
 
 def now() -> str:
@@ -57,11 +68,24 @@ class Database:
         """아직 적용하지 않은 스키마 파일을 차례로 적용합니다. n번째 파일을 적용하면 user_version 이 n 입니다."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connection() as conn:
-            version = conn.execute("PRAGMA user_version").fetchone()[0]
-            if version == 0:
+            # WAL 은 파일에 남습니다. 바꾸기는 busy_timeout 을 기다리지 않아, 동시에 연 다른 연결이 잠금을 잡고 있으면 그쪽에 맡깁니다.
+            try:
                 conn.execute("PRAGMA journal_mode = WAL")
-            for n, schema in enumerate(self.schemas[version:], start=version + 1):
-                conn.executescript(f"BEGIN;{schema.read_text(encoding='utf-8')}PRAGMA user_version = {n}; COMMIT;")
+            except sqlite3.OperationalError:
+                pass
+            # 웹이 뜰 때 자동 감시와 화면 요청이 동시에 처음 열 수 있습니다. 쓰기 잠금을 잡은 뒤에 버전을 읽어야 같은 스키마를 두 번 적용하지 않습니다.
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                version = conn.execute("PRAGMA user_version").fetchone()[0]
+                for n, schema in enumerate(self.schemas[version:], start=version + 1):
+                    # executescript 는 먼저 COMMIT 해 잠금을 놓으므로 문장마다 나눠 같은 트랜잭션에서 실행합니다.
+                    for statement in _statements(schema.read_text(encoding="utf-8")):
+                        conn.execute(statement)
+                    conn.execute(f"PRAGMA user_version = {n}")
+                conn.execute("COMMIT")
+            except BaseException:
+                conn.execute("ROLLBACK")
+                raise
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:

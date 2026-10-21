@@ -1,15 +1,20 @@
+"""RAG 저장소 — 기준 조항(clause)과 솔루션 규칙(rule)을 한 Milvus 컬렉션에 쌓고 종류별로 찾습니다."""
 from __future__ import annotations
 
 import hashlib
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from langchain_core.documents import Document
+from langchain_core.runnables import Runnable, RunnableParallel
 from langchain_milvus import Milvus
 from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from .config import Settings
+if TYPE_CHECKING:
+    from .engine import Engine, Settings
 
 
 @dataclass
@@ -48,6 +53,7 @@ class DocumentStore:
         self.settings = settings
         self._embeddings: OllamaEmbeddings | None = None
         self._store: Milvus | None = None
+        self._lock = threading.Lock()
 
     @property
     def embeddings(self) -> OllamaEmbeddings:
@@ -60,9 +66,25 @@ class DocumentStore:
 
     @property
     def store(self) -> Milvus:
-        if self._store is None:
-            self._store = self._open()
-        return self._store
+        # 처음 쓸 때 엽니다. 여러 스레드(자동 감시 · 화면 요청)가 동시에 열면 Milvus Lite 가 같은 프로세스에서
+        # 잠금을 두 번 잡으려다 "Open local milvus failed" 로 실패하므로 한 번에 하나만 엽니다.
+        with self._lock:
+            if self._store is None:
+                self._store = self._open()
+            return self._store
+
+    def close(self) -> None:
+        """연결을 닫고 Milvus Lite 서버를 멈춰 DB 잠금을 풉니다. 다음에 쓰면 다시 엽니다."""
+        with self._lock:
+            if self._store is None:
+                return
+            self._store.client.close()
+            self._store = None
+            if not self.settings.milvus_is_server:
+                # 클라이언트를 닫아도 같은 프로세스의 Milvus Lite 서버가 잠금을 쥐고 있어, 서버까지 멈춰야 풀립니다.
+                from milvus_lite.server_manager import server_manager_instance
+
+                server_manager_instance.release_server(self.settings.milvus_target)
 
     def _open(self, drop_old: bool = False) -> Milvus:
         if not self.settings.milvus_is_server:
@@ -125,7 +147,8 @@ class DocumentStore:
         """기준 문서를 적재합니다. 바뀐 파일만 다시 임베딩하고, rebuild 면 컬렉션을 비우고 전부 새로 (규칙도 지워짐)."""
         documents = self.read(source)
         if rebuild:
-            self._store = self._open(drop_old=True)
+            with self._lock:
+                self._store = self._open(drop_old=True)
 
         report = IndexReport()
         for doc in documents:
@@ -136,6 +159,7 @@ class DocumentStore:
         """솔루션 정책 규칙을 적재합니다. rules 는 한 건에 한 줄 (예: PolicyRule.describe()).
 
         규칙은 몇 줄짜리라 나누지 않습니다. 묶음(name) 단위로 바뀌었는지 보고 통째로 바꿉니다.
+        규칙 묶음은 하나만 둡니다. 정책 파일 · 폴더를 바꾸면 예전 묶음의 규칙이 검색에 섞이지 않게 지웁니다.
         """
         source = self.RULES_PREFIX + name
         doc_hash = self._digest("\n".join(rules))
@@ -145,7 +169,17 @@ class DocumentStore:
         ]
         report = IndexReport()
         self._replace(source, doc_hash, chunks, report)
+        stale = self.KIND_EXPR["rule"] + " and not (" + self._expr(source) + ")"
+        if self.store.search_by_metadata(expr=stale, limit=1):
+            self.store.delete(expr=stale)
         return report
+
+    def clear_rules(self) -> bool:
+        """솔루션 정책 규칙을 모두 지웁니다 (정책 폴더가 비었을 때). 지운 게 있으면 True"""
+        if not self.store.search_by_metadata(expr=self.KIND_EXPR["rule"], limit=1):
+            return False
+        self.store.delete(expr=self.KIND_EXPR["rule"])
+        return True
 
     def _replace(
         self, name: str, doc_hash: str, chunks: list[Document], report: IndexReport, rebuild: bool = False
@@ -184,3 +218,18 @@ class DocumentStore:
     @staticmethod
     def format(docs: list[Document]) -> str:
         return "\n\n".join(f"[{d.metadata.get('source', '?')}] {d.page_content}" for d in docs)
+
+
+# --- 체인이 쓰는 검색 단계 (질의 문자열 → 프롬프트에 넣을 근거 텍스트) ---------------------
+
+
+def lookup(engine: Engine, k: int | None, kind: str) -> Runnable[str, str]:
+    """한 종류(clause · rule)만 찾습니다."""
+    return engine.documents.retriever(k, kind) | DocumentStore.format
+
+
+def lookup_all(engine: Engine, k: int | None) -> Runnable[str, str]:
+    """조항과 규칙을 따로 찾아 이어 붙입니다. 한 번에 찾으면 규칙에 조항이 밀려나기 때문입니다."""
+    both = RunnableParallel(clause=lookup(engine, k, "clause"), rule=lookup(engine, k, "rule"))
+    return both | (lambda found: "\n\n".join(text for text in found.values() if text))
+

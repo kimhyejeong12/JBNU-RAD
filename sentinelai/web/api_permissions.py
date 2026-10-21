@@ -1,4 +1,4 @@
-"""로그인 · 계정 · 권한 신청 · 결재 · 회수 · 정책 · 로그 결정 API (권한 DB).
+"""로그인 · 계정 · 권한 목록 · 권한 신청 · 결재 · 회수 · 정책 · 로그 결정 API (권한 DB).
 
 세션 토큰은 HttpOnly · SameSite=Strict 쿠키로만 주고받습니다. 화면 스크립트는 토큰을 볼 수 없습니다.
 """
@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, StringConstraints
 
-from sentinelai.db import Denied, User, auth, decisions, logs, permissions
+from sentinelai.db import Denied, User, auth, catalog, decisions, permissions
 
 COOKIE = "sentinelai_session"
 
@@ -97,7 +97,7 @@ def change_password(body: PasswordBody, request: Request) -> dict[str, Any]:
     return _session_user(request).public()
 
 
-# --- 계정 (루트) ------------------------------------------------------------
+# --- 계정 (보안 총책임자) ------------------------------------------------------------
 
 
 class NewUser(BaseModel):
@@ -156,26 +156,62 @@ def reset_password(user_id: int, body: PasswordReset, request: Request, user: An
     return {"ok": True}
 
 
+# --- 권한 목록 (관리는 보안 총책임자) ---------------------------------------------
+
+
+class NewAccess(BaseModel):
+    code: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
+    name: Name
+    system: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = ""
+    category: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = ""
+    description: Text = ""
+
+
+class AccessChange(BaseModel):
+    name: Name | None = None
+    system: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
+    category: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
+    description: Text | None = None
+    is_active: bool | None = None
+
+
+@router.get("/access-catalog")
+def list_access(request: Request, user: Anyone) -> list[dict]:
+    return catalog.list_items(request.app.state.main_db, user)
+
+
+@router.post("/access-catalog", status_code=201)
+def create_access(body: NewAccess, request: Request, user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
+    try:
+        return catalog.create(request.app.state.main_db, user, **body.model_dump())
+    except Denied as exc:
+        raise _denied(exc) from None
+
+
+@router.patch("/access-catalog/{code}")
+def update_access(code: str, body: AccessChange, request: Request, user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
+    try:
+        return catalog.update(request.app.state.main_db, user, code, **body.model_dump(exclude_none=True))
+    except Denied as exc:
+        raise _denied(exc) from None
+
+
 # --- 권한 신청 · 결재 · 회수 -------------------------------------------------
 
 
 def _with_verdict(request: Request, req: dict, user: User) -> dict:
-    """신청에 최신 AI 판정(Log DB)을 붙입니다. 판정 중이면 judging = True
+    """판정 중이면 judging = True 를 붙입니다.
 
-    AI 판정은 결재자를 위한 것이라 일반사용자에게는 주지 않습니다.
+    AI 판정은 결재자를 위한 것이라 일반 사용자에게는 AI 칸(결재 기록의 그때 AI 등급까지)을 아예 빼고 줍니다.
     """
     if user.role == "user":
-        return req
-    return {
-        **req,
-        "ai_verdict": logs.latest_request_verdict(request.app.state.log_db, req["request_no"]),
-        "judging": request.app.state.verdicts.pending(req["request_no"]),
-    }
+        return {**{k: v for k, v in req.items() if k != "ai_verdict"},
+                "approvals": [{k: v for k, v in a.items() if k != "ai_level"} for a in req["approvals"]]}
+    return {**req, "judging": request.app.state.verdicts.pending(req["request_no"])}
 
 
 class NewRequest(BaseModel):
-    requested_access: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
-    current_access: Text = ""
+    access_code: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
     reason: Text = ""
     period_start: Annotated[str, StringConstraints(pattern=r"^(\d{4}-\d{2}-\d{2})?$")] = ""
     period_end: Annotated[str, StringConstraints(pattern=r"^(\d{4}-\d{2}-\d{2})?$")] = ""
@@ -223,14 +259,8 @@ class DecisionBody(BaseModel):
 
 @router.post("/requests/{request_no}/decision")
 def decide(request_no: str, body: DecisionBody, request: Request, user: Approver) -> dict[str, Any]:
-    # 결재자가 본 판정은 지금 화면에 띄운 최신 판정입니다. 판정이 아직 없으면 빈 채로 남깁니다.
-    verdict = logs.latest_request_verdict(request.app.state.log_db, request_no)
     try:
-        req = permissions.decide(
-            request.app.state.main_db, user, request_no, body.action, body.comment,
-            f"request_verdicts/{verdict['id']}" if verdict else None,
-            verdict["level"] if verdict and not verdict["failed"] else None,
-        )
+        req = permissions.decide(request.app.state.main_db, user, request_no, body.action, body.comment)
     except Denied as exc:
         raise _denied(exc) from None
     return _with_verdict(request, req, user)
@@ -254,13 +284,11 @@ def rejudge(request_no: str, request: Request, user: Approver) -> dict[str, Any]
         permissions.get(request.app.state.main_db, user, request_no)
     except Denied as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
+    if not permissions.rejudgeable(request.app.state.main_db, request_no):
+        raise HTTPException(status_code=400, detail="1차 결재 뒤에는 다시 판정할 수 없습니다")
     request.app.state.verdicts.enqueue(request_no)
     return {"request_no": request_no, "judging": True}
 
-
-@router.get("/grants")
-def grants(request: Request, user: Approver) -> list[dict]:
-    return [_with_verdict(request, g, user) for g in permissions.active_grants(request.app.state.main_db, user)]
 
 
 # --- 정책 관리 · 로그 감시 결정 -----------------------------------------------

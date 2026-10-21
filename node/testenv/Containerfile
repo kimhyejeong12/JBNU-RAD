@@ -1,0 +1,8 @@
+FROM docker.io/library/ubuntu:24.04
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 openssh-server ufw iptables libpam-pwquality sudo \
+ && rm -rf /var/lib/apt/lists/*
+COPY sentinel_node /opt/sentinel-node/sentinel_node
+COPY testenv/target.sh /usr/local/bin/target.sh
+ENV PYTHONPATH=/opt/sentinel-node
+ENTRYPOINT ["sh", "/usr/local/bin/target.sh"]

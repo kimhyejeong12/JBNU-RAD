@@ -8,14 +8,35 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from .types import SecurityEvent
+
+
+# 지금부터 거슬러 올라가는 길이입니다. all 은 처음부터입니다.
+PERIODS = {"day": timedelta(days=1), "week": timedelta(days=7), "month": timedelta(days=30), "quarter": timedelta(days=90),
+           "half": timedelta(days=180), "year": timedelta(days=365), "all": None}
 
 
 def _utc(moment: datetime) -> datetime:
     # 레코드의 occurred_at 은 UTC 라서 시간대 없는 값과는 비교할 수 없습니다.
     return moment.replace(tzinfo=timezone.utc) if moment.tzinfo is None else moment
+
+
+def period_since(period: str, now: datetime) -> datetime | None:
+    """하루 · 일주일 · 한 달 · 3개월 · 6개월 · 1년 = 지금부터 1 · 7 · 30 · 90 · 180 · 365일 전, 전체(all)는 None.
+
+    달력 단위(오늘 · 이번 주)가 아닙니다.
+    """
+    if period not in PERIODS:
+        raise ValueError(f"기간은 {' · '.join(PERIODS)} 중 하나입니다: {period}")
+    length = PERIODS[period]
+    return _utc(now) - length if length else None
+
+
+def user_label(e: SecurityEvent) -> str:
+    """화면 · 집계에 쓰는 사용자 표기 "부서 이름". 로그 조회는 이 값이 같은 로그만 고릅니다."""
+    return f"{e.department} {e.who or e.user_name}".strip()
 
 
 def between(
@@ -120,7 +141,7 @@ def summarize(events: list[SecurityEvent]) -> dict:
         "count": len(events),
         "first": events[0].occurred_at.isoformat() if events else None,
         "last": events[-1].occurred_at.isoformat() if events else None,
-        "by_user": count(lambda e: f"{e.department} {e.who or e.user_name}".strip()),
+        "by_user": count(user_label),
         "by_solution": count(lambda e: e.solution),
         "by_how": count(lambda e: e.how),
         "by_day": count(lambda e: e.occurred_at.date().isoformat()),
@@ -133,7 +154,7 @@ def vocabulary(events: list[SecurityEvent]) -> dict:
     """로그에 실제로 있는 값. 질문의 표현을 로그 표기에 맞추도록 모델에게 보여줍니다."""
     distinct = lambda key: sorted({key(e) for e in events if key(e)})  # noqa: E731
     return {
-        "users": distinct(lambda e: f"{e.department} {e.who or e.user_name}".strip()),
+        "users": distinct(user_label),
         "departments": distinct(lambda e: e.department),
         "solutions": distinct(lambda e: e.solution),
         "where": distinct(lambda e: e.where),

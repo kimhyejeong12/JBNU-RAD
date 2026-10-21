@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SentinelAI — AI 보안 정책 검토 시스템</title>
+<title>SentinelAI</title>
 <link rel="icon" href="data:,">  <!-- 브라우저가 /favicon.ico 를 요청해 404 가 콘솔에 찍히는 것을 막습니다 -->
 <!--
   단일 파일 대시보드. CSS · JS · 아이콘을 모두 인라인으로 둡니다 (외부망 차단 전제 — CDN · 웹폰트 금지).
-  로그인한 역할에 따라 메뉴가 달라집니다 (일반사용자 · 중간관리자 · 최상급자 · 루트). 권한 신청 · 결재 · 회수는 /api/requests,
+  로그인한 역할에 따라 메뉴가 달라집니다 (일반 사용자 · 보안 운영자 · 보안 총책임자 · 루트). 권한 신청 · 결재 · 회수는 /api/requests,
   정책 관리 · 로그 감시는 /api/results · /api/jobs 에서 옵니다.
 -->
 <style>
@@ -51,7 +51,6 @@
   }
   .logo { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 17px; letter-spacing: -0.3px; }
   .logo svg { width: 24px; height: 24px; stroke: var(--accent); stroke-width: 2.2; }
-  .sysname { padding-left: 18px; border-left: 1px solid #3A3A3A; font-size: 14.5px; font-weight: 600; }
   .top-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
   /* 엔진 경고 — CI 컬러는 흰 바탕에서만 쓰므로 검은 바 위에 흰 알약으로 띄웁니다 */
   .engine-warn {
@@ -79,6 +78,8 @@
   .alert-pop .risk-item:hover { color: var(--accent); }
 
   /* ── 좌측 사이드바 ─────────────────────── */
+  body.solo { grid-template-columns: minmax(0, 1fr); }
+  body.solo .sidebar { display: none; }
   .sidebar {
     grid-row: 2; display: flex; flex-direction: column; align-items: center; gap: 6px;
     padding: 14px 0; background: var(--bg); border-right: 1px solid var(--line);
@@ -174,7 +175,35 @@
   .main-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
   .view-queue { display: flex; flex-direction: column; gap: 14px; }
   /* display 를 지정한 요소는 hidden 속성만으로 숨겨지지 않아 직접 끕니다. */
-  .view-queue[hidden], .ask[hidden] { display: none; }
+  .view-queue[hidden], .ask[hidden], .logs[hidden], .nodes[hidden] { display: none; }
+
+  /* 로그 조회 — 지금부터 거슬러 올라가는 기간 · 사용자로 거른 로그. 집계와 원본은 오른쪽 패널에 둡니다 */
+  .logs, .nodes { display: flex; flex-direction: column; min-height: 320px; }
+  .logs-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px 10px; flex-wrap: wrap; }
+  .logs-head h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
+  .logs-count { margin-left: auto; font-size: 12.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .periods { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; background: var(--bg-soft); border-radius: 8px; }
+  .periods button { border: none; background: none; padding: 5px 11px; border-radius: 6px; font-size: 12.5px; color: var(--ink-dim); font-weight: 600; }
+  .periods button[aria-pressed="true"] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .logs-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 18px 12px; }
+  .logs-filters .select { max-width: 100%; }
+  .ltable-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
+  .ltable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .ltable th { text-align: left; padding: 9px 12px; font-weight: 600; color: var(--ink-dim); border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .ltable td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .ltable tbody tr { cursor: pointer; }
+  .ltable tbody tr:hover { background: var(--bg-soft); }
+  .ltable tbody tr[aria-current="true"] { background: var(--warn-tint); }
+  .ltable .when { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ltable .lwho { white-space: nowrap; }
+  .ltable .attrs { color: var(--ink-dim); overflow-wrap: anywhere; }
+  .nstate { font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .nstate.on { color: var(--ok); } .nstate.stale { color: var(--sub); } .nstate.off, .nstate.wait { color: var(--ink-dim); }
+  .node-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .key-box { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  .key-box input { width: 100%; font: 12.5px ui-monospace, monospace; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+  .key-box .node-actions { margin-top: 8px; }
+  .pager { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 12px; font-size: 12.5px; color: var(--ink-dim); }
 
   /* 통계 대시보드 */
 
@@ -234,6 +263,7 @@
   .box { background: var(--bg-soft); border-radius: 8px; padding: 11px 13px; font-size: 13.5px; }
   .kv { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   .kv th, .kv td { text-align: left; padding: 4px 0; vertical-align: top; }
+  .kv td { white-space: pre-line; }
   .kv th { color: var(--ink-dim); font-weight: 600; width: 36%; padding-right: 10px; white-space: nowrap; }
   .chips { display: flex; flex-direction: column; gap: 6px; }
   .chip {
@@ -249,6 +279,11 @@
     background: var(--bg-soft); border-radius: 0 6px 6px 0; font-size: 12.5px; white-space: pre-wrap;
   }
   .note { font-size: 11.5px; color: var(--ink-dim); margin: 6px 0 0; }
+  .mod-name { margin: 10px 0 4px; font-size: 12px; font-weight: 700; color: var(--ink-dim); }
+  .gap { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+  .gap-head { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .gap .kv th { width: 52px; }
+  .gap .chips { margin-top: 6px; }
 
   .panel-foot { padding: 14px 18px 16px; border-top: 1px solid var(--line); background: var(--bg); }
   .panel-foot h4 { margin: 0 0 9px; font-size: 12.5px; font-weight: 700; }
@@ -293,8 +328,6 @@
   button[data-tip], .row [data-tip] { cursor: pointer; }
 
   footer.foot { font-size: 11.5px; color: var(--ink-dim); padding: 2px 4px; }
-  /* 추진 주체는 탭 · 화면 폭과 상관없이 늘 맨 아래에 둡니다 (#foot 은 정책 질의 탭에서 숨겨짐). */
-  footer.credit { margin-top: auto; font-size: 11.5px; color: var(--ink-dim); padding: 0 4px 4px; }
   .queue-head .run { margin-left: auto; }
   .queue-head .run + .run { margin-left: 0; }
   .run[hidden], .stats[hidden], .req-form[hidden], .select[hidden], .nav[hidden], .seg[hidden] { display: none; }
@@ -329,6 +362,9 @@
   button.good { color: var(--ok); border-color: #9CCDB5; background: var(--ok-tint); }
   .form-msg { margin-right: auto; font-size: 12.5px; color: var(--accent); }
   .form-msg.ok { color: var(--ok); }
+  .held > span { font-size: 12.5px; font-weight: 600; color: var(--ink-dim); }
+  .held ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
+  .held .note { margin-top: 4px; }
   .req-form h3 { margin: 0; padding: 16px 18px 8px; font-size: 15.5px; font-weight: 700; }
   .panel-actions { display: flex; gap: 8px; margin-top: 8px; }
   .panel-actions button { flex: 1; }
@@ -346,15 +382,15 @@
   .gate-card h3 { margin: 0; font-size: 17px; }
   .gate-logo { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 20px; }
   .gate-logo svg { width: 26px; height: 26px; stroke: var(--accent); stroke-width: 2.2; }
-  .gate-sub { margin: -8px 0 4px; font-size: 13px; color: var(--ink-dim); }
   .gate-card button.primary { height: 40px; border-radius: 8px; border: none; font-weight: 700; }
-  .gate-credit { margin: 6px 0 0; font-size: 11.5px; color: var(--ink-dim); text-align: center; }
   .box.pre { white-space: pre-wrap; font-size: 12px; line-height: 1.6; }
   .warn { color: var(--accent); }
 
   @media (max-width: 1150px) {
     body { height: auto; overflow: auto; grid-template-columns: 1fr; grid-template-rows: auto auto; }
-    .sidebar { display: none; }
+    body.solo { grid-template-columns: minmax(0, 1fr); }
+  body.solo .sidebar { display: none; }
+  .sidebar { display: none; }
     .seg { display: flex; align-self: flex-start; }
     .topbar { flex-wrap: wrap; padding: 10px 16px; row-gap: 8px; }
     .workspace { grid-template-columns: 1fr; padding: 14px 16px; }
@@ -375,6 +411,7 @@
     .form-grid { grid-template-columns: 1fr; }
     .whoami #who-name { display: none; }
     .tr > :nth-child(3), .tr > :nth-child(4), .tr > :nth-child(6) { display: none; }
+    .ltable .col-sol, .ltable .col-where, .ltable .col-how { display: none; }
   }
 </style>
 </head>
@@ -407,17 +444,19 @@
     <div class="seg" role="tablist" id="seg" aria-label="메뉴"></div>
     <nav class="main-tabs" role="tablist" aria-label="보기 전환">
       <button class="main-tab" role="tab" id="tab-queue" data-tab="queue" aria-selected="true" aria-controls="view-queue"><span data-icon="list" class="sm"></span>검토 현황</button>
+      <button class="main-tab" role="tab" id="tab-nodes" data-tab="nodes" aria-selected="false" aria-controls="view-nodes"><span data-icon="server" class="sm"></span>노드</button>
+      <button class="main-tab" role="tab" id="tab-logs" data-tab="logs" aria-selected="false" aria-controls="view-logs"><span data-icon="search" class="sm"></span>로그 조회</button>
       <button class="main-tab" role="tab" id="tab-ask" data-tab="ask" aria-selected="false" aria-controls="view-ask"><span data-icon="chat" class="sm"></span><span id="tab-ask-label">정책 질의</span></button>
     </nav>
 
     <!-- 분석 대기열 — 요약 카드는 이 목록의 등급 필터라 탭 안에 둡니다 -->
     <div class="view-queue" id="view-queue" role="tabpanel" aria-labelledby="tab-queue">
-    <!-- 일반사용자의 권한 신청서 — 내 신청 메뉴에서만 보입니다 -->
+    <!-- 일반 사용자의 권한 신청서 — 내 신청 메뉴에서만 보입니다 -->
     <section class="card req-form" id="req-form" hidden>
       <h3>권한 신청</h3>
       <form id="new-request" class="form-grid">
-        <label class="wide"><span>신청할 권한 <b>*</b></span><input name="requested_access" required maxlength="500" placeholder="예: 급여 테이블(HR_SALARY) 조회 권한"></label>
-        <label class="wide">현재 보유 권한<input name="current_access" maxlength="2000" placeholder="예: CRM 조회 · 수정"></label>
+        <label class="wide"><span>신청할 권한 <b>*</b></span><select name="access_code" id="req-access" required></select><span class="note" id="req-access-note"></span></label>
+        <div class="wide held"><span>현재 보유 권한</span><div id="req-held"></div></div>
         <label class="wide">신청 사유<textarea name="reason" rows="2" maxlength="2000" placeholder="업무상 왜 필요한지"></textarea></label>
         <label>사용 시작일<input type="date" name="period_start"></label>
         <label>사용 종료일<input type="date" name="period_end"></label>
@@ -438,11 +477,13 @@
         </label>
         <select id="stage-filter" class="select" aria-label="결재 단계" hidden>
           <option value="pending">결재 대기</option>
+          <option value="active">유효 권한</option>
           <option value="all">전체</option>
         </select>
         <!-- 보기 범위의 분석을 코어 작업으로 돌립니다. 수 분 걸리므로 진행 상황을 버튼에 띄웁니다 -->
         <button class="rerun run" id="run"><span data-icon="activity" class="sm"></span><span id="run-txt"></span></button>
         <button class="rerun run" id="add-user" hidden><span data-icon="plus" class="sm"></span>새 계정</button>
+        <button class="rerun run" id="add-access" hidden><span data-icon="plus" class="sm"></span>권한 등록</button>
       </div>
       <div class="table">
         <div class="tr thead" id="thead"></div>
@@ -450,6 +491,40 @@
       </div>
     </section>
     </div>
+
+    <!-- 로그 조회 — 모델 없이 코어가 거르고 셉니다 (/api/logs). 기간은 지금부터 거슬러 올라갑니다 -->
+    <!-- 수집 노드 — 서버마다 도는 node/sentinel_node 가 보낸 수집. 새 수집은 서버가 주기적으로 점검해 검토 현황에 올립니다 -->
+    <section class="card nodes" id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes" hidden>
+      <div class="logs-head"><h3>수집 노드</h3><span class="logs-count" id="node-count"></span>
+        <button class="rerun run" id="check-now" data-tip="지금 점검|새 수집이 온 노드를 주기(30분)를 기다리지 않고 지금 기준 문서와 비교합니다"><span data-icon="activity" class="sm"></span><span id="check-now-txt">지금 점검</span></button>
+        <button class="rerun run" id="add-node"><span data-icon="plus" class="sm"></span>노드 등록</button></div>
+      <div class="ltable-wrap">
+        <table class="ltable">
+          <thead><tr><th>노드</th><th>호스트</th><th>상태</th><th class="col-sol">마지막 수집</th><th>판정</th></tr></thead>
+          <tbody id="node-rows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card logs" id="view-logs" role="tabpanel" aria-labelledby="tab-logs" hidden>
+      <div class="logs-head">
+        <h3>로그 조회</h3>
+        <div class="periods" id="log-periods" role="group" aria-label="기간"></div>
+        <span class="logs-count" id="log-count"></span>
+      </div>
+      <div class="logs-filters">
+        <select id="log-user" class="select" aria-label="사용자"></select>
+        <select id="log-solution" class="select" aria-label="솔루션"></select>
+        <select id="log-how" class="select" aria-label="행위"></select>
+      </div>
+      <div class="ltable-wrap">
+        <table class="ltable">
+          <thead><tr><th>시각</th><th>사용자</th><th class="col-sol">솔루션</th><th class="col-where">위치</th><th class="col-how">행위</th><th>항목</th></tr></thead>
+          <tbody id="log-rows"></tbody>
+        </table>
+      </div>
+      <div class="pager" id="log-pager"></div>
+    </section>
 
     <!-- 정책 질의 — rag_chain 은 기준 조항과 적재된 솔루션 규칙을 검색하고, 신청 목록은 보지 않습니다 -->
     <section class="card ask" id="view-ask" role="tabpanel" aria-labelledby="tab-ask" hidden>
@@ -466,10 +541,9 @@
     </section>
 
     <footer class="foot" id="foot"></footer>
-    <footer class="credit">전북대학교 RAD (RAG &amp; Decision) · SK쉴더스</footer>
   </div>
 
-  <!-- ⑥ AI 판단 근거 및 권고 -->
+  <!-- ⑥ 오른쪽 패널 — 메뉴마다 내용이 다릅니다 -->
   <aside class="card panel" id="panel"></aside>
 </div>
 <div class="drawer-back" id="drawer-back"></div>
@@ -478,21 +552,18 @@
 <div class="gate" id="gate" hidden>
   <form class="gate-card" id="login-form" autocomplete="on">
     <div class="gate-logo"><span data-icon="shield"></span>SentinelAI</div>
-    <p class="gate-sub">AI 보안 정책 검토 시스템</p>
     <label>아이디<input name="login_id" autocomplete="username" required></label>
     <label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label>
     <button type="submit" class="primary">로그인</button>
     <p class="form-msg" id="login-msg"></p>
-    <p class="gate-credit">전북대학교 RAD (RAG &amp; Decision) · SK쉴더스</p>
   </form>
   <form class="gate-card" id="pw-form" hidden>
     <h3 id="pw-title">비밀번호 변경</h3>
     <p class="note" id="pw-note"></p>
     <label>지금 비밀번호<input name="current" type="password" autocomplete="current-password" required></label>
-    <label>새 비밀번호 (12자 이상)<input name="new" type="password" autocomplete="new-password" minlength="12" required></label>
-    <label>새 비밀번호 확인<input name="confirm" type="password" autocomplete="new-password" minlength="12" required></label>
+    <label>새 비밀번호<input name="new" type="password" autocomplete="new-password" required></label>
+    <label>새 비밀번호 확인<input name="confirm" type="password" autocomplete="new-password" required></label>
     <div class="form-actions"><span class="form-msg" id="pw-msg"></span><button type="button" id="pw-cancel">취소</button><button type="submit" class="primary">바꾸기</button></div>
-    <p class="gate-credit">전북대학교 RAD (RAG &amp; Decision) · SK쉴더스</p>
   </form>
 </div>
 
@@ -509,7 +580,6 @@
 /* ── 아이콘 (인라인 SVG) ─────────────────── */
 const ICONS = {
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
-  home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   server: '<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
   book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
@@ -525,9 +595,9 @@ const ICONS = {
   eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   list: '<path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
-  key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.3-9.3M17 6l3 3M15 8l2 2"/>',
 };
 const icon = (name, cls = "") => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ""}</svg>`;
 function paintIcons(root = document) {
@@ -543,32 +613,37 @@ const DECISIONS = { approve: "승인", cond: "조건부 승인", reject: "반려
 const DECISION_SET = {
   policy: { approve: "approve", cond: "cond", reject: "reject" },
   event: { clear: "approve", act: "reject" },
+  server: { clear: "approve", act: "reject" },
 };
-const TYPE_VIEW = { req: "requests", grant: "grants", mine: "mine", user: "users", policy: "policies", event: "events" };
-const TYPE_LABEL = { req: "권한 신청", grant: "부여된 권한", mine: "내 신청", user: "계정", policy: "정책 관리", event: "로그 감시" };
-const ROLE_LABEL = { top: "최상급자", manager: "중간관리자", user: "일반사용자" };
+const TYPE_VIEW = { req: "requests", server: "policies", mine: "mine", user: "users", access: "access", policy: "policies", event: "events" };
+const MODULE_LABEL = { ufw: "UFW", sshd: "SSH", pam: "PAM", accounts: "계정 · sudo" };
+const TYPE_LABEL = { req: "권한 신청", server: "서버 점검", mine: "내 신청", user: "계정", policy: "정책 관리", event: "로그 감시" };
+const ROLE_LABEL = { top: "보안 총책임자", manager: "보안 운영자", user: "일반 사용자" };
 const STAGE_LABEL = { manager: "1차 결재 대기", top: "최종 결재 대기", approved: "승인", rejected: "반려", withdrawn: "철회", revoked: "회수" };
-// 결재자의 역할이 곧 결재 단계입니다 (중간관리자 = 1차, 최상급자 = 최종).
+// 결재자의 역할이 곧 결재 단계입니다 (보안 운영자 = 1차, 보안 총책임자 = 최종).
 const STEP = { manager: "manager", top: "top" };
 // 메뉴마다 쓰는 탭 · 목록 칸만 둡니다. 정책 질의 · 로그 질의는 그 메뉴의 기능이라 정책 관리 · 로그 감시에만 있습니다.
 const VIEWS = {
-  requests: { label: "권한 신청", icon: "lock", tip: "권한 신청|결재할 권한 신청과 AI 판정",
+  requests: { label: "권한 신청", icon: "lock", tip: "권한 신청|결재할 신청 · AI 판정 · 유효 권한 회수",
               tabs: ["queue"], cols: ["번호", "신청자", "신청 권한", "신청 시각", "AI 판정"], search: "신청 번호 · 신청자 · 권한으로 검색" },
-  grants: { title: "권한 현황", label: "권한 현황", icon: "key", tip: "권한 현황|지금 유효한 권한 — 사유를 적고 회수합니다",
-            tabs: ["queue"], cols: ["번호", "신청자", "권한", "승인 시각", "AI 판정"], search: "신청 번호 · 신청자 · 권한으로 검색" },
-  policies: { title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리|방화벽 · SWG · DLP · PAM 정책의 중복 · 충돌 · 과도한 허용",
-              tabs: ["queue", "ask"], cols: ["분류", "대상 정책", "상세 내용", "시간", "AI 판정"], search: "정책 ID · 내용으로 검색" },
-  events: { title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시|보안 솔루션 로그를 정책과 비교한 사용자별 판정",
-            tabs: ["queue", "ask"], cols: ["분류", "대상 사용자", "상세 내용", "시간", "AI 판정"], search: "사용자 · 내용으로 검색" },
+  policies: { title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리|솔루션 정책의 중복 · 충돌 · 과도한 허용과 수집 노드의 서버 점검",
+              tabs: ["queue", "nodes", "ask"], cols: ["분류", "대상", "상세 내용", "시간", "AI 판정"], search: "정책 ID · 서버 · 내용으로 검색" },
+  qa: { title: "정책 질의", label: "정책 질의", icon: "chat", tip: "정책 질의|사내 기준 문서와 솔루션 정책에 대해 묻고 답을 받습니다",
+        tabs: ["ask"], cols: [], search: "" },
+  events: { title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시|서버가 자동으로 돌린 로그 감시 판정 중 주의 · 위험",
+            tabs: ["queue", "logs", "ask"], cols: ["분류", "대상 사용자", "상세 내용", "시간", "AI 판정"], search: "사용자 · 내용으로 검색" },
   mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청|권한을 신청하고 결재 상태를 봅니다",
           tabs: ["queue"], cols: ["번호", "신청 권한", "사유", "신청 시각", "상태"], search: "신청 번호 · 권한으로 검색" },
-  users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리|계정 생성 · 역할 · 정지 · 비밀번호 초기화 (루트)",
+  users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리|계정 생성 · 역할 · 정지 · 비밀번호 초기화 (보안 총책임자)",
            tabs: ["queue"], cols: ["역할", "이름 (아이디)", "부서", "마지막 로그인", "상태"], search: "이름 · 아이디 · 부서로 검색" },
+  access: { title: "권한 목록", label: "권한 목록", icon: "key", tip: "권한 목록|일반 사용자가 신청할 수 있는 권한 — 등록 · 고치기 · 끄기 (보안 총책임자)",
+            tabs: ["queue"], cols: ["시스템", "권한 (코드)", "분류 · 설명", "고친 시각", "상태"], search: "권한 이름 · 코드 · 시스템으로 검색" },
 };
-const ROLE_VIEWS = { user: ["mine"], manager: ["requests", "grants", "policies", "events"], top: ["requests", "grants"] };
-const roleViews = () => (state.me ? [...ROLE_VIEWS[state.me.role], ...(state.me.is_root ? ["users"] : [])] : []);
+// 보안 총책임자는 보안 운영자와 같은 메뉴에 권한 목록 · 계정 관리를 더합니다.
+const ROLE_VIEWS = { user: ["mine"], manager: ["requests", "policies", "events", "qa"], top: ["requests", "policies", "events", "qa", "access", "users"] };
+const roleViews = () => (state.me ? ROLE_VIEWS[state.me.role] : []);
 const RESULT_VIEWS = new Set(["policies", "events"]);
-const LEVEL_VIEWS = new Set(["requests", "grants", "policies", "events"]);
+const LEVEL_VIEWS = new Set(["requests", "policies", "events"]);
 // 질의 탭은 메뉴의 기능을 따릅니다. 예시 질문도 여기 한 곳에서 정하고, 누르면 직접 입력과 똑같이 답을 만듭니다.
 const ASK = {
   policy: {
@@ -579,6 +654,16 @@ const ASK = {
       "인사팀 김민수가 급여 테이블(HR_SALARY)에 접근할 수 있어?",
       "마케팅팀이 사내포털에 HTTPS로 접근하는 정책은 몇 개야?",
       "개발팀 사원이 운영 DB 관리자 권한을 받아도 돼?",
+    ],
+  },
+  server: {
+    label: "서버 질의", url: "/api/ask-servers", placeholder: "수집 노드 서버의 지금 상태 · 바뀐 설정 · 서버 점검 결과를 물어보세요",
+    empty: "수집 노드가 보낸 기록과 서버 점검 판정을 조건에 맞춰 골라서 답합니다.",
+    note: "AI는 수집 기록과 서버 점검 판정으로만 답합니다. 건수는 기록에서 직접 셉니다. 정책 위반 여부는 새로 판단하지 않습니다 (검토 현황의 서버 점검을 보세요).",
+    examples: [
+      "지금 방화벽에 문제가 있는 서버는?",
+      "어제부터 설정이 바뀐 서버가 있어?",
+      "SSH 루트 로그인이 열려 있는 서버는?",
     ],
   },
   log: {
@@ -592,26 +677,26 @@ const ASK = {
     ],
   },
 };
-const CRITERIA_LABEL = { user: "사용자", department: "부서", solution: "솔루션", where: "위치", how: "행위", keyword: "항목", since: "부터", until: "까지" };
+const CRITERIA_LABEL = { nodes: "노드", module: "모듈", user: "사용자", department: "부서", solution: "솔루션", where: "위치", how: "행위", keyword: "항목", since: "부터", until: "까지" };
 // 화면에는 등급 단어만 쓰고, 등급에서 나오는 권고 문구와 기준은 툴팁에만 둡니다.
 const LEVEL_TIP = {
   "정상": "승인 권고|기준 문서에 부합 — AI가 승인을 권고합니다",
-  "주의": "추가 검토|직무 연관성은 있으나 범위가 필요 이상 — 운영자 추가 검토 (기준 4.3)",
+  "주의": "추가 검토|직무 연관성은 있으나 범위가 필요 이상 — 결재자 추가 검토 (기준 4.3)",
   "위험": "반려 권고|직무 무관 · 필수 승인 누락 · 장기 미사용 관리자 권한 (기준 4.2)",
 };
 
-const EMPTY_RESULTS = { summary: { failed: 0 }, sections: {}, policies: [], events: [], policy_review: null, generated_at: null };
+const EMPTY_RESULTS = { summary: { failed: 0 }, sections: {}, policies: [], servers: [], events: [], policy_review: null, generated_at: null };
 
 const state = {
   me: null,             // /api/auth/me — 로그인한 사람
   results: EMPTY_RESULTS,
-  requests: [],         // 결재자: 모든 신청
-  grants: [],           // 결재자: 지금 유효한 권한
-  mine: [],             // 일반사용자: 내 신청
-  users: [],            // 루트: 계정
+  requests: [],         // 결재자: 모든 신청 (유효 권한도 여기서 거릅니다)
+  mine: [],             // 일반 사용자: 내 신청
+  users: [],            // 보안 총책임자: 계정
+  catalog: [],          // 권한 목록 — 일반 사용자는 켜진 것만 (신청서의 고르기 칸), 보안 총책임자는 전부
   regulations: [],
   health: null,
-  mainTab: "queue",     // queue | ask
+  mainTab: "queue",     // queue | nodes | logs | ask
   view: null,
   filter: "전체",
   stageFilter: "pending",
@@ -620,8 +705,12 @@ const state = {
   expanded: new Set(),  // 펼친 근거 칩
   panelMsg: "",         // 패널 동작 결과 (오류 · 완료)
   jobs: null,           // /api/jobs — 돌고 있는 분석 작업
-  asks: { policy: [], log: [] },   // 질의 기록 — 화면에만 두고 저장하지 않음
+  asks: { policy: [], server: [], log: [] },   // 내 질의 기록 — 로그인할 때 AI 결과 DB에서 받고, 새 질의는 서버가 남깁니다
   askSource: null,      // 패널에 띄운 인용 조항 { i: 질의 순번, n: sources 순번 }
+  // 로그 조회 — 조건 · 받은 결과(/api/logs) · 패널에 띄운 줄(없으면 집계)
+  // 수집 노드 — 목록(/api/nodes) · 고른 노드 · 그 노드의 자세한 기록(/api/nodes/{이름})
+  nodes: { list: null, error: "", selected: null, detail: null, adding: false },
+  logs: { period: "week", user: "", solution: "", how: "", page: 1, data: null, error: "", loading: false, selected: null },
 };
 
 const $ = (id) => document.getElementById(id);
@@ -652,11 +741,12 @@ const send = (url, body, method = "POST") =>
 
 async function loadData() {
   const views = roleViews();
-  const tasks = [getJSON("/api/health").then((d) => { state.health = d; }).catch(() => { state.health = null; })];
+  const tasks = [];
+  if (state.me.role !== "user") tasks.push(getJSON("/api/health").then((d) => { state.health = d; }).catch(() => { state.health = null; }));
   if (views.includes("requests")) tasks.push(getJSON("/api/requests").then((d) => { state.requests = d; }));
-  if (views.includes("grants")) tasks.push(getJSON("/api/grants").then((d) => { state.grants = d; }));
   if (views.includes("mine")) tasks.push(getJSON("/api/requests?mine=true").then((d) => { state.mine = d; }));
   if (views.includes("users")) tasks.push(getJSON("/api/users").then((d) => { state.users = d; }));
+  if (views.includes("access") || views.includes("mine")) tasks.push(getJSON("/api/access-catalog").then((d) => { state.catalog = d; }));
   if (views.some((v) => RESULT_VIEWS.has(v))) {
     tasks.push(getJSON("/api/results").then((d) => { state.results = d; }));
     tasks.push(getJSON("/api/jobs").then((d) => { state.jobs = d; }).catch(() => { state.jobs = null; }));
@@ -674,18 +764,20 @@ function issues() { return (state.results.policy_review && state.results.policy_
 const period = (r) => (r.period_start || r.period_end ? `${r.period_start || "…"} ~ ${r.period_end || "…"}` : "기간 없음");
 const requester = (r) => `${r.requester_department} ${r.requester_name}`.trim();
 
-function requestItem(type) {
-  return (r) => {
-    const v = r.ai_verdict;
-    const level = v && !v.failed ? v.level : undefined;
-    return {
-      type, key: `${type}:${r.request_no}`, id: r.request_no, level,
-      who: requester(r),
-      what: r.requested_access,
-      when: stamp(type === "grant" ? r.closed_at : r.submitted_at),
-      judge: level || (r.judging ? "판정 중" : v && v.failed ? "판정 실패" : "판정 대기"),
-      sub: STAGE_LABEL[r.stage], raw: r,
-    };
+// 권한 DB의 active_grants 뷰와 같은 조건입니다 — 승인됐고 사용 기간이 끝나지 않은 신청.
+const today = () => new Date().toLocaleDateString("sv-SE");
+const isActive = (r) => r.stage === "approved" && (!r.period_end || r.period_end >= today());
+
+function requestItem(r) {
+  const v = r.ai_verdict;
+  const level = v && !v.failed ? v.level : undefined;
+  return {
+    type: "req", key: `req:${r.request_no}`, id: r.request_no, level,
+    who: requester(r),
+    what: r.requested_access,
+    when: stamp(r.submitted_at),
+    judge: level || (r.judging ? "판정 중" : v && v.failed ? "판정 실패" : "판정 대기"),
+    sub: r.stage === "approved" && !isActive(r) ? "승인 · 기간 끝" : STAGE_LABEL[r.stage], raw: r,
   };
 }
 
@@ -701,6 +793,14 @@ function queue() {
     when: stamp(state.results.sections && state.results.sections.policies && state.results.sections.policies.generated_at),
     judge: i.level, raw: i,
   }));
+  // 서버 점검은 정책 관리 검토와 함께 돌아 같은 메뉴에 둡니다. 결정 버튼은 로그 감시처럼 이상 없음 · 조치 필요입니다.
+  const srv = (state.results.servers || []).map((s) => ({
+    type: "server", key: `server:${s.key}`, itemKey: s.key, id: s.id, level: s.level,
+    decision: decisionOf("server", s.key),
+    who: s.title, what: s.gaps.length ? `정책과 다른 곳 ${s.gaps.length} — ${s.reason}` : s.reason,
+    when: stamp(state.results.sections && state.results.sections.servers && state.results.sections.servers.generated_at),
+    judge: s.level, raw: s,
+  }));
   const log = findings().map((f) => {
     const lines = ((f.detail && f.detail.events) || "").split("\n").filter(Boolean);
     return {
@@ -713,7 +813,7 @@ function queue() {
     };
   });
   const mine = state.mine.map((r) => ({
-    type: "mine", key: `mine:${r.request_no}`, id: r.request_no,
+    type: "mine", key: `mine:${r.request_no}`, id: "", typeLabel: r.request_no,
     who: r.requested_access, what: r.reason || "—", when: stamp(r.submitted_at),
     judge: STAGE_LABEL[r.stage], raw: r,
   }));
@@ -723,13 +823,19 @@ function queue() {
     judge: !u.is_active ? "정지" : u.locked_until && new Date(u.locked_until) > new Date() ? "잠김" : "활성",
     sub: u.must_change_password ? "비밀번호 변경 전" : "", raw: u,
   }));
-  return [...state.requests.map(requestItem("req")), ...state.grants.map(requestItem("grant")), ...mine, ...users, ...pol, ...log];
+  const access = roleViews().includes("access") ? state.catalog.map((a) => ({
+    type: "access", key: `access:${a.code}`, id: "", typeLabel: a.system || "—",
+    who: `${a.name} (${a.code})`, what: [a.category, a.description].filter(Boolean).join(" — ") || "—", when: stamp(a.updated_at),
+    judge: a.is_active ? "켜짐" : "꺼짐", raw: a,
+  })) : [];
+  return [...state.requests.map(requestItem), ...mine, ...users, ...access, ...pol, ...srv, ...log];
 }
 
 function inView(it) {
   if (TYPE_VIEW[it.type] !== state.view) return false;
-  // 결재함은 기본으로 내 단계에서 기다리는 신청만 보여줍니다.
+  // 결재함은 기본으로 내 단계에서 기다리는 신청만 보여줍니다. 유효 권한(예전 권한 현황)도 같은 목록의 거르기입니다.
   if (it.type === "req" && state.stageFilter === "pending") return it.raw.stage === STEP[state.me.role];
+  if (it.type === "req" && state.stageFilter === "active") return isActive(it.raw);
   return true;
 }
 
@@ -749,7 +855,7 @@ function visible() {
 function openRisks() {
   if (!state.me || state.me.role === "user") return [];
   return queue().filter((it) => it.level === "위험" && (
-    it.type === "req" ? it.raw.stage === STEP[state.me.role] : (it.type === "policy" || it.type === "event") && !it.decision));
+    it.type === "req" ? it.raw.stage === STEP[state.me.role] : (it.type === "policy" || it.type === "server" || it.type === "event") && !it.decision));
 }
 
 /* ── 상단 바 ────────────────────────────── */
@@ -769,7 +875,8 @@ function engineProblems(h) {
 function renderTop() {
   $("bell").hidden = state.me.role === "user";
   // 정상일 때는 아무것도 띄우지 않고, 문제가 있을 때만 경고 1개를 띄웁니다.
-  const problems = state.health && state.health.ok ? [] : engineProblems(state.health);
+  // 일반 사용자에게는 AI가 보이지 않으므로 엔진 경고도 띄우지 않습니다.
+  const problems = state.me.role === "user" || (state.health && state.health.ok) ? [] : engineProblems(state.health);
   const warn = $("engine-warn");
   warn.hidden = !problems.length;
   warn.dataset.tip = `점검 항목|${problems.join(" · ")}. 저장된 판정 결과는 계속 볼 수 있습니다`;
@@ -785,7 +892,7 @@ function renderTop() {
     <h4>위험 알림 ${risks.length ? `— 미결 ${risks.length}건` : "— 미결 없음"}</h4>
     ${risks.length
       ? risks.map((it) => `<div class="risk-item" data-key="${esc(it.key)}"><i class="ldot 위험"></i>${esc(it.id)} · ${esc(it.who)}</div>`).join("")
-      : `<p class="none">운영자 결정을 기다리는 위험 건이 없습니다.</p>`}`;
+      : `<p class="none">결정을 기다리는 위험 건이 없습니다.</p>`}`;
   $("alert-pop").querySelectorAll(".risk-item").forEach((el) => el.addEventListener("click", () => {
     $("alert-pop").classList.remove("show");
     select(el.dataset.key);
@@ -797,7 +904,10 @@ function renderStats() {
   // 숫자는 지금 보고 있는 메뉴를 따라 아래 목록과 맞춥니다. 등급이 없는 메뉴(내 신청 · 계정)는 카드를 숨깁니다.
   $("stats").hidden = !LEVEL_VIEWS.has(state.view);
   const items = queue().filter(inView);
-  $("stats").innerHTML = LEVELS.map((l) =>
+  // 로그 감시는 주의 이상만 검토에 올라오므로 정상 카드를 두지 않습니다.
+  const levels = state.view === "events" ? ["주의", "위험"] : LEVELS;
+  $("stats").style.gridTemplateColumns = `repeat(${levels.length}, minmax(0, 1fr))`;
+  $("stats").innerHTML = levels.map((l) =>
     `<button class="card stat ${l}" data-level="${l}" aria-pressed="${state.filter === l}" data-tip="${esc(LEVEL_TIP[l])}">
       <span class="label"><i class="ldot ${l}"></i>${l}</span>
       <span class="num">${items.filter((it) => it.level === l).length}</span></button>`
@@ -809,25 +919,27 @@ function renderStats() {
   }));
   const saved = state.view;
   const n = {};
-  roleViews().forEach((v) => { state.view = v; n[v] = queue().filter(inView).length; });
+  // 질의 메뉴처럼 목록이 없는 메뉴는 건수를 달지 않습니다.
+  roleViews().filter((v) => VIEWS[v].tabs.includes("queue")).forEach((v) => { state.view = v; n[v] = queue().filter(inView).length; });
   state.view = saved;
   document.querySelectorAll("[data-count]").forEach((el) => { el.textContent = n[el.dataset.count] ?? ""; });
   // 넓은 화면에는 세그먼트가 없으므로 건수를 사이드바 툴팁 제목에 붙입니다.
   document.querySelectorAll(".nav[data-view]").forEach((b) => {
     const [title, desc] = VIEWS[b.dataset.view].tip.split("|");
-    b.dataset.tip = `${title} — ${n[b.dataset.view]}건|${desc}`;
+    b.dataset.tip = b.dataset.view in n ? `${title} — ${n[b.dataset.view]}건|${desc}` : VIEWS[b.dataset.view].tip;
   });
 }
 
 /* ── 분석 큐 ────────────────────────────── */
 function emptyText() {
   if (queue().some(inView)) return "조건에 맞는 항목이 없습니다.";
+  if (state.view === "events") return "검토할 로그 감시 판정(주의 · 위험)이 없습니다. 로그 감시는 서버가 정해진 간격마다 자동으로 돌립니다.";
   if (RESULT_VIEWS.has(state.view)) return `아직 ${VIEWS[state.view].label} 결과가 없습니다. 오른쪽 위 [${runKindLabel()}]을 누르세요.`;
   return {
-    requests: state.stageFilter === "pending" ? "지금 결재할 신청이 없습니다." : "신청이 없습니다.",
-    grants: "지금 유효한 권한이 없습니다.",
+    requests: { pending: "지금 결재할 신청이 없습니다.", active: "지금 유효한 권한이 없습니다.", all: "신청이 없습니다." }[state.stageFilter],
     mine: "아직 신청한 권한이 없습니다. 위 신청서를 채워 신청하세요.",
     users: "계정이 없습니다.",
+    access: "등록한 권한이 없습니다. 오른쪽 위 [권한 등록]으로 일반 사용자가 신청할 권한을 넣으세요.",
   }[state.view];
 }
 
@@ -843,7 +955,7 @@ function renderRows() {
     const judge = it.level
       ? `<span class="line lv-${it.level}">${icon(LEVEL_ICON[it.level], "sm")}${esc(it.level)}</span>`
       : `<span class="line">${esc(it.judge)}</span>`;
-    const sub = d ? `운영자 · ${DECISIONS[d.action]}` : it.sub;
+    const sub = d ? `${d.decider_name} · ${DECISIONS[d.action]}` : it.sub;
     return `<button class="tr row" data-key="${esc(it.key)}" aria-current="${it.key === state.selected}">
       <span class="cell-type">${esc(it.typeLabel || TYPE_LABEL[it.type])}<small>${esc(it.id)}</small></span>
       <span class="who">${esc(it.who)}</span>
@@ -917,18 +1029,28 @@ function chipLabel(source) {
 /* ── 우측 패널 ──────────────────────────── */
 function renderPanel() {
   if (state.mainTab === "ask") { renderAskPanel(); return; }
+  if (state.mainTab === "logs") { renderLogsPanel(); return; }
+  if (state.mainTab === "nodes") { renderNodesPanel(); return; }
   const it = queue().find((i) => i.key === state.selected);
   const panel = $("panel");
   if (state.view === "users" && (!it || it.type !== "user")) { renderUserPanel(null); return; }
-  if (it && (it.type === "req" || it.type === "grant" || it.type === "mine")) { renderRequestPanel(it); return; }
+  if (it && (it.type === "req" || it.type === "mine")) { renderRequestPanel(it); return; }
   if (it && it.type === "user") { renderUserPanel(it.raw); return; }
+  if (state.view === "access") { renderAccessPanel(it && it.type === "access" ? it.raw : null); return; }
   if (!it) {
-    panel.innerHTML = `<div class="panel-head"><h3>AI 판단 근거</h3>${CLOSE_BTN}</div>
-      <div class="panel-body"><div class="empty">목록에서 항목을 선택하면<br>AI 판단 근거와 권고가 표시됩니다.</div></div>`;
+    // 빈 패널도 메뉴를 따릅니다. 일반 사용자에게는 AI 문구를 보이지 않습니다.
+    const [title, text] = {
+      mine: ["내 신청", "신청하거나 목록에서 신청을 고르면<br>결재 상태와 기록이 표시됩니다."],
+      requests: ["권한 신청 검토", "목록에서 신청을 선택하면<br>신청 내용 · AI 판정 · 결재 기록이 표시됩니다."],
+    }[state.view] || ["AI 판단 근거", "목록에서 항목을 선택하면<br>AI 판단 근거와 권고가 표시됩니다."];
+    panel.innerHTML = `<div class="panel-head"><h3>${title}</h3>${CLOSE_BTN}</div>
+      <div class="panel-body"><div class="empty">${text}</div></div>`;
     return;
   }
   const r = it.raw;
-  const isEvent = it.type === "event";
+  const isEvent = it.type === "event", isServer = it.type === "server";
+  // 10/14부터 서버 점검은 다른 곳마다 지금 · 기준 · 바꿀 것을 따로 받습니다. 그 전 결과(recommendation 이 있음)는 예전 칸으로 보입니다.
+  const gapped = isServer && !r.failed && !r.recommendation;
   const decision = it.decision;
 
   const table = (state.results.policies || []).filter((p) => (r.policy_ids || []).includes(p.policy_id)).map((p) => [p.policy_id,
@@ -944,14 +1066,31 @@ function renderPanel() {
       <div class="rec-line lv-${it.level}">${icon(LEVEL_ICON[it.level] || "warn")}${esc(it.level)}</div>
       <div class="meta">${esc(it.id)}</div>
 
+      ${isServer ? `
+      ${Object.values(r.detail.state).some((v) => v) ? `<div class="sec"><h4>${icon("server", "sm")}서버 현황</h4>${kvTable(Object.entries(r.detail.state).filter(([, v]) => v))}</div>` : ""}
+      ${moduleState(r.detail.snapshot)}
+      <div class="sec"><h4>${icon("file", "sm")}이 서버에 걸린 정책</h4><div class="box pre">${esc(r.detail.matched)}</div>
+        <p class="note">IP · 대역 · 호스트 이름이 맞는 규칙을 코드가 찾았습니다. 그 밖의 규칙은 AI가 검색해 함께 봅니다.</p></div>` : `
       <div class="sec"><h4>${icon("file", "sm")}${isEvent ? "판정한 로그" : "관련 정책 원본"}</h4>
         ${isEvent
-          ? `<div class="box pre">${esc((r.detail && r.detail.events) || "로그 없음")}</div>`
+          ? `<div class="box pre">${esc((r.detail && r.detail.events) || "로그 없음")}</div>
+            <button class="rerun" id="to-logs">${icon("search", "sm")}이 사용자의 최근 한 달 로그</button>`
           : `<div class="box"><table class="kv">
           ${table.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("") || "<tr><td>정보 없음</td></tr>"}
         </table></div>`}
-      </div>
+      </div>`}
 
+      ${gapped ? `
+      <div class="sec"><h4>${icon("activity", "sm")}요약</h4><div class="box">${esc(r.reason)}</div></div>
+      <div class="sec"><h4>${icon("warn", "sm")}정책과 다른 곳 ${r.gaps.length}</h4>
+        ${r.gaps.map((g, n) => `<div class="gap">
+          <div class="gap-head"><span class="ldot ${esc(g.level)}"></span>${esc(g.item)}</div>
+          <table class="kv"><tr><th>지금</th><td>${esc(g.current)}</td></tr><tr><th>기준</th><td>${esc(g.required)}</td></tr>
+            <tr><th>바꿀 것</th><td>${esc(g.change)}</td></tr></table>
+          ${g.source ? sourceChips(`${it.key}:gap${n}`, [g.source]) : ""}
+        </div>`).join("") || `<div class="box">기준 문서와 다른 곳을 찾지 못했습니다.</div>`}
+        ${r.unjudged.length ? `<p class="note">다루는 조항이 없어 판단하지 않은 항목: ${esc(r.unjudged.join(", "))}</p>` : ""}
+      </div>` : `
       <div class="sec"><h4>${icon("activity", "sm")}판단 이유</h4>
         <div class="box">${esc(r.reason)}</div>
       </div>
@@ -964,10 +1103,11 @@ function renderPanel() {
         ${it.type !== "policy"
           ? sourceChips(it.key, r.sources)
           : `<p class="note">정책 관리 검토는 근거 조항을 판단 이유에 함께 적습니다. 적용 기준은 기준 문서 5 · 6장입니다.</p>`}
-      </div>
+      </div>`}
+      ${decisionLog(it)}
     </div>
     <div class="panel-foot">
-      <h4>보안 운영자 의사결정</h4>
+      <h4>의사결정</h4>
       <textarea id="review-comment" maxlength="2000" placeholder="결정 의견 (선택)"></textarea>
       <div class="decide">
         ${Object.entries(DECISION_SET[it.type]).map(([a, cls]) =>
@@ -975,14 +1115,44 @@ function renderPanel() {
       </div>
       <div class="decision-state">${decision
         ? `<span>결정 <b>${esc(DECISIONS[decision.action])}</b> · ${esc(`${decision.decider_department} ${decision.decider_name}`.trim())} · ${esc(stamp(decision.decided_at))}${decision.ai_level ? ` (그때 AI 판정: ${esc(decision.ai_level)})` : ""}${decision.comment ? ` — ${esc(decision.comment)}` : ""}</span><button id="undo">취소</button>`
-        : `<span>AI는 권고만 합니다. 최종 결정은 운영자가 내립니다.</span>`}</div>
+        : `<span>AI는 권고만 합니다. 최종 결정은 사람이 내립니다.</span>`}</div>
       ${panelMsg()}
     </div>`;
 
   bindChips(panel);
+  const toLogs = $("to-logs");
+  if (toLogs) toLogs.addEventListener("click", () => openLogs({ user: r.title, period: "month" }));
   panel.querySelectorAll(".decide button").forEach((el) => el.addEventListener("click", () => reviewDecision(it, el.dataset.action)));
   const undo = $("undo");
   if (undo) undo.addEventListener("click", () => reviewDecision(it, "cancel"));
+}
+
+// 수집 노드가 읽어 온 모듈 상태. 직전 수집과 달라진 설정을 먼저 보여줍니다.
+function moduleState(snap) {
+  if (!snap || !snap.modules) return "";
+  const changed = (snap.changes || []).length
+    ? `<div class="box pre">${esc(snap.changes.join("\n"))}</div>` : `<p class="note">직전 수집과 달라진 설정이 없습니다.</p>`;
+  return `<div class="sec"><h4>${icon("activity", "sm")}직전 수집과 달라진 설정</h4>${changed}</div>${moduleTables(snap)}`;
+}
+
+function moduleTables(snap) {
+  return `<div class="sec"><h4>${icon("db", "sm")}모듈 상태</h4>
+      <p class="note">${esc(stamp(snap.collected_at))} 수집 · ${esc(snap.collected_by || "수집 계정 모름")}</p>
+      ${Object.entries(snap.modules).map(([m, facts]) => `<p class="mod-name">${esc(MODULE_LABEL[m] || m)}</p>${kvTable(Object.entries(facts))}`).join("")}
+    </div>`;
+}
+
+// 보안 총책임자에게만 결정 기록 전부가 옵니다 (decision_log). 누가 어떤 판단을 했다가 취소했는지까지 읽습니다.
+function decisionLog(it) {
+  const log = state.results.decision_log;
+  if (!log) return "";
+  const rows = (log[it.type] || {})[it.itemKey] || [];
+  const steps = rows.map((d) => `<div class="step"><b>${d.action === "cancel" ? "결정 취소" : esc(DECISIONS[d.action])}</b>
+      · ${esc(d.decider_name)}${d.decider_department ? ` (${esc(d.decider_department)})` : ""}
+      <span class="when">${esc(stamp(d.decided_at))}${d.ai_level ? ` · 그때 AI 판정 ${esc(d.ai_level)}` : ""}</span>
+      ${d.comment ? `<span class="say">${esc(d.comment)}</span>` : ""}</div>`);
+  return `<div class="sec"><h4>${icon("list", "sm")}결정 기록</h4>${steps.length
+    ? `<div class="box history">${steps.join("")}</div>` : `<p class="note">아직 결정이 없습니다.</p>`}</div>`;
 }
 
 function sourceChips(key, sources) {
@@ -1022,7 +1192,7 @@ function renderRequestPanel(it) {
       <div class="sec"><h4>${icon("activity", "sm")}AI 판단 이유</h4><div class="box">${esc(v.reason)}</div></div>
       <div class="sec"><h4>${icon("ok", "sm")}AI 권고</h4><div class="box">${esc(v.recommendation)}</div></div>
       <div class="sec"><h4>${icon("db", "sm")}근거 조항</h4>${sourceChips(it.key, v.sources)}</div>
-      <p class="note">${esc(v.model)} · ${esc(stamp(v.created_at))} 판정</p>`;
+      <p class="note">${esc(v.model)} · ${esc(stamp(v.judged_at))} 판정</p>`;
   }
 
   const steps = [
@@ -1053,9 +1223,9 @@ function renderRequestPanel(it) {
       : r.stage === "manager" || r.stage === "top" ? `${STAGE_LABEL[r.stage]} — 내 결재 단계가 아닙니다.` : "더 할 결재가 없습니다."}</p>`;
   }
 
-  const rows = [["신청자", requester(r)], ["신청 권한", r.requested_access], ["현재 보유 권한", r.current_access || "—"],
+  const rows = [["신청자", requester(r)], ["신청 권한", r.access_code ? `${r.requested_access} (${r.access_code})` : r.requested_access], ["신청 때 보유 권한", r.current_access || "—"],
                 ["신청 사유", r.reason || "—"], ["사용 기간", period(r)], ["신청 시각", stamp(r.submitted_at)], ["상태", STAGE_LABEL[r.stage]]];
-  const rejudge = !applicant && !r.judging && (r.stage === "manager" || r.stage === "top");
+  const rejudge = !applicant && !r.judging && r.stage === "manager";
   $("panel").innerHTML = `
     <div class="panel-head">
       <h3>${applicant ? "내 신청" : "권한 신청 검토"}</h3>
@@ -1086,6 +1256,7 @@ async function reviewDecision(it, action) {
     const all = state.results.decisions || (state.results.decisions = {});
     const mine = all[it.type] || (all[it.type] = {});
     if (res.decision) mine[it.itemKey] = res.decision; else delete mine[it.itemKey];
+    if (state.results.decision_log) state.results.decision_log = (await getJSON("/api/results")).decision_log;
     state.panelMsg = action === "cancel" ? "✓ 결정을 취소했습니다" : `✓ 기록했습니다 — ${DECISIONS[action]}`;
   } catch (e) {
     state.panelMsg = e.message;
@@ -1120,7 +1291,7 @@ async function requestAction(no, act) {
   await refreshRequests();
 }
 
-/* ── 계정 관리 패널 (루트) — 선택 없음 = 새 계정 ── */
+/* ── 계정 관리 패널 (보안 총책임자) — 선택 없음 = 새 계정. 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿈 ── */
 function renderUserPanel(u) {
   const roleOptions = (sel, disabled) => `<select name="role" ${disabled ? "disabled" : ""}>${Object.entries(ROLE_LABEL)
     .map(([k, label]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${label}</option>`).join("")}</select>`;
@@ -1132,7 +1303,7 @@ function renderUserPanel(u) {
         <label>이름<input name="display_name" required maxlength="100"></label>
         <label>부서<input name="department" maxlength="100"></label>
         <label>역할${roleOptions("user")}</label>
-        <label class="wide">임시 비밀번호 (12자 이상, 첫 로그인에 바꾸게 됩니다)<input name="password" type="password" required minlength="12" autocomplete="new-password"></label>
+        <label class="wide">임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input name="password" type="password" required autocomplete="new-password"></label>
         <div class="wide form-actions">${panelMsg()}<button type="submit" class="primary">계정 만들기</button></div>
       </form>`;
     $("user-form").addEventListener("submit", async (e) => {
@@ -1146,29 +1317,38 @@ function renderUserPanel(u) {
     });
     return;
   }
+  // 루트 계정은 루트만 고칩니다. 자기 계정과 루트는 역할 · 활성을 바꿀 수 없습니다 (서버도 막습니다).
+  const self = u.id === state.me.id;
+  const locked = u.is_root && !state.me.is_root;
+  const fixed = u.is_root || self;
+  const note = locked ? "루트 계정은 루트만 고칠 수 있습니다."
+    : u.is_root ? "루트는 역할을 바꾸거나 정지할 수 없습니다."
+    : self ? "자기 계정의 역할을 바꾸거나 정지할 수 없습니다."
+    : "계정은 지우지 않고 정지합니다 (결재 기록이 가리킵니다).";
   $("panel").innerHTML = `
     <div class="panel-head"><h3>계정</h3>${CLOSE_BTN}</div>
     <div class="panel-body">
       <p class="subject">${esc(u.display_name)} (${esc(u.login_id)})</p>
       <div class="meta">${esc(ROLE_LABEL[u.role])}${u.is_root ? " · 루트" : ""} · 만든 날 ${esc(stamp(u.created_at))}${u.last_login_at ? ` · 마지막 로그인 ${esc(stamp(u.last_login_at))}` : ""}</div>
-      <form class="form-grid" id="user-edit" style="padding:12px 0 0">
+      ${locked ? "" : `<form class="form-grid" id="user-edit" style="padding:12px 0 0">
         <label>이름<input name="display_name" value="${esc(u.display_name)}" maxlength="100"></label>
         <label>부서<input name="department" value="${esc(u.department)}" maxlength="100"></label>
-        <label>역할${roleOptions(u.role, u.is_root)}</label>
-        <label class="check"><input type="checkbox" name="is_active" ${u.is_active ? "checked" : ""} ${u.is_root ? "disabled" : ""}>활성 (끄면 정지 · 세션 끊김)</label>
+        <label>역할${roleOptions(u.role, fixed)}</label>
+        <label class="check"><input type="checkbox" name="is_active" ${u.is_active ? "checked" : ""} ${fixed ? "disabled" : ""}>활성 (끄면 정지 · 세션 끊김)</label>
         <div class="wide form-actions"><button type="submit" class="primary">저장</button></div>
       </form>
       <form class="form-grid" id="user-reset" style="padding:12px 0 0">
-        <label class="wide">비밀번호 초기화 — 임시 비밀번호 (12자 이상)<input name="temporary_password" type="password" minlength="12" required autocomplete="new-password"></label>
+        <label class="wide">비밀번호 초기화 — 임시 비밀번호<input name="temporary_password" type="password" required autocomplete="new-password"></label>
         <div class="wide form-actions"><button type="submit">초기화</button></div>
-      </form>
+      </form>`}
     </div>
-    <div class="panel-foot">${panelMsg() || `<p class="note">${u.is_root ? "루트는 역할을 바꾸거나 정지할 수 없습니다." : "계정은 지우지 않고 정지합니다 (결재 기록이 가리킵니다)."}</p>`}</div>`;
+    <div class="panel-foot">${panelMsg() || `<p class="note">${note}</p>`}</div>`;
+  if (locked) return;
   $("user-edit").addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = e.target;
     const body = { display_name: f.display_name.value, department: f.department.value };
-    if (!u.is_root) { body.role = f.role.value; body.is_active = f.is_active.checked; }
+    if (!fixed) { body.role = f.role.value; body.is_active = f.is_active.checked; }
     try { await send(`/api/users/${u.id}`, body, "PATCH"); state.panelMsg = "✓ 저장했습니다"; }
     catch (err) { state.panelMsg = err.message; }
     await refreshUsers(`user:${u.id}`);
@@ -1183,6 +1363,98 @@ function renderUserPanel(u) {
   });
 }
 
+/* ── 권한 목록 패널 (보안 총책임자) — 선택 없음 = 권한 등록. 지난 신청이 코드를 가리키므로 코드는 못 바꾸고, 지우지 않고 끕니다 ── */
+function renderAccessPanel(a) {
+  const fields = (v = {}) => `
+        <label>이름<input name="name" required maxlength="100" value="${esc(v.name)}" placeholder="예: 급여 테이블 조회"></label>
+        <label>시스템<input name="system" maxlength="100" value="${esc(v.system)}" placeholder="예: 인사 시스템"></label>
+        <label>분류<input name="category" maxlength="100" value="${esc(v.category)}" placeholder="예: 급여정보 · 인사정보 · 관리자"></label>
+        <label class="wide">설명 (AI 판정에도 함께 넘깁니다)<textarea name="description" rows="2" maxlength="2000" placeholder="무엇을 할 수 있는 권한인지">${esc(v.description)}</textarea></label>`;
+  if (!a) {
+    $("panel").innerHTML = `
+      <div class="panel-head"><h3>권한 등록</h3>${CLOSE_BTN}</div>
+      <form class="panel-body form-grid" id="access-form" style="padding:16px 18px">
+        <label>코드 (바꿀 수 없음)<input name="code" required maxlength="64" pattern="[A-Za-z0-9_.\-]+" autocomplete="off" placeholder="예: HR_SALARY_READ"></label>
+        ${fields()}
+        <div class="wide form-actions">${panelMsg()}<button type="submit" class="primary">등록</button></div>
+      </form>`;
+    $("access-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        const made = await send("/api/access-catalog", Object.fromEntries(new FormData(e.target)));
+        state.panelMsg = `✓ ${made.code} 를 등록했습니다`;
+        await refreshCatalog(`access:${made.code}`);
+      } catch (err) { state.panelMsg = err.message; renderPanel(); }
+    });
+    return;
+  }
+  const used = state.requests.filter((r) => r.access_code === a.code);
+  const active = used.filter(isActive).length;
+  $("panel").innerHTML = `
+    <div class="panel-head"><h3>권한</h3>${CLOSE_BTN}</div>
+    <div class="panel-body">
+      <p class="subject">${esc(a.name)} (${esc(a.code)})</p>
+      <div class="meta">${a.is_active ? "켜짐 — 일반 사용자가 신청할 수 있습니다" : "꺼짐 — 새로 신청할 수 없습니다"} · 신청 ${used.length}건 · 유효 ${active}건 · 등록 ${esc(stamp(a.created_at))}</div>
+      <form class="form-grid" id="access-edit" style="padding:12px 0 0">
+        ${fields(a)}
+        <label class="check wide"><input type="checkbox" name="is_active" ${a.is_active ? "checked" : ""}>켜짐 (끄면 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로)</label>
+        <div class="wide form-actions"><button type="submit" class="primary">저장</button></div>
+      </form>
+    </div>
+    <div class="panel-foot">${panelMsg() || `<p class="note">이름을 바꿔도 이미 낸 신청에는 신청 때 이름이 남습니다.</p>`}</div>`;
+  $("access-edit").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const body = { name: f.name.value, system: f.system.value, category: f.category.value, description: f.description.value, is_active: f.is_active.checked };
+    try { await send(`/api/access-catalog/${encodeURIComponent(a.code)}`, body, "PATCH"); state.panelMsg = "✓ 저장했습니다"; }
+    catch (err) { state.panelMsg = err.message; }
+    await refreshCatalog(`access:${a.code}`);
+  });
+}
+
+/* ── 신청서 — 권한은 권한 목록의 켜진 권한만 시스템별로 고르고, 현재 보유 권한은 적지 않고 승인된 유효 권한을 보여줍니다 ── */
+function renderAccessSelect() {
+  const held = new Set(state.mine.filter(isActive).map((r) => r.access_code));
+  const pending = new Set(state.mine.filter((r) => r.stage === "manager" || r.stage === "top").map((r) => r.access_code));
+  const items = state.catalog.filter((a) => a.is_active);
+  const groups = {};
+  items.forEach((a) => { (groups[a.system || "기타"] ||= []).push(a); });
+  const option = (a) => {
+    const why = held.has(a.code) ? " (보유 중)" : pending.has(a.code) ? " (결재 중)" : "";
+    return `<option value="${esc(a.code)}" ${why ? "disabled" : ""}>${esc(a.name)}${a.category ? ` · ${esc(a.category)}` : ""}${why}</option>`;
+  };
+  const prev = $("req-access").value;
+  $("req-access").innerHTML = items.length
+    ? `<option value="">권한을 고르세요</option>` + Object.entries(groups).map(([sys, list]) =>
+        `<optgroup label="${esc(sys)}">${list.map(option).join("")}</optgroup>`).join("")
+    : `<option value="">신청할 수 있는 권한이 없습니다</option>`;
+  if (prev && !held.has(prev) && !pending.has(prev)) $("req-access").value = prev;
+  $("req-access").disabled = !items.length;
+  $("new-request").querySelector("button[type=submit]").disabled = !items.length;
+  renderAccessNote();
+  renderHeld();
+}
+
+// 서버도 신청 때 같은 조건(최종 승인 · 기간 남음)으로 읽어 신청 행에 남기므로, 여기서는 보여주기만 합니다.
+function renderHeld() {
+  const held = state.mine.filter(isActive);
+  $("req-held").innerHTML = held.length
+    ? `<ul>${held.map((r) => `<li>${esc(r.requested_access)} <span class="note">${r.period_end ? `${esc(r.period_end)}까지` : "기간 없음"}</span></li>`).join("")}</ul>`
+    : `<p class="note">이 시스템에서 승인받은 유효 권한이 없습니다.</p>`;
+}
+
+function renderAccessNote() {
+  const a = state.catalog.find((x) => x.code === $("req-access").value);
+  $("req-access-note").textContent = a ? a.description || "" : state.catalog.some((x) => x.is_active) ? ""
+    : "보안 총책임자가 권한 목록을 등록하면 신청할 수 있습니다. 필요한 권한이 목록에 없으면 보안 총책임자에게 등록을 요청하세요.";
+}
+
+async function refreshCatalog(selectKey) {
+  try { state.catalog = await getJSON("/api/access-catalog"); } catch (e) { return; }
+  state.selected = selectKey || state.selected;
+  renderStats(); renderRows(); renderPanel();
+}
+
 function renderAfterChange() {
   renderTop(); renderRows(); renderPanel();
 }
@@ -1193,12 +1465,12 @@ async function refreshRequests() {
   try {
     await Promise.all([
       views.includes("requests") ? getJSON("/api/requests").then((d) => { state.requests = d; }) : null,
-      views.includes("grants") ? getJSON("/api/grants").then((d) => { state.grants = d; }) : null,
       views.includes("mine") ? getJSON("/api/requests?mine=true").then((d) => { state.mine = d; }) : null,
     ]);
   } catch (e) { return; }
   // 결재 · 회수로 목록에서 빠진 항목을 고르고 있었으면 같은 신청을 다른 메뉴에서 찾지 않고 그대로 비웁니다.
   if (!queue().some((i) => i.key === state.selected)) state.selected = null;
+  if (state.view === "mine") renderAccessSelect();
   renderTop(); renderStats(); renderRows(); renderPanel();
 }
 
@@ -1211,13 +1483,12 @@ async function refreshUsers(selectKey) {
 // 판정 중인 신청이 있으면 끝날 때까지 3초마다 다시 받습니다. 입력 중인 결재 의견을 지우지 않게 패널은 판정이 끝난 그 항목일 때만 다시 그립니다.
 setInterval(async () => {
   if (!state.me || state.me.role === "user") return;
-  const judging = () => [...state.requests, ...state.grants].filter((r) => r.judging).map((r) => r.request_no);
+  const judging = () => state.requests.filter((r) => r.judging).map((r) => r.request_no);
   const before = judging();
   if (!before.length) return;
   const sel = state.selected;
   try {
-    const [reqs, grants] = await Promise.all([getJSON("/api/requests"), getJSON("/api/grants")]);
-    state.requests = reqs; state.grants = grants;
+    state.requests = await getJSON("/api/requests");
   } catch (e) { return; }
   const after = new Set(judging());
   renderTop(); renderStats(); renderRows();
@@ -1225,7 +1496,8 @@ setInterval(async () => {
 }, 3000);
 
 /* ── 질의 — 정책 질의(Answer)도 로그 질의도 등급이 없으므로 등급 배지를 달지 않습니다 ── */
-const askMode = () => (state.view === "events" ? "log" : "policy");
+// 질의는 메뉴의 기능입니다 — 정책 질의 메뉴는 기준 문서, 정책 관리는 수집 노드 서버, 로그 감시는 로그에 묻습니다.
+const askMode = () => ({ events: "log", policies: "server" }[state.view] || "policy");
 const asks = () => state.asks[askMode()];
 
 function askWaitLabel(m) {
@@ -1250,7 +1522,7 @@ function renderAsk() {
     if (m.started) body = `<div class="box wait" id="ask-wait">${askWaitLabel(m)}</div>`;
     else if (m.failed) body = `<div class="box fail">${esc(m.answer)}</div>`;
     else body = `<div class="box">${esc(m.answer)}</div>`;
-    const src = m.started || m.failed ? "" : mode === "log" ? logEvidence(m, i) : `
+    const src = m.started || m.failed ? "" : mode === "log" ? logEvidence(m, i) : mode === "server" ? serverEvidence(m, i) : `
       <div class="sec"><h4>${icon("db", "sm")}근거 조항</h4>
         ${(m.sources || []).length
           ? `<div class="chips">${m.sources.map((s, n) => {
@@ -1288,6 +1560,38 @@ function logEvidence(m, i) {
   </div>`;
 }
 
+// 서버 질의의 근거도 코어가 조건으로 고른 수집 · 서버 점검 기록입니다.
+function serverEvidence(m, i) {
+  const on = !!state.askSource && state.askSource.i === i;
+  const nodes = m.facts ? m.facts["노드 수"] : 0;
+  return `<div class="sec"><h4>${icon("db", "sm")}근거 기록</h4>
+    <p class="note">조건: ${esc(criteriaText(m.criteria).replace("전체 로그", "모든 서버 · 전체 기록"))}</p>
+    ${nodes
+      ? `<div class="chips"><button class="chip" data-src="${i}:0" aria-pressed="${on}" aria-controls="panel">${icon("server", "sm")}<span>서버 ${nodes}대 · 기록 ${m.evidence.length}줄</span><span class="open">${on ? "표시 중" : "기록 보기"}</span></button></div>`
+      : `<p class="note">조건에 맞는 서버가 없습니다.</p>`}
+  </div>`;
+}
+
+function renderServerAskPanel(m, i) {
+  const f = m.facts;
+  const levels = Object.entries(f["마지막 판정 등급별 노드 수"] || {}).map(([k, n]) => `${k} ${n}`).join(" · ") || "—";
+  const nodes = Object.entries(f["노드별"] || {}).map(([node, r]) => {
+    const judged = Object.entries(r["판정"]).map(([k, n]) => `${k} ${n}`).join(" · ") || "판정 없음";
+    return [node, `수집 ${r["수집"]} · 바뀐 설정 ${r["바뀐 설정"]} · 서버 점검 ${judged}`];
+  });
+  $("panel").innerHTML = `<div class="panel-head"><h3>근거 기록</h3>${CLOSE_BTN}</div>
+    <div class="panel-body">
+      <p class="subject">${esc(criteriaText(m.criteria).replace("전체 로그", "모든 서버 · 전체 기록"))}</p>
+      <div class="meta">Q${i + 1} · ${esc(m.q)}</div>
+      <div class="sec"><h4>${icon("activity", "sm")}집계</h4>${kvTable([
+        ["서버", `${f["노드 수"]}대`], ["마지막 판정", levels],
+        ["기간 안 수집", f["기간 안 첫 수집"] ? `${stamp(f["기간 안 첫 수집"])} ~ ${stamp(f["기간 안 마지막 수집"])}` : "없음"], ...nodes])}</div>
+      <div class="sec"><h4>${icon("file", "sm")}바뀐 설정 · 서버 점검 기록</h4>${m.evidence.length
+        ? `<div class="box pre">${esc(m.evidence.join("\n"))}</div>` : `<p class="note">기간 안에 바뀐 설정 · 서버 점검이 없습니다.</p>`}</div>
+      <p class="note">숫자는 코어가 수집 · 서버 점검 기록에서 직접 센 값입니다. 서버마다 지금 상태는 정책 관리 → [노드]에서 봅니다.</p>
+    </div>`;
+}
+
 // 인용 조항 패널은 열어 둔 근거가 있을 때만 자리를 차지합니다.
 function syncCite() {
   document.querySelector(".workspace").classList.toggle("cite", state.mainTab === "ask" && !!state.askSource);
@@ -1297,6 +1601,7 @@ function renderAskPanel() {
   const sel = state.askSource;
   const m = sel && asks()[sel.i];
   if (m && askMode() === "log") { renderLogPanel(m, sel.i); return; }
+  if (m && askMode() === "server") { renderServerAskPanel(m, sel.i); return; }
   const source = m && m.sources[sel.n];
   $("panel").innerHTML = `<div class="panel-head"><h3>인용 조항 원문</h3>${CLOSE_BTN}</div>
     <div class="panel-body">${source
@@ -1336,6 +1641,15 @@ async function ask(text) {
   }));
 }
 
+// 질의 기록은 내 것만 옵니다. 메뉴마다 따로라 정책 질의 · 서버 질의 · 로그 질의를 나눠 받습니다.
+async function loadAsks() {
+  state.asks = { policy: [], server: [], log: [] };
+  if (!roleViews().some((v) => RESULT_VIEWS.has(v))) return;
+  const toItem = (r) => ({ q: r.question, answer: r.answer, sources: r.sources, criteria: r.criteria, facts: r.facts, evidence: r.evidence, failed: r.failed });
+  const [policy, servers, logs] = await Promise.all(["policy", "servers", "logs"].map((k) => getJSON(`/api/qa?kind=${k}`)));
+  state.asks = { policy: policy.map(toItem), server: servers.map(toItem), log: logs.map(toItem) };
+}
+
 async function runAsk(q, fetchAnswer) {
   const m = { q, started: Date.now() };
   asks().push(m);
@@ -1364,7 +1678,8 @@ function renderAskExamples() {
 $("ask-form").addEventListener("submit", (e) => { e.preventDefault(); ask($("ask-input").value); });
 
 /* ── 분석 실행 — 코어 작업(/api/jobs)을 돌리고 끝날 때까지 진행 상황을 봅니다 ── */
-const VIEW_KIND = { policies: "policies", events: "events" };
+// 화면에서 돌리는 분석은 정책 관리 검토뿐입니다. 로그 감시는 서버가 정해진 간격마다 스스로 돌립니다.
+const VIEW_KIND = { policies: "policies" };
 let jobTimer = null;
 
 function runKindLabel() {
@@ -1374,6 +1689,9 @@ function runKindLabel() {
 
 function renderRun() {
   const j = state.jobs;
+  // 노드 탭의 [지금 점검]도 같은 작업 큐를 씁니다. 다른 작업이 돌면 기다립니다.
+  $("check-now").disabled = !j || !!j.running;
+  $("check-now-txt").textContent = j && j.running === "nodes" ? `점검 중…${j.total ? ` ${j.done}/${j.total}` : ""}` : "지금 점검";
   const btn = $("run"), txt = $("run-txt");
   // 분석 실행은 정책 관리 · 로그 감시만 합니다. 권한 신청은 들어오면 바로 판정됩니다.
   btn.hidden = !VIEW_KIND[state.view];
@@ -1382,21 +1700,19 @@ function renderRun() {
   btn.disabled = !!j.running;
   if (j.running) {
     const name = j.kinds[j.running] || j.running;
-    txt.textContent = `${name} 중…${j.total ? ` ${j.done}/${j.total}` : ""}`;
+    txt.textContent = `${name}${j.auto ? "(자동)" : ""} 중…${j.total ? ` ${j.done}/${j.total}` : ""}`;
   } else {
     txt.textContent = runKindLabel();
   }
-  // 로그 감시는 지난번 이후 새 로그만 판정한다는 것이 버튼만 봐서는 보이지 않아 툴팁에 둡니다.
-  btn.dataset.tip = VIEW_KIND[state.view] === "events"
-    ? "로그 감시|지난 감시 이후 들어온 로그만 판정합니다"
-    : VIEW_KIND[state.view] === "policies"
-      ? `${runKindLabel()}|솔루션 정책을 RAG 에 적재하고 중복 · 충돌 · 과도한 허용을 판정합니다. 수 분 걸릴 수 있습니다`
+  // 정책 관리 검토가 문서 · 규칙 적재까지 하고 서버 점검은 하지 않는다는 것이 버튼만 봐서는 보이지 않아 툴팁에 둡니다.
+  btn.dataset.tip = VIEW_KIND[state.view] === "policies"
+      ? `${runKindLabel()}|기준 문서 · 솔루션 정책을 RAG 에 맞추고 정책 간 중복 · 충돌 · 과도한 허용을 찾습니다. 서버 점검은 수집 노드가 보낸 것을 서버가 주기적으로 합니다`
       : `${runKindLabel()}|수 분 걸릴 수 있습니다`;
 }
 
-async function startJob() {
+async function startJob(kind = VIEW_KIND[state.view]) {
   try {
-    state.jobs = await getJSON(`/api/jobs/${VIEW_KIND[state.view]}`, { method: "POST" });
+    state.jobs = await getJSON(`/api/jobs/${kind}`, { method: "POST" });
   } catch (e) {
     alert(`분석을 시작하지 못했습니다: ${e.message}`);
   }
@@ -1411,10 +1727,17 @@ function watchJobs(started = false) {
   const refresh = async () => {
     state.results = await getJSON("/api/results");
     renderAll();
+    if (state.mainTab === "nodes") loadNodes();
   };
   if (!roleViews().some((v) => RESULT_VIEWS.has(v))) return;
   if (!state.jobs || !state.jobs.running) {
     if (started) refresh();
+    // 자동 감시는 화면이 시작하지 않으므로 쉬는 동안에도 가끔 보고, 돌기 시작하면 따라갑니다.
+    jobTimer = setInterval(async () => {
+      try { state.jobs = await getJSON("/api/jobs"); } catch (e) { return; }
+      renderRun();
+      if (state.jobs.running) watchJobs();
+    }, 30000);
     return;
   }
   jobTimer = setInterval(async () => {
@@ -1426,11 +1749,304 @@ function watchJobs(started = false) {
   }, 2000);
 }
 
-$("run").addEventListener("click", startJob);
+$("run").addEventListener("click", () => startJob());
+$("check-now").addEventListener("click", () => startJob("nodes"));
+
+/* ── 수집 노드 — 화면에서 노드를 등록해 키를 발급하고, 상태 · 키를 보고 끄거나 키를 다시 발급합니다 ── */
+function nodeState(n) {
+  if (!n.enabled) return ["off", "꺼짐", "보내도 받지 않고 주기 점검에서도 빠집니다"];
+  if (!n.key_issued) return ["wait", "키 없음", "손으로 넣은 수집뿐입니다. 키를 발급해 노드에 넣으면 직접 보낼 수 있습니다"];
+  if (n.stale) return ["stale", "끊김", `${n.interval_min}분 간격인데 세 번 넘게 소식이 없습니다`];
+  if (!n.last_collected_at) return ["wait", "기다리는 중", "키를 발급했지만 아직 받은 수집이 없습니다"];
+  return ["on", "수집 중", `${n.interval_min || "?"}분마다`];
+}
+
+async function loadNodes() {
+  try { state.nodes.list = await getJSON("/api/nodes"); state.nodes.error = ""; } catch (e) { state.nodes.error = e.message; }
+  renderNodes();
+  if (state.nodes.selected) await loadNodeDetail(state.nodes.selected); else if (state.mainTab === "nodes") renderPanel();
+}
+
+async function loadNodeDetail(name) {
+  try { state.nodes.detail = await getJSON(`/api/nodes/${encodeURIComponent(name)}`); } catch (e) { state.nodes.detail = { error: e.message }; }
+  if (state.mainTab === "nodes") renderPanel();
+}
+
+function renderNodes() {
+  const N = state.nodes, list = N.list || [];
+  $("node-count").textContent = N.list ? `${list.length}대` : "";
+  const rows = $("node-rows");
+  if (N.error) { rows.innerHTML = `<tr><td colspan="5" class="empty">노드 목록을 받지 못했습니다: ${esc(N.error)}</td></tr>`; return; }
+  if (!N.list) { rows.innerHTML = `<tr><td colspan="5" class="empty">불러오는 중…</td></tr>`; return; }
+  if (!list.length) {
+    rows.innerHTML = `<tr><td colspan="5" class="empty">아직 등록된 노드가 없습니다.<br>[노드 등록]으로 서버마다 키를 발급하고, 그 서버에 node/install.sh 로 노드를 까세요.</td></tr>`;
+    return;
+  }
+  rows.innerHTML = list.map((n) => {
+    const [cls, label, tip] = nodeState(n);
+    return `<tr data-node="${esc(n.name)}" tabindex="0" aria-current="${n.name === N.selected}">
+      <td class="lwho">${esc(n.name)}</td><td>${esc(n.host)}${n.ip && n.ip !== n.host ? ` (${esc(n.ip)})` : ""}</td>
+      <td><span class="nstate ${cls}" data-tip="${esc(`${label}|${tip}`)}">${label}</span></td>
+      <td class="col-sol when">${esc(stamp(n.last_collected_at))}</td>
+      <td>${n.level ? `<i class="ldot ${n.level}"></i>${esc(n.level)}` : `<span class="note">${n.last_collected_at ? "점검 대기" : ""}</span>`}</td></tr>`;
+  }).join("");
+}
+
+function pickNode(name) {
+  Object.assign(state.nodes, { selected: name, detail: null, adding: false });
+  state.panelMsg = "";
+  renderNodes();
+  renderPanel();
+  openDrawer();
+  loadNodeDetail(name);
+}
+$("node-rows").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-node]"); if (tr) pickNode(tr.dataset.node); });
+$("node-rows").addEventListener("keydown", (e) => {
+  const tr = e.target.closest("tr[data-node]");
+  if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickNode(tr.dataset.node); }
+});
+
+$("add-node").addEventListener("click", () => {
+  Object.assign(state.nodes, { selected: null, detail: null, adding: true });
+  state.panelMsg = "";
+  renderNodes();
+  renderPanel();
+  openDrawer();
+  const input = $("node-name");
+  if (input) input.focus();
+});
+
+async function createNode(name) {
+  try {
+    const made = await send("/api/nodes", { name });
+    Object.assign(state.nodes, { adding: false, selected: made.name, detail: null });
+    state.panelMsg = "✓ 노드를 등록하고 키를 발급했습니다";
+  } catch (e) {
+    state.panelMsg = e.message;
+    renderPanel();
+    return;
+  }
+  await loadNodes();
+}
+
+async function nodeAction(name, action) {
+  const issuing = action === "key";
+  if (issuing && !confirm(`${name} 의 키를 새로 발급합니다. 지금 키는 바로 못 쓰게 되어, 그 서버의 node.conf 를 새 키로 바꿔야 다시 보냅니다. 계속할까요?`)) return;
+  try {
+    if (issuing) {
+      await send(`/api/nodes/${encodeURIComponent(name)}/key`, {});
+      state.panelMsg = "✓ 키를 새로 발급했습니다. 그 서버의 node.conf 를 바꾸세요";
+    } else {
+      await send(`/api/nodes/${encodeURIComponent(name)}`, { enabled: action === "on" }, "PATCH");
+      state.panelMsg = action === "on" ? "✓ 노드를 켰습니다" : "✓ 노드를 껐습니다";
+    }
+  } catch (e) {
+    state.panelMsg = e.message;
+  }
+  await loadNodes();
+}
+
+// 내부망 서비스라 노드 키를 언제든 다시 보여줍니다. 해시만 남은 예전 키는 다시 발급해야 보입니다.
+function nodeKey(n, d) {
+  if (!d || d.error || !n.key_issued) return "";
+  if (!d.key) return `<div class="sec"><h4>${icon("lock", "sm")}노드 키</h4><p class="note">예전 방식으로 발급해 볼 수 없는 키입니다. [키 다시 발급]을 하면 여기에 보입니다.</p></div>`;
+  const cmd = `sudo sh node/install.sh --server ${location.origin} --key ${d.key}`;
+  return `<div class="sec"><h4>${icon("lock", "sm")}노드 키</h4><div class="key-box">
+      <input id="issued-key" readonly value="${esc(d.key)}" aria-label="노드 키">
+      <p class="note">점검할 서버에서:</p><div class="box pre">${esc(cmd)}</div>
+      <div class="node-actions"><button class="rerun" data-copy="${esc(d.key)}">키 복사</button><button class="rerun" data-copy="${esc(cmd)}">설치 명령 복사</button></div>
+    </div></div>`;
+}
+
+// 사내망의 http 화면에서는 클립보드 API 를 못 쓸 수 있어, 그때는 키 칸을 골라 둡니다 (Ctrl+C).
+async function copyText(text, button) {
+  try { await navigator.clipboard.writeText(text); button.textContent = "복사했습니다"; }
+  catch (e) { const input = $("issued-key"); input.focus(); input.select(); button.textContent = "Ctrl+C 로 복사하세요"; }
+}
+
+function renderNodesPanel() {
+  const N = state.nodes, d = N.detail, panel = $("panel");
+  if (N.adding) {
+    panel.innerHTML = `<div class="panel-head"><h3>노드 등록</h3>${CLOSE_BTN}</div>
+      <div class="panel-body">
+        <form id="node-form" class="form-grid">
+          <label class="wide"><span>노드 이름 <b>*</b></span><input id="node-name" required maxlength="64" pattern="[A-Za-z0-9._\-]+" placeholder="예: cust-db01"></label>
+          <div class="wide form-actions">${panelMsg()}<button type="submit" class="primary">등록하고 키 발급</button></div>
+        </form>
+        <p class="note">점검할 서버 하나에 노드 하나입니다. 이름은 영문 · 숫자 · . _ - 로 짓고, 등록하면 그 서버에 넣을 키가 나옵니다 (노드 화면에서 언제든 다시 볼 수 있음). 노드는 이름 없이 키만 보내고, SentinelAI 가 키로 어느 노드인지 찾습니다.</p>
+      </div>`;
+    $("node-form").addEventListener("submit", (e) => { e.preventDefault(); createNode($("node-name").value.trim()); });
+    return;
+  }
+  if (!N.selected) {
+    const list = N.list || [], count = (k) => list.filter((n) => nodeState(n)[0] === k).length;
+    panel.innerHTML = `<div class="panel-head"><h3>수집 노드</h3>${CLOSE_BTN}</div>
+      <div class="panel-body">
+        <div class="sec"><h4>${icon("activity", "sm")}상태</h4>${kvTable([["노드", `${list.length}대`], ["수집 중", `${count("on")}대`],
+          ["끊김", `${count("stale")}대`], ["꺼짐 · 키 없음 · 기다리는 중", `${count("off") + count("wait")}대`]])}</div>
+        <div class="sec"><h4>${icon("server", "sm")}노드 깔기</h4>
+          <p class="note">1. [노드 등록]으로 서버 이름을 넣고 키를 받습니다.<br>2. 그 서버에서 node/install.sh --server ${esc(location.origin)} --key &lt;키&gt;<br>
+          새 수집은 서버가 주기적으로 기준 문서와 비교해 검토 현황의 서버 점검에 올립니다.</p></div>
+      </div>`;
+    return;
+  }
+  const n = (N.list || []).find((x) => x.name === N.selected);
+  if (!n) { panel.innerHTML = `<div class="panel-head"><h3>수집 노드</h3>${CLOSE_BTN}</div><div class="panel-body"><div class="empty">없는 노드입니다.</div></div>`; return; }
+  const [cls, label, tip] = nodeState(n);
+  const finding = d && d.findings && d.findings[0];
+  const item = finding && queue().find((i) => i.itemKey === finding.key);
+  panel.innerHTML = `<div class="panel-head"><h3>수집 노드</h3>${CLOSE_BTN}</div>
+    <div class="panel-body">
+      <p class="subject">${esc(n.name)}</p>
+      <div class="rec-line"><span class="nstate ${cls}">${label}</span></div>
+      <div class="meta">${esc(tip)}</div>
+      <div class="sec"><h4>${icon("server", "sm")}노드</h4>${kvTable([["호스트", n.host], ["IP", n.ip], ["수집 간격", n.interval_min ? `${n.interval_min}분` : ""],
+        ["노드 버전", n.agent_version], ["등록", stamp(n.registered_at)], ["마지막 연락", stamp(n.last_seen_at)], ["마지막 수집", stamp(n.last_collected_at)]].filter(([, v]) => v))}
+        <div class="node-actions">
+          <button class="rerun" data-act="${n.enabled ? "off" : "on"}">${n.enabled ? "노드 끄기" : "노드 켜기"}</button>
+          <button class="rerun" data-act="key">${n.key_issued ? "키 다시 발급" : "키 발급"}</button>
+        </div>${panelMsg()}</div>
+      ${nodeKey(n, d)}
+      ${!d ? `<div class="empty">불러오는 중…</div>` : d.error ? `<p class="form-msg">${esc(d.error)}</p>` : `
+      <div class="sec"><h4>${icon("activity", "sm")}마지막 서버 점검</h4>${finding
+        ? `<div class="box"><i class="ldot ${esc(finding.level || "주의")}"></i>${esc(finding.failed ? "판정 실패" : finding.level)} · ${esc(stamp(finding.created_at))}<br>${esc(finding.summary)}</div>
+           ${item ? `<button class="rerun" id="to-finding">${icon("list", "sm")}검토 현황에서 보기</button>` : ""}`
+        : `<p class="note">${d.latest ? "다음 주기 점검을 기다리고 있습니다." : "아직 받은 수집이 없습니다."}</p>`}</div>
+      <div class="sec"><h4>${icon("list", "sm")}최근 수집</h4>${d.snapshots.length
+        ? kvTable(d.snapshots.map((x) => [stamp(x.collected_at), !x.changes.length ? "달라진 설정 없음"
+            : x.changes.slice(0, 4).join(" · ") + (x.changes.length > 4 ? ` 외 ${x.changes.length - 4}개` : "")]))
+        : `<p class="note">없음</p>`}</div>
+      ${d.latest ? moduleTables(d.latest) : ""}`}
+    </div>`;
+  panel.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", () => nodeAction(n.name, b.dataset.act)));
+  panel.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => copyText(b.dataset.copy, b)));
+  const to = $("to-finding");
+  if (to) to.addEventListener("click", () => select(item.key));
+}
+
+/* ── 로그 조회 — 거르기 · 세기는 코어가 합니다. 화면은 조건을 넘기고 받은 그대로 보여줍니다 ── */
+const PERIOD_LABEL = { day: "하루", week: "일주일", month: "한 달", quarter: "3개월", half: "6개월", year: "1년", all: "전체" };
+const LOG_FILTERS = [["user", "log-user", "전체 사용자", "users"], ["solution", "log-solution", "전체 솔루션", "solutions"], ["how", "log-how", "전체 행위", "how"]];
+let logsSeq = 0;
+
+// 늦게 온 응답이 새 조건의 결과를 덮지 않게 마지막 요청만 받습니다.
+async function loadLogs() {
+  const L = state.logs, seq = ++logsSeq;
+  L.loading = true;
+  renderLogs();
+  const params = new URLSearchParams({ period: L.period, page: L.page });
+  LOG_FILTERS.forEach(([k]) => { if (L[k]) params.set(k, L[k]); });
+  let data = null, error = "";
+  try { data = await getJSON(`/api/logs?${params}`); } catch (e) { error = e.message; }
+  if (seq !== logsSeq) return;
+  Object.assign(L, { data: data || L.data, error, loading: false, selected: null });
+  renderLogs();
+  if (state.mainTab === "logs") renderPanel();
+}
+
+// 다른 화면(로그 감시 판정)에서 조건을 정해 엽니다.
+function openLogs(cond) {
+  Object.assign(state.logs, { user: "", solution: "", how: "", page: 1 }, cond);
+  setMainTab("logs");
+  loadLogs();
+}
+
+const logAttrs = (e) => Object.entries(e.attributes || {}).map(([k, v]) => `${k}=${v}`).join(" · ");
+
+function renderLogs() {
+  const L = state.logs, d = L.data;
+  $("log-periods").innerHTML = Object.entries(PERIOD_LABEL).map(([k, label]) =>
+    `<button data-period="${k}" aria-pressed="${k === L.period}">${label}</button>`).join("");
+  LOG_FILTERS.forEach(([k, id, all, opt]) => {
+    // 고른 값이 로그에 없더라도(판정에서 넘어온 사용자 등) 칸에서 사라지지 않게 둡니다.
+    const values = [...((d && d.options[opt]) || [])];
+    if (L[k] && !values.includes(L[k])) values.unshift(L[k]);
+    $(id).innerHTML = `<option value="">${all}</option>` + values.map((v) => `<option${v === L[k] ? " selected" : ""}>${esc(v)}</option>`).join("");
+  });
+  $("log-count").textContent = L.loading ? "불러오는 중…" : d ? `${d.total.toLocaleString()}건` : "";
+  const rows = $("log-rows");
+  if (L.error) rows.innerHTML = `<tr><td colspan="6" class="empty">로그를 불러오지 못했습니다: ${esc(L.error)}</td></tr>`;
+  else if (!d) rows.innerHTML = `<tr><td colspan="6" class="empty">불러오는 중…</td></tr>`;
+  else if (!d.events.length) rows.innerHTML = `<tr><td colspan="6" class="empty">${esc(PERIOD_LABEL[d.period])} 안에 조건에 맞는 로그가 없습니다.</td></tr>`;
+  else rows.innerHTML = d.events.map((e, n) => `<tr data-n="${n}" tabindex="0" aria-current="${n === L.selected}">
+      <td class="when">${esc(stamp(e.occurred_at))}</td><td class="lwho">${esc(e.user)}</td><td class="col-sol">${esc(e.solution)}</td>
+      <td class="col-where">${esc(e.where)}</td><td class="col-how">${esc(e.how)}</td><td class="attrs">${esc(logAttrs(e))}</td></tr>`).join("");
+  const pages = d ? Math.max(1, Math.ceil(d.total / d.page_size)) : 1;
+  $("log-pager").innerHTML = d && pages > 1
+    ? `<button class="rerun" data-page="${L.page - 1}" ${L.page <= 1 ? "disabled" : ""}>이전</button><span>${L.page} / ${pages}쪽</span>
+       <button class="rerun" data-page="${L.page + 1}" ${L.page >= pages ? "disabled" : ""}>다음</button>`
+    : "";
+}
+
+$("log-periods").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-period]");
+  if (!b || b.dataset.period === state.logs.period) return;
+  Object.assign(state.logs, { period: b.dataset.period, page: 1 });
+  loadLogs();
+});
+LOG_FILTERS.forEach(([k, id]) => $(id).addEventListener("change", (e) => {
+  Object.assign(state.logs, { [k]: e.target.value, page: 1 });
+  loadLogs();
+}));
+$("log-pager").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-page]");
+  if (!b || b.disabled) return;
+  state.logs.page = Number(b.dataset.page);
+  loadLogs();
+  $("view-logs").scrollIntoView({ block: "start" });
+});
+function pickLog(tr) {
+  state.logs.selected = Number(tr.dataset.n);
+  renderLogs();
+  renderPanel();
+  openDrawer();
+}
+$("log-rows").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-n]"); if (tr) pickLog(tr); });
+$("log-rows").addEventListener("keydown", (e) => {
+  const tr = e.target.closest("tr[data-n]");
+  if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickLog(tr); }
+});
+
+// 패널: 고른 줄이 있으면 그 로그의 원본, 없으면 지금 조건의 집계. 숫자는 모두 코어가 센 값입니다.
+function renderLogsPanel() {
+  const L = state.logs, d = L.data, e = d && L.selected !== null ? d.events[L.selected] : null;
+  const panel = $("panel");
+  if (e) {
+    const fields = [["시각", stamp(e.occurred_at)], ["사용자", e.user], ["사용자 ID", e.user_id], ["솔루션", e.solution],
+      ["위치", e.where], ["행위", e.how], ["IP", e.source_ip], ...Object.entries(e.attributes || {})].filter(([, v]) => v);
+    panel.innerHTML = `<div class="panel-head"><h3>로그 원본</h3>${CLOSE_BTN}</div>
+      <div class="panel-body">
+        <p class="subject">${esc(e.user)}</p>
+        <div class="meta">${esc(stamp(e.occurred_at))} · ${esc(e.solution)}</div>
+        <div class="sec"><h4>${icon("list", "sm")}내용</h4>${kvTable(fields)}</div>
+        <div class="sec"><h4>${icon("file", "sm")}내보낸 행 그대로</h4>${kvTable(Object.entries(e.raw || {}))}</div>
+        <button class="rerun" id="log-back">${icon("activity", "sm")}집계로 돌아가기</button>
+      </div>`;
+    $("log-back").addEventListener("click", closePanel);
+    return;
+  }
+  const f = d && d.facts;
+  const cond = d ? [PERIOD_LABEL[d.period], ...Object.values(d.criteria)].join(" · ") : "";
+  const list = (obj, limit) => {
+    const rows = Object.entries(obj || {});
+    return rows.length ? kvTable(rows.slice(0, limit).map(([k, v]) => [k, `${v}건`])) + (rows.length > limit ? `<p class="note">상위 ${limit}개만 표시합니다.</p>` : "") : `<p class="note">없음</p>`;
+  };
+  panel.innerHTML = `<div class="panel-head"><h3>조회 집계</h3>${CLOSE_BTN}</div>
+    <div class="panel-body">${!f ? `<div class="empty">${L.error ? esc(L.error) : "불러오는 중…"}</div>` : `
+      <p class="subject">${esc(cond)}</p>
+      <div class="meta">${esc(stamp(d.since) || "처음")} ~ ${esc(stamp(d.until))}</div>
+      <div class="sec"><h4>${icon("activity", "sm")}합계</h4>${kvTable([["해당 로그", `${f.count.toLocaleString()}건`],
+        ...(f.count ? [["처음 · 마지막", `${stamp(f.first)} ~ ${stamp(f.last)}`]] : []),
+        ...Object.entries(f.attribute_totals).map(([k, v]) => [`${k} 합계`, String(v)])])}</div>
+      <div class="sec"><h4>${icon("users", "sm")}사용자별</h4>${list(f.by_user, 20)}</div>
+      <div class="sec"><h4>${icon("list", "sm")}날짜별 (많은 순)</h4>${list(f.by_day, 14)}</div>
+      <p class="note">숫자는 코어가 로그에서 직접 센 값입니다. 목록에서 줄을 고르면 그 로그의 원본을 봅니다.</p>`}
+    </div>`;
+}
 
 /* ── 보기 전환 · 필터 · 검색 ─────────────── */
 function setMainTab(tab) {
-  const panelChanges = (state.mainTab === "ask") !== (tab === "ask");
+  const panelChanges = state.mainTab !== tab;
   // 탭을 떠나면 열어 둔 인용 조항도 닫습니다. 패널은 그 탭의 것입니다.
   if (panelChanges && state.askSource) {
     state.askSource = null;
@@ -1440,11 +2056,15 @@ function setMainTab(tab) {
   document.querySelectorAll(".main-tab").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === tab));
   $("view-queue").hidden = tab !== "queue";
   $("view-ask").hidden = tab !== "ask";
+  $("view-logs").hidden = tab !== "logs";
+  $("view-nodes").hidden = tab !== "nodes";
   renderFooter();
   document.querySelector(".workspace").dataset.tab = tab;
   syncCite();
   if (panelChanges) renderPanel();
   if (tab === "ask") $("ask-input").focus();
+  if (tab === "logs" && !state.logs.data && !state.logs.loading) loadLogs();
+  if (tab === "nodes") loadNodes();
 }
 
 document.querySelectorAll(".main-tab").forEach((b) => b.addEventListener("click", () => setMainTab(b.dataset.tab)));
@@ -1461,7 +2081,9 @@ function setView(view) {
   $("req-form").hidden = view !== "mine";
   $("stage-filter").hidden = view !== "requests";
   $("add-user").hidden = view !== "users";
-  if (!meta.tabs.includes(state.mainTab)) setMainTab("queue");
+  $("add-access").hidden = view !== "access";
+  if (view === "mine") renderAccessSelect();
+  if (!meta.tabs.includes(state.mainTab)) setMainTab(meta.tabs[0]);
   if (changed) { state.filter = "전체"; state.panelMsg = ""; }
   // 패널도 메뉴를 따릅니다. 다른 메뉴의 항목이 남아 있으면 이 메뉴의 첫 항목으로 바꿉니다.
   const current = queue().find((i) => i.key === state.selected);
@@ -1503,6 +2125,14 @@ $("stage-filter").addEventListener("change", (e) => {
   state.stageFilter = e.target.value;
   setView(state.view);
 });
+$("add-access").addEventListener("click", () => {
+  state.selected = null;
+  state.panelMsg = "";
+  renderRows();
+  renderPanel();
+  openDrawer();
+});
+$("req-access").addEventListener("change", renderAccessNote);
 $("add-user").addEventListener("click", () => {
   state.selected = null;
   state.panelMsg = "";
@@ -1552,6 +2182,16 @@ function closeDrawer() {
 // 정책 질의 탭에서 닫으면 넓은 화면에서도 인용 조항 패널을 접습니다.
 function closePanel() {
   closeDrawer();
+  if (state.mainTab === "nodes" && (state.nodes.selected || state.nodes.adding)) {
+    Object.assign(state.nodes, { selected: null, detail: null, adding: false });
+    renderNodes();
+    renderPanel();
+  }
+  if (state.mainTab === "logs" && state.logs.selected !== null) {
+    state.logs.selected = null;
+    renderLogs();
+    renderPanel();
+  }
   if (state.mainTab === "ask" && state.askSource) {
     state.askSource = null;
     renderAsk();
@@ -1567,14 +2207,14 @@ narrow.addEventListener("change", (e) => { if (!e.matches) closeDrawer(); });
 
 function renderFooter() {
   // 계산 시각 · 분석 경고는 정책 관리 · 로그 감시 결과의 것이라 그 메뉴에서만 보입니다.
-  $("foot").hidden = state.mainTab === "ask" || !RESULT_VIEWS.has(state.view);
+  $("foot").hidden = state.mainTab !== "queue" || !RESULT_VIEWS.has(state.view);
   if ($("foot").hidden) return;
   const r = state.results, s = r.summary;
   // 판정 실패 · 읽지 못한 행 · 작업 실패는 문제가 있을 때만 알립니다.
   const warns = [];
   if (s.failed) warns.push(`판정 실패 ${s.failed}건 — 해당 건은 '주의'로 기록되었습니다. 수동 검토가 필요합니다`);
   Object.entries(r.sections || {}).forEach(([name, sec]) => {
-    if (sec && sec.load_issues.length) warns.push(`${sec.source}에서 읽지 못한 행 ${sec.load_issues.length}건`);
+    if (sec && sec.load_issues.length) warns.push(`${sec.source} 읽기 문제 ${sec.load_issues.length}건 — ${sec.load_issues[0]}`);
   });
   Object.entries((state.jobs && state.jobs.last) || {}).forEach(([kind, last]) => {
     if (last.error) warns.push(`${state.jobs.kinds[kind]} 실패 — ${last.error}`);
@@ -1584,7 +2224,7 @@ function renderFooter() {
 }
 
 function renderAll() {
-  renderTop(); renderStats(); renderRun(); renderRows(); renderAskExamples(); renderAsk(); renderPanel(); renderFooter();
+  renderTop(); renderStats(); renderRun(); renderRows(); renderAskExamples(); renderAsk(); renderLogs(); renderPanel(); renderFooter();
 }
 
 /* ── 로그인 · 비밀번호 · 로그아웃 ───────────── */
@@ -1640,8 +2280,9 @@ $("new-request").addEventListener("submit", async (e) => {
   try {
     const made = await send("/api/requests", Object.fromEntries(new FormData(f)));
     f.reset();
+    renderAccessNote();
     $("req-form-msg").className = "form-msg ok";
-    $("req-form-msg").textContent = `${made.request_no} 신청했습니다. 중간관리자의 1차 결재를 기다립니다.`;
+    $("req-form-msg").textContent = `${made.request_no} 신청했습니다. 보안 운영자의 1차 결재를 기다립니다.`;
     state.selected = `mine:${made.request_no}`;
     await refreshRequests();
   } catch (err) {
@@ -1717,8 +2358,10 @@ async function boot() {
   if (state.me.must_change_password) { showPassword(true); return; }
   $("who").hidden = false;
   $("who-name").textContent = `${state.me.display_name} · ${ROLE_LABEL[state.me.role]}${state.me.is_root ? " (루트)" : ""}`;
+  // 메뉴가 하나뿐인 일반 사용자는 사이드바 없이 신청 화면만 씁니다.
+  document.body.classList.toggle("solo", roleViews().length < 2);
   buildNav();
-  await loadData();
+  await Promise.all([loadData(), loadAsks()]);
   const views = roleViews();
   setView(views[0]);
   renderAll();
