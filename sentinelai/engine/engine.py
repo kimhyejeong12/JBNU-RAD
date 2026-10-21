@@ -211,6 +211,12 @@ class Engine:
     def log_answer_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         return pipeline.log_answer_chain(self, *args, **kwargs)
 
+    def server_filter_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        return pipeline.server_filter_chain(self, *args, **kwargs)
+
+    def server_answer_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        return pipeline.server_answer_chain(self, *args, **kwargs)
+
     def answer_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         return pipeline.answer_chain(self, *args, **kwargs)
 
@@ -305,6 +311,28 @@ class Engine:
         result = pipeline.ask_logs(self, self.settings.events_source, question)
         results.save_qa(self.results_db, "logs", question, result, self.settings.qa_model, user)
         return result
+
+    def ask_servers(self, question: str, user: User) -> dict[str, Any]:
+        """서버 질의 — 조건(모델) → 수집 · 서버 점검 기록을 고르고 세기(코드) → 답(모델). 질의 기록에 남깁니다."""
+        registry = nodes.list_nodes(self.main_db)
+        result = pipeline.ask_servers(self, registry, lambda names, since, until: self._server_records(registry, names, since, until),
+                                      question)
+        results.save_qa(self.results_db, "servers", question, result, self.settings.qa_model, user)
+        return result
+
+    def _server_records(self, registry: list[dict[str, Any]], names: list[str], since: str | None,
+                        until: str | None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """서버 질의의 근거 — 노드별 지금 상태(가장 늦은 수집 · 마지막 판정)와 기간 안 수집 · 판정 기록."""
+        findings = {f["node"]: f for f in results.latest_node_findings(self.results_db)}
+        current = []
+        for n in (n for n in registry if n["name"] in names):
+            snap = results.latest_snapshot(self.results_db, n["name"])
+            status = ("꺼짐" if not n["enabled"] else "끊김" if nodes.is_stale(n)
+                      else "수집 중" if n["last_seen_at"] else "키 없음" if not n["key_issued"] else "기다리는 중")
+            current.append({"node": n["name"], "host": (snap or n)["host"], "ip": (snap or n)["ip"], "status": status,
+                            "collected_at": snap["collected_at"] if snap else "", "modules": snap["modules"] if snap else {},
+                            "finding": findings.get(n["name"])})
+        return current, results.server_history(self.results_db, names, since, until)
 
     def browse_logs(self, user: User, period: str, who: str = "", solution: str = "", how: str = "", page: int = 1,
                     ip: str | None = None) -> dict[str, Any]:

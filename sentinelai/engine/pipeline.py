@@ -5,6 +5,7 @@
 데이터 계층은 엔진을 모릅니다. 둘을 잇는 일은 여기에만 둡니다.
 
     정책 이해: review_chain(권한 신청) · policy_chain(정책 모순) · server_chain(서버 점검) · answer_chain · rag_chain(질의응답)
+    서버 질의: server_filter_chain · server_answer_chain (수집 · 서버 점검 기록으로 답함)
     로그 감시: event_chain(로그 ↔ 정책) · log_filter_chain · log_answer_chain(로그 질의)
 """
 from __future__ import annotations
@@ -35,6 +36,7 @@ from ..data import (
     parse_datetime,
     period_since,
     search,
+    server_digest,
     server_review_input,
     snapshot_changes,
     snapshot_from_payload,
@@ -44,7 +46,7 @@ from ..data import (
 )
 from .prompt import Prompts
 from .rag import IndexReport, lookup, lookup_all
-from .types import Answer, LogFilter, PolicyReview, ServerReview, Verdict
+from .types import Answer, LogFilter, PolicyReview, ServerFilter, ServerReview, Verdict
 
 if TYPE_CHECKING:
     from .engine import Engine
@@ -107,6 +109,16 @@ def log_filter_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], 
 def log_answer_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
     """조건 · 집계 · 로그 → 답변 문자열. 입력: question, criteria, facts, lines"""
     return engine.chain(Prompts.LOG_ANSWER, None, **{"llm": engine.qa_llm, **kwargs})
+
+
+def server_filter_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+    """질문 → ServerFilter. 입력: question, vocabulary(등록된 노드 · 모듈), now(현재 시각 UTC)"""
+    return engine.chain(Prompts.SERVER_FILTER, ServerFilter, **{"llm": engine.qa_llm, **kwargs})
+
+
+def server_answer_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+    """조건 · 노드 상태 · 집계 · 기록 → 답변 문자열. 입력: question, criteria, state, facts, lines"""
+    return engine.chain(Prompts.SERVER_ANSWER, None, **{"llm": engine.qa_llm, **kwargs})
 
 
 def answer_chain(engine: Engine, structured: bool = False, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
@@ -383,6 +395,71 @@ def ask_logs(engine: Engine, source: Any, question: str, now: datetime | None = 
         "criteria": json.dumps(criteria, ensure_ascii=False) if criteria else "조건 없음 (전체 로그)",
         "facts": json.dumps(facts, ensure_ascii=False),
         "lines": "\n".join(lines) or "해당 로그 없음",
+    }))
+    result["answer"] = answer.strip() if answer is not None else f"답변 실패: {error}"
+    return done(error)
+
+
+# --- 서버 질의 ------------------------------------------------------------------
+# 서버 상태는 RAG 로 찾지 않습니다 (기준 문서에는 서버의 지금 상태가 없습니다). 로그 질의처럼 모델이 조건을 뽑고,
+# 코드가 수집 · 서버 점검 기록을 골라 세고(server_digest), 모델은 그 결과로 답만 씁니다.
+
+MODULE_HINTS = {"UFW": "방화벽", "SSH": "원격 접속 sshd 설정", "PAM": "로그인 · 비밀번호 인증", "계정 · sudo": "관리자 계정 · sudo 권한"}
+SERVER_LINES = 60
+
+
+def ask_servers(engine: Engine, registry: list[dict[str, Any]],
+                fetch: Callable[[list[str], str | None, str | None], tuple[list[dict[str, Any]], dict[str, Any]]],
+                question: str, now: datetime | None = None) -> dict[str, Any]:
+    """서버 질의 — 질문 → 조건(모델) → 고르고 세기(코드) → 답변(모델).
+
+    registry = 등록된 노드(db.nodes.list_nodes), fetch(노드 이름들, since, until) → (노드별 지금 상태, 기간 안 기록).
+    DB 는 Engine 이 읽어 fetch 로 넘깁니다 (pipeline 은 저장소를 모릅니다).
+    """
+    started = time.time()
+    now = now or datetime.now(timezone.utc)
+    result: dict[str, Any] = {"question": question, "criteria": {}, "facts": None, "evidence": [], "answer": "", "sources": []}
+
+    def done(error: str | None) -> dict[str, Any]:
+        return {**result, "failed": error is not None, "error": error, "elapsed_sec": round(time.time() - started, 1)}
+
+    vocab = {"노드": [{"이름": n["name"], "호스트": n["host"], "IP": n["ip"]} for n in registry],
+             "모듈": [f"{label} ({MODULE_HINTS[label]})" for label in MODULE_HINTS]}
+    server_filter, error, _ = attempt(lambda: engine.server_filter_chain().invoke({
+        "question": question, "vocabulary": json.dumps(vocab, ensure_ascii=False),
+        "now": f"{now.isoformat(timespec='seconds')} (UTC) = {now.astimezone():%Y-%m-%d %H:%M} {now.astimezone().tzname()} (한국 시간)",
+    }))
+    if server_filter is None:
+        result["answer"] = f"질문을 조건으로 바꾸지 못했습니다: {error}"
+        return done(error)
+
+    criteria = {k: v.strip() for k, v in server_filter.model_dump().items() if v.strip()}
+    try:
+        since = parse_datetime(criteria["since"]).isoformat() if "since" in criteria else None
+        until = parse_datetime(criteria["until"]).isoformat() if "until" in criteria else None
+    except ValueError as exc:  # 모델이 시각을 잘못 적으면 기간 없이 찾지 않고 실패로 알립니다.
+        result.update(criteria=criteria, answer=f"기간을 읽지 못했습니다: {exc}")
+        return done(str(exc))
+    known = {n["name"] for n in registry}
+    asked = [x.strip() for x in criteria.get("nodes", "").split(",") if x.strip()]
+    # 모르는 노드 이름은 비슷한 노드로 바꾸지 않습니다. 그 이름만 물었으면 고른 노드가 없어 "없다"고 답하게 됩니다.
+    names = [x for x in asked if x in known] if asked else sorted(known)
+    # 모델이 모듈 설명까지 옮겨 적거나 목록을 통째로 적기도 합니다. 모듈 이름이 하나만 들어 있으면 그것으로, 여럿이면 모든 모듈로 봅니다.
+    named = [label for label, hint in MODULE_HINTS.items() if label in criteria.get("module", "") or hint in criteria.get("module", "")]
+    module = named[0] if len(named) == 1 else "" if named else criteria.get("module", "")
+    if "module" in criteria:
+        criteria["module"] = module or "모든 모듈"
+    current, history = fetch(names, since, until)
+    digest = server_digest(current, history, module)
+    lines = digest["lines"][-SERVER_LINES:]
+    result.update(criteria=criteria, facts=digest["facts"], evidence=lines)
+
+    answer, error, _ = attempt(lambda: engine.server_answer_chain().invoke({
+        "question": question,
+        "criteria": json.dumps(criteria, ensure_ascii=False) if criteria else "조건 없음 (모든 서버 · 지금 상태와 전체 기록)",
+        "state": "\n\n".join(digest["state"]) or "해당 서버 없음",
+        "facts": json.dumps(digest["facts"], ensure_ascii=False),
+        "lines": "\n".join(lines) or "해당 기록 없음",
     }))
     result["answer"] = answer.strip() if answer is not None else f"답변 실패: {error}"
     return done(error)

@@ -56,6 +56,15 @@ class LogFilter(BaseModel):
     until: str = Field("", description="이 시각까지, ISO 8601 UTC")
 
 
+class ServerFilter(BaseModel):
+    """서버 질의에서 뽑은 조건. 언급되지 않은 조건은 빈 문자열입니다."""
+
+    nodes: str = Field("", description="노드 이름. 여럿이면 쉼표로 (예: web-01, db-02). 모든 서버면 빈 문자열")
+    module: str = Field("", description="모듈 하나 (UFW · SSH · PAM · 계정 · sudo 중). 모든 모듈이면 빈 문자열")
+    since: str = Field("", description="이 시각 이후, ISO 8601 UTC (예: 2026-10-05T00:00:00Z)")
+    until: str = Field("", description="이 시각까지, ISO 8601 UTC")
+
+
 class PolicyIssue(BaseModel):
     """정책 목록에서 발견된 문제 한 건."""
 

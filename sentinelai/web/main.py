@@ -114,6 +114,12 @@ def ask_logs(body: AskRequest, request: Request, user: Approver) -> dict[str, An
     return _engine(request).ask_logs(body.question, user)
 
 
+@app.post("/api/ask-servers")
+def ask_servers(body: AskRequest, request: Request, user: Approver) -> dict[str, Any]:
+    """서버 질의. 서버 상태는 RAG 로 찾지 않고 코어가 수집 · 서버 점검 기록을 골라 셉니다. 질의 기록에 남깁니다."""
+    return _engine(request).ask_servers(body.question, user)
+
+
 Filter = Annotated[str, Query(max_length=200)]
 
 

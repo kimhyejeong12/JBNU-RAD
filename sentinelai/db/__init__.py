@@ -24,7 +24,7 @@ def open_main_db(path: str) -> Database:
 
 def open_results_db(path: str) -> Database:
     """AI 결과 DB. 처음이면 스키마를 만듭니다."""
-    db = Database(path, "results_schema.sql", "results_servers.sql", "results_server_gaps.sql", "results_server_snapshots.sql", "results_nodes.sql")
+    db = Database(path, "results_schema.sql", "results_servers.sql", "results_server_gaps.sql", "results_server_snapshots.sql", "results_nodes.sql", "results_qa_servers.sql")
     db.init()
     return db
 

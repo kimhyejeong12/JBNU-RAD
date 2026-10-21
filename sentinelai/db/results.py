@@ -185,6 +185,28 @@ def node_history(db: Database, node: str, limit: int = 20) -> dict[str, Any]:
     }
 
 
+def server_history(db: Database, nodes: list[str], since: str | None = None, until: str | None = None) -> dict[str, Any]:
+    """서버 질의 — 고른 노드들의 기간 안 수집(바뀐 것) · 판정 기록, 오래된 것부터. 기간이 없으면 처음부터 끝까지입니다."""
+    if not nodes:
+        return {"snapshots": [], "findings": []}
+    marks = ",".join("?" * len(nodes))
+    where, args = f"node IN ({marks})", list(nodes)
+    if since:
+        where += " AND {at} >= ?"; args.append(_utc(since))
+    if until:
+        where += " AND {at} <= ?"; args.append(_utc(until))
+    with db.connection() as conn:
+        snaps = conn.execute(f"SELECT node, collected_at, changes FROM server_snapshots WHERE {where.format(at='collected_at')}"
+                             " ORDER BY collected_at", args).fetchall()
+        findings = conn.execute(f"SELECT id, node, level, failed, summary, gaps, created_at FROM node_findings"
+                                f" WHERE {where.format(at='created_at')} ORDER BY created_at", args).fetchall()
+    return {
+        "snapshots": [{"node": r["node"], "collected_at": r["collected_at"], "changes": json.loads(r["changes"])} for r in snaps],
+        "findings": [{"node": r["node"], "level": r["level"], "failed": bool(r["failed"]), "summary": r["summary"],
+                      "gaps": json.loads(r["gaps"]), "created_at": r["created_at"]} for r in findings],
+    }
+
+
 # --- 로그 감시 ---------------------------------------------------------------
 
 
@@ -241,7 +263,7 @@ def monitor_findings(db: Database) -> dict[str, Any] | None:
 
 # --- 질의 기록 ---------------------------------------------------------------
 
-QA_KINDS = ("policy", "logs")
+QA_KINDS = ("policy", "logs", "servers")
 
 
 def save_qa(db: Database, kind: str, question: str, result: dict[str, Any], model: str, asker: User) -> int:

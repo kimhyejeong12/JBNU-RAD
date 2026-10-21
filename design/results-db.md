@@ -43,7 +43,7 @@ SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
 policy_reviews ── policy_issues        (정책 관리 검토 1회 ── 문제 n건)
                └─ server_findings      (            ── 서버 점검 n건, results_servers.sql)
 monitor_runs   ── event_findings       (로그 감시 1회 ── 사용자별 판정 n건)
-qa_records                             (정책 질의 · 로그 질의)
+qa_records                             (정책 질의 · 서버 질의 · 로그 질의)
 ```
 
 ### `policy_reviews` — 정책 관리 검토 1회 = 1행
@@ -118,7 +118,7 @@ qa_records                             (정책 질의 · 로그 질의)
 ### `qa_records` — 질의 1건 = 1행
 | 칸 | 설명 |
 |---|---|
-| `kind` | `policy`(정책 질의 · `rag_chain`) · `logs`(로그 질의 · `ask_logs`) |
+| `kind` | `policy`(정책 질의 · `rag_chain`) · `servers`(서버 질의 · `ask_servers`, 10/21 `results_qa_servers.sql` — CHECK 를 바꾸려고 표를 다시 만들었다) · `logs`(로그 질의 · `ask_logs`) |
 | `question` · `answer` | 질문 · 답 |
 | `sources` | 정책 질의의 근거 (JSON) |
 | `criteria` · `facts` · `evidence` | 로그 질의의 조건 · 집계 · 근거 로그 줄 (JSON). 숫자가 집계와 맞는지 나중에 검증할 재료 (§8-7 할루시네이션 검증) |
@@ -136,7 +136,7 @@ qa_records                             (정책 질의 · 로그 질의)
 | `pipeline.ResultStore(results_path)` | `db.results` — `save_policy_review` · `save_monitor_run` · `next_monitor_since` · `latest_policy_review` · `monitor_findings` · `save_qa` · `my_qa` |
 | `store.put("policies", …)` · `store.add_events(…)` | 위 함수. CLI · 웹 작업이 같은 함수를 부른다 |
 | `view.results(store.load())` | `view.results(latest_policy_review, monitor_findings)` — 화면 응답 모양은 그대로, key만 바뀐다 (`requests` 구역은 빠졌다) |
-| `/api/ask` · `/api/ask-logs` | 답한 뒤 `qa_records`에 남긴다 |
+| `/api/ask` · `/api/ask-servers` · `/api/ask-logs` | 답한 뒤 `qa_records`에 남긴다 |
 | — | `GET /api/qa?kind=` — 내 질의 기록 (§5-1) |
 
 ---

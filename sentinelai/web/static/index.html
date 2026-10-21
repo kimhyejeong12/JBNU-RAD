@@ -628,6 +628,8 @@ const VIEWS = {
               tabs: ["queue"], cols: ["번호", "신청자", "신청 권한", "신청 시각", "AI 판정"], search: "신청 번호 · 신청자 · 권한으로 검색" },
   policies: { title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리|솔루션 정책의 중복 · 충돌 · 과도한 허용과 수집 노드의 서버 점검",
               tabs: ["queue", "nodes", "ask"], cols: ["분류", "대상", "상세 내용", "시간", "AI 판정"], search: "정책 ID · 서버 · 내용으로 검색" },
+  qa: { title: "정책 질의", label: "정책 질의", icon: "chat", tip: "정책 질의|사내 기준 문서와 솔루션 정책에 대해 묻고 답을 받습니다",
+        tabs: ["ask"], cols: [], search: "" },
   events: { title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시|서버가 자동으로 돌린 로그 감시 판정 중 주의 · 위험",
             tabs: ["queue", "logs", "ask"], cols: ["분류", "대상 사용자", "상세 내용", "시간", "AI 판정"], search: "사용자 · 내용으로 검색" },
   mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청|권한을 신청하고 결재 상태를 봅니다",
@@ -638,7 +640,7 @@ const VIEWS = {
             tabs: ["queue"], cols: ["시스템", "권한 (코드)", "분류 · 설명", "고친 시각", "상태"], search: "권한 이름 · 코드 · 시스템으로 검색" },
 };
 // 보안 총책임자는 보안 운영자와 같은 메뉴에 권한 목록 · 계정 관리를 더합니다.
-const ROLE_VIEWS = { user: ["mine"], manager: ["requests", "policies", "events"], top: ["requests", "policies", "events", "access", "users"] };
+const ROLE_VIEWS = { user: ["mine"], manager: ["requests", "policies", "events", "qa"], top: ["requests", "policies", "events", "qa", "access", "users"] };
 const roleViews = () => (state.me ? ROLE_VIEWS[state.me.role] : []);
 const RESULT_VIEWS = new Set(["policies", "events"]);
 const LEVEL_VIEWS = new Set(["requests", "policies", "events"]);
@@ -654,6 +656,16 @@ const ASK = {
       "개발팀 사원이 운영 DB 관리자 권한을 받아도 돼?",
     ],
   },
+  server: {
+    label: "서버 질의", url: "/api/ask-servers", placeholder: "수집 노드 서버의 지금 상태 · 바뀐 설정 · 서버 점검 결과를 물어보세요",
+    empty: "수집 노드가 보낸 기록과 서버 점검 판정을 조건에 맞춰 골라서 답합니다.",
+    note: "AI는 수집 기록과 서버 점검 판정으로만 답합니다. 건수는 기록에서 직접 셉니다. 정책 위반 여부는 새로 판단하지 않습니다 (검토 현황의 서버 점검을 보세요).",
+    examples: [
+      "지금 방화벽에 문제가 있는 서버는?",
+      "어제부터 설정이 바뀐 서버가 있어?",
+      "SSH 루트 로그인이 열려 있는 서버는?",
+    ],
+  },
   log: {
     label: "로그 질의", url: "/api/ask-logs", placeholder: "보안 솔루션 로그에 대해 질문하세요",
     empty: "보안 솔루션 로그를 조건에 맞춰 찾고 세어서 답합니다.",
@@ -665,7 +677,7 @@ const ASK = {
     ],
   },
 };
-const CRITERIA_LABEL = { user: "사용자", department: "부서", solution: "솔루션", where: "위치", how: "행위", keyword: "항목", since: "부터", until: "까지" };
+const CRITERIA_LABEL = { nodes: "노드", module: "모듈", user: "사용자", department: "부서", solution: "솔루션", where: "위치", how: "행위", keyword: "항목", since: "부터", until: "까지" };
 // 화면에는 등급 단어만 쓰고, 등급에서 나오는 권고 문구와 기준은 툴팁에만 둡니다.
 const LEVEL_TIP = {
   "정상": "승인 권고|기준 문서에 부합 — AI가 승인을 권고합니다",
@@ -693,7 +705,7 @@ const state = {
   expanded: new Set(),  // 펼친 근거 칩
   panelMsg: "",         // 패널 동작 결과 (오류 · 완료)
   jobs: null,           // /api/jobs — 돌고 있는 분석 작업
-  asks: { policy: [], log: [] },   // 내 질의 기록 — 로그인할 때 AI 결과 DB에서 받고, 새 질의는 서버가 남깁니다
+  asks: { policy: [], server: [], log: [] },   // 내 질의 기록 — 로그인할 때 AI 결과 DB에서 받고, 새 질의는 서버가 남깁니다
   askSource: null,      // 패널에 띄운 인용 조항 { i: 질의 순번, n: sources 순번 }
   // 로그 조회 — 조건 · 받은 결과(/api/logs) · 패널에 띄운 줄(없으면 집계)
   // 수집 노드 — 목록(/api/nodes) · 고른 노드 · 그 노드의 자세한 기록(/api/nodes/{이름})
@@ -907,13 +919,14 @@ function renderStats() {
   }));
   const saved = state.view;
   const n = {};
-  roleViews().forEach((v) => { state.view = v; n[v] = queue().filter(inView).length; });
+  // 질의 메뉴처럼 목록이 없는 메뉴는 건수를 달지 않습니다.
+  roleViews().filter((v) => VIEWS[v].tabs.includes("queue")).forEach((v) => { state.view = v; n[v] = queue().filter(inView).length; });
   state.view = saved;
   document.querySelectorAll("[data-count]").forEach((el) => { el.textContent = n[el.dataset.count] ?? ""; });
   // 넓은 화면에는 세그먼트가 없으므로 건수를 사이드바 툴팁 제목에 붙입니다.
   document.querySelectorAll(".nav[data-view]").forEach((b) => {
     const [title, desc] = VIEWS[b.dataset.view].tip.split("|");
-    b.dataset.tip = `${title} — ${n[b.dataset.view]}건|${desc}`;
+    b.dataset.tip = b.dataset.view in n ? `${title} — ${n[b.dataset.view]}건|${desc}` : VIEWS[b.dataset.view].tip;
   });
 }
 
@@ -1483,7 +1496,8 @@ setInterval(async () => {
 }, 3000);
 
 /* ── 질의 — 정책 질의(Answer)도 로그 질의도 등급이 없으므로 등급 배지를 달지 않습니다 ── */
-const askMode = () => (state.view === "events" ? "log" : "policy");
+// 질의는 메뉴의 기능입니다 — 정책 질의 메뉴는 기준 문서, 정책 관리는 수집 노드 서버, 로그 감시는 로그에 묻습니다.
+const askMode = () => ({ events: "log", policies: "server" }[state.view] || "policy");
 const asks = () => state.asks[askMode()];
 
 function askWaitLabel(m) {
@@ -1508,7 +1522,7 @@ function renderAsk() {
     if (m.started) body = `<div class="box wait" id="ask-wait">${askWaitLabel(m)}</div>`;
     else if (m.failed) body = `<div class="box fail">${esc(m.answer)}</div>`;
     else body = `<div class="box">${esc(m.answer)}</div>`;
-    const src = m.started || m.failed ? "" : mode === "log" ? logEvidence(m, i) : `
+    const src = m.started || m.failed ? "" : mode === "log" ? logEvidence(m, i) : mode === "server" ? serverEvidence(m, i) : `
       <div class="sec"><h4>${icon("db", "sm")}근거 조항</h4>
         ${(m.sources || []).length
           ? `<div class="chips">${m.sources.map((s, n) => {
@@ -1546,6 +1560,38 @@ function logEvidence(m, i) {
   </div>`;
 }
 
+// 서버 질의의 근거도 코어가 조건으로 고른 수집 · 서버 점검 기록입니다.
+function serverEvidence(m, i) {
+  const on = !!state.askSource && state.askSource.i === i;
+  const nodes = m.facts ? m.facts["노드 수"] : 0;
+  return `<div class="sec"><h4>${icon("db", "sm")}근거 기록</h4>
+    <p class="note">조건: ${esc(criteriaText(m.criteria).replace("전체 로그", "모든 서버 · 전체 기록"))}</p>
+    ${nodes
+      ? `<div class="chips"><button class="chip" data-src="${i}:0" aria-pressed="${on}" aria-controls="panel">${icon("server", "sm")}<span>서버 ${nodes}대 · 기록 ${m.evidence.length}줄</span><span class="open">${on ? "표시 중" : "기록 보기"}</span></button></div>`
+      : `<p class="note">조건에 맞는 서버가 없습니다.</p>`}
+  </div>`;
+}
+
+function renderServerAskPanel(m, i) {
+  const f = m.facts;
+  const levels = Object.entries(f["마지막 판정 등급별 노드 수"] || {}).map(([k, n]) => `${k} ${n}`).join(" · ") || "—";
+  const nodes = Object.entries(f["노드별"] || {}).map(([node, r]) => {
+    const judged = Object.entries(r["판정"]).map(([k, n]) => `${k} ${n}`).join(" · ") || "판정 없음";
+    return [node, `수집 ${r["수집"]} · 바뀐 설정 ${r["바뀐 설정"]} · 서버 점검 ${judged}`];
+  });
+  $("panel").innerHTML = `<div class="panel-head"><h3>근거 기록</h3>${CLOSE_BTN}</div>
+    <div class="panel-body">
+      <p class="subject">${esc(criteriaText(m.criteria).replace("전체 로그", "모든 서버 · 전체 기록"))}</p>
+      <div class="meta">Q${i + 1} · ${esc(m.q)}</div>
+      <div class="sec"><h4>${icon("activity", "sm")}집계</h4>${kvTable([
+        ["서버", `${f["노드 수"]}대`], ["마지막 판정", levels],
+        ["기간 안 수집", f["기간 안 첫 수집"] ? `${stamp(f["기간 안 첫 수집"])} ~ ${stamp(f["기간 안 마지막 수집"])}` : "없음"], ...nodes])}</div>
+      <div class="sec"><h4>${icon("file", "sm")}바뀐 설정 · 서버 점검 기록</h4>${m.evidence.length
+        ? `<div class="box pre">${esc(m.evidence.join("\n"))}</div>` : `<p class="note">기간 안에 바뀐 설정 · 서버 점검이 없습니다.</p>`}</div>
+      <p class="note">숫자는 코어가 수집 · 서버 점검 기록에서 직접 센 값입니다. 서버마다 지금 상태는 정책 관리 → [노드]에서 봅니다.</p>
+    </div>`;
+}
+
 // 인용 조항 패널은 열어 둔 근거가 있을 때만 자리를 차지합니다.
 function syncCite() {
   document.querySelector(".workspace").classList.toggle("cite", state.mainTab === "ask" && !!state.askSource);
@@ -1555,6 +1601,7 @@ function renderAskPanel() {
   const sel = state.askSource;
   const m = sel && asks()[sel.i];
   if (m && askMode() === "log") { renderLogPanel(m, sel.i); return; }
+  if (m && askMode() === "server") { renderServerAskPanel(m, sel.i); return; }
   const source = m && m.sources[sel.n];
   $("panel").innerHTML = `<div class="panel-head"><h3>인용 조항 원문</h3>${CLOSE_BTN}</div>
     <div class="panel-body">${source
@@ -1594,13 +1641,13 @@ async function ask(text) {
   }));
 }
 
-// 질의 기록은 내 것만 옵니다. 메뉴마다 따로라 정책 질의 · 로그 질의를 나눠 받습니다.
+// 질의 기록은 내 것만 옵니다. 메뉴마다 따로라 정책 질의 · 서버 질의 · 로그 질의를 나눠 받습니다.
 async function loadAsks() {
-  state.asks = { policy: [], log: [] };
+  state.asks = { policy: [], server: [], log: [] };
   if (!roleViews().some((v) => RESULT_VIEWS.has(v))) return;
   const toItem = (r) => ({ q: r.question, answer: r.answer, sources: r.sources, criteria: r.criteria, facts: r.facts, evidence: r.evidence, failed: r.failed });
-  const [policy, logs] = await Promise.all([getJSON("/api/qa?kind=policy"), getJSON("/api/qa?kind=logs")]);
-  state.asks = { policy: policy.map(toItem), log: logs.map(toItem) };
+  const [policy, servers, logs] = await Promise.all(["policy", "servers", "logs"].map((k) => getJSON(`/api/qa?kind=${k}`)));
+  state.asks = { policy: policy.map(toItem), server: servers.map(toItem), log: logs.map(toItem) };
 }
 
 async function runAsk(q, fetchAnswer) {
@@ -2036,7 +2083,7 @@ function setView(view) {
   $("add-user").hidden = view !== "users";
   $("add-access").hidden = view !== "access";
   if (view === "mine") renderAccessSelect();
-  if (!meta.tabs.includes(state.mainTab)) setMainTab("queue");
+  if (!meta.tabs.includes(state.mainTab)) setMainTab(meta.tabs[0]);
   if (changed) { state.filter = "전체"; state.panelMsg = ""; }
   // 패널도 메뉴를 따릅니다. 다른 메뉴의 항목이 남아 있으면 이 메뉴의 첫 항목으로 바꿉니다.
   const current = queue().find((i) => i.key === state.selected);
