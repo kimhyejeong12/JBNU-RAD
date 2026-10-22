@@ -65,6 +65,14 @@ class ServerFilter(BaseModel):
     until: str = Field("", description="이 시각까지, ISO 8601 UTC")
 
 
+class SuspectScore(BaseModel):
+    """사용자 한 명의 의심 점수 — 앞으로 보안 위협이 될 가능성. 판정이 아니라 먼저 살펴볼 사람을 고르는 예측입니다."""
+
+    score: int = Field(ge=0, le=100, description="의심 점수 0~100. 높을수록 위협 가능성이 크다")
+    reason: str = Field(description="그 점수가 나온 이유 — 어떤 행동 신호 · 기록 때문인지")
+    watch: str = Field(description="보안 운영자가 확인할 점")
+
+
 class PolicyIssue(BaseModel):
     """정책 목록에서 발견된 문제 한 건."""
 

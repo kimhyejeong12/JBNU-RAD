@@ -155,3 +155,18 @@ qa_records                             (정책 질의 · 서버 질의 · 로그
 2. **CSV 권한 신청 일괄 판정(`make review-requests`)** — 권한 신청은 DB로 들어온다. 이 명령은 §8-1(전 건 판정해 기대와 대조)용 **평가 명령으로만 남기고 DB에 쓰지 않는다**. 결과는 화면에 찍고, `--out 파일`이면 JSON으로도 남긴다. `/api/results`에서 `requests` 구역을 뺀다. → 10/20에 CLI를 줄이며 없앴다.
 3. **지금 `results.json`** (로그 감시 판정 2건)은 옮기지 않는다. 필요하면 `make monitor FULL=1`로 다시 판정한다.
 4. **로그 감시 화면 범위** — 이번에는 쌓인 판정을 전부 보여준다. 기간은 로그 감시 이력 화면(§8-5)에서 정한다.
+
+### `suspect_scores` — 사용자 의심 점수 1건 = 1행 (10/22, `results_suspects.sql`)
+
+위협 예측(`Engine.run_suspects`)이 사람마다 한 행씩 쌓는다 (고치지 않음). 화면은 사람마다 마지막 행과 앞 12개의 점수 흐름을 본다.
+
+| 칸 | 설명 |
+|---|---|
+| `person` | 사람 키 — `account:{계정 id}`(계정, 로그 사용자 ID로 이은 로그 포함) 또는 `log:{로그 UserID}`(계정 미연결) |
+| `subject` · `log_id` · `login_id` | 그때 이름 · 로그 사용자 ID · 계정 아이디 |
+| `score` · `level` | 0~100 (모델) · 높음 70 이상 · 보통 40~69 · 낮음 (점수로 코드가 정함) |
+| `reason` · `watch` | 예측 이유 · 확인할 점 (모델) |
+| `signals` · `records` | 그때 행동 신호(코드가 센 값, JSON) · 판정 · 신청 건수 |
+| `failed` · `error` · `model` · `elapsed_sec` · `created_at` | 예측 실패 · 모델 · 시간 |
+
+monitor_runs 에 `stage`(final · fast, `results_monitor_stage.sql`)를 더했다 — 빠른 감시의 1차 판정은 통계 · 의심 점수 기록에서 뺀다.

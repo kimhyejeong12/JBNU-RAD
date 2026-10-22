@@ -40,13 +40,14 @@ from ..data import (
     server_review_input,
     snapshot_changes,
     snapshot_from_payload,
+    suspect_band,
     summarize,
     user_label,
     vocabulary,
 )
 from .prompt import Prompts
 from .rag import IndexReport, lookup, lookup_all
-from .types import Answer, LogFilter, PolicyReview, ServerFilter, ServerReview, Verdict
+from .types import Answer, LogFilter, PolicyReview, ServerFilter, ServerReview, SuspectScore, Verdict
 
 if TYPE_CHECKING:
     from .engine import Engine
@@ -121,9 +122,9 @@ def server_answer_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any
     return engine.chain(Prompts.SERVER_ANSWER, None, **{"llm": engine.qa_llm, **kwargs})
 
 
-def trust_explain_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-    """사용자 신뢰 수치의 근거 요약 → 문자열. 입력: subject, score, deductions, findings, requests"""
-    return engine.chain(Prompts.TRUST_EXPLAIN, None, **{"llm": engine.qa_llm, **kwargs})
+def suspect_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+    """사용자 한 명의 행동 신호 · 기록 → SuspectScore. 입력: subject, signals, records, lines"""
+    return engine.chain(Prompts.SUSPECT, SuspectScore, **kwargs)
 
 
 def answer_chain(engine: Engine, structured: bool = False, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
@@ -474,20 +475,43 @@ def ask_servers(engine: Engine, registry: list[dict[str, Any]],
     return done(error)
 
 
-# --- 사용자 신뢰 수치 ------------------------------------------------------------
-# 점수는 data.trust 의 규칙이 냅니다. 모델은 고른 사람의 근거를 요약만 하고 점수를 바꾸지 않습니다.
+# --- 사용자 의심 점수 ------------------------------------------------------------
+# 행동 신호는 코드가 세고(data.suspect.behavior_signals), 판정 모델은 그 신호와 판정 · 신청 기록을 보고 앞으로의 위협 가능성을 예측합니다.
+
+SUSPECT_LINES = 15
 
 
-def explain_trust(engine: Engine, person: dict[str, Any], findings: list[dict[str, Any]], requests: list[dict[str, Any]]) -> dict[str, Any]:
-    """신뢰 수치 한 사람의 근거 요약 (모델). person = data.trust_scores 의 한 줄, findings · requests = 그 사람의 기록."""
+def _signals_text(s: dict[str, Any] | None) -> str:
+    if s is None:
+        return "로그 없음 (권한 신청 기록만 있음)"
+    ratio = f"{s['volume_ratio']}배" if s["volume_ratio"] is not None else "평소 기록 없음"
+    rows = [f"- 최근 7일 로그 {s['recent_events']}건 · 평소 4주 {s['baseline_events']}건",
+            f"- 하루 양(출력 장수 등) 평소 {s['baseline_daily_volume']} → 최근 {s['recent_daily_volume']} ({ratio})",
+            f"- 근무 시간 밖 · 주말 {round(s['off_hours_ratio'] * 100)}% · 예외 승인 {round(s['exception_ratio'] * 100)}%",
+            f"- 민감 문서 {s['sensitive_events']}건 ({', '.join(s['sensitive_words']) or '없음'}) · 30분 안 최대 {s['max_burst_30min']}건",
+            f"- 첫 로그 {s['first_seen'][:10]} · 마지막 로그 {s['last_seen'][:10]}{' (처음 보는 계정)' if s['new_account'] else ''}"]
+    return "\n".join(rows + [f"- 눈에 띔: {h}" for h in s["highlights"]])
+
+
+def _records_text(person: dict[str, Any]) -> str:
+    rows = [f"- 로그 감시 {f['at'][:10]} {f['level']}: {f['reason'][:150]}" for f in person["findings"] if f["level"] != "정상"]
+    rows += [f"- 권한 신청 {r['at'][:10]} {r['access']} — AI {r['ai'] or '판정 없음'}, {r['stage']}"
+             + (f" ({r['rejected_by']} 반려)" if r["rejected_by"] else "") for r in person["requests"]]
+    ok = sum(1 for f in person["findings"] if f["level"] == "정상")
+    return "\n".join(rows + ([f"- 로그 감시 정상 {ok}건"] if ok else [])) or "기록 없음"
+
+
+def predict_suspect(engine: Engine, person: dict[str, Any], lines: list[str]) -> dict[str, Any]:
+    """사용자 한 명의 의심 점수 (판정 모델). person = data.suspect_people 의 한 줄, lines = 그 사람의 최근 로그 (describe)."""
     who = f"{person['department']} {person['name']}".strip()
-    inputs = {
-        "subject": f"{who} (계정 {person['login_id'] or '없음'}, 로그 사용자 ID {person['log_id'] or '없음'})",
-        "score": f"{person['score']}점 — 신뢰 {person['band']}",
-        "deductions": "\n".join(f"- {d['at'][:10]} {d['what']}: -{d['points']}점" for d in person["deductions"]) or "감점 없음",
-        "findings": "\n".join(f"- {f['at'][:10]} {f['level']}: {f['reason']}" for f in findings if f["level"] != "정상") or "주의 · 위험 판정 없음",
-        "requests": "\n".join(f"- {r['at'][:10]} {r['access']} — AI {r['ai'] or '판정 없음'}, {r['stage']}" for r in requests) or "신청 없음",
-    }
-    text, error, elapsed = attempt(lambda: engine.trust_explain_chain().invoke(inputs))
-    return {"key": person["key"], "explanation": text.strip() if text is not None else f"요약 실패: {error}",
-            "failed": error is not None, "error": error, "elapsed_sec": round(elapsed, 1)}
+    # 계정과 로그 사용자를 아직 잇지 않은 것은 운영 설정일 뿐이라 모델이 의심 근거로 삼지 않게 그렇게 적습니다.
+    account = person["login_id"] or "SentinelAI 계정과 아직 잇지 않음 — 의심 근거 아님"
+    log_id = person["log_id"] or "로그 사용자 ID 를 아직 적지 않음 — 의심 근거 아님"
+    inputs = {"subject": f"{who} (계정: {account} / 로그 사용자 ID: {log_id})",
+              "signals": _signals_text(person["signals"]), "records": _records_text(person),
+              "lines": "\n".join(lines[-SUSPECT_LINES:]) or "최근 로그 없음"}
+    verdict, error, elapsed = attempt(lambda: engine.suspect_chain().invoke(inputs))
+    result = _judged(verdict, error, elapsed)
+    if verdict is not None:
+        result["level"] = suspect_band(verdict.score)
+    return result

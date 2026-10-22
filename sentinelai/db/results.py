@@ -312,6 +312,39 @@ def user_findings(db: Database, since: str | None = None) -> list[dict[str, Any]
             for r in rows]
 
 
+def save_suspect(db: Database, person: dict[str, Any], result: dict[str, Any], model: str) -> int:
+    """사용자 한 명의 의심 점수 한 건 (pipeline.predict_suspect). 쌓기만 하고 화면은 사람마다 마지막 것과 흐름을 봅니다."""
+    records = {"로그 위험": sum(f["level"] == "위험" for f in person["findings"]), "로그 주의": sum(f["level"] == "주의" for f in person["findings"]),
+               "신청": len(person["requests"]), "신청 위험": sum(r["ai"] == "위험" for r in person["requests"]),
+               "반려": sum(bool(r["rejected_by"]) for r in person["requests"]), "회수": sum(r["stage"] == "revoked" for r in person["requests"])}
+    with db.transaction() as conn:
+        return conn.execute(
+            "INSERT INTO suspect_scores (person, subject, log_id, login_id, score, level, reason, watch, signals, records, failed, error,"
+            " elapsed_sec, model, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (person["key"], f"{person['department']} {person['name']}".strip(), person["log_id"] or "", person["login_id"],
+             result.get("score"), result.get("level"), result.get("reason", ""), result.get("watch", ""),
+             _json(person["signals"] or {}), _json(records), int(result["failed"]), result.get("error"), result.get("elapsed_sec"), model, now()),
+        ).lastrowid
+
+
+def latest_suspects(db: Database, history: int = 12) -> list[dict[str, Any]]:
+    """사람마다 마지막 의심 점수와 그 앞 점수 흐름(오래된 것부터 history 개), 높은 순."""
+    with db.connection() as conn:
+        rows = conn.execute("SELECT * FROM suspect_scores ORDER BY person, id").fetchall()
+    people: dict[str, list[Any]] = {}
+    for r in rows:
+        people.setdefault(r["person"], []).append(r)
+    out = []
+    for key, rs in people.items():
+        last = rs[-1]
+        out.append({"key": key, "subject": last["subject"], "log_id": last["log_id"], "login_id": last["login_id"],
+                    "score": last["score"], "level": last["level"], "reason": last["reason"], "watch": last["watch"],
+                    "signals": json.loads(last["signals"]), "records": json.loads(last["records"]),
+                    "failed": bool(last["failed"]), "error": last["error"], "created_at": last["created_at"], "model": last["model"],
+                    "trend": [{"score": r["score"], "at": r["created_at"]} for r in rs[-history:] if not r["failed"]]})
+    return sorted(out, key=lambda p: (-(p["score"] or 0), p["subject"]))
+
+
 # --- 로그 감시 ---------------------------------------------------------------
 
 

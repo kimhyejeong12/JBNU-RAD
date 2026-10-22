@@ -29,7 +29,7 @@ from langchain_ollama import ChatOllama
 from pydantic import BaseModel
 
 from .. import ROOT
-from ..data import LoadResult, load_collected, load_events, period_since, trust_scores
+from ..data import LoadResult, behavior_signals, load_collected, load_events, period_since, suspect_people
 from ..data.collected import FORMAT
 from ..db import Database, User, auth, nodes, open_main_db, open_results_db, permissions, results
 from . import pipeline
@@ -144,9 +144,9 @@ class Settings:
 
 # --- 엔진 --------------------------------------------------------------------
 
-KINDS = {"policies": "정책 관리 검토", "events": "로그 감시", "nodes": "서버 점검", "events_fast": "빠른 로그 감시"}
-# 화면에서 시작할 수 있는 작업. 서버 점검은 주기를 기다리지 않고 [지금 점검]으로도 돌립니다. 로그 감시는 서버가 스스로만 돌립니다.
-MANUAL = {"policies", "nodes"}
+KINDS = {"policies": "정책 관리 검토", "events": "로그 감시", "nodes": "서버 점검", "events_fast": "빠른 로그 감시", "suspects": "위협 예측"}
+# 화면에서 시작할 수 있는 작업. 서버 점검 · 위협 예측은 주기를 기다리지 않고 [지금 점검] · [지금 예측]으로도 돌립니다. 로그 감시는 서버가 스스로만 돌립니다.
+MANUAL = {"policies", "nodes", "suspects"}
 
 
 class Engine:
@@ -234,8 +234,8 @@ class Engine:
     def server_answer_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         return pipeline.server_answer_chain(self, *args, **kwargs)
 
-    def trust_explain_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-        return pipeline.trust_explain_chain(self, *args, **kwargs)
+    def suspect_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        return pipeline.suspect_chain(self, *args, **kwargs)
 
     def answer_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         return pipeline.answer_chain(self, *args, **kwargs)
@@ -386,22 +386,29 @@ class Engine:
         since = period_since(period, datetime.now(timezone.utc))
         at = since.isoformat(timespec="seconds") if since else None
         return {"period": period, "since": at, "events": {"users": results.threat_stats(self.results_db, at)["events"]["users"]},
-                "requests": permissions.request_stats(self.main_db, at), "trust": self._trust(at)[0]}
+                "requests": permissions.request_stats(self.main_db, at), "suspects": results.latest_suspects(self.results_db)}
 
-    def _trust(self, at: str | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
-        findings, requests = results.user_findings(self.results_db, at), permissions.user_requests(self.main_db, at)
-        return trust_scores(auth.accounts_brief(self.main_db), findings, requests), findings, requests
+    def run_suspects(self, progress: Progress | None = None) -> dict[str, Any]:
+        """위협 예측 1회 — 사람마다 행동 신호(코드) · 판정 · 신청 기록으로 판정 모델이 의심 점수를 냅니다. 한 사람씩 바로 쌓습니다.
 
-    def explain_trust(self, period: str, key: str) -> dict[str, Any]:
-        """사용자 신뢰 수치 한 사람의 근거 요약 (모델). 점수는 규칙이 내고 모델은 요약만 합니다. 없는 사람이면 LookupError."""
-        since = period_since(period, datetime.now(timezone.utc))
-        people, findings, requests = self._trust(since.isoformat(timespec="seconds") if since else None)
-        person = next((p for p in people if p["key"] == key), None)
-        if person is None:
-            raise LookupError("이 기간에 없는 사용자입니다")
-        account = int(key.split(":")[1]) if key.startswith("account:") else None
-        return pipeline.explain_trust(self, person, [f for f in findings if person["log_id"] and f["log_id"] == person["log_id"]],
-                                      [r for r in requests if r["account_id"] == account])
+        신호는 로그 전체에서 최근 7일을 그 앞 4주와 견주고, 판정 · 신청 기록은 지금부터 35일 안의 것을 봅니다.
+        """
+        now = datetime.now(timezone.utc)
+        recent = (now - timedelta(days=35)).isoformat(timespec="seconds")
+        events = load_events(self.settings.events_source).records
+        lines: dict[str, list[str]] = {}
+        for e in events:
+            lines.setdefault(e.user_id or e.who, []).append(e.describe())
+        people = suspect_people(auth.accounts_brief(self.main_db), behavior_signals(events, now),
+                                results.user_findings(self.results_db, recent), permissions.user_requests(self.main_db, recent))
+        scored = []
+        for n, person in enumerate(people, start=1):
+            result = pipeline.predict_suspect(self, person, lines.get(person["log_id"], []) if person["log_id"] else [])
+            results.save_suspect(self.results_db, person, result, self.settings.model)
+            scored.append({"key": person["key"], **result})
+            if progress:
+                progress(n, len(people), result)
+        return {"people": scored}
 
     def browse_logs(self, user: User, period: str, who: str = "", solution: str = "", how: str = "", page: int = 1,
                     ip: str | None = None) -> dict[str, Any]:
@@ -458,7 +465,7 @@ class Engine:
         self.verdicts = VerdictWorker(self)
         self.verdicts.resume()
         self.jobs = JobRunner(self)
-        for kind in ("events", "nodes"):
+        for kind in ("events", "nodes", "suspects"):
             self.jobs.every(kind, self.settings.monitor_interval_min)
         # 빠른 로그 감시는 따로 돌립니다. 정책 관리 검토 · 서버 점검 · 정밀 감시가 돌고 있어도 기다리지 않습니다.
         if self.settings.fast_interval_min:
@@ -539,6 +546,7 @@ class JobRunner:
         error = None
         try:
             {"policies": self.engine.run_policies, "events": self.engine.run_events, "events_fast": self.engine.run_fast_events,
+             "suspects": self.engine.run_suspects,
              "nodes": self.engine.run_nodes}[kind](progress=self._progress)
         except Exception as exc:  # 파일 없음 · 컬럼 없음 등은 화면에 그대로 보여줍니다.
             error = f"{type(exc).__name__}: {exc}"

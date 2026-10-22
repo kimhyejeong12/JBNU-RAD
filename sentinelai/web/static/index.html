@@ -569,9 +569,8 @@
         <p class="sub">쌓인 판정을 코드가 센 값입니다 (모델 없음). 판정 실패는 화면과 같이 주의로 셉니다. 막대 · 줄을 누르면 오른쪽에 내용과 이어 볼 곳이 나옵니다.</p>
         <div class="tiles" id="stat-tiles"></div>
       </section>
-      <section class="card" id="stat-trust" hidden></section>
+      <section class="card" id="stat-suspects" hidden></section>
       <section class="card" id="stat-events"></section>
-      <section class="card" id="stat-requests"></section>
       <section class="card" id="stat-servers"></section>
     </div>
 
@@ -781,7 +780,7 @@ const state = {
   // 로그 조회 — 조건 · 받은 결과(/api/logs) · 패널에 띄운 줄(없으면 집계)
   // 수집 노드 — 목록(/api/nodes) · 고른 노드 · 그 노드의 자세한 기록(/api/nodes/{이름})
   nodes: { list: null, error: "", selected: null, detail: null, adding: false },
-  // 보안 통계 — 기간 · 받은 결과(/api/stats) · 패널에 띄운 줄 { kind: user | node | clause | dept | access | mismatch, key }
+  // 보안 통계 — 기간 · 받은 결과(/api/stats) · 패널에 띄운 줄 { kind: suspect | user | module | node | clause, key }
   // 통계 메뉴의 두 탭 — 보안 통계(stats) · 사용자 위협(ustats)이 같은 화면 · 기간을 쓰고 결과만 따로 받습니다.
   stats: { period: "month", data: null, error: "", loading: false, selected: null, kind: null },
   logs: { period: "week", user: "", solution: "", how: "", page: 1, data: null, error: "", loading: false, selected: null },
@@ -1815,6 +1814,7 @@ function watchJobs(started = false) {
     state.results = await getJSON("/api/results");
     renderAll();
     if (state.mainTab === "nodes") loadNodes();
+    if (isStatTab(state.mainTab)) loadStats();
   };
   if (!roleViews().some((v) => RESULT_VIEWS.has(v))) return;
   if (!state.jobs || !state.jobs.running) {
@@ -2040,8 +2040,15 @@ const levelsText = (o) => ["위험", "주의", "정상", "판정 실패", "판�
 
 const STAT_KINDS = { stats: "/api/stats", ustats: "/api/user-stats" };
 const STAT_TITLES = { stats: "보안 통계", ustats: "사용자 위협" };
-// 신뢰 구간 → 막대 색 (등급 색을 빌려 씁니다 — 낮음 = 위험 색)
-const TRUST_COLOR = { "낮음": "위험", "보통": "주의", "높음": "정상" };
+// 직전 예측보다 10점 넘게 오르내리면 막대 옆에 화살표로 알립니다.
+const trendMark = (p) => {
+  const t = p.trend || [];
+  if (t.length < 2) return "";
+  const diff = t[t.length - 1].score - t[t.length - 2].score;
+  return diff > 10 ? ` · ▲${diff}` : diff < -10 ? ` · ▼${-diff}` : "";
+};
+// 의심 등급 → 막대 색 (등급 색을 빌려 씁니다 — 높음 = 위험 색)
+const SUSPECT_COLOR = { "높음": "위험", "보통": "주의", "낮음": "정상" };
 const isStatTab = (tab) => tab in STAT_KINDS;
 
 async function loadStats() {
@@ -2119,9 +2126,8 @@ function renderStatsView() {
   const users = S.kind === "ustats";
   $("stat-title").textContent = STAT_TITLES[S.kind || "stats"];
   $("stat-servers").hidden = users;
-  $("stat-requests").hidden = !users;
-  $("stat-trust").hidden = !users;
-  if (!d) { ["stat-tiles", "stat-trust", "stat-events", "stat-servers", "stat-requests"].forEach((id) => { $(id).innerHTML = ""; }); return; }
+  $("stat-suspects").hidden = !users;
+  if (!d) { ["stat-tiles", "stat-suspects", "stat-events", "stat-servers"].forEach((id) => { $(id).innerHTML = ""; }); return; }
   if (users) { renderUserStats(d); return; }
 
   const ev = d.events, L = ev.lines, threat = L["주의"] + L["위험"], logs = d.logs.count;
@@ -2206,24 +2212,30 @@ function renderUserStats(d) {
   const tile = (label, big, note, extra = "") => `<div class="tile"><span class="label">${label}</span><span class="big">${big}</span>${extra}<p class="note">${note}</p></div>`;
   $("stat-tiles").innerHTML = [
     tile("위협 사용자", `${ev.users.length}명`, `주의 · 위험 판정을 받은 사용자 · 위험 ${ev.users.filter((u) => u["위험"]).length}명`),
-    tile("신뢰 낮음", `${(d.trust || []).filter((p) => p.band === "낮음").length}명`, `신뢰 수치 70점 미만 · 보통 ${(d.trust || []).filter((p) => p.band === "보통").length}명 · 반복 위협 ${repeat}명`),
+    tile("위협 예측 높음", `${(d.suspects || []).filter((p) => p.level === "높음").length}명`, `의심 점수 70 이상 · 보통 ${(d.suspects || []).filter((p) => p.level === "보통").length}명 · 반복 위협 ${repeat}명`),
     tile("신청 중 위험 비율", pct(ai["위험"] || 0, judged), `위험 ${ai["위험"] || 0} · 주의 ${ai["주의"] || 0} / 판정 ${judged}건`,
       judged ? meter([["위험", ai["위험"] || 0], ["주의", ai["주의"] || 0], ["정상", ai["정상"] || 0]], judged) : ""),
     tile("AI와 결재가 엇갈린 신청", `${rq.mismatches.length}건`, "AI 위험인데 승인 · AI 정상인데 반려"),
   ].join("");
-  // 신뢰 수치 — 코드 규칙으로 100점에서 깎은 값 (data/trust.py). 낮은 순, 막대 색은 신뢰 구간
-  const trust = d.trust || [];
-  $("stat-trust").innerHTML = `
-    <div class="logs-head"><h3>사용자 신뢰 수치</h3><span class="logs-count">${trust.length}명 · 낮은 순</span></div>
-    <p class="sub">로그 감시 위험 · 주의 판정, 반복, 권한 신청의 AI 위험 · 주의 · 반려 · 회수마다 정해진 점수를 100점에서 깎습니다 (최근 30일 1배 · 90일 0.5배 · 그 전 0.25배). 먼저 살펴볼 사람을 고르는 참고값이고 결정은 사람이 합니다. 누르면 감점 내역과 AI 근거 요약.</p>
-    ${trust.length ? `<div class="chart">${hbars("trust", trust.map((p) => ({
-        key: p.key, label: `${p.department ? p.department + " " : ""}${p.name}`, segs: [[TRUST_COLOR[p.band], p.score]],
-        extra: `신뢰 ${p.band} · 감점 ${p.deductions.length}건${p.linked ? "" : p.login_id ? " · 로그 ID 없음" : " · 계정 미연결"}` })),
-        { max: 100, value: (r) => { const p = trust.find((x) => x.key === r.key); return `${p.score}점 · ${p.band}${p.linked ? "" : p.login_id ? " · 로그 ID 없음" : " · 계정 미연결"}`; } })}</div>
-      ${legend([["위험", "낮음 (70 미만)"], ["주의", "보통 (70~89)"], ["정상", "높음 (90 이상)"]])}` : `<p class="sub">이 기간에 기록이 있는 사용자가 없습니다.</p>`}
-    ${tableView(statTable(["사용자", "계정", "로그 사용자 ID", "신뢰 수치", "로그 위험 · 주의", "신청 · 위험 · 반려 · 회수"], trust.map((p) => statRow("trust", p.key, [
-      esc(`${p.department ? p.department + " " : ""}${p.name}`), esc(p.login_id || "계정 미연결"), esc(p.log_id || "—"), `<span class="num">${p.score}</span> ${esc(p.band)}`,
-      `<span class="num">${p.counts["로그 위험"]} · ${p.counts["로그 주의"]}</span>`, `<span class="num">${p.counts["신청"]} · ${p.counts["신청 위험"]} · ${p.counts["반려"]} · ${p.counts["회수"]}</span>`])), ""))}`;
+  // 위협 예측 — 코드가 센 행동 신호 · 판정 · 신청 기록으로 판정 모델이 낸 의심 점수 (높은 순, 막대 색은 의심 등급)
+  const sus = d.suspects || [];
+  const running = state.jobs && state.jobs.running === "suspects";
+  $("stat-suspects").innerHTML = `
+    <div class="logs-head"><h3>위협 예측 — 의심 점수</h3><span class="logs-count">${sus.length ? `${sus.length}명 · ${esc(stamp(sus.map((p) => p.created_at).sort().pop()))} 예측` : ""}</span>
+      <button class="rerun run" id="suspects-now" ${state.jobs && state.jobs.running ? "disabled" : ""}>${icon("activity", "sm")}${running ? `예측 중…${state.jobs.total ? ` ${state.jobs.done}/${state.jobs.total}` : ""}` : "지금 예측"}</button></div>
+    <p class="sub">앞으로 보안 위협(유출 · 권한 남용)이 될 가능성 0~100. 코드가 로그에서 센 행동 신호(최근 7일 vs 그 앞 4주 — 양 · 근무 시간 밖 · 예외 승인 · 민감 문서 · 몰아서 · 처음 보는 계정)와 로그 감시 판정 · 권한 신청 기록을 판정 모델이 보고 냅니다. 정밀 감시 주기마다 새로 내고, 기간 버튼과 상관없이 마지막 예측을 보여줍니다. 판정이 아니라 먼저 살펴볼 사람을 고르는 예측입니다.</p>
+    ${sus.length ? `<div class="chart">${hbars("suspect", sus.filter((p) => !p.failed).map((p) => ({
+        key: p.key, label: p.subject, segs: [[SUSPECT_COLOR[p.level], p.score]],
+        extra: `${(p.signals.highlights || []).slice(0, 2).join(" · ") || "눈에 띄는 신호 없음"}${p.login_id ? "" : " · 계정 미연결"}` })),
+        { max: 100, value: (r) => { const p = sus.find((x) => x.key === r.key); return `${p.score}점 · ${p.level}${trendMark(p)}`; } })}</div>
+      ${legend([["위험", "높음 (70 이상)"], ["주의", "보통 (40~69)"], ["정상", "낮음 (40 미만)"]])}
+      ${sus.some((p) => p.failed) ? `<p class="sub">예측하지 못한 사람: ${esc(sus.filter((p) => p.failed).map((p) => p.subject).join(", "))}</p>` : ""}`
+      : `<p class="sub">아직 위협 예측을 돌리지 않았습니다. [지금 예측]을 누르거나 정밀 감시 주기를 기다리세요.</p>`}
+    ${tableView(statTable(["사용자", "계정", "의심 점수", "눈에 띄는 신호", "예측 시각"], sus.map((p) => statRow("suspect", p.key, [
+      esc(p.subject), esc(p.login_id || "계정 미연결"), p.failed ? "예측 실패" : `<span class="num">${p.score}</span> ${esc(p.level)}`,
+      esc((p.signals.highlights || []).join(" · ") || "—"), `<span class="when">${esc(stamp(p.created_at))}</span>`])), ""))}`;
+  const now = $("suspects-now");
+  if (now) now.addEventListener("click", () => startJob("suspects"));
 
   $("stat-events").innerHTML = `
     <div class="logs-head"><h3>사용자별 위협 로그</h3><span class="logs-count">사용자 ${ev.users.length}</span></div>
@@ -2234,25 +2246,6 @@ function renderUserStats(d) {
     ${ev.users.length ? legend([["위험", "위험"], ["주의", "주의"]]) : `<p class="sub">이 기간에 주의 · 위험 판정을 받은 사용자가 없습니다.</p>`}
     ${tableView(statTable(["사용자", "위협 로그", "위험 판정", "주의 판정", "마지막 로그"], ev.users.map((u) => statRow("user", u.user, [esc(u.user), `<span class="num">${u.lines}</span>`,
       `<span class="num">${u["위험"]}</span>`, `<span class="num">${u["주의"]}</span>`, `<span class="when">${esc(stamp(u.last_at))}</span>`])), ""))}`;
-
-  // 권한 신청 — 부서 · 권한별 AI 등급 구성(100% 막대). 막대 옆 = 정책 위반 소지(주의 · 위험) 비율
-  const share = (kind, list) => hbars(kind, list.map((g) => {
-    const n = g["신청"] - (g.ai["판정 없음"] || 0);
-    return { key: g.name, label: g.name, base: n || 1, segs: LEVEL_SEGS.map((k) => [k, g.ai[k] || 0]),
-             extra: `신청 ${g["신청"]} · 결재 ${Object.entries(g.outcome).map(([o, c]) => `${o} ${c}`).join(" · ")}` };
-  }), { value: (r) => { const g = list.find((x) => x.name === r.key), n = g["신청"] - (g.ai["판정 없음"] || 0);
-    return `위반 ${pct((g.ai["위험"] || 0) + (g.ai["주의"] || 0), n)} · 위험 ${pct(g.ai["위험"] || 0, n)} · ${g["신청"]}건`; } });
-  $("stat-requests").innerHTML = `
-    <div class="logs-head"><h3>권한 신청 — 부서별 정책 위반 · 위험 비율</h3><span class="logs-count">신청 ${rq.total} · ${esc(levelsText(ai))}</span></div>
-    <p class="sub">막대 = AI 판정 구성 (판정 전 신청은 뺌). 정책 위반 소지 = 주의 · 위험 비율. 결재는 사람이 했습니다.</p>
-    ${rq.departments.length ? `<p class="chart-title">부서별</p><div class="chart">${share("dept", rq.departments)}</div>
-      <p class="chart-title">권한별</p><div class="chart">${share("access", rq.accesses)}</div>${legend(LEVEL_SEGS.map((k) => [k, k]))}` : `<p class="sub">이 기간에 신청이 없습니다.</p>`}
-    ${rq.mismatches.length ? `<p class="sub" style="padding-top:10px">AI와 결재가 엇갈린 신청 ${rq.mismatches.length}건 — AI 위험인데 승인, 또는 AI 정상인데 반려</p>
-      ${statTable(["신청", "신청자", "권한", "AI", "결재"], rq.mismatches.map((m) => statRow("mismatch", m.request_no, [
-        esc(m.request_no), esc(m.requester), esc(m.access), `<i class="ldot ${m.ai}"></i>${m.ai}`, esc(m.outcome)])), "")}` : ""}
-    ${tableView(statTable(["부서 · 권한", "신청", "위험", "주의", "정상", "결재 결과"], [...rq.departments, ...rq.accesses].map((g) => `<tr><td>${esc(g.name)}</td><td class="num">${g["신청"]}</td>${
-      LEVEL_SEGS.map((k) => `<td class="num">${g.ai[k] || 0}</td>`).join("")}<td>${esc(Object.entries(g.outcome).map(([o, c]) => `${o} ${c}`).join(" · "))}</td></tr>`), ""))}`;
-
 }
 
 function renderStatsPanel() {
@@ -2262,7 +2255,7 @@ function renderStatsPanel() {
   };
   if (!d || !sel) {
     body(STAT_TITLES[S.kind || "stats"], "막대 · 줄을 고르세요", `<p class="note">${S.kind === "ustats"
-      ? "사용자 신뢰 수치 · 위협 로그 · 부서 · 권한 · 신청을 누르면 감점 내역 · AI 근거 요약과 이어 볼 곳(로그 조회 · 로그 감시 판정 · 결재함)이 나옵니다."
+      ? "의심 점수 · 위협 로그 · 부서 · 권한 · 신청을 누르면 예측 이유 · 행동 신호와 이어 볼 곳(로그 조회 · 로그 감시 판정 · 결재함)이 나옵니다."
       : "모듈 · 노드 · 조항을 누르면 그 내용과 이어 볼 곳(노드 탭 · 기준 문서 원문)이 나옵니다."}</p>`);
     return;
   }
@@ -2287,32 +2280,26 @@ function renderStatsPanel() {
     $("stat-go").addEventListener("click", () => { setView("policies"); setMainTab("nodes"); pickNode(n.node); });
     return;
   }
-  if (sel.kind === "trust") {
-    const p = (d.trust || []).find((x) => x.key === sel.key);
-    if (!p) return body("사용자 신뢰 수치", "기간 안에 없는 사용자입니다", "");
-    const ex = S.explain && S.explain.key === p.key && S.explain.period === S.period ? S.explain : null;
-    body("사용자 신뢰 수치", `${p.department ? p.department + " " : ""}${p.name}`, `${kvTable([
-        ["신뢰 수치", `${p.score}점 · ${p.band}`], ["계정", p.login_id || "계정 미연결 — 계정 관리에서 로그 사용자 ID 를 적으면 이어집니다"],
-        ["로그 사용자 ID", p.log_id || "없음"], ["로그 감시", `위험 ${p.counts["로그 위험"]} · 주의 ${p.counts["로그 주의"]} · 정상 ${p.counts["로그 정상"]}`],
-        ["권한 신청", `${p.counts["신청"]}건 · AI 위험 ${p.counts["신청 위험"]} · 반려 ${p.counts["반려"]} · 회수 ${p.counts["회수"]}`]])}
-      <div class="sec"><h4>${icon("warn", "sm")}감점 내역 ${p.deductions.length}</h4>${p.deductions.length
-        ? `<div class="box pre">${esc(p.deductions.map((x) => `-${x.points}  ${stamp(x.at)}  ${x.what}${x.weight < 1 ? ` (오래된 기록 ×${x.weight})` : ""}`).join("\n"))}</div>`
-        : `<p class="note">감점할 기록이 없습니다.</p>`}</div>
-      <div class="sec"><h4>${icon("chat", "sm")}AI 근거 요약</h4>${ex
-        ? `<div class="box${ex.failed ? " fail" : ""}">${ex.loading ? `요약 중… (수십 초)` : esc(ex.explanation)}</div>`
-        : `<button class="rerun" id="trust-explain">${icon("chat", "sm")}근거 요약 받기</button>`}
-        <p class="note">점수는 규칙이 냈고, 모델은 위 기록을 요약만 합니다. 요약은 저장하지 않습니다.</p></div>
-      <div class="sec">${p.log_subject ? `<button class="rerun" id="stat-go">${icon("search", "sm")}이 사용자의 로그 조회</button>` : ""}</div>`);
+  if (sel.kind === "suspect") {
+    const p = (d.suspects || []).find((x) => x.key === sel.key);
+    if (!p) return body("위협 예측", "예측에 없는 사용자입니다", "");
+    const g = p.signals || {}, r = p.records || {};
+    const spark = p.trend.length > 1 ? `<svg viewBox="0 0 ${(p.trend.length - 1) * 20} 40" preserveAspectRatio="none" style="width:100%;height:40px" aria-label="의심 점수 흐름"><polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke" points="${p.trend.map((t, n) => `${n * 20},${38 - (t.score / 100) * 36}`).join(" ")}"/></svg><p class="note">${p.trend.map((t) => t.score).join(" → ")} (${esc(stamp(p.trend[0].at))} ~ ${esc(stamp(p.trend[p.trend.length - 1].at))})</p>` : `<p class="note">예측이 한 번뿐이라 흐름이 아직 없습니다.</p>`;
+    body("위협 예측", p.subject, `${p.failed ? `<div class="box fail">예측 실패: ${esc(p.error || "")}</div>` : `
+      <div class="rec-line lv-${SUSPECT_COLOR[p.level]}">${icon(LEVEL_ICON[SUSPECT_COLOR[p.level]])}의심 ${p.score}점 · ${esc(p.level)}</div>
+      <div class="sec"><h4>${icon("activity", "sm")}예측 이유</h4><div class="box">${esc(p.reason)}</div></div>
+      <div class="sec"><h4>${icon("ok", "sm")}확인할 점</h4><div class="box">${esc(p.watch)}</div></div>`}
+      <div class="sec"><h4>${icon("warn", "sm")}행동 신호 (코드가 센 값 · 최근 7일 vs 그 앞 4주)</h4>${(g.highlights || []).length ? `<div class="box pre">${esc(g.highlights.join("\n"))}</div>` : `<p class="note">눈에 띄는 신호가 없습니다.</p>`}
+        ${g.subject ? kvTable([["최근 · 평소 로그", `${g.recent_events}건 · ${g.baseline_events}건`], ["하루 양", `${g.baseline_daily_volume} → ${g.recent_daily_volume}${g.volume_ratio != null ? ` (${g.volume_ratio}배)` : ""}`],
+          ["근무 시간 밖 · 예외", `${Math.round(g.off_hours_ratio * 100)}% · ${Math.round(g.exception_ratio * 100)}%`], ["민감 문서", `${g.sensitive_events}건${(g.sensitive_words || []).length ? ` (${g.sensitive_words.join(", ")})` : ""}`],
+          ["30분 안 최대", `${g.max_burst_30min}건`], ["첫 · 마지막 로그", `${stamp(g.first_seen)} · ${stamp(g.last_seen)}`]]) : `<p class="note">로그가 없습니다 (권한 신청 기록만).</p>`}</div>
+      <div class="sec"><h4>${icon("list", "sm")}판정 · 신청 기록 (35일)</h4>${kvTable([["로그 감시", `위험 ${r["로그 위험"] || 0} · 주의 ${r["로그 주의"] || 0}`],
+        ["권한 신청", `${r["신청"] || 0}건 · AI 위험 ${r["신청 위험"] || 0} · 반려 ${r["반려"] || 0} · 회수 ${r["회수"] || 0}`], ["계정", p.login_id || "계정 미연결 — 계정 관리에서 로그 사용자 ID 를 적으면 이어집니다"]])}</div>
+      <div class="sec"><h4>${icon("activity", "sm")}의심 점수 흐름</h4>${spark}</div>
+      <p class="note">${esc(p.model)} · ${esc(stamp(p.created_at))} 예측. 판정이 아니라 먼저 살펴볼 사람을 고르는 예측이고, 결정은 사람이 합니다.</p>
+      <div class="sec">${g.subject ? `<button class="rerun" id="stat-go">${icon("search", "sm")}이 사용자의 로그 조회</button>` : ""}</div>`);
     const go = $("stat-go");
-    if (go) go.addEventListener("click", () => { setView("events"); openLogs({ user: p.log_subject, period: S.period }); });
-    const btn = $("trust-explain");
-    if (btn) btn.addEventListener("click", async () => {
-      S.explain = { key: p.key, period: S.period, loading: true };
-      renderPanel();
-      try { Object.assign(S.explain, await send("/api/user-stats/explain", { key: p.key, period: S.period }), { loading: false }); }
-      catch (e) { Object.assign(S.explain, { loading: false, failed: true, explanation: `요약 실패: ${e.message}` }); }
-      if (state.stats.selected && state.stats.selected.key === p.key) renderPanel();
-    });
+    if (go) go.addEventListener("click", () => { setView("events"); openLogs({ user: g.subject, period: "month" }); });
     return;
   }
   if (sel.kind === "module") {
@@ -2329,21 +2316,6 @@ function renderStatsPanel() {
       <div class="sec"><h4>${icon("book", "sm")}기준 문서 원문</h4><div class="clause">${esc(clauseText(c.source))}</div></div>`);
     return;
   }
-  if (sel.kind === "mismatch") {
-    const m = d.requests.mismatches.find((x) => x.request_no === sel.key);
-    if (!m) return body("보안 통계", "기간 안에 없는 신청입니다", "");
-    body("AI와 결재가 엇갈린 신청", m.request_no, `${kvTable([["신청자", m.requester], ["권한", m.access], ["AI 판정", m.ai], ["결재", m.outcome], ["신청 시각", stamp(m.submitted_at)]])}
-      <p class="note">AI가 위험으로 봤는데 승인됐거나, 정상으로 봤는데 반려된 신청입니다. 결재 의견을 보고 기준 문서 · 권한 목록 설명을 보완할지 판단하세요.</p>
-      <div class="sec"><button class="rerun" id="stat-go">${icon("lock", "sm")}결재함에서 보기</button></div>`);
-    $("stat-go").addEventListener("click", () => { state.stageFilter = "all"; $("stage-filter").value = "all"; state.selected = `req:${m.request_no}`; setView("requests"); setMainTab("queue"); renderRows(); renderPanel(); });
-    return;
-  }
-  const g = (sel.kind === "dept" ? d.requests.departments : d.requests.accesses).find((x) => x.name === sel.key);
-  if (!g) return body("보안 통계", "기간 안에 없는 항목입니다", "");
-  const n = g["신청"] - (g.ai["판정 없음"] || 0);
-  body(sel.kind === "dept" ? "부서별 권한 신청" : "권한별 신청", g.name, kvTable([["신청", `${g["신청"]}건`], ["AI 판정", levelsText(g.ai)],
-    ["정책 위반 소지", `${pct((g.ai["위험"] || 0) + (g.ai["주의"] || 0), n)} (주의 · 위험 / 판정 ${n}건)`], ["위험 비율", pct(g.ai["위험"] || 0, n)],
-    ["결재 결과", Object.entries(g.outcome).map(([k, n]) => `${k} ${n}`).join(" · ")]]));
 }
 
 $("stat-periods").addEventListener("click", (e) => {
