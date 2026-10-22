@@ -212,6 +212,7 @@ def server_history(db: Database, nodes: list[str], since: str | None = None, unt
 # 모델 없이 쌓인 판정을 셉니다. 날짜는 화면과 같은 서버 현지 날짜(KST)로 묶습니다.
 
 LEVEL_ORDER = {"정상": 0, "주의": 1, "위험": 2}
+_FINAL = "run_id IN (SELECT id FROM monitor_runs WHERE stage = 'final')"
 # 판정에 묶인 로그 한 줄 (SecurityEvent.describe). 판정 하나가 몇 주에 걸친 로그를 묶으므로 줄마다 자기 시각으로 셉니다.
 _EVENT_LINE = re.compile(r"^- (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) UTC", re.M)
 _MODULE = re.compile(r"^\[([^\]]+)\]")
@@ -226,8 +227,9 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
     서버 점검(노드별 등급 변화 · 모듈별 위협 항목 · 걸린 조항). since 가 없으면 전체."""
     at = _utc(since)
     with db.connection() as conn:
-        events = conn.execute("SELECT id, user, subject, level, failed, events, last_event_at FROM event_findings"
-                              + (" WHERE last_event_at >= ?" if at else "") + " ORDER BY last_event_at", (at,) if at else ()).fetchall()
+        # 통계 · 신뢰 수치는 정밀 감시(확정)만 셉니다. 빠른 감시의 1차 판정은 같은 로그를 다시 판정하기 전의 값이라 세면 겹칩니다.
+        events = conn.execute(f"SELECT id, user, subject, level, failed, events, last_event_at FROM event_findings WHERE {_FINAL}"
+                              + (" AND last_event_at >= ?" if at else "") + " ORDER BY last_event_at", (at,) if at else ()).fetchall()
         findings = conn.execute("SELECT id, node, level, failed, gaps, created_at FROM node_findings"
                                 + (" WHERE created_at >= ?" if at else "") + " ORDER BY created_at, id", (at,) if at else ()).fetchall()
         snaps = conn.execute("SELECT node, count(*) AS n, sum(changes <> '[]') AS changed FROM server_snapshots WHERE node <> ''"
@@ -303,8 +305,8 @@ def user_findings(db: Database, since: str | None = None) -> list[dict[str, Any]
     """신뢰 수치 — 기간 안 로그 감시 판정을 로그 사용자 ID(user)별로. 묶인 로그 줄 수와 판정 시각(마지막 로그)을 함께 줍니다."""
     at = _utc(since)
     with db.connection() as conn:
-        rows = conn.execute("SELECT id, user, subject, level, failed, reason, events, last_event_at FROM event_findings"
-                            + (" WHERE last_event_at >= ?" if at else "") + " ORDER BY last_event_at", (at,) if at else ()).fetchall()
+        rows = conn.execute(f"SELECT id, user, subject, level, failed, reason, events, last_event_at FROM event_findings WHERE {_FINAL}"
+                            + (" AND last_event_at >= ?" if at else "") + " ORDER BY last_event_at", (at,) if at else ()).fetchall()
     return [{"key": f"event_findings/{r['id']}", "log_id": r["user"], "subject": r["subject"], "level": "주의" if r["failed"] else r["level"],
              "failed": bool(r["failed"]), "reason": r["reason"], "lines": len(_EVENT_LINE.findall(r["events"])), "at": r["last_event_at"]}
             for r in rows]
@@ -314,13 +316,13 @@ def user_findings(db: Database, since: str | None = None) -> list[dict[str, Any]
 
 
 def save_monitor_run(db: Database, run: dict[str, Any], model: str,
-                     since: str | None = None, until: str | None = None) -> int:
-    """pipeline.monitor 결과 1회를 쌓습니다. → monitor_runs.id"""
+                     since: str | None = None, until: str | None = None, stage: str = "final") -> int:
+    """pipeline.monitor 결과 1회를 쌓습니다. stage = final(정밀 감시, 생각 켬) · fast(빠른 감시, 1차 판정). → monitor_runs.id"""
     with db.transaction() as conn:
         rid = conn.execute(
-            "INSERT INTO monitor_runs (source, load_issues, since, until, last_event_at, model, created_at) VALUES (?,?,?,?,?,?,?)",
+            "INSERT INTO monitor_runs (source, load_issues, since, until, last_event_at, model, created_at, stage) VALUES (?,?,?,?,?,?,?,?)",
             (str(run.get("source", "")), _json(run.get("load_issues", [])), _utc(since), _utc(until),
-             _utc(run.get("last_event_at")), model, now()),
+             _utc(run.get("last_event_at")), model, now(), stage),
         ).lastrowid
         conn.executemany(
             "INSERT INTO event_findings (run_id, user, subject, first_event_at, last_event_at, events, level, reason,"
@@ -333,21 +335,33 @@ def save_monitor_run(db: Database, run: dict[str, Any], model: str,
     return rid
 
 
-def next_monitor_since(db: Database) -> datetime | None:
-    """다음 로그 감시의 시작점 — 지금까지 읽은 로그 중 가장 늦은 시각. 감시한 적이 없으면 None"""
+def next_monitor_since(db: Database, stage: str = "final") -> datetime | None:
+    """다음 로그 감시의 시작점 — 그 단계가 지금까지 읽은 로그 중 가장 늦은 시각. 감시한 적이 없으면 None.
+
+    빠른 감시는 정밀 감시보다 뒤로 가지 않습니다 (정밀 감시가 이미 확정한 구간을 1차 판정으로 다시 띄우지 않게).
+    """
     with db.connection() as conn:
-        last = conn.execute("SELECT max(last_event_at) FROM monitor_runs").fetchone()[0]
+        last = conn.execute("SELECT max(last_event_at) FROM monitor_runs WHERE stage = ?", (stage,)).fetchone()[0]
+        if stage == "fast":
+            final = conn.execute("SELECT max(last_event_at) FROM monitor_runs WHERE stage = 'final'").fetchone()[0]
+            last = max(filter(None, (last, final)), default=None)
     return datetime.fromisoformat(last) if last else None
 
 
 def monitor_findings(db: Database) -> dict[str, Any] | None:
-    """쌓인 로그 감시 판정 전부와 마지막 감시 실행. 감시한 적이 없으면 None"""
+    """정밀 감시(확정) 판정 전부 + 정밀 감시가 아직 닿지 않은 구간의 빠른 감시 1차 판정. 감시한 적이 없으면 None.
+
+    정밀 감시가 그 구간을 다시 판정하면 1차 판정은 목록에서 빠집니다 (AI 결과 DB 에는 남습니다).
+    """
     with db.connection() as conn:
         run = conn.execute("SELECT * FROM monitor_runs ORDER BY id DESC LIMIT 1").fetchone()
         if run is None:
             return None
         last = conn.execute("SELECT max(last_event_at) FROM monitor_runs").fetchone()[0]
-        rows = conn.execute("SELECT * FROM event_findings ORDER BY id").fetchall()
+        final = conn.execute("SELECT max(last_event_at) FROM monitor_runs WHERE stage = 'final'").fetchone()[0]
+        rows = conn.execute(
+            "SELECT f.*, m.stage FROM event_findings f JOIN monitor_runs m ON m.id = f.run_id"
+            " WHERE m.stage = 'final' OR f.first_event_at > coalesce(?, '') ORDER BY f.id", (final,)).fetchall()
     return {
         "generated_at": run["created_at"],
         "source": run["source"],
@@ -358,7 +372,7 @@ def monitor_findings(db: Database) -> dict[str, Any] | None:
              "subject": r["subject"], "first_event_at": r["first_event_at"], "last_event_at": r["last_event_at"],
              "events": r["events"], "level": r["level"], "reason": r["reason"], "recommendation": r["recommendation"],
              "sources": json.loads(r["sources"]), "failed": bool(r["failed"]), "error": r["error"],
-             "elapsed_sec": r["elapsed_sec"]}
+             "elapsed_sec": r["elapsed_sec"], "stage": r["stage"]}
             for r in rows
         ],
     }

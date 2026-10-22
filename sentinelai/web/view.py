@@ -31,6 +31,8 @@ def finding(item: dict[str, Any]) -> dict[str, Any]:
         "detail": {"events": item["events"], "first_event_at": item["first_event_at"], "last_event_at": item["last_event_at"]},
         "elapsed_sec": item["elapsed_sec"],
         "failed": item["failed"],
+        # fast = 빠른 감시(생각 없이)의 1차 판정. 정밀 감시가 그 구간을 다시 판정하면 목록에서 빠집니다.
+        "stage": item.get("stage", "final"),
     }
 
 

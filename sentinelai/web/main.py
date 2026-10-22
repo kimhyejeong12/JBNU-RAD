@@ -75,7 +75,7 @@ def results(request: Request, user: Approver) -> dict[str, Any]:
 @app.get("/api/jobs", dependencies=analyst)
 def jobs(request: Request) -> dict[str, Any]:
     """돌고 있는 작업과 진행 상황, 구역별 마지막 실행 결과."""
-    return {**_engine(request).jobs.status(), "kinds": KINDS}
+    return {**_engine(request).job_status(), "kinds": KINDS}
 
 
 @app.post("/api/jobs/{kind}", status_code=202, dependencies=analyst)

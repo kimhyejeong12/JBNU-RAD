@@ -290,12 +290,16 @@ def monitor(
     since: datetime | None = None,
     until: datetime | None = None,
     progress: Progress | None = None,
+    fast: bool = False,
 ) -> dict[str, Any]:
-    """로그 감시 1회 — 읽기 → 시각 필터 → 사용자별 묶기 → event_chain 판정. → db.results.save_monitor_run"""
+    """로그 감시 1회 — 읽기 → 시각 필터 → 사용자별 묶기 → event_chain 판정. → db.results.save_monitor_run
+
+    fast 면 판정 모델의 생각 단계를 끈 연결(engine.fast_llm)로 판정합니다 — 빠른 감시의 1차 판정 (묶음당 수 초).
+    """
     loaded = load_events(source, since=since, until=until)
     findings = []
     groups = group_by_user(loaded.records)
-    chain = engine.event_chain() if groups else None
+    chain = (engine.event_chain(llm=engine.fast_llm) if fast else engine.event_chain()) if groups else None
     for n, (user, events) in enumerate(groups.items(), start=1):
         inputs = event_review_input(events)
         verdict, error, elapsed = attempt(lambda: chain.invoke(inputs))

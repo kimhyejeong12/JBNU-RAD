@@ -73,6 +73,11 @@ class Settings:
     db_path: str
     results_db_path: str
     monitor_interval_min: int
+    fast_interval_min: str
+
+    #: 비워 둬도 되는 설정. fast_interval_min 을 적으면 로그 감시가 둘이 됩니다 — 그 간격마다 생각 단계를 끈 판정 모델로
+    #: 빠른 감시(1차 판정), monitor_interval_min 마다 생각하는 판정 모델로 정밀 감시(확정).
+    OPTIONAL = frozenset({"fast_interval_min"})
 
     @staticmethod
     def env_file() -> Path:
@@ -101,6 +106,8 @@ class Settings:
             raw = BOOT_ENV.get(key) or from_file.get(key)
             if raw:
                 values[f.name] = CASTS[f.type](raw)
+            elif f.name in cls.OPTIONAL:
+                values[f.name] = ""
             else:
                 missing.append(key)
         if missing:
@@ -137,7 +144,7 @@ class Settings:
 
 # --- 엔진 --------------------------------------------------------------------
 
-KINDS = {"policies": "정책 관리 검토", "events": "로그 감시", "nodes": "서버 점검"}
+KINDS = {"policies": "정책 관리 검토", "events": "로그 감시", "nodes": "서버 점검", "events_fast": "빠른 로그 감시"}
 # 화면에서 시작할 수 있는 작업. 서버 점검은 주기를 기다리지 않고 [지금 점검]으로도 돌립니다. 로그 감시는 서버가 스스로만 돌립니다.
 MANUAL = {"policies", "nodes"}
 
@@ -155,6 +162,8 @@ class Engine:
         self._llm: ChatOllama | None = None
         self._qa_llm: ChatOllama | None = None
         self.jobs: JobRunner | None = None
+        self.fast: JobRunner | None = None
+        self._fast_llm: ChatOllama | None = None
         self.verdicts: VerdictWorker | None = None
 
     # --- 모델 ---------------------------------------------------------------
@@ -173,6 +182,13 @@ class Engine:
         if self._qa_llm is None:
             self._qa_llm = self.with_model(self.settings.qa_model)
         return self._qa_llm
+
+    @property
+    def fast_llm(self) -> ChatOllama:
+        """빠른 로그 감시용 — 판정 모델과 같은 모델에 생각 단계만 끕니다. 묶음당 수 초지만 정확도가 떨어져 1차 판정에만 씁니다 (NOTES.md)."""
+        if self._fast_llm is None:
+            self._fast_llm = ChatOllama(**{**self.settings.llm_options, "reasoning": False})
+        return self._fast_llm
 
     def with_model(self, model: str) -> ChatOllama:
         return ChatOllama(**{**self.settings.llm_options, "model": model})
@@ -259,9 +275,14 @@ class Engine:
 
     def status(self) -> dict[str, Any]:
         """웹 안에서 도는 것 — 작업 큐(진행 · 마지막 결과) · 자동 실행 예약 · 권한 신청 판정 대기열."""
-        return {"jobs": {**(self.jobs.status() if self.jobs else {}), "kinds": KINDS},
-                "schedule": self.jobs.schedule() if self.jobs else {},
+        return {"jobs": {**self.job_status(), "kinds": KINDS},
+                "schedule": {**(self.jobs.schedule() if self.jobs else {}), **(self.fast.schedule() if self.fast else {})},
                 "verdicts": self.verdicts.snapshot() if self.verdicts else {}}
+
+    def job_status(self) -> dict[str, Any]:
+        """화면의 작업 상태. 빠른 로그 감시는 따로 돌아 다른 작업을 막지 않으므로 fast 에 따로 둡니다."""
+        return {**(self.jobs.status() if self.jobs else {"running": None, "last": {}}),
+                **({"fast": {**self.fast.status(), **self.fast.schedule().get("events_fast", {})}} if self.fast else {})}
 
     # --- 기능 (CLI 와 웹의 작업 큐가 같은 것을 부릅니다) ------------------------------------
 
@@ -287,14 +308,19 @@ class Engine:
 
         return pipeline.check_nodes(self, pending, s.policies_source, s.servers_source, save)
 
+    def run_fast_events(self, progress: Progress | None = None) -> dict[str, Any]:
+        """빠른 로그 감시 1회 — 지난 빠른 감시(또는 정밀 감시) 이후 로그만, 생각 단계를 끈 판정 모델로 1차 판정."""
+        return self.run_events(progress=progress, stage="fast")
+
     def run_events(self, since: datetime | None = None, until: datetime | None = None, full: bool = False,
-                   progress: Progress | None = None) -> dict[str, Any]:
+                   progress: Progress | None = None, stage: str = "final") -> dict[str, Any]:
         """로그 감시 1회 — since 를 주지 않으면 지난 감시 이후 로그만 (full 이면 처음부터). → 결과에 since 를 붙여 돌려줍니다."""
         if since is None and not full:
-            since = results.next_monitor_since(self.results_db)
-        run = pipeline.monitor(self, self.settings.events_source, since, until, progress)
-        results.save_monitor_run(self.results_db, run, self.settings.model,
-                                 since.isoformat() if since else None, until.isoformat() if until else None)
+            since = results.next_monitor_since(self.results_db, stage)
+        fast = stage == "fast"
+        run = pipeline.monitor(self, self.settings.events_source, since, until, progress, fast=fast)
+        results.save_monitor_run(self.results_db, run, f"{self.settings.model} (생각 끔)" if fast else self.settings.model,
+                                 since.isoformat() if since else None, until.isoformat() if until else None, stage)
         return {**run, "since": since.isoformat() if since else None}
 
     @cached_property
@@ -434,11 +460,17 @@ class Engine:
         self.jobs = JobRunner(self)
         for kind in ("events", "nodes"):
             self.jobs.every(kind, self.settings.monitor_interval_min)
+        # 빠른 로그 감시는 따로 돌립니다. 정책 관리 검토 · 서버 점검 · 정밀 감시가 돌고 있어도 기다리지 않습니다.
+        if self.settings.fast_interval_min:
+            self.fast = JobRunner(self)
+            self.fast.every("events_fast", int(self.settings.fast_interval_min))
 
     def stop(self) -> None:
         """큐를 멈추고 벡터 DB 잠금을 풉니다. --reload 로 새로 뜨는 프로세스 · CLI 가 벡터 DB 를 열 수 있게 합니다."""
         if self.jobs:
             self.jobs.stop()
+        if self.fast:
+            self.fast.stop()
         if self.verdicts:
             self.verdicts.stop()
         self.documents.close()
@@ -506,7 +538,7 @@ class JobRunner:
     def _run(self, kind: str, auto: bool) -> None:
         error = None
         try:
-            {"policies": self.engine.run_policies, "events": self.engine.run_events,
+            {"policies": self.engine.run_policies, "events": self.engine.run_events, "events_fast": self.engine.run_fast_events,
              "nodes": self.engine.run_nodes}[kind](progress=self._progress)
         except Exception as exc:  # 파일 없음 · 컬럼 없음 등은 화면에 그대로 보여줍니다.
             error = f"{type(exc).__name__}: {exc}"

@@ -883,6 +883,8 @@ function queue() {
       who: f.title,
       what: `로그 ${lines.length}건 — ${f.reason}`,
       when: stamp(f.detail && f.detail.last_event_at),
+      // 빠른 감시(생각 없이)의 1차 판정 — 정밀 감시가 같은 구간을 다시 판정하면 목록에서 빠지고 확정 판정이 뜹니다.
+      sub: f.stage === "fast" ? "1차 판정 · 확정 대기" : "",
       judge: f.level, raw: f,
     };
   });
@@ -1181,6 +1183,8 @@ function renderPanel() {
       </div>`}
       ${decisionLog(it)}
     </div>
+    ${r.stage === "fast" ? `<div class="panel-foot"><h4>1차 판정 — 확정 대기</h4>
+      <p class="note">빠른 감시(${esc(fastEvery())})가 생각 단계 없이 낸 판정입니다. 정밀 감시가 같은 로그를 다시 판정하면 확정 판정으로 바뀌고, 그때 결정할 수 있습니다. 빠른 판정은 주의 · 위험을 실제보다 많이 걸 수 있습니다.</p></div>` : `
     <div class="panel-foot">
       <h4>의사결정</h4>
       <textarea id="review-comment" maxlength="2000" placeholder="결정 의견 (선택)"></textarea>
@@ -1192,7 +1196,7 @@ function renderPanel() {
         ? `<span>결정 <b>${esc(DECISIONS[decision.action])}</b> · ${esc(`${decision.decider_department} ${decision.decider_name}`.trim())} · ${esc(stamp(decision.decided_at))}${decision.ai_level ? ` (그때 AI 판정: ${esc(decision.ai_level)})` : ""}${decision.comment ? ` — ${esc(decision.comment)}` : ""}</span><button id="undo">취소</button>`
         : `<span>AI는 권고만 합니다. 최종 결정은 사람이 내립니다.</span>`}</div>
       ${panelMsg()}
-    </div>`;
+    </div>`}`;
 
   bindChips(panel);
   const toLogs = $("to-logs");
@@ -1795,6 +1799,13 @@ async function startJob(kind = VIEW_KIND[state.view]) {
   watchJobs(true);
 }
 
+// 빠른 로그 감시는 따로 돌아 running 에 나오지 않습니다. 끝난 시각이 바뀌면 결과를 다시 받습니다.
+const fastDone = () => (state.jobs && state.jobs.fast && (state.jobs.fast.last.events_fast || {}).finished_at) || null;
+const fastEvery = () => {
+  const s = state.jobs && state.jobs.fast;
+  return s && s.every_min ? `${s.every_min}분마다` : "짧은 간격으로";
+};
+
 // 작업이 끝나면 저장된 결과를 다시 받아 화면 전체를 갱신합니다.
 // 파일이 없을 때처럼 시작하자마자 끝난 작업도 결과 · 실패를 보여줘야 하므로 started 면 바로 갱신합니다.
 function watchJobs(started = false) {
@@ -1810,9 +1821,11 @@ function watchJobs(started = false) {
     if (started) refresh();
     // 자동 감시는 화면이 시작하지 않으므로 쉬는 동안에도 가끔 보고, 돌기 시작하면 따라갑니다.
     jobTimer = setInterval(async () => {
+      const before = fastDone();
       try { state.jobs = await getJSON("/api/jobs"); } catch (e) { return; }
       renderRun();
-      if (state.jobs.running) watchJobs();
+      if (state.jobs.running) { watchJobs(); return; }
+      if (fastDone() !== before) refresh();
     }, 30000);
     return;
   }
