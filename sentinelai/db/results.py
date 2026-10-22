@@ -7,6 +7,7 @@ pipeline 이 돌려준 dict 를 그대로 받아 쌓습니다. 행은 고치지 
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -204,6 +205,97 @@ def server_history(db: Database, nodes: list[str], since: str | None = None, unt
         "snapshots": [{"node": r["node"], "collected_at": r["collected_at"], "changes": json.loads(r["changes"])} for r in snaps],
         "findings": [{"node": r["node"], "level": r["level"], "failed": bool(r["failed"]), "summary": r["summary"],
                       "gaps": json.loads(r["gaps"]), "created_at": r["created_at"]} for r in findings],
+    }
+
+
+# --- 보안 통계 ---------------------------------------------------------------
+# 모델 없이 쌓인 판정을 셉니다. 날짜는 화면과 같은 서버 현지 날짜(KST)로 묶습니다.
+
+LEVEL_ORDER = {"정상": 0, "주의": 1, "위험": 2}
+# 판정에 묶인 로그 한 줄 (SecurityEvent.describe). 판정 하나가 몇 주에 걸친 로그를 묶으므로 줄마다 자기 시각으로 셉니다.
+_EVENT_LINE = re.compile(r"^- (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) UTC", re.M)
+_MODULE = re.compile(r"^\[([^\]]+)\]")
+
+
+def _day(stamp: str) -> str:
+    return datetime.fromisoformat(stamp).astimezone().date().isoformat()
+
+
+def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
+    """보안 통계 — 로그 감시(주의 · 위험 판정에 묶인 로그 줄 · 날짜별 빈도 · 반복 사용자)와
+    서버 점검(노드별 등급 변화 · 모듈별 위협 항목 · 걸린 조항). since 가 없으면 전체."""
+    at = _utc(since)
+    with db.connection() as conn:
+        events = conn.execute("SELECT id, user, subject, level, failed, events, last_event_at FROM event_findings"
+                              + (" WHERE last_event_at >= ?" if at else "") + " ORDER BY last_event_at", (at,) if at else ()).fetchall()
+        findings = conn.execute("SELECT id, node, level, failed, gaps, created_at FROM node_findings"
+                                + (" WHERE created_at >= ?" if at else "") + " ORDER BY created_at, id", (at,) if at else ()).fetchall()
+        snaps = conn.execute("SELECT node, count(*) AS n, sum(changes <> '[]') AS changed FROM server_snapshots WHERE node <> ''"
+                             + (" AND collected_at >= ?" if at else "") + " GROUP BY node", (at,) if at else ()).fetchall()
+
+    # 판정 실패는 화면과 같이 "주의"로 셉니다 (확인하지 못한 것을 정상으로 두지 않습니다).
+    level = lambda r: "주의" if r["failed"] else r["level"]  # noqa: E731
+    users: dict[str, dict[str, Any]] = {}
+    days: dict[str, dict[str, int]] = {}
+    findings_by_level = {"정상": 0, "주의": 0, "위험": 0}
+    lines = {"정상": 0, "주의": 0, "위험": 0}
+    for r in events:
+        lv = level(r)
+        findings_by_level[lv] += 1
+        stamps = [m for m in _EVENT_LINE.findall(r["events"]) if not at or f"{m.replace(' ', 'T')}+00:00" >= at]
+        lines[lv] += len(stamps)
+        if lv == "정상":
+            continue
+        for m in stamps:
+            d = days.setdefault(_day(f"{m.replace(' ', 'T')}+00:00"), {"주의": 0, "위험": 0})
+            d[lv] += 1
+        who = r["subject"] or r["user"]
+        u = users.setdefault(who, {"user": who, "주의": 0, "위험": 0, "lines": 0, "line_levels": {"주의": 0, "위험": 0},
+                                   "last_at": "", "keys": []})
+        u[lv] += 1
+        u["lines"] += len(stamps)
+        u["line_levels"][lv] += len(stamps)
+        u["last_at"] = max(u["last_at"], r["last_event_at"])
+        u["keys"].append(f"event_findings/{r['id']}")
+
+    nodes: dict[str, dict[str, Any]] = {}
+    for r in findings:
+        n = nodes.setdefault(r["node"], {"node": r["node"], "grades": [], "collected": 0, "changed": 0})
+        n["grades"].append({"level": level(r), "at": r["created_at"], "key": f"node_findings/{r['id']}"})
+        n["gaps"] = [g for g in json.loads(r["gaps"]) if g.get("level") in ("주의", "위험")]
+    for r in snaps:
+        n = nodes.setdefault(r["node"], {"node": r["node"], "grades": [], "collected": 0, "changed": 0, "gaps": []})
+        n["collected"], n["changed"] = r["n"], r["changed"] or 0
+    clauses: dict[str, dict[str, Any]] = {}
+    modules: dict[str, dict[str, Any]] = {}
+    for n in nodes.values():
+        first, last = (n["grades"][0]["level"], n["grades"][-1]["level"]) if n["grades"] else (None, None)
+        diff = LEVEL_ORDER[last] - LEVEL_ORDER[first] if first else 0
+        n["trend"] = "판정 없음" if not first else "나빠짐" if diff > 0 else "좋아짐" if diff < 0 else "그대로"
+        n["level"] = last
+        # 위협 항목 · 조항은 노드마다 기간 안 마지막 판정만 셉니다. 자주 점검한 노드가 건수를 부풀리지 않게 합니다.
+        n["threats"] = {"주의": 0, "위험": 0}
+        for g in n.pop("gaps", []):
+            item = g.get("item", "")
+            n["threats"][g["level"]] += 1
+            m = _MODULE.match(item)
+            mod = modules.setdefault(m.group(1) if m else "기타", {"module": m.group(1) if m else "기타", "주의": 0, "위험": 0, "nodes": [], "items": []})
+            mod[g["level"]] += 1
+            if n["node"] not in mod["nodes"]:
+                mod["nodes"].append(n["node"])
+            mod["items"].append(f"{n['node']} — {item}: {g.get('current', '')} ({g['level']})")
+            source = (g.get("source") or "근거 없음").strip()
+            c = clauses.setdefault(source, {"source": source, "nodes": [], "items": []})
+            if n["node"] not in c["nodes"]:
+                c["nodes"].append(n["node"])
+            c["items"].append(f"{n['node']} — {item}")
+    return {
+        "events": {"findings": findings_by_level, "lines": lines,
+                   "users": sorted(users.values(), key=lambda u: (-u["위험"], -u["주의"], u["user"])),
+                   "days": [{"day": d, **v} for d, v in sorted(days.items())]},
+        "servers": {"nodes": sorted(nodes.values(), key=lambda n: (-LEVEL_ORDER.get(n["level"] or "", -1), n["node"])),
+                    "modules": sorted(modules.values(), key=lambda m: (-m["위험"], -m["주의"], m["module"])),
+                    "clauses": sorted(clauses.values(), key=lambda c: (-len(c["nodes"]), c["source"]))},
     }
 
 

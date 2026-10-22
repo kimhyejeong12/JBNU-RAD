@@ -13,9 +13,10 @@ import logging
 import os
 import queue
 import threading
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, fields
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from pathlib import Path
 from typing import Any
@@ -28,7 +29,7 @@ from langchain_ollama import ChatOllama
 from pydantic import BaseModel
 
 from .. import ROOT
-from ..data import LoadResult, load_collected
+from ..data import LoadResult, load_collected, load_events, period_since
 from ..data.collected import FORMAT
 from ..db import Database, User, auth, nodes, open_main_db, open_results_db, permissions, results
 from . import pipeline
@@ -333,6 +334,30 @@ class Engine:
                             "collected_at": snap["collected_at"] if snap else "", "modules": snap["modules"] if snap else {},
                             "finding": findings.get(n["name"])})
         return current, results.server_history(self.results_db, names, since, until)
+
+    def stats(self, period: str) -> dict[str, Any]:
+        """보안 통계 — 지금부터 period(week · month · quarter · all 등) 안의 위협 로그 비율 · 빈도와 노드 위협 데이터를 셉니다. 모델은 쓰지 않습니다.
+
+        사용자별 위협 로그 · 권한 신청은 user_stats(사용자 위협)로 나눴습니다.
+        """
+        since = period_since(period, datetime.now(timezone.utc))
+        at = since.isoformat(timespec="seconds") if since else None
+        # 위협 로그 비율의 분모 — 기간 안 로그 전체. 로그를 읽지 못하면 비율 없이 건수만 보여줍니다.
+        try:
+            logs = load_events(self.settings.events_source, since=since).records
+            total = {"count": len(logs), "days": dict(Counter(e.occurred_at.astimezone().date().isoformat() for e in logs))}
+        except (FileNotFoundError, ValueError) as exc:
+            total = {"count": None, "days": {}, "error": str(exc)}
+        found = results.threat_stats(self.results_db, at)
+        return {"period": period, "since": at, "logs": total,
+                "events": {k: v for k, v in found["events"].items() if k != "users"}, "servers": found["servers"]}
+
+    def user_stats(self, period: str) -> dict[str, Any]:
+        """사용자 위협 — 사용자별 위협 로그(로그 감시)와 부서 · 권한별 신청 위험도(권한 신청). 위협 예측은 같은 자리에 더할 예정입니다 (CLAUDE.md §8)."""
+        since = period_since(period, datetime.now(timezone.utc))
+        at = since.isoformat(timespec="seconds") if since else None
+        return {"period": period, "since": at, "events": {"users": results.threat_stats(self.results_db, at)["events"]["users"]},
+                "requests": permissions.request_stats(self.main_db, at)}
 
     def browse_logs(self, user: User, period: str, who: str = "", solution: str = "", how: str = "", page: int = 1,
                     ip: str | None = None) -> dict[str, Any]:

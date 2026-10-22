@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import datetime
+from typing import Any
 
 from . import catalog
 from .auth import User
@@ -178,6 +179,44 @@ def revoke(db: Database, by: User, request_no: str, reason: str) -> dict:
         )
         audit(conn, "request_revoke", by.id, target_type="request", target_id=request_no)
         return _detail(conn, req["id"])
+
+
+# --- 보안 통계 ---------------------------------------------------------------
+
+OUTCOME = {"manager": "결재 중", "top": "결재 중", "approved": "승인", "rejected": "반려", "withdrawn": "철회", "revoked": "회수"}
+
+
+def request_stats(db: Database, since: str | None = None) -> dict[str, Any]:
+    """보안 통계 — 전체 · 부서 · 권한별 AI 등급(주의 · 위험 = 정책 위반 소지)과 결재 결과, AI 와 결재가 엇갈린 신청. since(신청 시각)가 없으면 전체."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT request_no, requester_name, requester_department, access_code, requested_access, stage,"
+            " ai_level, ai_failed, ai_judged_at, manager_action, top_action, submitted_at FROM access_requests"
+            + (" WHERE submitted_at >= ?" if since else "") + " ORDER BY submitted_at", (since,) if since else ()).fetchall()
+
+    def bucket(groups: dict, key: str) -> dict:
+        return groups.setdefault(key, {"name": key, "신청": 0, "ai": {}, "outcome": {}})
+
+    departments: dict[str, dict] = {}
+    accesses: dict[str, dict] = {}
+    totals: dict[str, int] = {}
+    mismatches = []
+    for r in rows:
+        ai = "판정 없음" if r["ai_judged_at"] is None else "판정 실패" if r["ai_failed"] else r["ai_level"]
+        # 회수는 최종 승인을 거친 것이라 결재 결과로는 승인입니다.
+        outcome = OUTCOME[r["stage"]]
+        decided = "승인" if outcome in ("승인", "회수") else "반려" if outcome == "반려" else None
+        totals[ai] = totals.get(ai, 0) + 1
+        for g in (bucket(departments, r["requester_department"] or "부서 없음"), bucket(accesses, r["requested_access"])):
+            g["신청"] += 1
+            g["ai"][ai] = g["ai"].get(ai, 0) + 1
+            g["outcome"][outcome] = g["outcome"].get(outcome, 0) + 1
+        if (ai == "위험" and decided == "승인") or (ai == "정상" and decided == "반려"):
+            mismatches.append({"request_no": r["request_no"], "requester": f"{r['requester_department']} {r['requester_name']}".strip(),
+                               "access": r["requested_access"], "ai": ai, "outcome": outcome, "submitted_at": r["submitted_at"]})
+    order = lambda g: (-g["ai"].get("위험", 0), -g["신청"], g["name"])  # noqa: E731
+    return {"total": len(rows), "ai": totals, "departments": sorted(departments.values(), key=order),
+            "accesses": sorted(accesses.values(), key=order), "mismatches": mismatches}
 
 
 # --- AI 판정 (신청 행의 AI 칸) --------------------------------------------------

@@ -123,6 +123,24 @@ def ask_servers(body: AskRequest, request: Request, user: Approver) -> dict[str,
 Filter = Annotated[str, Query(max_length=200)]
 
 
+@app.get("/api/stats")
+def stats(request: Request, user: Approver, period: str = "month") -> dict[str, Any]:
+    """보안 통계 — 위협 로그 비율 · 빈도, 노드 위협 데이터. 모델 없이 쌓인 판정을 셉니다."""
+    try:
+        return _engine(request).stats(period)
+    except ValueError as exc:  # 없는 기간
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+@app.get("/api/user-stats")
+def user_stats(request: Request, user: Approver, period: str = "month") -> dict[str, Any]:
+    """사용자 위협 — 사용자별 위협 로그, 부서 · 권한별 신청 위험도, AI와 결재가 엇갈린 신청. 모델 없이 셉니다."""
+    try:
+        return _engine(request).user_stats(period)
+    except ValueError as exc:  # 없는 기간
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
 @app.get("/api/logs")
 def browse_logs(request: Request, user: Approver, period: str,
                 who: Annotated[str, Query(alias="user", max_length=200)] = "", solution: Filter = "", how: Filter = "",
