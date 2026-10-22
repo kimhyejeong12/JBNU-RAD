@@ -141,6 +141,22 @@ def user_stats(request: Request, user: Approver, period: str = "month") -> dict[
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
+class TrustExplain(BaseModel):
+    key: Annotated[str, StringConstraints(min_length=1, max_length=100)]
+    period: str = "month"
+
+
+@app.post("/api/user-stats/explain")
+def explain_trust(body: TrustExplain, request: Request, user: Approver) -> dict[str, Any]:
+    """사용자 신뢰 수치 한 사람의 근거 요약 (모델, 수십 초). 점수는 바꾸지 않고 저장하지도 않습니다."""
+    try:
+        return _engine(request).explain_trust(body.period, body.key)
+    except ValueError as exc:  # 없는 기간
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+
+
 @app.get("/api/logs")
 def browse_logs(request: Request, user: Approver, period: str,
                 who: Annotated[str, Query(alias="user", max_length=200)] = "", solution: Filter = "", how: Filter = "",

@@ -124,6 +124,23 @@ class Prompts:
         ]
     )
 
+    TRUST_EXPLAIN = ChatPromptTemplate.from_messages(
+        [
+            ("system", SYSTEM),
+            (
+                "human",
+                "[사용자]\n{subject}\n\n"
+                "[신뢰 수치 (코드 규칙으로 계산, 100점에서 감점)]\n{score}\n\n"
+                "[감점 내역]\n{deductions}\n\n"
+                "[로그 감시 판정 이유]\n{findings}\n\n"
+                "[권한 신청]\n{requests}\n\n"
+                "보안 운영자가 이 사용자를 먼저 살펴봐야 하는지 판단할 수 있게, 신뢰 수치가 이렇게 나온 근거를 요약하십시오. "
+                "점수를 다시 매기거나 바꾸지 말고 위 기록에 있는 내용만 쓰십시오. 징계 · 권한 회수 같은 조치를 정하지 말고, "
+                "확인할 점이 있으면 무엇을 확인하면 되는지만 적으십시오. 마크다운 없이 평문 세 문장 안으로 답하십시오.",
+            ),
+        ]
+    )
+
     SERVER_REVIEW = ChatPromptTemplate.from_messages(
         [
             ("system", SYSTEM),

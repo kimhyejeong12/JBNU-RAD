@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from .collected import changes as snapshot_changes, load_collected, server_digest, snapshot_from_payload
+from .trust import trust_scores
 from .events import PERIODS, between, event_review_input, group_by_user, latest, period_since, search, summarize, user_label, vocabulary
 from .mapper import AccessRequestMapper, ColumnMapper, EventMapper, Mapper, PolicyRuleMapper, ServerStateMapper, parse_datetime
 from .servers import rules_for, server_review_input
@@ -142,6 +143,7 @@ __all__ = [
     "search",
     "server_digest",
     "snapshot_changes",
+    "trust_scores",
     "snapshot_from_payload",
     "summarize",
     "user_label",

@@ -29,7 +29,7 @@ from langchain_ollama import ChatOllama
 from pydantic import BaseModel
 
 from .. import ROOT
-from ..data import LoadResult, load_collected, load_events, period_since
+from ..data import LoadResult, load_collected, load_events, period_since, trust_scores
 from ..data.collected import FORMAT
 from ..db import Database, User, auth, nodes, open_main_db, open_results_db, permissions, results
 from . import pipeline
@@ -218,6 +218,9 @@ class Engine:
     def server_answer_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         return pipeline.server_answer_chain(self, *args, **kwargs)
 
+    def trust_explain_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        return pipeline.trust_explain_chain(self, *args, **kwargs)
+
     def answer_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         return pipeline.answer_chain(self, *args, **kwargs)
 
@@ -357,7 +360,22 @@ class Engine:
         since = period_since(period, datetime.now(timezone.utc))
         at = since.isoformat(timespec="seconds") if since else None
         return {"period": period, "since": at, "events": {"users": results.threat_stats(self.results_db, at)["events"]["users"]},
-                "requests": permissions.request_stats(self.main_db, at)}
+                "requests": permissions.request_stats(self.main_db, at), "trust": self._trust(at)[0]}
+
+    def _trust(self, at: str | None) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+        findings, requests = results.user_findings(self.results_db, at), permissions.user_requests(self.main_db, at)
+        return trust_scores(auth.accounts_brief(self.main_db), findings, requests), findings, requests
+
+    def explain_trust(self, period: str, key: str) -> dict[str, Any]:
+        """사용자 신뢰 수치 한 사람의 근거 요약 (모델). 점수는 규칙이 내고 모델은 요약만 합니다. 없는 사람이면 LookupError."""
+        since = period_since(period, datetime.now(timezone.utc))
+        people, findings, requests = self._trust(since.isoformat(timespec="seconds") if since else None)
+        person = next((p for p in people if p["key"] == key), None)
+        if person is None:
+            raise LookupError("이 기간에 없는 사용자입니다")
+        account = int(key.split(":")[1]) if key.startswith("account:") else None
+        return pipeline.explain_trust(self, person, [f for f in findings if person["log_id"] and f["log_id"] == person["log_id"]],
+                                      [r for r in requests if r["account_id"] == account])
 
     def browse_logs(self, user: User, period: str, who: str = "", solution: str = "", how: str = "", page: int = 1,
                     ip: str | None = None) -> dict[str, Any]:

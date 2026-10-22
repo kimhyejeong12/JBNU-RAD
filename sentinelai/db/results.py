@@ -299,6 +299,17 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
     }
 
 
+def user_findings(db: Database, since: str | None = None) -> list[dict[str, Any]]:
+    """신뢰 수치 — 기간 안 로그 감시 판정을 로그 사용자 ID(user)별로. 묶인 로그 줄 수와 판정 시각(마지막 로그)을 함께 줍니다."""
+    at = _utc(since)
+    with db.connection() as conn:
+        rows = conn.execute("SELECT id, user, subject, level, failed, reason, events, last_event_at FROM event_findings"
+                            + (" WHERE last_event_at >= ?" if at else "") + " ORDER BY last_event_at", (at,) if at else ()).fetchall()
+    return [{"key": f"event_findings/{r['id']}", "log_id": r["user"], "subject": r["subject"], "level": "주의" if r["failed"] else r["level"],
+             "failed": bool(r["failed"]), "reason": r["reason"], "lines": len(_EVENT_LINE.findall(r["events"])), "at": r["last_event_at"]}
+            for r in rows]
+
+
 # --- 로그 감시 ---------------------------------------------------------------
 
 

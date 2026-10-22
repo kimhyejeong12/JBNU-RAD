@@ -28,7 +28,7 @@ JBNU-RAD/
 ├── sentinelai/               SentinelAI 패키지. __init__.py 는 ROOT · 버전만 두고 하위 패키지를 가져오지 않는다
 │   ├── __main__.py · cli.py    CLI `python -m sentinelai` — 웹이 꺼져 있을 때 쓰는 최소 명령만: health · index · review-policies · check-nodes · monitor · import-snapshots · create-root. 모두 Engine 기능을 부른다
 │   ├── engine/                 엔진 (양현성) — 큰 파일 다섯 개 (10/20에 chains/ · pipeline · 작업 큐 · CLI 를 합쳤다)
-│   │   ├── engine.py             Settings(.env) · Engine — 모델 · RAG 저장소 · 두 DB를 열고, 모든 기능(run_policies · run_nodes · run_events · ask · ask_servers · ask_logs · browse_logs · stats · user_stats · receive_snapshot · import_snapshots · judge_request · health)과 작업 큐(JobRunner: 자동 로그 감시 · 서버 점검 · 정책 관리 검토, VerdictWorker: 권한 신청 판정)를 둔다. 웹 · CLI는 Engine 하나만 만든다
+│   │   ├── engine.py             Settings(.env) · Engine — 모델 · RAG 저장소 · 두 DB를 열고, 모든 기능(run_policies · run_nodes · run_events · ask · ask_servers · ask_logs · browse_logs · stats · user_stats · explain_trust · receive_snapshot · import_snapshots · judge_request · health)과 작업 큐(JobRunner: 자동 로그 감시 · 서버 점검 · 정책 관리 검토, VerdictWorker: 권한 신청 판정)를 둔다. 웹 · CLI는 Engine 하나만 만든다
 │   │   ├── pipeline.py           체인(review · policy · server · server_filter · server_answer · event · log_filter · log_answer · answer · rag)과 판정 흐름(review_policies · check_nodes · snapshot_row · ask_servers · monitor · browse_logs · ask_logs · judge_request · attempt). 결과 dict만 돌려주고 저장 · 큐는 engine.py
 │   │   ├── rag.py                DocumentStore — 기준 조항(clause) · 솔루션 규칙(rule)을 한 컬렉션에 적재, 종류별 검색(lookup · lookup_all)
 │   │   ├── prompt.py             프롬프트 (권한 검토 · 로그 검토 · 정책 검토 · 서버 점검 · 질의응답 · 로그 질의)
@@ -38,6 +38,7 @@ JBNU-RAD/
 │   │   ├── source.py             RowSource — CsvSource · JsonSource · MemorySource, 확장자로 고르는 open_source
 │   │   ├── mapper.py             Mapper — EventMapper(Microsoft Sentinel 로그) · AccessRequestMapper · PolicyRuleMapper
 │   │   ├── collected.py          수집 노드 본문 → 모듈별 상태 (UFW · SSH · PAM · 계정 · sudo), 직전 수집과 달라진 설정, 서버 질의용 server_digest(노드별 지금 상태 · 집계 · 기록 줄)
+│   │   ├── trust.py              사용자 신뢰 수치 — 로그 감시 판정 · 권한 신청을 사람별로 모아 100점에서 깎는 규칙 점수 (모델 없음, 10/22)
 │   │   ├── servers.py            서버 ↔ 규칙 맞춰 보기 (IP · 대역 · 호스트 이름, ANY 제외) → server_chain 입력
 │   │   └── events.py             로그 시각 필터(between · latest) · 사용자별 묶음 → event_chain 입력 · 로그 질의용 search · summarize · vocabulary
 │   ├── db/                     권한 DB · AI 결과 DB (SQLite). 엔진 · 데이터 계층은 모른다. 설계는 design/db-schema.md · design/results-db.md
@@ -51,6 +52,7 @@ JBNU-RAD/
 │   │   ├── roles_names.sql       트리거 오류 문구를 사용자 용어로 바꾼다 (10/20)
 │   │   ├── results_server_snapshots.sql · results_nodes.sql  수집 기록(server_snapshots, 노드별) · 노드 서버 점검 판정(node_findings) (10/20)
 │   │   ├── access_catalog.sql · catalog.py  권한 목록 — 일반 사용자는 여기 있는 켜진 권한만 신청한다. 보안 총책임자가 등록 · 고치기 · 끄기 (지우지 않고 코드는 못 바꿈) (10/20)
+│   │   ├── users_log_id.sql      계정에 로그 사용자 ID(보안 솔루션 로그의 UserID)를 더한다 — 신뢰 수치가 로그와 신청을 한 사람으로 잇는다 (10/22)
 │   │   ├── nodes.sql · nodes_keys.sql · nodes_key_view.sql · nodes.py  수집 노드 등록부 — 화면에서 등록하면 노드만의 키 발급(키의 해시로 노드를 찾고, 화면에서 다시 볼 수 있게 키도 둔다), 키 다시 발급 · 끄기 (10/20)
 │   │   ├── results_qa_servers.sql  질의 기록에 서버 질의(kind servers)를 더한다 (10/21)
 │   │   ├── results_server_gaps.sql  서버 점검에 다른 곳(gaps) · 판단하지 않은 항목을 더한다 (10/14)
@@ -131,12 +133,13 @@ JBNU-RAD/
 | `POST /api/ask-logs` | 로그 질의. 입력은 `/api/ask`와 같다 → `pipeline.ask_logs` → `answer · criteria · facts · evidence · failed`. 질의 기록에 남긴다 |
 | `GET /api/logs?period=day\|week\|month\|quarter\|half\|year\|all[&user=&solution=&how=&page=]` | 로그 조회 — 지금부터 1 · 7 · 30 · 90 · 180 · 365일 안, 또는 전체 로그를 거른다 (`pipeline.browse_logs`, 모델 없음). 사용자는 "부서 이름"이 같은 것만 (부분 일치 아님). 최신순 100건씩 + 집계(`facts`) + 거르기 칸 값(`options`, 조건과 상관없이 로그 전체의 사용자 · 솔루션 · 행위). 조회마다 감사 기록(`log_view`: 누가 · 조건 · IP) |
 | `GET /api/stats?period=week\|month\|quarter\|all` | 보안 통계 (기본 한 달, 지금부터) — 모델 없이 센다. `logs`(기간 안 로그 전체 건수 · 날짜별, 위협 로그 비율의 분모) · `events`(판정 등급별 · 주의 · 위험 판정에 묶인 로그 줄 수 · 날짜별 빈도) · `servers`(노드별 등급 변화 · 위험 · 주의 항목, 모듈별 위협 항목, 걸린 조항 — 노드마다 기간 안 마지막 서버 점검). `results.threat_stats` |
-| `GET /api/user-stats?period=` | 사용자 위협 (10/22에 보안 통계에서 나눔) — `events.users`(사용자별 위협 로그 줄 · 위험 · 주의 판정 수) · `requests`(전체 · 부서 · 권한별 AI 등급과 결재 결과, AI와 결재가 엇갈린 신청, `permissions.request_stats`). 위협 예측은 여기에 더할 예정 (§8) |
+| `POST /api/user-stats/explain` | 신뢰 수치 한 사람의 근거 요약 — 입력 `{"key", "period"}` → `pipeline.explain_trust`(모델, 10초 안팎). 점수는 바꾸지 않고 저장하지 않는다. 없는 사람 404 |
+| `GET /api/user-stats?period=` | 사용자 위협 (10/22에 보안 통계에서 나눔) — `trust`(사람별 신뢰 수치 · 구간 · 감점 내역, `data.trust_scores`) · `events.users`(사용자별 위협 로그 줄 · 위험 · 주의 판정 수) · `requests`(전체 · 부서 · 권한별 AI 등급과 결재 결과, AI와 결재가 엇갈린 신청, `permissions.request_stats`). 위협 예측은 여기에 더할 예정 (§8) |
 | `GET /api/qa?kind=policy\|servers\|logs` | 내 질의 기록 (최근 50건). 다른 사람 것은 주지 않는다 |
 | `GET /api/health` | 헤더 경고: 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` (보안 운영자 · 보안 총책임자) |
 | `GET /api/regulations` | `docs/` 원문 (근거 조항 전문 표시용) |
 | `POST /api/auth/login` · `logout` · `GET /api/auth/me` · `POST /api/auth/password` | 로그인 (세션 쿠키 HttpOnly · SameSite=Strict, 2일), 첫 로그인 비밀번호 변경 전에는 다른 API가 403 |
-| `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 — 보안 총책임자. 루트 계정은 루트만 고치고, 자기 역할 · 활성은 못 바꾼다 |
+| `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 — 보안 총책임자. `PATCH`로 로그 사용자 ID(`log_id`, 계정마다 하나, 겹치면 400)도 적는다. 루트 계정은 루트만 고치고, 자기 역할 · 활성은 못 바꾼다 |
 | `GET /api/access-catalog` · `POST /api/access-catalog` · `PATCH /api/access-catalog/{코드}` | 권한 목록 — 보기(일반 사용자 · 보안 운영자는 켜진 것만, 보안 총책임자는 전부) · 등록 · 고치기 · 끄기(보안 총책임자, 감사 기록) |
 | `POST /api/requests` · `GET /api/requests[?stage=&mine=]` · `GET /api/requests/{no}` | 신청(일반 사용자, 본문은 `access_code` — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400. 현재 보유 권한은 서버가 채운다) · 목록(일반 사용자는 자기 것만) · 상세. 응답에 최신 AI 판정(`ai_verdict`)과 판정 중 여부(`judging`) |
 | `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(보안 운영자 = 1차, 보안 총책임자 = 최종) · 회수(보안 운영자 · 보안 총책임자) · 다시 판정 |
@@ -163,7 +166,7 @@ JBNU-RAD/
 | 권한 신청 (결재함) | `GET /api/requests` — 거르기 [결재 대기](기본, 내 단계에서 기다리는 것) · [유효 권한](승인됐고 기간이 남은 것 — 예전 권한 현황 메뉴, 10/12에 합침) · [전체]. 패널 = 신청 내용 · AI 판정(이유 · 권고 · 근거 칩) · 결재 기록, 아래에 결재 의견 + [승인] · [반려], 유효 권한이면 사유 + [회수]. 판정 중이면 3초마다 다시 받는다. [다시 판정]은 1차 결재 전에만 (1차 결재 뒤에는 AI 판정이 굳는다) |
 | 내 신청 (일반 사용자) | 화면 하나 — 신청서(권한은 권한 목록의 켜진 권한을 시스템별로 묶은 고르기 칸에서 고르고 설명이 아래 뜬다, 목록이 비면 신청 버튼이 막힌다 · 현재 보유 권한은 적지 않고 승인된 유효 권한을 보여준다 — 서버가 신청 때 같은 조건으로 읽어 신청 행에 남긴다. 보유 중 · 결재 중인 권한은 고르기 칸에서 막힌다 · 사유 · 사용 기간) + 내 신청 목록 · 상태 · 결재 기록. 1차 결재 전이면 [철회]. **AI의 흔적은 없다** — 응답에 AI 칸이 아예 없고, 엔진 경고 · `/api/health`(403)도 없다 |
 | 권한 목록 | 보안 총책임자. 목록(시스템 · 권한 (코드) · 분류 · 설명 · 고친 시각 · 켜짐/꺼짐) · [권한 등록](코드 · 이름 · 시스템 · 분류 · 설명). 패널 = 이 권한의 신청 · 유효 건수, 이름 · 시스템 · 분류 · 설명 고치기 · 켜짐. 코드는 못 바꾸고 지우지 않는다 (지난 신청이 가리킨다). 분류 · 설명은 AI 판정에 함께 넘어간다 |
-| 계정 관리 | 보안 총책임자. 목록 · [새 계정](임시 비밀번호) · 이름 · 부서 · 역할 · 활성 · 비밀번호 초기화. 루트는 역할 · 활성을 바꿀 수 없고, 루트 계정은 루트만 고친다 (다른 보안 총책임자에게는 폼이 없다). 자기 계정의 역할 · 활성도 바꿀 수 없다 |
+| 계정 관리 | 보안 총책임자. 목록 · [새 계정](임시 비밀번호) · 이름 · 부서 · 역할 · 로그 사용자 ID(보안 솔루션 로그의 UserID — 신뢰 수치가 로그 감시 판정을 이 계정에 잇는다) · 활성 · 비밀번호 초기화. 루트는 역할 · 활성을 바꿀 수 없고, 루트 계정은 루트만 고친다 (다른 보안 총책임자에게는 폼이 없다). 자기 계정의 역할 · 활성도 바꿀 수 없다 |
 | 서버 점검 (정책 관리) | 정책 관리 목록에 정책 문제와 함께 "서버 점검"으로 뜬다 — 노드마다 마지막 판정 (상세 내용 = "정책과 다른 곳 N — 요약"). 패널 = 서버 현황(표에 같은 서버가 있을 때) · 직전 수집과 달라진 설정 · 모듈 상태(수집 시각 · 계정, 모듈별 표) · 이 서버에 걸린 정책(코드가 찾은 규칙) · 요약 · 정책과 다른 곳(한 곳마다 지금 · 기준 · 바꿀 것 · 근거 조항 칩, 모델이 "정상"으로 적은 항목은 화면에서 뺀다) · 판단하지 않은 항목. 결정은 이상 없음 · 조치 필요 (`node_findings/{id}`, 새 판정이 나면 새로 결정) |
 | 노드 (정책 관리 탭) | `GET /api/nodes` — 노드 · 호스트(IP) · 상태(수집 중 · 끊김: 간격의 세 배 넘게 소식 없음 · 꺼짐 · 키 없음: 손으로 넣은 수집뿐 · 기다리는 중: 키 발급 뒤 아직 안 옴) · 마지막 수집 · 마지막 판정. 제목 줄의 [지금 점검](서버 점검을 주기를 기다리지 않고 바로, 같은 작업 큐) · [노드 등록] → 이름 → 키 발급. 패널 = 고르지 않으면 상태 집계와 까는 법, 고르면 노드 정보 · [노드 끄기/켜기] · [키 다시 발급] · 노드 키(키 · 설치 명령 복사, 해시만 남은 예전 키는 다시 발급해야 보임) · 마지막 서버 점검(→ [검토 현황에서 보기]) · 최근 수집(달라진 설정) · 모듈 상태 |
 | 운영자 결정 (정책 · 로그) | 정책: 승인 · 조건부 승인 · 반려 확정. 서버 점검 · 로그 감시: 이상 없음 · 조치 필요. 의견(선택)과 함께 권한 DB에 남고, 결정자 · 시각 · 그때 AI 판정을 보여준다 (목록 행에는 결정자 이름 · 결정). [취소]도 기록으로 남는다. 보안 총책임자는 패널의 "결정 기록"에서 보안 운영자들의 결정 · 취소 · 의견을 순서대로 읽는다. 정책 결정은 그 검토 실행의 문제에만 붙는다 (다시 돌리면 새로 결정) |
@@ -171,7 +174,7 @@ JBNU-RAD/
 | 로그 질의 | 내 지난 질의가 먼저 보인다 (`/api/qa`). 답 = `answer`, 조건 = `criteria`, 근거 칩 "해당 로그 N건" → 누르면 오른쪽 패널에 집계(`facts`)와 로그 줄(`evidence`). 숫자는 모두 코드가 센 값이다 |
 | 서버 질의 (정책 관리 탭) | 내 지난 질의가 먼저 보인다 (`/api/qa?kind=servers`). 답 = `answer`, 조건 = `criteria`(노드 · 모듈 · 기간), 근거 칩 "서버 N대 · 기록 N줄" → 누르면 오른쪽 패널에 집계(서버 수 · 마지막 판정 등급별 · 노드별 수집 · 바뀐 설정 · 판정 건수)와 바뀐 설정 · 서버 점검 기록 줄. 숫자는 모두 코드가 센 값이다 |
 | 보안 통계 (통계 메뉴의 탭) | 10/21. 10/22에 사용자 위협과 한 메뉴 "통계"[보안 통계 · 사용자 위협]로 묶었다. `GET /api/stats` — 기간 버튼 [일주일 · 한 달 · 3개월 · 전체](지금부터, 기본 한 달, 사용자 위협과 같이 씀). **대부분 그래프** (외부 라이브러리 없이 HTML · CSS · 작은 SVG, 값은 막대 옆 글자 · 툴팁 · 구역마다 [표로 보기]로도 준다). 위 타일 넷: 위협 로그 비율(+ 위험 · 주의 막대) · 위협 로그 빈도(하루 평균 + 날짜별 꺾은선) · 위험 판정 로그 · 노드 위협 항목. 위협 로그: 날짜별 세로 막대(높이 = 그날 로그 건수, 조각 = 위험 · 주의 · 그 외 로그 — 빈도와 비율을 한 번에). 노드 위협 데이터: 모듈별 · 노드별 위협 항목 가로 막대 · 서버 점검 등급 흐름(노드마다 점 하나 = 점검 한 번, 첫 점검 ~ 지금) · 걸린 조항(걸린 서버 수). 색은 등급 색(위험 · 주의 · 정상)만, 그 외는 회색. 로그 감시는 사용자별로 묶어 판정하므로 줄마다 자기 시각으로 센다 (판정 하나가 몇 주를 묶는다). 막대 · 점을 누르면 패널에 내용과 이어 볼 곳 — 노드 → 노드 탭, 조항 → 기준 문서 원문. 판정 실패는 주의로 센다 |
-| 사용자 위협 (통계 메뉴의 탭) | 10/22에 보안 통계에서 사용자 · 권한 신청 쪽을 나눴다 (위협 예측을 더할 자리). `GET /api/user-stats`, 보안 통계와 같은 화면 · 기간 버튼. 타일: 위협 사용자 · 반복 위협 사용자 · 신청 중 위험 비율(+ 막대) · AI와 결재가 엇갈린 신청. 사용자별 위협 로그 가로 막대(위험 · 주의, 2번 넘게 걸리면 "반복") · 권한 신청: 부서별 · 권한별 AI 판정 구성 100% 가로 막대(옆 글자 = 정책 위반 소지 · 위험 비율) · 엇갈린 신청 표. 사용자 → 로그 조회 · 로그 감시 판정, 엇갈린 신청 → 결재함 |
+| 사용자 위협 (통계 메뉴의 탭) | 10/22에 보안 통계에서 사용자 · 권한 신청 쪽을 나눴다 (위협 예측을 더할 자리). `GET /api/user-stats`, 보안 통계와 같은 화면 · 기간 버튼. **사용자 신뢰 수치**(맨 위): 사람별 0~100점 가로 막대(낮은 순, 색 = 낮음 70 미만 · 보통 70~89 · 높음 90 이상, 옆 글자에 계정 미연결 · 로그 ID 없음). 누르면 패널 = 점수 · 계정 · 로그 사용자 ID · 로그 감시 · 권한 신청 건수, 감점 내역(날짜 · 점수 · 근거, 오래된 기록 배수), [근거 요약 받기](모델 요약, 저장 안 함), [이 사용자의 로그 조회]. 사람은 계정의 로그 사용자 ID(계정 관리 패널에서 적음)로 로그 감시 판정과 권한 신청을 잇는다. 타일: 신뢰 낮음(보통 · 반복 위협 수 함께) · 위협 사용자 · 신청 중 위험 비율(+ 막대) · AI와 결재가 엇갈린 신청. 사용자별 위협 로그 가로 막대(위험 · 주의, 2번 넘게 걸리면 "반복") · 권한 신청: 부서별 · 권한별 AI 판정 구성 100% 가로 막대(옆 글자 = 정책 위반 소지 · 위험 비율) · 엇갈린 신청 표. 사용자 → 로그 조회 · 로그 감시 판정, 엇갈린 신청 → 결재함 |
 | 정책 질의 (메뉴) | 10/21에 정책 관리의 탭에서 독립 메뉴로 뺐다 (정책 질문은 어느 메뉴에도 속하지 않아서). 탭 줄 없이 질의 화면 하나, 목록 건수는 달지 않는다. 내 지난 질의가 먼저 보인다. 답 = `Answer.answer`, 근거 = `Answer.sources` → 누르면 그때 오른쪽 패널을 열어 원문을 보여준다. 예시 질문 버튼(스크립트의 `ASK_EXAMPLES`)도 직접 입력과 똑같이 실시간으로 답을 만든다. 등급 배지는 달지 않는다 |
 | 하단 | 계산 시각 = 구역별 마지막 실행 중 가장 늦은 것. 판정 실패 · 읽지 못한 행 · 작업 실패는 있을 때만 경고 |
 

@@ -219,6 +219,19 @@ def request_stats(db: Database, since: str | None = None) -> dict[str, Any]:
             "accesses": sorted(accesses.values(), key=order), "mismatches": mismatches}
 
 
+def user_requests(db: Database, since: str | None = None) -> list[dict[str, Any]]:
+    """신뢰 수치 — 기간 안 신청을 신청자 계정별로. AI 등급 · 결재 결과(반려 단계) · 회수를 함께 줍니다."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT request_no, requester_id, requested_access, stage, ai_level, ai_failed, ai_judged_at, manager_action, top_action,"
+            " revoke_reason, submitted_at FROM access_requests" + (" WHERE submitted_at >= ?" if since else "") + " ORDER BY submitted_at",
+            (since,) if since else ()).fetchall()
+    return [{"request_no": r["request_no"], "account_id": r["requester_id"], "access": r["requested_access"], "stage": r["stage"],
+             "ai": None if r["ai_judged_at"] is None or r["ai_failed"] else r["ai_level"],
+             "rejected_by": "최종" if r["top_action"] == "reject" else "1차" if r["manager_action"] == "reject" else None,
+             "revoke_reason": r["revoke_reason"], "at": r["submitted_at"]} for r in rows]
+
+
 # --- AI 판정 (신청 행의 AI 칸) --------------------------------------------------
 
 

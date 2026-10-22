@@ -121,6 +121,11 @@ def server_answer_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any
     return engine.chain(Prompts.SERVER_ANSWER, None, **{"llm": engine.qa_llm, **kwargs})
 
 
+def trust_explain_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+    """사용자 신뢰 수치의 근거 요약 → 문자열. 입력: subject, score, deductions, findings, requests"""
+    return engine.chain(Prompts.TRUST_EXPLAIN, None, **{"llm": engine.qa_llm, **kwargs})
+
+
 def answer_chain(engine: Engine, structured: bool = False, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
     """근거를 직접 넘기는 질의응답. 입력: context, question"""
     return engine.chain(Prompts.ANSWER, Answer if structured else None, **{"llm": engine.qa_llm, **kwargs})
@@ -463,3 +468,22 @@ def ask_servers(engine: Engine, registry: list[dict[str, Any]],
     }))
     result["answer"] = answer.strip() if answer is not None else f"답변 실패: {error}"
     return done(error)
+
+
+# --- 사용자 신뢰 수치 ------------------------------------------------------------
+# 점수는 data.trust 의 규칙이 냅니다. 모델은 고른 사람의 근거를 요약만 하고 점수를 바꾸지 않습니다.
+
+
+def explain_trust(engine: Engine, person: dict[str, Any], findings: list[dict[str, Any]], requests: list[dict[str, Any]]) -> dict[str, Any]:
+    """신뢰 수치 한 사람의 근거 요약 (모델). person = data.trust_scores 의 한 줄, findings · requests = 그 사람의 기록."""
+    who = f"{person['department']} {person['name']}".strip()
+    inputs = {
+        "subject": f"{who} (계정 {person['login_id'] or '없음'}, 로그 사용자 ID {person['log_id'] or '없음'})",
+        "score": f"{person['score']}점 — 신뢰 {person['band']}",
+        "deductions": "\n".join(f"- {d['at'][:10]} {d['what']}: -{d['points']}점" for d in person["deductions"]) or "감점 없음",
+        "findings": "\n".join(f"- {f['at'][:10]} {f['level']}: {f['reason']}" for f in findings if f["level"] != "정상") or "주의 · 위험 판정 없음",
+        "requests": "\n".join(f"- {r['at'][:10]} {r['access']} — AI {r['ai'] or '판정 없음'}, {r['stage']}" for r in requests) or "신청 없음",
+    }
+    text, error, elapsed = attempt(lambda: engine.trust_explain_chain().invoke(inputs))
+    return {"key": person["key"], "explanation": text.strip() if text is not None else f"요약 실패: {error}",
+            "failed": error is not None, "error": error, "elapsed_sec": round(elapsed, 1)}

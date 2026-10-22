@@ -569,6 +569,7 @@
         <p class="sub">쌓인 판정을 코드가 센 값입니다 (모델 없음). 판정 실패는 화면과 같이 주의로 셉니다. 막대 · 줄을 누르면 오른쪽에 내용과 이어 볼 곳이 나옵니다.</p>
         <div class="tiles" id="stat-tiles"></div>
       </section>
+      <section class="card" id="stat-trust" hidden></section>
       <section class="card" id="stat-events"></section>
       <section class="card" id="stat-requests"></section>
       <section class="card" id="stat-servers"></section>
@@ -1408,7 +1409,8 @@ function renderUserPanel(u) {
         <label>이름<input name="display_name" value="${esc(u.display_name)}" maxlength="100"></label>
         <label>부서<input name="department" value="${esc(u.department)}" maxlength="100"></label>
         <label>역할${roleOptions(u.role, fixed)}</label>
-        <label class="check"><input type="checkbox" name="is_active" ${u.is_active ? "checked" : ""} ${fixed ? "disabled" : ""}>활성 (끄면 정지 · 세션 끊김)</label>
+        <label>로그 사용자 ID<input name="log_id" value="${esc(u.log_id || "")}" maxlength="100" placeholder="보안 솔루션 로그의 UserID"></label>
+        <label class="check wide"><input type="checkbox" name="is_active" ${u.is_active ? "checked" : ""} ${fixed ? "disabled" : ""}>활성 (끄면 정지 · 세션 끊김)</label>
         <div class="wide form-actions"><button type="submit" class="primary">저장</button></div>
       </form>
       <form class="form-grid" id="user-reset" style="padding:12px 0 0">
@@ -1421,7 +1423,7 @@ function renderUserPanel(u) {
   $("user-edit").addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = e.target;
-    const body = { display_name: f.display_name.value, department: f.department.value };
+    const body = { display_name: f.display_name.value, department: f.department.value, log_id: f.log_id.value };
     if (!fixed) { body.role = f.role.value; body.is_active = f.is_active.checked; }
     try { await send(`/api/users/${u.id}`, body, "PATCH"); state.panelMsg = "✓ 저장했습니다"; }
     catch (err) { state.panelMsg = err.message; }
@@ -2025,6 +2027,8 @@ const levelsText = (o) => ["위험", "주의", "정상", "판정 실패", "판�
 
 const STAT_KINDS = { stats: "/api/stats", ustats: "/api/user-stats" };
 const STAT_TITLES = { stats: "보안 통계", ustats: "사용자 위협" };
+// 신뢰 구간 → 막대 색 (등급 색을 빌려 씁니다 — 낮음 = 위험 색)
+const TRUST_COLOR = { "낮음": "위험", "보통": "주의", "높음": "정상" };
 const isStatTab = (tab) => tab in STAT_KINDS;
 
 async function loadStats() {
@@ -2103,7 +2107,8 @@ function renderStatsView() {
   $("stat-title").textContent = STAT_TITLES[S.kind || "stats"];
   $("stat-servers").hidden = users;
   $("stat-requests").hidden = !users;
-  if (!d) { ["stat-tiles", "stat-events", "stat-servers", "stat-requests"].forEach((id) => { $(id).innerHTML = ""; }); return; }
+  $("stat-trust").hidden = !users;
+  if (!d) { ["stat-tiles", "stat-trust", "stat-events", "stat-servers", "stat-requests"].forEach((id) => { $(id).innerHTML = ""; }); return; }
   if (users) { renderUserStats(d); return; }
 
   const ev = d.events, L = ev.lines, threat = L["주의"] + L["위험"], logs = d.logs.count;
@@ -2188,11 +2193,25 @@ function renderUserStats(d) {
   const tile = (label, big, note, extra = "") => `<div class="tile"><span class="label">${label}</span><span class="big">${big}</span>${extra}<p class="note">${note}</p></div>`;
   $("stat-tiles").innerHTML = [
     tile("위협 사용자", `${ev.users.length}명`, `주의 · 위험 판정을 받은 사용자 · 위험 ${ev.users.filter((u) => u["위험"]).length}명`),
-    tile("반복 위협 사용자", `${repeat}명`, "기간 안에 두 번 넘게 주의 · 위험"),
+    tile("신뢰 낮음", `${(d.trust || []).filter((p) => p.band === "낮음").length}명`, `신뢰 수치 70점 미만 · 보통 ${(d.trust || []).filter((p) => p.band === "보통").length}명 · 반복 위협 ${repeat}명`),
     tile("신청 중 위험 비율", pct(ai["위험"] || 0, judged), `위험 ${ai["위험"] || 0} · 주의 ${ai["주의"] || 0} / 판정 ${judged}건`,
       judged ? meter([["위험", ai["위험"] || 0], ["주의", ai["주의"] || 0], ["정상", ai["정상"] || 0]], judged) : ""),
     tile("AI와 결재가 엇갈린 신청", `${rq.mismatches.length}건`, "AI 위험인데 승인 · AI 정상인데 반려"),
   ].join("");
+  // 신뢰 수치 — 코드 규칙으로 100점에서 깎은 값 (data/trust.py). 낮은 순, 막대 색은 신뢰 구간
+  const trust = d.trust || [];
+  $("stat-trust").innerHTML = `
+    <div class="logs-head"><h3>사용자 신뢰 수치</h3><span class="logs-count">${trust.length}명 · 낮은 순</span></div>
+    <p class="sub">로그 감시 위험 · 주의 판정, 반복, 권한 신청의 AI 위험 · 주의 · 반려 · 회수마다 정해진 점수를 100점에서 깎습니다 (최근 30일 1배 · 90일 0.5배 · 그 전 0.25배). 먼저 살펴볼 사람을 고르는 참고값이고 결정은 사람이 합니다. 누르면 감점 내역과 AI 근거 요약.</p>
+    ${trust.length ? `<div class="chart">${hbars("trust", trust.map((p) => ({
+        key: p.key, label: `${p.department ? p.department + " " : ""}${p.name}`, segs: [[TRUST_COLOR[p.band], p.score]],
+        extra: `신뢰 ${p.band} · 감점 ${p.deductions.length}건${p.linked ? "" : p.login_id ? " · 로그 ID 없음" : " · 계정 미연결"}` })),
+        { max: 100, value: (r) => { const p = trust.find((x) => x.key === r.key); return `${p.score}점 · ${p.band}${p.linked ? "" : p.login_id ? " · 로그 ID 없음" : " · 계정 미연결"}`; } })}</div>
+      ${legend([["위험", "낮음 (70 미만)"], ["주의", "보통 (70~89)"], ["정상", "높음 (90 이상)"]])}` : `<p class="sub">이 기간에 기록이 있는 사용자가 없습니다.</p>`}
+    ${tableView(statTable(["사용자", "계정", "로그 사용자 ID", "신뢰 수치", "로그 위험 · 주의", "신청 · 위험 · 반려 · 회수"], trust.map((p) => statRow("trust", p.key, [
+      esc(`${p.department ? p.department + " " : ""}${p.name}`), esc(p.login_id || "계정 미연결"), esc(p.log_id || "—"), `<span class="num">${p.score}</span> ${esc(p.band)}`,
+      `<span class="num">${p.counts["로그 위험"]} · ${p.counts["로그 주의"]}</span>`, `<span class="num">${p.counts["신청"]} · ${p.counts["신청 위험"]} · ${p.counts["반려"]} · ${p.counts["회수"]}</span>`])), ""))}`;
+
   $("stat-events").innerHTML = `
     <div class="logs-head"><h3>사용자별 위협 로그</h3><span class="logs-count">사용자 ${ev.users.length}</span></div>
     <p class="sub">로그 감시가 주의 · 위험으로 판정한 묶음의 로그 줄을 사용자별로 셉니다. 2번 넘게 걸리면 "반복".</p>
@@ -2230,7 +2249,7 @@ function renderStatsPanel() {
   };
   if (!d || !sel) {
     body(STAT_TITLES[S.kind || "stats"], "막대 · 줄을 고르세요", `<p class="note">${S.kind === "ustats"
-      ? "사용자 · 부서 · 권한 · 신청을 누르면 그 내용과 이어 볼 곳(로그 조회 · 로그 감시 판정 · 결재함)이 나옵니다."
+      ? "사용자 신뢰 수치 · 위협 로그 · 부서 · 권한 · 신청을 누르면 감점 내역 · AI 근거 요약과 이어 볼 곳(로그 조회 · 로그 감시 판정 · 결재함)이 나옵니다."
       : "모듈 · 노드 · 조항을 누르면 그 내용과 이어 볼 곳(노드 탭 · 기준 문서 원문)이 나옵니다."}</p>`);
     return;
   }
@@ -2253,6 +2272,34 @@ function renderStatsPanel() {
       ${clauses.length ? `<div class="sec"><h4>${icon("warn", "sm")}걸린 조항</h4><div class="box pre">${esc(clauses.map((c) => `${chipLabel(c.source)} — ${c.items.filter((i) => i.startsWith(n.node + " ")).map((i) => i.slice(n.node.length + 3)).join(", ")}`).join("\n"))}</div></div>` : ""}
       <div class="sec"><button class="rerun" id="stat-go">${icon("server", "sm")}노드 탭에서 보기</button></div>`);
     $("stat-go").addEventListener("click", () => { setView("policies"); setMainTab("nodes"); pickNode(n.node); });
+    return;
+  }
+  if (sel.kind === "trust") {
+    const p = (d.trust || []).find((x) => x.key === sel.key);
+    if (!p) return body("사용자 신뢰 수치", "기간 안에 없는 사용자입니다", "");
+    const ex = S.explain && S.explain.key === p.key && S.explain.period === S.period ? S.explain : null;
+    body("사용자 신뢰 수치", `${p.department ? p.department + " " : ""}${p.name}`, `${kvTable([
+        ["신뢰 수치", `${p.score}점 · ${p.band}`], ["계정", p.login_id || "계정 미연결 — 계정 관리에서 로그 사용자 ID 를 적으면 이어집니다"],
+        ["로그 사용자 ID", p.log_id || "없음"], ["로그 감시", `위험 ${p.counts["로그 위험"]} · 주의 ${p.counts["로그 주의"]} · 정상 ${p.counts["로그 정상"]}`],
+        ["권한 신청", `${p.counts["신청"]}건 · AI 위험 ${p.counts["신청 위험"]} · 반려 ${p.counts["반려"]} · 회수 ${p.counts["회수"]}`]])}
+      <div class="sec"><h4>${icon("warn", "sm")}감점 내역 ${p.deductions.length}</h4>${p.deductions.length
+        ? `<div class="box pre">${esc(p.deductions.map((x) => `-${x.points}  ${stamp(x.at)}  ${x.what}${x.weight < 1 ? ` (오래된 기록 ×${x.weight})` : ""}`).join("\n"))}</div>`
+        : `<p class="note">감점할 기록이 없습니다.</p>`}</div>
+      <div class="sec"><h4>${icon("chat", "sm")}AI 근거 요약</h4>${ex
+        ? `<div class="box${ex.failed ? " fail" : ""}">${ex.loading ? `요약 중… (수십 초)` : esc(ex.explanation)}</div>`
+        : `<button class="rerun" id="trust-explain">${icon("chat", "sm")}근거 요약 받기</button>`}
+        <p class="note">점수는 규칙이 냈고, 모델은 위 기록을 요약만 합니다. 요약은 저장하지 않습니다.</p></div>
+      <div class="sec">${p.log_subject ? `<button class="rerun" id="stat-go">${icon("search", "sm")}이 사용자의 로그 조회</button>` : ""}</div>`);
+    const go = $("stat-go");
+    if (go) go.addEventListener("click", () => { setView("events"); openLogs({ user: p.log_subject, period: S.period }); });
+    const btn = $("trust-explain");
+    if (btn) btn.addEventListener("click", async () => {
+      S.explain = { key: p.key, period: S.period, loading: true };
+      renderPanel();
+      try { Object.assign(S.explain, await send("/api/user-stats/explain", { key: p.key, period: S.period }), { loading: false }); }
+      catch (e) { Object.assign(S.explain, { loading: false, failed: true, explanation: `요약 실패: ${e.message}` }); }
+      if (state.stats.selected && state.stats.selected.key === p.key) renderPanel();
+    });
     return;
   }
   if (sel.kind === "module") {

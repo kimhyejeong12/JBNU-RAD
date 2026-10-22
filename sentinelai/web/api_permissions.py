@@ -113,6 +113,7 @@ class UserChange(BaseModel):
     department: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
     role: str | None = None
     is_active: bool | None = None
+    log_id: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
 
 
 class PasswordReset(BaseModel):
