@@ -227,7 +227,7 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
     서버 점검(노드별 등급 변화 · 모듈별 위협 항목 · 걸린 조항). since 가 없으면 전체."""
     at = _utc(since)
     with db.connection() as conn:
-        # 통계 · 신뢰 수치는 정밀 감시(확정)만 셉니다. 빠른 감시의 1차 판정은 같은 로그를 다시 판정하기 전의 값이라 세면 겹칩니다.
+        # 통계 · 의심 점수는 정밀 감시(확정)만 셉니다. 빠른 감시의 1차 판정은 같은 로그를 다시 판정하기 전의 값이라 세면 겹칩니다.
         events = conn.execute(f"SELECT id, user, subject, level, failed, events, last_event_at FROM event_findings WHERE {_FINAL}"
                               + (" AND last_event_at >= ?" if at else "") + " ORDER BY last_event_at", (at,) if at else ()).fetchall()
         findings = conn.execute("SELECT id, node, level, failed, gaps, created_at FROM node_findings"
@@ -239,11 +239,9 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
     level = lambda r: "주의" if r["failed"] else r["level"]  # noqa: E731
     users: dict[str, dict[str, Any]] = {}
     days: dict[str, dict[str, int]] = {}
-    findings_by_level = {"정상": 0, "주의": 0, "위험": 0}
     lines = {"정상": 0, "주의": 0, "위험": 0}
     for r in events:
         lv = level(r)
-        findings_by_level[lv] += 1
         stamps = [m for m in _EVENT_LINE.findall(r["events"]) if not at or f"{m.replace(' ', 'T')}+00:00" >= at]
         lines[lv] += len(stamps)
         if lv == "정상":
@@ -292,7 +290,7 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
                 c["nodes"].append(n["node"])
             c["items"].append(f"{n['node']} — {item}")
     return {
-        "events": {"findings": findings_by_level, "lines": lines,
+        "events": {"lines": lines,
                    "users": sorted(users.values(), key=lambda u: (-u["위험"], -u["주의"], u["user"])),
                    "days": [{"day": d, **v} for d, v in sorted(days.items())]},
         "servers": {"nodes": sorted(nodes.values(), key=lambda n: (-LEVEL_ORDER.get(n["level"] or "", -1), n["node"])),
@@ -302,7 +300,7 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
 
 
 def user_findings(db: Database, since: str | None = None) -> list[dict[str, Any]]:
-    """신뢰 수치 — 기간 안 로그 감시 판정을 로그 사용자 ID(user)별로. 묶인 로그 줄 수와 판정 시각(마지막 로그)을 함께 줍니다."""
+    """의심 점수 — 기간 안 로그 감시 판정을 로그 사용자 ID(user)별로. 묶인 로그 줄 수와 판정 시각(마지막 로그)을 함께 줍니다."""
     at = _utc(since)
     with db.connection() as conn:
         rows = conn.execute(f"SELECT id, user, subject, level, failed, reason, events, last_event_at FROM event_findings WHERE {_FINAL}"

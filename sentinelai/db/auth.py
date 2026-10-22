@@ -108,7 +108,7 @@ def create_user(db: Database, by: User, login_id: str, password: str, display_na
 def update_user(db: Database, by: User, user_id: int, **changes: object) -> User:
     """역할 · 부서 · 이름 · 활성 여부 · 로그 사용자 ID 를 바꿉니다. 정지하면 그 사람의 세션도 끊습니다.
 
-    로그 사용자 ID 는 보안 솔루션 로그의 UserID 입니다. 사용자 위협의 신뢰 수치가 로그 감시 판정과 권한 신청을 이 값으로 한 사람에 모읍니다.
+    로그 사용자 ID 는 보안 솔루션 로그의 UserID 입니다. 사용자 위협의 의심 점수가 로그 감시 판정 · 행동 신호와 권한 신청을 이 값으로 한 사람에 모읍니다.
     """
     _require_top(by)
     allowed = {"display_name", "department", "role", "is_active", "log_id"}
@@ -166,7 +166,7 @@ def list_users(db: Database, by: User) -> list[dict]:
 
 
 def accounts_brief(db: Database) -> list[dict]:
-    """사용자 위협 — 신뢰 수치를 사람별로 모을 때 쓰는 계정 요약 (이름 · 부서 · 역할 · 로그 사용자 ID). 비밀번호 칸은 읽지 않습니다."""
+    """사용자 위협 — 의심 점수를 사람별로 모을 때 쓰는 계정 요약 (이름 · 부서 · 역할 · 로그 사용자 ID). 비밀번호 칸은 읽지 않습니다."""
     with db.connection() as conn:
         return [dict(r) for r in conn.execute(
             "SELECT id, login_id, display_name, department, role, is_active, log_id FROM users ORDER BY id")]

@@ -237,14 +237,6 @@ def list_requests(request: Request, user: Anyone, stage: str | None = None, mine
     return [_with_verdict(request, r, user) for r in rows]
 
 
-@router.get("/requests/{request_no}")
-def get_request(request_no: str, request: Request, user: Anyone) -> dict[str, Any]:
-    try:
-        return _with_verdict(request, permissions.get(request.app.state.main_db, user, request_no), user)
-    except Denied as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from None
-
-
 @router.post("/requests/{request_no}/withdraw")
 def withdraw(request_no: str, request: Request, user: Anyone) -> dict[str, Any]:
     try:

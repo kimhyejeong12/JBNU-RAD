@@ -206,10 +206,6 @@
   .hbar .val { font-size: 12px; color: var(--ink-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .hbar:hover .lbl, .hbar:focus-within .lbl, .hbar[aria-current="true"] .lbl { font-weight: 700; }
   .hbar[aria-current="true"] .bar { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 4px; }
-  .strip { position: relative; height: 18px; border-bottom: 1px solid var(--line); min-width: 0; }
-  .strip .dot { position: absolute; top: 3px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; box-shadow: 0 0 0 2px var(--bg); }
-  .strip .dot::before { content: ""; position: absolute; inset: -7px; }
-  .dot.위험 { background: var(--accent); } .dot.주의 { background: var(--sub); } .dot.정상 { background: var(--ok); }
   @media (max-width: 760px) {
     .hbars { grid-template-columns: minmax(70px, 34%) 1fr; row-gap: 2px; }
     .hbar .val { grid-column: 2; margin-bottom: 6px; }
@@ -780,7 +776,7 @@ const state = {
   // 로그 조회 — 조건 · 받은 결과(/api/logs) · 패널에 띄운 줄(없으면 집계)
   // 수집 노드 — 목록(/api/nodes) · 고른 노드 · 그 노드의 자세한 기록(/api/nodes/{이름})
   nodes: { list: null, error: "", selected: null, detail: null, adding: false },
-  // 보안 통계 — 기간 · 받은 결과(/api/stats) · 패널에 띄운 줄 { kind: suspect | user | module | node | clause, key }
+  // 보안 통계 — 기간 · 받은 결과(/api/stats) · 패널에 띄운 줄 { kind: suspect | user | module | node, key }
   // 통계 메뉴의 두 탭 — 보안 통계(stats) · 사용자 위협(ustats)이 같은 화면 · 기간을 쓰고 결과만 따로 받습니다.
   stats: { period: "month", data: null, error: "", loading: false, selected: null, kind: null },
   logs: { period: "week", user: "", solution: "", how: "", page: 1, data: null, error: "", loading: false, selected: null },
@@ -2172,18 +2168,7 @@ function renderStatsView() {
       ${legend([["위험", "위험"], ["주의", "주의"], ["기타", "그 외 로그"]])}` : `<p class="sub">이 기간에 로그가 없습니다.</p>`}
     ${tableView(statTable(["날짜", "로그", "위험", "주의", "비율"], dayKeys.map((k) => `<tr><td>${esc(k)}</td><td class="num">${byDay[k].total}</td><td class="num">${byDay[k]["위험"]}</td><td class="num">${byDay[k]["주의"]}</td><td class="num">${pct(byDay[k]["위험"] + byDay[k]["주의"], byDay[k].total)}</td></tr>`), ""))}`;
 
-  // 노드 위협 데이터 — 모듈별 위협 항목 · 노드별 항목 · 서버 점검 등급 흐름(점) · 걸린 조항
-  // 점검은 기간 끝에 몰려 있기 쉬워 기간 시작이 아니라 첫 점검부터 지금까지를 폭으로 씁니다. 앞뒤로 조금 띄워 점이 가장자리에 붙지 않게 합니다.
-  const times = sv.nodes.flatMap((n) => n.grades.map((g) => new Date(g.at).getTime()));
-  const first = times.length ? Math.min(...times) : Date.now();
-  const pad = Math.max(60000, (Date.now() - first) * 0.04);
-  const t0 = first - pad, span = Date.now() + pad - t0;
-  const strips = sv.nodes.filter((n) => n.grades.length).map((n) => {
-    const on = state.stats.selected && state.stats.selected.kind === "node" && state.stats.selected.key === n.node;
-    return `<div class="hbar" data-kind="node" data-key="${esc(n.node)}" aria-current="${on}"><span class="lbl">${esc(n.node)}</span>
-      <span class="track"><span class="strip" style="flex:1">${n.grades.map((g) => `<span class="dot ${g.level}" tabindex="0" style="left:${((new Date(g.at).getTime() - t0) / span) * 100}%" data-tip="${esc(n.node)}|${esc(stamp(g.at))} ${g.level}"></span>`).join("")}</span></span>
-      <span class="val">${n.trend}</span></div>`;
-  }).join("");
+  // 노드 위협 데이터 — 모듈별 위협 항목 · 노드별 항목
   $("stat-servers").innerHTML = `
     <div class="logs-head"><h3>노드 위협 데이터</h3><span class="logs-count">서버 ${sv.nodes.length} · 위협 항목 ${gaps["위험"] + gaps["주의"]}</span></div>
     <p class="sub">수집 노드가 읽어 온 설정을 서버 점검이 기준 문서와 비교해 찾은 '정책과 다른 곳'. 항목 · 조항은 노드마다 기간 안 마지막 점검만 셉니다.</p>
@@ -2194,15 +2179,9 @@ function renderStatsView() {
         key: n.node, label: n.node, segs: [["위험", n.threats["위험"]], ["주의", n.threats["주의"]]], extra: `마지막 등급 ${n.level || "판정 없음"} · 설정이 바뀐 수집 ${n.changed} / ${n.collected}` })),
         { max: Math.max(1, ...sv.nodes.map((n) => n.threats["위험"] + n.threats["주의"])), value: (r) => { const n = sv.nodes.find((x) => x.node === r.key); return `${n.threats["위험"] + n.threats["주의"]}건 · ${n.level || "판정 없음"}`; } })}</div>
       ${legend([["위험", "위험"], ["주의", "주의"]])}` : ""}
-    ${strips ? `<p class="chart-title">서버 점검 등급 흐름 <span class="note" style="font-weight:400">— 점 하나가 점검 한 번, 왼쪽 ${esc(stamp(new Date(first).toISOString()))} ~ 오른쪽 지금</span></p><div class="chart"><div class="hbars">${strips}</div></div>
-      ${legend(LEVEL_SEGS.map((k) => [k, k]), true)}` : ""}
-    ${sv.clauses.length ? `<p class="chart-title">걸린 조항 — 걸린 서버 수</p><div class="chart">${hbars("clause", sv.clauses.map((c) => ({
-        key: c.source, label: chipLabel(c.source), segs: [["기타", c.nodes.length]], extra: `${c.nodes.join(", ")} · 항목 ${c.items.length}` })),
-        { max: Math.max(1, sv.nodes.length), value: (r) => { const c = sv.clauses.find((x) => x.source === r.key); return `서버 ${c.nodes.length} · 항목 ${c.items.length}`; } })}</div>` : ""}
     ${tableView(statTable(["노드", "마지막 등급", "위험", "주의", "등급 흐름", "설정이 바뀐 수집"], sv.nodes.map((n) => statRow("node", n.node, [esc(n.node), n.level || "판정 없음",
       `<span class="num">${n.threats["위험"]}</span>`, `<span class="num">${n.threats["주의"]}</span>`, esc(n.grades.map((g) => g.level).join(" → ")), `<span class="num">${n.changed} / ${n.collected}</span>`])), "")
-      + statTable(["모듈", "위험", "주의", "걸린 서버"], sv.modules.map((m) => `<tr><td>${esc(m.module)}</td><td class="num">${m["위험"]}</td><td class="num">${m["주의"]}</td><td>${esc(m.nodes.join(", "))}</td></tr>`), "")
-      + statTable(["근거 조항", "걸린 서버", "항목"], sv.clauses.map((c) => `<tr><td>${esc(chipLabel(c.source))}</td><td>${esc(c.nodes.join(", "))}</td><td class="num">${c.items.length}</td></tr>`), ""))}`;
+      + statTable(["모듈", "위험", "주의", "걸린 서버"], sv.modules.map((m) => `<tr><td>${esc(m.module)}</td><td class="num">${m["위험"]}</td><td class="num">${m["주의"]}</td><td>${esc(m.nodes.join(", "))}</td></tr>`), ""))}`;
 }
 
 // 사용자 위협 — 사용자별 위협 로그(로그 감시)와 부서 · 권한별 신청 위험도(권한 신청). 위협 예측은 이 화면에 더할 예정입니다.
@@ -2215,7 +2194,7 @@ function renderUserStats(d) {
     tile("위협 예측 높음", `${(d.suspects || []).filter((p) => p.level === "높음").length}명`, `의심 점수 70 이상 · 보통 ${(d.suspects || []).filter((p) => p.level === "보통").length}명 · 반복 위협 ${repeat}명`),
     tile("신청 중 위험 비율", pct(ai["위험"] || 0, judged), `위험 ${ai["위험"] || 0} · 주의 ${ai["주의"] || 0} / 판정 ${judged}건`,
       judged ? meter([["위험", ai["위험"] || 0], ["주의", ai["주의"] || 0], ["정상", ai["정상"] || 0]], judged) : ""),
-    tile("AI와 결재가 엇갈린 신청", `${rq.mismatches.length}건`, "AI 위험인데 승인 · AI 정상인데 반려"),
+    tile("AI와 결재가 엇갈린 신청", `${rq.mismatches}건`, "AI 위험인데 승인 · AI 정상인데 반려"),
   ].join("");
   // 위협 예측 — 코드가 센 행동 신호 · 판정 · 신청 기록으로 판정 모델이 낸 의심 점수 (높은 순, 막대 색은 의심 등급)
   const sus = d.suspects || [];
@@ -2307,13 +2286,6 @@ function renderStatsPanel() {
     if (!m) return body("보안 통계", "기간 안에 없는 모듈입니다", "");
     body("노드 위협 데이터", m.module, `${kvTable([["위험", `${m["위험"]}건`], ["주의", `${m["주의"]}건`], ["걸린 서버", m.nodes.join(", ")]])}
       <div class="sec"><h4>${icon("warn", "sm")}항목 — 노드 · 지금 값</h4><div class="box pre">${esc(m.items.join("\n"))}</div></div>`);
-    return;
-  }
-  if (sel.kind === "clause") {
-    const c = d.servers.clauses.find((x) => x.source === sel.key);
-    if (!c) return body("보안 통계", "기간 안에 없는 조항입니다", "");
-    body("걸린 조항", chipLabel(c.source), `<div class="sec"><h4>${icon("server", "sm")}걸린 서버 ${c.nodes.length} · 항목</h4><div class="box pre">${esc(c.items.join("\n"))}</div></div>
-      <div class="sec"><h4>${icon("book", "sm")}기준 문서 원문</h4><div class="clause">${esc(clauseText(c.source))}</div></div>`);
     return;
   }
 }
