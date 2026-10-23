@@ -484,7 +484,7 @@
 
 <nav class="sidebar" aria-label="메뉴">
   <div class="nav-views" id="nav-views"></div>
-  <button class="nav" id="nav-docs" aria-label="기준 문서 원문" data-tip-pos="right" data-tip="기준 문서 원문|AI가 판정 근거로 삼는 사내 규정 전문을 봅니다"><span data-icon="book"></span></button>
+  <button class="nav" id="nav-docs" aria-label="기준 문서 원문" data-tip-pos="right" data-tip="기준 문서 원문"><span data-icon="book"></span></button>
 </nav>
 
 <div class="workspace" data-tab="queue">
@@ -547,7 +547,7 @@
     <!-- 수집 노드 — 서버마다 도는 node/sentinel_node 가 보낸 수집. 새 수집은 서버가 주기적으로 점검해 검토 현황에 올립니다 -->
     <section class="card nodes" id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes" hidden>
       <div class="logs-head"><h3>수집 노드</h3><span class="logs-count" id="node-count"></span>
-        <button class="rerun run" id="check-now" data-tip="지금 점검|새 수집이 온 노드를 주기(30분)를 기다리지 않고 지금 기준 문서와 비교합니다"><span data-icon="activity" class="sm"></span><span id="check-now-txt">지금 점검</span></button>
+        <button class="rerun run" id="check-now"><span data-icon="activity" class="sm"></span><span id="check-now-txt">지금 점검</span></button>
         <button class="rerun run" id="add-node"><span data-icon="plus" class="sm"></span>노드 등록</button></div>
       <div class="ltable-wrap">
         <table class="ltable">
@@ -562,7 +562,6 @@
       <section class="card">
         <div class="logs-head"><h3 id="stat-title">보안 통계</h3><div class="periods" id="stat-periods" role="group" aria-label="기간"></div>
           <span class="logs-count" id="stat-range"></span></div>
-        <p class="sub">쌓인 판정을 코드가 센 값입니다 (모델 없음). 판정 실패는 화면과 같이 주의로 셉니다. 막대 · 줄을 누르면 오른쪽에 내용과 이어 볼 곳이 나옵니다.</p>
         <div class="tiles" id="stat-tiles"></div>
       </section>
       <section class="card" id="stat-suspects" hidden></section>
@@ -600,7 +599,6 @@
           <input id="ask-input" type="text" maxlength="500" autocomplete="off" aria-label="질문">
           <button type="submit" id="ask-send">질의</button>
         </form>
-        <p class="note" id="ask-note"></p>
       </div>
     </section>
 
@@ -688,21 +686,21 @@ const STAGE_LABEL = { manager: "1차 결재 대기", top: "최종 결재 대기"
 const STEP = { manager: "manager", top: "top" };
 // 메뉴마다 쓰는 탭 · 목록 칸만 둡니다. 정책 질의 · 로그 질의는 그 메뉴의 기능이라 정책 관리 · 로그 감시에만 있습니다.
 const VIEWS = {
-  requests: { label: "권한 신청", icon: "lock", tip: "권한 신청|결재할 신청 · AI 판정 · 유효 권한 회수",
+  requests: { label: "권한 신청", icon: "lock", tip: "권한 신청",
               tabs: ["queue"], cols: ["번호", "신청자", "신청 권한", "신청 시각", "AI 판정"], search: "신청 번호 · 신청자 · 권한으로 검색" },
-  policies: { title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리|솔루션 정책의 중복 · 충돌 · 과도한 허용과 수집 노드의 서버 점검",
+  policies: { title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리",
               tabs: ["queue", "nodes", "ask"], cols: ["분류", "대상", "상세 내용", "시간", "AI 판정"], search: "정책 ID · 서버 · 내용으로 검색" },
-  stats: { title: "통계", label: "통계", icon: "activity", tip: "통계|보안 통계(위협 로그 비율 · 빈도, 노드 위협 데이터)와 사용자 위협(사용자별 위협 로그, 권한 신청 위험도)",
+  stats: { title: "통계", label: "통계", icon: "activity", tip: "통계",
            tabs: ["stats", "ustats"], cols: [], search: "" },
-  qa: { title: "정책 질의", label: "정책 질의", icon: "chat", tip: "정책 질의|사내 기준 문서와 솔루션 정책에 대해 묻고 답을 받습니다",
+  qa: { title: "정책 질의", label: "정책 질의", icon: "chat", tip: "정책 질의",
         tabs: ["ask"], cols: [], search: "" },
-  events: { title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시|서버가 자동으로 돌린 로그 감시 판정 중 주의 · 위험",
+  events: { title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시",
             tabs: ["queue", "logs", "ask"], cols: ["분류", "대상 사용자", "상세 내용", "시간", "AI 판정"], search: "사용자 · 내용으로 검색" },
-  mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청|권한을 신청하고 결재 상태를 봅니다",
+  mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청",
           tabs: ["queue"], cols: ["번호", "신청 권한", "사유", "신청 시각", "상태"], search: "신청 번호 · 권한으로 검색" },
-  users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리|계정 생성 · 역할 · 정지 · 비밀번호 초기화 (보안 총책임자)",
+  users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리",
            tabs: ["queue"], cols: ["역할", "이름 (아이디)", "부서", "마지막 로그인", "상태"], search: "이름 · 아이디 · 부서로 검색" },
-  access: { title: "권한 목록", label: "권한 목록", icon: "key", tip: "권한 목록|일반 사용자가 신청할 수 있는 권한 — 등록 · 고치기 · 끄기 (보안 총책임자)",
+  access: { title: "권한 목록", label: "권한 목록", icon: "key", tip: "권한 목록",
             tabs: ["queue"], cols: ["시스템", "권한 (코드)", "분류 · 설명", "고친 시각", "상태"], search: "권한 이름 · 코드 · 시스템으로 검색" },
 };
 // 보안 총책임자는 보안 운영자와 같은 메뉴에 권한 목록 · 계정 관리를 더합니다.
@@ -715,7 +713,6 @@ const ASK = {
   policy: {
     label: "정책 질의", url: "/api/ask", placeholder: "정책 · 접근 권한에 대해 질문하세요",
     empty: "사내 기준 문서와 솔루션 정책을 근거로 답합니다.",
-    note: "AI는 사내 기준 문서와 솔루션 정책으로 답합니다. 신청 목록의 인물 정보는 조회하지 않습니다.",
     examples: [
       "인사팀 김민수가 급여 테이블(HR_SALARY)에 접근할 수 있어?",
       "마케팅팀이 사내포털에 HTTPS로 접근하는 정책은 몇 개야?",
@@ -723,9 +720,8 @@ const ASK = {
     ],
   },
   server: {
-    label: "서버 질의", url: "/api/ask-servers", placeholder: "수집 노드 서버의 지금 상태 · 바뀐 설정 · 서버 점검 결과를 물어보세요",
-    empty: "수집 노드가 보낸 기록과 서버 점검 판정을 조건에 맞춰 골라서 답합니다.",
-    note: "AI는 수집 기록과 서버 점검 판정으로만 답합니다. 건수는 기록에서 직접 셉니다. 정책 위반 여부는 새로 판단하지 않습니다 (검토 현황의 서버 점검을 보세요).",
+    label: "서버 질의", url: "/api/ask-servers", placeholder: "서버 상태 · 바뀐 설정을 물어보세요",
+    empty: "수집 노드의 기록과 서버 점검 결과로 답합니다.",
     examples: [
       "지금 방화벽에 문제가 있는 서버는?",
       "어제부터 설정이 바뀐 서버가 있어?",
@@ -734,8 +730,7 @@ const ASK = {
   },
   log: {
     label: "로그 질의", url: "/api/ask-logs", placeholder: "보안 솔루션 로그에 대해 질문하세요",
-    empty: "보안 솔루션 로그를 조건에 맞춰 찾고 세어서 답합니다.",
-    note: "건수 · 합계는 AI가 세지 않고 로그에서 직접 셉니다. 정책 위반 여부는 판단하지 않습니다 (검토 현황의 로그 감시 판정을 보세요).",
+    empty: "보안 솔루션 로그를 찾아 세어서 답합니다.",
     examples: [
       "홍길동이 출력을 몇 번 했어?",
       "10월 6일 VDI에서 출력된 페이지는 모두 몇 장이야?",
@@ -996,21 +991,20 @@ function renderStats() {
   document.querySelectorAll("[data-count]").forEach((el) => { el.textContent = n[el.dataset.count] ?? ""; });
   // 넓은 화면에는 세그먼트가 없으므로 건수를 사이드바 툴팁 제목에 붙입니다.
   document.querySelectorAll(".nav[data-view]").forEach((b) => {
-    const [title, desc] = VIEWS[b.dataset.view].tip.split("|");
-    b.dataset.tip = b.dataset.view in n ? `${title} — ${n[b.dataset.view]}건|${desc}` : VIEWS[b.dataset.view].tip;
+    b.dataset.tip = b.dataset.view in n ? `${VIEWS[b.dataset.view].tip} ${n[b.dataset.view]}건` : VIEWS[b.dataset.view].tip;
   });
 }
 
 /* ── 분석 큐 ────────────────────────────── */
 function emptyText() {
   if (queue().some(inView)) return "조건에 맞는 항목이 없습니다.";
-  if (state.view === "events") return "검토할 로그 감시 판정(주의 · 위험)이 없습니다. 로그 감시는 서버가 정해진 간격마다 자동으로 돌립니다.";
+  if (state.view === "events") return "검토할 주의 · 위험 판정이 없습니다.";
   if (RESULT_VIEWS.has(state.view)) return `아직 ${VIEWS[state.view].label} 결과가 없습니다. 오른쪽 위 [${runKindLabel()}]을 누르세요.`;
   return {
     requests: { pending: "지금 결재할 신청이 없습니다.", active: "지금 유효한 권한이 없습니다.", all: "신청이 없습니다." }[state.stageFilter],
     mine: "아직 신청한 권한이 없습니다. 위 신청서를 채워 신청하세요.",
     users: "계정이 없습니다.",
-    access: "등록한 권한이 없습니다. 오른쪽 위 [권한 등록]으로 일반 사용자가 신청할 권한을 넣으세요.",
+    access: "등록한 권한이 없습니다. [권한 등록]으로 넣으세요.",
   }[state.view];
 }
 
@@ -1141,8 +1135,7 @@ function renderPanel() {
       ${isServer ? `
       ${Object.values(r.detail.state).some((v) => v) ? `<div class="sec"><h4>${icon("server", "sm")}서버 현황</h4>${kvTable(Object.entries(r.detail.state).filter(([, v]) => v))}</div>` : ""}
       ${moduleState(r.detail.snapshot)}
-      <div class="sec"><h4>${icon("file", "sm")}이 서버에 걸린 정책</h4><div class="box pre">${esc(r.detail.matched)}</div>
-        <p class="note">IP · 대역 · 호스트 이름이 맞는 규칙을 코드가 찾았습니다. 그 밖의 규칙은 AI가 검색해 함께 봅니다.</p></div>` : `
+      <div class="sec"><h4>${icon("file", "sm")}이 서버에 걸린 정책</h4><div class="box pre">${esc(r.detail.matched)}</div></div>` : `
       <div class="sec"><h4>${icon("file", "sm")}${isEvent ? "판정한 로그" : "관련 정책 원본"}</h4>
         ${isEvent
           ? `<div class="box pre">${esc((r.detail && r.detail.events) || "로그 없음")}</div>
@@ -1174,12 +1167,12 @@ function renderPanel() {
       <div class="sec"><h4>${icon("db", "sm")}근거 조항</h4>
         ${it.type !== "policy"
           ? sourceChips(it.key, r.sources)
-          : `<p class="note">정책 관리 검토는 근거 조항을 판단 이유에 함께 적습니다. 적용 기준은 기준 문서 5 · 6장입니다.</p>`}
+          : `<p class="note">근거는 판단 이유에 함께 적혀 있습니다.</p>`}
       </div>`}
       ${decisionLog(it)}
     </div>
     ${r.stage === "fast" ? `<div class="panel-foot"><h4>1차 판정 — 확정 대기</h4>
-      <p class="note">빠른 감시(${esc(fastEvery())})가 생각 단계 없이 낸 판정입니다. 정밀 감시가 같은 로그를 다시 판정하면 확정 판정으로 바뀌고, 그때 결정할 수 있습니다. 빠른 판정은 주의 · 위험을 실제보다 많이 걸 수 있습니다.</p></div>` : `
+      <p class="note">빠른 감시의 판정입니다. 정밀 감시가 확정하면 결정할 수 있습니다.</p></div>` : `
     <div class="panel-foot">
       <h4>의사결정</h4>
       <textarea id="review-comment" maxlength="2000" placeholder="결정 의견 (선택)"></textarea>
@@ -1266,7 +1259,7 @@ function renderRequestPanel(it) {
       <div class="sec"><h4>${icon("activity", "sm")}AI 판단 이유</h4><div class="box">${esc(v.reason)}</div></div>
       <div class="sec"><h4>${icon("ok", "sm")}AI 권고</h4><div class="box">${esc(v.recommendation)}</div></div>
       <div class="sec"><h4>${icon("db", "sm")}근거 조항</h4>${sourceChips(it.key, v.sources)}</div>
-      <p class="note">${esc(v.model)} · ${esc(stamp(v.judged_at))} 판정</p>`;
+      <p class="note">${esc(stamp(v.judged_at))} 판정</p>`;
   }
 
   const steps = [
@@ -1283,7 +1276,7 @@ function renderRequestPanel(it) {
     foot = `<h4>${me.role === "manager" ? "1차 결재" : "최종 결재"}</h4>
       <textarea id="decision-comment" maxlength="2000" placeholder="결재 의견 (선택)"></textarea>
       <div class="panel-actions"><button class="good" data-act="approve">승인</button><button class="danger" data-act="reject">반려</button></div>
-      <p class="note">AI는 권고만 합니다. 결재는 지금 보이는 AI 판정과 함께 기록됩니다.</p>`;
+      <p class="note">AI는 권고만 합니다.</p>`;
   } else if (canRevoke) {
     foot = `<h4>권한 회수</h4>
       <input id="revoke-reason" maxlength="2000" placeholder="회수 사유 (필수)">
@@ -1521,7 +1514,7 @@ function renderHeld() {
 function renderAccessNote() {
   const a = state.catalog.find((x) => x.code === $("req-access").value);
   $("req-access-note").textContent = a ? a.description || "" : state.catalog.some((x) => x.is_active) ? ""
-    : "보안 총책임자가 권한 목록을 등록하면 신청할 수 있습니다. 필요한 권한이 목록에 없으면 보안 총책임자에게 등록을 요청하세요.";
+    : "신청할 수 있는 권한이 없습니다. 보안 총책임자에게 등록을 요청하세요.";
 }
 
 async function refreshCatalog(selectKey) {
@@ -1584,7 +1577,6 @@ function renderAsk() {
   const mode = askMode(), cfg = ASK[mode], list = asks();
   $("tab-ask-label").textContent = cfg.label;
   $("ask-input").placeholder = cfg.placeholder;
-  $("ask-note").textContent = cfg.note;
   const busy = list.some((m) => m.started);
   $("ask-send").disabled = busy;
   $("ask-ex").querySelectorAll("button").forEach((b) => { b.disabled = busy; });
@@ -1663,7 +1655,6 @@ function renderServerAskPanel(m, i) {
         ["기간 안 수집", f["기간 안 첫 수집"] ? `${stamp(f["기간 안 첫 수집"])} ~ ${stamp(f["기간 안 마지막 수집"])}` : "없음"], ...nodes])}</div>
       <div class="sec"><h4>${icon("file", "sm")}바뀐 설정 · 서버 점검 기록</h4>${m.evidence.length
         ? `<div class="box pre">${esc(m.evidence.join("\n"))}</div>` : `<p class="note">기간 안에 바뀐 설정 · 서버 점검이 없습니다.</p>`}</div>
-      <p class="note">숫자는 코어가 수집 · 서버 점검 기록에서 직접 센 값입니다. 서버마다 지금 상태는 정책 관리 → [노드]에서 봅니다.</p>
     </div>`;
 }
 
@@ -1682,8 +1673,7 @@ function renderAskPanel() {
     <div class="panel-body">${source
       ? `<p class="subject">${esc(chipLabel(source))}</p>
         <div class="meta">Q${sel.i + 1} · ${esc(m.q)}</div>
-        <div class="sec"><h4>${icon("book", "sm")}기준 문서 원문</h4><div class="clause">${esc(clauseText(source))}</div></div>
-        <p class="note">모델이 밝힌 근거 문서에서 해당 조항을 잘라 보여줍니다.</p>`
+        <div class="sec"><h4>${icon("book", "sm")}기준 문서 원문</h4><div class="clause">${esc(clauseText(source))}</div></div>`
       : ""}</div>`;
 }
 
@@ -1695,7 +1685,7 @@ function renderLogPanel(m, i) {
     ...Object.entries(f.by_user).map(([u, n]) => [u, `${n}건`]),
     ...Object.entries(f.attribute_totals).map(([k, v]) => [`${k} 합계`, String(v)]),
   ];
-  const more = f.count > m.evidence.length ? `<p class="note">최근 ${m.evidence.length}건만 표시합니다. 건수 · 합계는 전체 ${f.count}건 기준입니다.</p>` : "";
+  const more = f.count > m.evidence.length ? `<p class="note">최근 ${m.evidence.length}건만 표시 (집계는 전체 ${f.count}건)</p>` : "";
   $("panel").innerHTML = `<div class="panel-head"><h3>근거 로그</h3>${CLOSE_BTN}</div>
     <div class="panel-body">
       <p class="subject">${esc(criteriaText(m.criteria))}</p>
@@ -1703,7 +1693,6 @@ function renderLogPanel(m, i) {
       <div class="sec"><h4>${icon("activity", "sm")}집계</h4><div class="box"><table class="kv">
         ${rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</table></div></div>
       <div class="sec"><h4>${icon("file", "sm")}로그</h4><div class="box pre">${esc(m.evidence.join("\n"))}</div>${more}</div>
-      <p class="note">숫자는 코어가 로그에서 직접 센 값입니다.</p>
     </div>`;
 }
 
@@ -1779,10 +1768,6 @@ function renderRun() {
   } else {
     txt.textContent = runKindLabel();
   }
-  // 정책 관리 검토가 문서 · 규칙 적재까지 하고 서버 점검은 하지 않는다는 것이 버튼만 봐서는 보이지 않아 툴팁에 둡니다.
-  btn.dataset.tip = VIEW_KIND[state.view] === "policies"
-      ? `${runKindLabel()}|기준 문서 · 솔루션 정책을 RAG 에 맞추고 정책 간 중복 · 충돌 · 과도한 허용을 찾습니다. 서버 점검은 수집 노드가 보낸 것을 서버가 주기적으로 합니다`
-      : `${runKindLabel()}|수 분 걸릴 수 있습니다`;
 }
 
 async function startJob(kind = VIEW_KIND[state.view]) {
@@ -1796,10 +1781,6 @@ async function startJob(kind = VIEW_KIND[state.view]) {
 
 // 빠른 로그 감시는 따로 돌아 running 에 나오지 않습니다. 끝난 시각이 바뀌면 결과를 다시 받습니다.
 const fastDone = () => (state.jobs && state.jobs.fast && (state.jobs.fast.last.events_fast || {}).finished_at) || null;
-const fastEvery = () => {
-  const s = state.jobs && state.jobs.fast;
-  return s && s.every_min ? `${s.every_min}분마다` : "짧은 간격으로";
-};
 
 // 작업이 끝나면 저장된 결과를 다시 받아 화면 전체를 갱신합니다.
 // 파일이 없을 때처럼 시작하자마자 끝난 작업도 결과 · 실패를 보여줘야 하므로 started 면 바로 갱신합니다.
@@ -1958,7 +1939,7 @@ function renderNodesPanel() {
           <label class="wide"><span>노드 이름 <b>*</b></span><input id="node-name" required maxlength="64" pattern="[A-Za-z0-9._\-]+" placeholder="예: cust-db01"></label>
           <div class="wide form-actions">${panelMsg()}<button type="submit" class="primary">등록하고 키 발급</button></div>
         </form>
-        <p class="note">점검할 서버 하나에 노드 하나입니다. 이름은 영문 · 숫자 · . _ - 로 짓고, 등록하면 그 서버에 넣을 키가 나옵니다 (노드 화면에서 언제든 다시 볼 수 있음). 노드는 이름 없이 키만 보내고, SentinelAI 가 키로 어느 노드인지 찾습니다.</p>
+        <p class="note">서버 하나에 노드 하나. 이름은 영문 · 숫자 · . _ - 로 짓습니다.</p>
       </div>`;
     $("node-form").addEventListener("submit", (e) => { e.preventDefault(); createNode($("node-name").value.trim()); });
     return;
@@ -1970,8 +1951,7 @@ function renderNodesPanel() {
         <div class="sec"><h4>${icon("activity", "sm")}상태</h4>${kvTable([["노드", `${list.length}대`], ["수집 중", `${count("on")}대`],
           ["끊김", `${count("stale")}대`], ["꺼짐 · 키 없음 · 기다리는 중", `${count("off") + count("wait")}대`]])}</div>
         <div class="sec"><h4>${icon("server", "sm")}노드 깔기</h4>
-          <p class="note">1. [노드 등록]으로 서버 이름을 넣고 키를 받습니다.<br>2. 그 서버에서 node/install.sh --server ${esc(location.origin)} --key &lt;키&gt;<br>
-          새 수집은 서버가 주기적으로 기준 문서와 비교해 검토 현황의 서버 점검에 올립니다.</p></div>
+          <p class="note">1. [노드 등록]으로 서버 이름을 넣고 키를 받습니다.<br>2. 그 서버에서 node/install.sh --server ${esc(location.origin)} --key &lt;키&gt;</p></div>
       </div>`;
     return;
   }
@@ -2161,7 +2141,6 @@ function renderStatsView() {
   const ticks = [...new Set([0, Math.floor(dayKeys.length / 2), dayKeys.length - 1])];
   $("stat-events").innerHTML = `
     <div class="logs-head"><h3>위협 로그 — 비율 · 빈도</h3><span class="logs-count">위협 로그 ${threat} / ${logs ?? "—"}건</span></div>
-    <p class="sub">막대 높이 = 그날 로그 건수, 색 조각 = 주의 · 위험 판정에 묶인 로그. 로그 감시는 사용자별로 묶어 판정하므로 그 묶음의 줄을 셉니다.</p>
     ${dayKeys.length ? `<div class="chart"><div class="cols" role="img" aria-label="날짜별 로그 건수와 주의 · 위험 로그">
         ${[1, 0.5].map((f) => `<span class="grid" style="bottom:${f * 100}%"><span>${Math.round(dayMax * f)}</span></span>`).join("")}${cols}</div>
       <div class="xaxis">${ticks.map((n, i) => `<span style="left:${i === 0 ? "0" : i === ticks.length - 1 ? "100%" : at(n)}">${esc(dayKeys[n])}</span>`).join("")}</div></div>
@@ -2171,7 +2150,6 @@ function renderStatsView() {
   // 노드 위협 데이터 — 모듈별 위협 항목 · 노드별 항목
   $("stat-servers").innerHTML = `
     <div class="logs-head"><h3>노드 위협 데이터</h3><span class="logs-count">서버 ${sv.nodes.length} · 위협 항목 ${gaps["위험"] + gaps["주의"]}</span></div>
-    <p class="sub">수집 노드가 읽어 온 설정을 서버 점검이 기준 문서와 비교해 찾은 '정책과 다른 곳'. 항목 · 조항은 노드마다 기간 안 마지막 점검만 셉니다.</p>
     ${sv.modules.length ? `<p class="chart-title">모듈별 위협 항목</p><div class="chart">${hbars("module", sv.modules.map((m) => ({
         key: m.module, label: m.module, segs: [["위험", m["위험"]], ["주의", m["주의"]]], extra: `걸린 서버 ${m.nodes.join(", ")}` })),
         { value: (r) => { const m = sv.modules.find((x) => x.module === r.key); return `${m["위험"] + m["주의"]}건 · 서버 ${m.nodes.length}`; } })}</div>` : `<p class="sub">이 기간 서버 점검에서 찾은 위협 항목이 없습니다.</p>`}
@@ -2202,14 +2180,14 @@ function renderUserStats(d) {
   $("stat-suspects").innerHTML = `
     <div class="logs-head"><h3>위협 예측 — 의심 점수</h3><span class="logs-count">${sus.length ? `${sus.length}명 · ${esc(stamp(sus.map((p) => p.created_at).sort().pop()))} 예측` : ""}</span>
       <button class="rerun run" id="suspects-now" ${state.jobs && state.jobs.running ? "disabled" : ""}>${icon("activity", "sm")}${running ? `예측 중…${state.jobs.total ? ` ${state.jobs.done}/${state.jobs.total}` : ""}` : "지금 예측"}</button></div>
-    <p class="sub">앞으로 보안 위협(유출 · 권한 남용)이 될 가능성 0~100. 코드가 로그에서 센 행동 신호(최근 7일 vs 그 앞 4주 — 양 · 근무 시간 밖 · 예외 승인 · 민감 문서 · 몰아서 · 처음 보는 계정)와 로그 감시 판정 · 권한 신청 기록을 판정 모델이 보고 냅니다. 정밀 감시 주기마다 새로 내고, 기간 버튼과 상관없이 마지막 예측을 보여줍니다. 판정이 아니라 먼저 살펴볼 사람을 고르는 예측입니다.</p>
+    <p class="sub">앞으로 보안 위협이 될 가능성(0~100)입니다. 먼저 살펴볼 사람을 고르는 예측이고, 결정은 사람이 합니다.</p>
     ${sus.length ? `<div class="chart">${hbars("suspect", sus.filter((p) => !p.failed).map((p) => ({
         key: p.key, label: p.subject, segs: [[SUSPECT_COLOR[p.level], p.score]],
         extra: `${(p.signals.highlights || []).slice(0, 2).join(" · ") || "눈에 띄는 신호 없음"}${p.login_id ? "" : " · 계정 미연결"}` })),
         { max: 100, value: (r) => { const p = sus.find((x) => x.key === r.key); return `${p.score}점 · ${p.level}${trendMark(p)}`; } })}</div>
       ${legend([["위험", "높음 (70 이상)"], ["주의", "보통 (40~69)"], ["정상", "낮음 (40 미만)"]])}
       ${sus.some((p) => p.failed) ? `<p class="sub">예측하지 못한 사람: ${esc(sus.filter((p) => p.failed).map((p) => p.subject).join(", "))}</p>` : ""}`
-      : `<p class="sub">아직 위협 예측을 돌리지 않았습니다. [지금 예측]을 누르거나 정밀 감시 주기를 기다리세요.</p>`}
+      : `<p class="sub">아직 예측이 없습니다. [지금 예측]을 누르세요.</p>`}
     ${tableView(statTable(["사용자", "계정", "의심 점수", "눈에 띄는 신호", "예측 시각"], sus.map((p) => statRow("suspect", p.key, [
       esc(p.subject), esc(p.login_id || "계정 미연결"), p.failed ? "예측 실패" : `<span class="num">${p.score}</span> ${esc(p.level)}`,
       esc((p.signals.highlights || []).join(" · ") || "—"), `<span class="when">${esc(stamp(p.created_at))}</span>`])), ""))}`;
@@ -2218,7 +2196,6 @@ function renderUserStats(d) {
 
   $("stat-events").innerHTML = `
     <div class="logs-head"><h3>사용자별 위협 로그</h3><span class="logs-count">사용자 ${ev.users.length}</span></div>
-    <p class="sub">로그 감시가 주의 · 위험으로 판정한 묶음의 로그 줄을 사용자별로 셉니다. 2번 넘게 걸리면 "반복".</p>
     ${ev.users.length ? `<div class="chart">${hbars("user", ev.users.map((u) => ({
         key: u.user, label: u.user, segs: [["위험", u.line_levels["위험"]], ["주의", u.line_levels["주의"]]],
         extra: `판정 위험 ${u["위험"]} · 주의 ${u["주의"]}` })), { value: (r) => { const u = ev.users.find((x) => x.user === r.key); return `${u.lines}건${u["위험"] + u["주의"] > 1 ? " · 반복" : ""}`; } })}</div>` : ""}
@@ -2233,9 +2210,7 @@ function renderStatsPanel() {
     $("panel").innerHTML = `<div class="panel-head"><h3>${esc(title)}</h3>${CLOSE_BTN}</div><div class="panel-body"><p class="subject">${esc(subject)}</p>${inner}</div>`;
   };
   if (!d || !sel) {
-    body(STAT_TITLES[S.kind || "stats"], "막대 · 줄을 고르세요", `<p class="note">${S.kind === "ustats"
-      ? "의심 점수 · 위협 로그 · 부서 · 권한 · 신청을 누르면 예측 이유 · 행동 신호와 이어 볼 곳(로그 조회 · 로그 감시 판정 · 결재함)이 나옵니다."
-      : "모듈 · 노드 · 조항을 누르면 그 내용과 이어 볼 곳(노드 탭 · 기준 문서 원문)이 나옵니다."}</p>`);
+    body(STAT_TITLES[S.kind || "stats"], "막대 · 줄을 고르세요", `<p class="note">막대를 누르면 자세한 내용이 나옵니다.</p>`);
     return;
   }
   if (sel.kind === "user") {
@@ -2268,14 +2243,14 @@ function renderStatsPanel() {
       <div class="rec-line lv-${SUSPECT_COLOR[p.level]}">${icon(LEVEL_ICON[SUSPECT_COLOR[p.level]])}의심 ${p.score}점 · ${esc(p.level)}</div>
       <div class="sec"><h4>${icon("activity", "sm")}예측 이유</h4><div class="box">${esc(p.reason)}</div></div>
       <div class="sec"><h4>${icon("ok", "sm")}확인할 점</h4><div class="box">${esc(p.watch)}</div></div>`}
-      <div class="sec"><h4>${icon("warn", "sm")}행동 신호 (코드가 센 값 · 최근 7일 vs 그 앞 4주)</h4>${(g.highlights || []).length ? `<div class="box pre">${esc(g.highlights.join("\n"))}</div>` : `<p class="note">눈에 띄는 신호가 없습니다.</p>`}
+      <div class="sec"><h4>${icon("warn", "sm")}행동 신호 (최근 7일 vs 이전 4주)</h4>${(g.highlights || []).length ? `<div class="box pre">${esc(g.highlights.join("\n"))}</div>` : `<p class="note">눈에 띄는 신호가 없습니다.</p>`}
         ${g.subject ? kvTable([["최근 · 평소 로그", `${g.recent_events}건 · ${g.baseline_events}건`], ["하루 양", `${g.baseline_daily_volume} → ${g.recent_daily_volume}${g.volume_ratio != null ? ` (${g.volume_ratio}배)` : ""}`],
           ["근무 시간 밖 · 예외", `${Math.round(g.off_hours_ratio * 100)}% · ${Math.round(g.exception_ratio * 100)}%`], ["민감 문서", `${g.sensitive_events}건${(g.sensitive_words || []).length ? ` (${g.sensitive_words.join(", ")})` : ""}`],
           ["30분 안 최대", `${g.max_burst_30min}건`], ["첫 · 마지막 로그", `${stamp(g.first_seen)} · ${stamp(g.last_seen)}`]]) : `<p class="note">로그가 없습니다 (권한 신청 기록만).</p>`}</div>
       <div class="sec"><h4>${icon("list", "sm")}판정 · 신청 기록 (35일)</h4>${kvTable([["로그 감시", `위험 ${r["로그 위험"] || 0} · 주의 ${r["로그 주의"] || 0}`],
         ["권한 신청", `${r["신청"] || 0}건 · AI 위험 ${r["신청 위험"] || 0} · 반려 ${r["반려"] || 0} · 회수 ${r["회수"] || 0}`], ["계정", p.login_id || "계정 미연결 — 계정 관리에서 로그 사용자 ID 를 적으면 이어집니다"]])}</div>
       <div class="sec"><h4>${icon("activity", "sm")}의심 점수 흐름</h4>${spark}</div>
-      <p class="note">${esc(p.model)} · ${esc(stamp(p.created_at))} 예측. 판정이 아니라 먼저 살펴볼 사람을 고르는 예측이고, 결정은 사람이 합니다.</p>
+      <p class="note">${esc(stamp(p.created_at))} 예측</p>
       <div class="sec">${g.subject ? `<button class="rerun" id="stat-go">${icon("search", "sm")}이 사용자의 로그 조회</button>` : ""}</div>`);
     const go = $("stat-go");
     if (go) go.addEventListener("click", () => { setView("events"); openLogs({ user: g.subject, period: "month" }); });
@@ -2402,7 +2377,7 @@ function renderLogsPanel() {
         ...Object.entries(f.attribute_totals).map(([k, v]) => [`${k} 합계`, String(v)])])}</div>
       <div class="sec"><h4>${icon("users", "sm")}사용자별</h4>${list(f.by_user, 20)}</div>
       <div class="sec"><h4>${icon("list", "sm")}날짜별 (많은 순)</h4>${list(f.by_day, 14)}</div>
-      <p class="note">숫자는 코어가 로그에서 직접 센 값입니다. 목록에서 줄을 고르면 그 로그의 원본을 봅니다.</p>`}
+      <p class="note">줄을 고르면 원본을 봅니다.</p>`}
     </div>`;
 }
 
