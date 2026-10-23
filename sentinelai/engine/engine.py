@@ -13,9 +13,10 @@ import logging
 import os
 import queue
 import threading
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, fields
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from pathlib import Path
 from typing import Any
@@ -28,7 +29,7 @@ from langchain_ollama import ChatOllama
 from pydantic import BaseModel
 
 from .. import ROOT
-from ..data import LoadResult, load_collected
+from ..data import LoadResult, behavior_signals, load_collected, load_events, period_since, suspect_people
 from ..data.collected import FORMAT
 from ..db import Database, User, auth, nodes, open_main_db, open_results_db, permissions, results
 from . import pipeline
@@ -72,6 +73,11 @@ class Settings:
     db_path: str
     results_db_path: str
     monitor_interval_min: int
+    fast_interval_min: str
+
+    #: 비워 둬도 되는 설정. fast_interval_min 을 적으면 로그 감시가 둘이 됩니다 — 그 간격마다 생각 단계를 끈 판정 모델로
+    #: 빠른 감시(1차 판정), monitor_interval_min 마다 생각하는 판정 모델로 정밀 감시(확정).
+    OPTIONAL = frozenset({"fast_interval_min"})
 
     @staticmethod
     def env_file() -> Path:
@@ -100,6 +106,8 @@ class Settings:
             raw = BOOT_ENV.get(key) or from_file.get(key)
             if raw:
                 values[f.name] = CASTS[f.type](raw)
+            elif f.name in cls.OPTIONAL:
+                values[f.name] = ""
             else:
                 missing.append(key)
         if missing:
@@ -136,9 +144,9 @@ class Settings:
 
 # --- 엔진 --------------------------------------------------------------------
 
-KINDS = {"policies": "정책 관리 검토", "events": "로그 감시", "nodes": "서버 점검"}
-# 화면에서 시작할 수 있는 작업. 서버 점검은 주기를 기다리지 않고 [지금 점검]으로도 돌립니다. 로그 감시는 서버가 스스로만 돌립니다.
-MANUAL = {"policies", "nodes"}
+KINDS = {"policies": "정책 관리 검토", "events": "로그 감시", "nodes": "서버 점검", "events_fast": "빠른 로그 감시", "suspects": "위협 예측"}
+# 화면에서 시작할 수 있는 작업. 서버 점검 · 위협 예측은 주기를 기다리지 않고 [지금 점검] · [지금 예측]으로도 돌립니다. 로그 감시는 서버가 스스로만 돌립니다.
+MANUAL = {"policies", "nodes", "suspects"}
 
 
 class Engine:
@@ -154,6 +162,8 @@ class Engine:
         self._llm: ChatOllama | None = None
         self._qa_llm: ChatOllama | None = None
         self.jobs: JobRunner | None = None
+        self.fast: JobRunner | None = None
+        self._fast_llm: ChatOllama | None = None
         self.verdicts: VerdictWorker | None = None
 
     # --- 모델 ---------------------------------------------------------------
@@ -172,6 +182,13 @@ class Engine:
         if self._qa_llm is None:
             self._qa_llm = self.with_model(self.settings.qa_model)
         return self._qa_llm
+
+    @property
+    def fast_llm(self) -> ChatOllama:
+        """빠른 로그 감시용 — 판정 모델과 같은 모델에 생각 단계만 끕니다. 묶음당 수 초지만 정확도가 떨어져 1차 판정에만 씁니다 (NOTES.md)."""
+        if self._fast_llm is None:
+            self._fast_llm = ChatOllama(**{**self.settings.llm_options, "reasoning": False})
+        return self._fast_llm
 
     def with_model(self, model: str) -> ChatOllama:
         return ChatOllama(**{**self.settings.llm_options, "model": model})
@@ -217,6 +234,9 @@ class Engine:
     def server_answer_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         return pipeline.server_answer_chain(self, *args, **kwargs)
 
+    def suspect_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        return pipeline.suspect_chain(self, *args, **kwargs)
+
     def answer_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         return pipeline.answer_chain(self, *args, **kwargs)
 
@@ -255,9 +275,14 @@ class Engine:
 
     def status(self) -> dict[str, Any]:
         """웹 안에서 도는 것 — 작업 큐(진행 · 마지막 결과) · 자동 실행 예약 · 권한 신청 판정 대기열."""
-        return {"jobs": {**(self.jobs.status() if self.jobs else {}), "kinds": KINDS},
-                "schedule": self.jobs.schedule() if self.jobs else {},
+        return {"jobs": {**self.job_status(), "kinds": KINDS},
+                "schedule": {**(self.jobs.schedule() if self.jobs else {}), **(self.fast.schedule() if self.fast else {})},
                 "verdicts": self.verdicts.snapshot() if self.verdicts else {}}
+
+    def job_status(self) -> dict[str, Any]:
+        """화면의 작업 상태. 빠른 로그 감시는 따로 돌아 다른 작업을 막지 않으므로 fast 에 따로 둡니다."""
+        return {**(self.jobs.status() if self.jobs else {"running": None, "last": {}}),
+                **({"fast": {**self.fast.status(), **self.fast.schedule().get("events_fast", {})}} if self.fast else {})}
 
     # --- 기능 (CLI 와 웹의 작업 큐가 같은 것을 부릅니다) ------------------------------------
 
@@ -283,14 +308,19 @@ class Engine:
 
         return pipeline.check_nodes(self, pending, s.policies_source, s.servers_source, save)
 
+    def run_fast_events(self, progress: Progress | None = None) -> dict[str, Any]:
+        """빠른 로그 감시 1회 — 지난 빠른 감시(또는 정밀 감시) 이후 로그만, 생각 단계를 끈 판정 모델로 1차 판정."""
+        return self.run_events(progress=progress, stage="fast")
+
     def run_events(self, since: datetime | None = None, until: datetime | None = None, full: bool = False,
-                   progress: Progress | None = None) -> dict[str, Any]:
+                   progress: Progress | None = None, stage: str = "final") -> dict[str, Any]:
         """로그 감시 1회 — since 를 주지 않으면 지난 감시 이후 로그만 (full 이면 처음부터). → 결과에 since 를 붙여 돌려줍니다."""
         if since is None and not full:
-            since = results.next_monitor_since(self.results_db)
-        run = pipeline.monitor(self, self.settings.events_source, since, until, progress)
-        results.save_monitor_run(self.results_db, run, self.settings.model,
-                                 since.isoformat() if since else None, until.isoformat() if until else None)
+            since = results.next_monitor_since(self.results_db, stage)
+        fast = stage == "fast"
+        run = pipeline.monitor(self, self.settings.events_source, since, until, progress, fast=fast)
+        results.save_monitor_run(self.results_db, run, f"{self.settings.model} (생각 끔)" if fast else self.settings.model,
+                                 since.isoformat() if since else None, until.isoformat() if until else None, stage)
         return {**run, "since": since.isoformat() if since else None}
 
     @cached_property
@@ -333,6 +363,59 @@ class Engine:
                             "collected_at": snap["collected_at"] if snap else "", "modules": snap["modules"] if snap else {},
                             "finding": findings.get(n["name"])})
         return current, results.server_history(self.results_db, names, since, until)
+
+    def stats(self, period: str) -> dict[str, Any]:
+        """보안 통계 — 지금부터 period(week · month · quarter · all 등) 안의 위협 로그 비율 · 빈도와 노드 위협 데이터를 셉니다. 모델은 쓰지 않습니다.
+
+        사용자별 위협 로그 · 권한 신청은 user_stats(사용자 위협)로 나눴습니다.
+        """
+        since = period_since(period, datetime.now(timezone.utc))
+        at = since.isoformat(timespec="seconds") if since else None
+        # 위협 로그 비율의 분모 — 기간 안 로그 전체. 로그를 읽지 못하면 비율 없이 건수만 보여줍니다.
+        try:
+            logs = load_events(self.settings.events_source, since=since).records
+            total = {"count": len(logs), "days": dict(Counter(e.occurred_at.astimezone().date().isoformat() for e in logs))}
+        except (FileNotFoundError, ValueError) as exc:
+            total = {"count": None, "days": {}, "error": str(exc)}
+        found = results.threat_stats(self.results_db, at)
+        registry = [n for n in nodes.list_nodes(self.main_db) if n["enabled"]]
+        safety = results.server_safety(self.results_db, [n["name"] for n in registry], {n["name"] for n in registry if nodes.is_stale(n)}, at)
+        return {"period": period, "since": at, "logs": total, "safety": safety,
+                "events": {k: v for k, v in found["events"].items() if k != "users"}, "servers": found["servers"]}
+
+    def user_stats(self, period: str) -> dict[str, Any]:
+        """사용자 위협 — 의심 점수(사람마다 지금 가진 권한 포함) · 사용자별 위협 로그 판정 · 권한 신청 타일."""
+        since = period_since(period, datetime.now(timezone.utc))
+        at = since.isoformat(timespec="seconds") if since else None
+        suspects = results.latest_suspects(self.results_db)
+        held = permissions.held_by_account(self.main_db)
+        for p in suspects:
+            # 의심 점수의 사람 키는 계정이면 account:{id} 입니다 (data.suspect.suspect_people). 계정 미연결은 권한을 알 수 없어 None.
+            p["held"] = held.get(int(p["key"].split(":", 1)[1]), []) if p["key"].startswith("account:") else None
+        return {"period": period, "since": at, "events": {"users": results.threat_stats(self.results_db, at)["events"]["users"]},
+                "requests": permissions.request_stats(self.main_db, at), "suspects": suspects, "safety": results.user_safety(self.results_db, at)}
+
+    def run_suspects(self, progress: Progress | None = None) -> dict[str, Any]:
+        """위협 예측 1회 — 사람마다 행동 신호(코드) · 판정 · 신청 기록으로 판정 모델이 의심 점수를 냅니다. 한 사람씩 바로 쌓습니다.
+
+        신호는 로그 전체에서 최근 7일을 그 앞 4주와 견주고, 판정 · 신청 기록은 지금부터 35일 안의 것을 봅니다.
+        """
+        now = datetime.now(timezone.utc)
+        recent = (now - timedelta(days=35)).isoformat(timespec="seconds")
+        events = load_events(self.settings.events_source).records
+        lines: dict[str, list[str]] = {}
+        for e in events:
+            lines.setdefault(e.user_id or e.who, []).append(e.describe())
+        people = suspect_people(auth.accounts_brief(self.main_db), behavior_signals(events, now),
+                                results.user_findings(self.results_db, recent), permissions.user_requests(self.main_db, recent))
+        scored = []
+        for n, person in enumerate(people, start=1):
+            result = pipeline.predict_suspect(self, person, lines.get(person["log_id"], []) if person["log_id"] else [])
+            results.save_suspect(self.results_db, person, result, self.settings.model)
+            scored.append({"key": person["key"], **result})
+            if progress:
+                progress(n, len(people), result)
+        return {"people": scored}
 
     def browse_logs(self, user: User, period: str, who: str = "", solution: str = "", how: str = "", page: int = 1,
                     ip: str | None = None) -> dict[str, Any]:
@@ -389,13 +472,19 @@ class Engine:
         self.verdicts = VerdictWorker(self)
         self.verdicts.resume()
         self.jobs = JobRunner(self)
-        for kind in ("events", "nodes"):
+        for kind in ("events", "nodes", "suspects"):
             self.jobs.every(kind, self.settings.monitor_interval_min)
+        # 빠른 로그 감시는 따로 돌립니다. 정책 관리 검토 · 서버 점검 · 정밀 감시가 돌고 있어도 기다리지 않습니다.
+        if self.settings.fast_interval_min:
+            self.fast = JobRunner(self)
+            self.fast.every("events_fast", int(self.settings.fast_interval_min))
 
     def stop(self) -> None:
         """큐를 멈추고 벡터 DB 잠금을 풉니다. --reload 로 새로 뜨는 프로세스 · CLI 가 벡터 DB 를 열 수 있게 합니다."""
         if self.jobs:
             self.jobs.stop()
+        if self.fast:
+            self.fast.stop()
         if self.verdicts:
             self.verdicts.stop()
         self.documents.close()
@@ -463,7 +552,8 @@ class JobRunner:
     def _run(self, kind: str, auto: bool) -> None:
         error = None
         try:
-            {"policies": self.engine.run_policies, "events": self.engine.run_events,
+            {"policies": self.engine.run_policies, "events": self.engine.run_events, "events_fast": self.engine.run_fast_events,
+             "suspects": self.engine.run_suspects,
              "nodes": self.engine.run_nodes}[kind](progress=self._progress)
         except Exception as exc:  # 파일 없음 · 컬럼 없음 등은 화면에 그대로 보여줍니다.
             error = f"{type(exc).__name__}: {exc}"

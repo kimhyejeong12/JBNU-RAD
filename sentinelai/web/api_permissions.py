@@ -113,6 +113,7 @@ class UserChange(BaseModel):
     department: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
     role: str | None = None
     is_active: bool | None = None
+    log_id: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
 
 
 class PasswordReset(BaseModel):
@@ -234,14 +235,6 @@ def list_requests(request: Request, user: Anyone, stage: str | None = None, mine
     except Denied as exc:
         raise _denied(exc) from None
     return [_with_verdict(request, r, user) for r in rows]
-
-
-@router.get("/requests/{request_no}")
-def get_request(request_no: str, request: Request, user: Anyone) -> dict[str, Any]:
-    try:
-        return _with_verdict(request, permissions.get(request.app.state.main_db, user, request_no), user)
-    except Denied as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from None
 
 
 @router.post("/requests/{request_no}/withdraw")

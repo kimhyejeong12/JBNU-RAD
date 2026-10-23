@@ -158,6 +158,7 @@
   .ldot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; vertical-align: 1px; margin-right: 6px; }
   .ldot.정상 { background: var(--ok); box-shadow: 0 0 0 3px rgba(46, 125, 91, .26); }
   .ldot.주의 { background: var(--sub); box-shadow: 0 0 0 3px rgba(255, 122, 0, .26); }
+  .ldot.none { background: #B5B5BA; box-shadow: 0 0 0 3px rgba(181, 181, 186, .26); }
   .ldot.위험 { background: var(--accent); box-shadow: 0 0 0 3px rgba(234, 0, 44, .22); }
   .stat .label .ldot { margin-right: 0; }
   .lv-정상 { color: var(--ok); } .lv-주의 { color: var(--sub); } .lv-위험 { color: var(--accent); }
@@ -175,7 +176,70 @@
   .main-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
   .view-queue { display: flex; flex-direction: column; gap: 14px; }
   /* display 를 지정한 요소는 hidden 속성만으로 숨겨지지 않아 직접 끕니다. */
-  .view-queue[hidden], .ask[hidden], .logs[hidden], .nodes[hidden] { display: none; }
+  .view-queue[hidden], .ask[hidden], .logs[hidden], .nodes[hidden], .stats-view[hidden] { display: none; }
+
+  /* 보안 통계 — 모델 없이 쌓인 판정을 센 값. 줄을 누르면 그 판정 · 노드 · 신청으로 이어집니다 */
+  .stats-view { display: flex; flex-direction: column; gap: 14px; }
+  .stats-view .card { display: flex; flex-direction: column; }
+  .stats-view .card[hidden] { display: none; }
+  .stats-view .sub { margin: 0; padding: 0 18px 10px; font-size: 12.5px; color: var(--ink-dim); }
+  /* 차트 — 막대는 24px 이하 · 끝만 4px 둥글게 · 맞닿는 조각은 2px 흰 틈. 숫자는 막대 옆 글자로 줘서 색만으로 읽지 않게 합니다 */
+  .chart { padding: 4px 18px 6px; }
+  .cols { position: relative; display: flex; align-items: flex-end; gap: 2px; height: 140px; margin-left: 30px; border-bottom: 1px solid var(--line); }
+  .cols .grid { position: absolute; left: -30px; right: 0; border-top: 1px solid var(--line); font-size: 10.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .cols .grid span { position: absolute; top: -7px; left: 0; width: 26px; text-align: right; background: var(--bg); }
+  .cols .col { position: relative; z-index: 1; flex: 1 1 0; height: 100%; display: flex; justify-content: center; outline-offset: 2px; }
+  .cols .stack { width: 100%; max-width: 24px; height: 100%; display: flex; flex-direction: column-reverse; gap: 2px; }
+  .cols .col:hover .mk, .cols .col:focus .mk { filter: brightness(1.12); }
+  .mk { display: block; flex: none; }
+  .cols .stack .mk:last-child { border-radius: 4px 4px 0 0; }
+  .mk.위험 { background: var(--accent); } .mk.주의 { background: var(--sub); } .mk.정상 { background: var(--ok); } .mk.기타 { background: #D4D4D8; }
+  .xaxis { position: relative; height: 18px; margin-left: 30px; font-size: 11px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .xaxis span { position: absolute; top: 4px; transform: translateX(-50%); white-space: nowrap; }
+  .xaxis span:first-child { transform: none; } .xaxis span:last-child { transform: translateX(-100%); }
+  .hbars { display: grid; grid-template-columns: minmax(90px, max-content) 1fr max-content; gap: 6px 10px; align-items: center; }
+  .hbar { display: contents; cursor: pointer; }
+  .hbar .lbl { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+  .hbar .track { display: flex; align-items: center; min-width: 0; }
+  .hbar .bar { display: flex; gap: 2px; height: 14px; min-width: 0; }
+  .hbar .bar .mk { height: 100%; }
+  .hbar .bar .mk:last-child { border-radius: 0 4px 4px 0; }
+  .hbar .val { font-size: 12px; color: var(--ink-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .hbar:hover .lbl, .hbar:focus-within .lbl, .hbar[aria-current="true"] .lbl { font-weight: 700; }
+  .hbar[aria-current="true"] .bar { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 4px; }
+  @media (max-width: 760px) {
+    .hbars { grid-template-columns: minmax(70px, 34%) 1fr; row-gap: 2px; }
+    .hbar .val { grid-column: 2; margin-bottom: 6px; }
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 8px 18px 4px; font-size: 12px; color: var(--ink-dim); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .legend i.round { border-radius: 50%; }
+  .chart-title { margin: 0; padding: 10px 18px 2px; font-size: 13px; font-weight: 700; }
+  .tableview { padding: 4px 18px 12px; }
+  .tableview summary { cursor: pointer; font-size: 12px; color: var(--ink-dim); padding: 4px 0; }
+  .tableview .ltable-wrap { margin: 6px -18px 0; }
+  .meter { display: flex; gap: 2px; height: 8px; margin-top: 6px; background: var(--bg-soft); border-radius: 4px; overflow: hidden; }
+  .num { font-variant-numeric: tabular-nums; }
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 0 18px 16px; }
+  .tile { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .tile .label { font-size: 12px; font-weight: 600; color: var(--ink-dim); }
+  .tile .big { font-size: 24px; font-weight: 800; letter-spacing: -0.6px; font-variant-numeric: tabular-nums; }
+  .tile .note { margin: 0; }
+  @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .safety { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(160px, 260px); gap: 18px; align-items: center; margin: 0 18px 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; }
+  .safety:empty { display: none; }
+  .safety .score { display: flex; flex-direction: column; gap: 2px; }
+  .safety .score .big { font-size: 34px; font-weight: 800; letter-spacing: -1px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .safety .score .big.정상 { color: var(--ok); } .safety .score .big.주의 { color: var(--sub); } .safety .score .big.위험 { color: var(--accent); }
+  .safety .label { font-size: 12px; font-weight: 600; color: var(--ink-dim); }
+  .safety .groups { display: grid; gap: 4px; font-size: 13px; min-width: 0; }
+  .safety .groups div { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .safety .groups b { font-weight: 700; min-width: 86px; }
+  .safety .who { cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+  .safety .who:hover, .safety .who:focus { text-decoration-color: currentColor; }
+  .safety .trend svg { width: 100%; height: 44px; display: block; }
+  .safety .trend .note { display: flex; justify-content: space-between; margin: 2px 0 0; }
+  @media (max-width: 760px) { .safety { grid-template-columns: auto minmax(0, 1fr); } .safety .trend { grid-column: 1 / -1; } }
 
   /* 로그 조회 — 지금부터 거슬러 올라가는 기간 · 사용자로 거른 로그. 집계와 원본은 오른쪽 패널에 둡니다 */
   .logs, .nodes { display: flex; flex-direction: column; min-height: 320px; }
@@ -257,6 +321,11 @@
   .subject { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
   .rec-line { display: flex; align-items: center; gap: 7px; font-size: 16px; font-weight: 800; letter-spacing: -0.3px; }
   .rec-line svg { width: 20px; height: 20px; }
+  .held { display: grid; gap: 6px; }
+  .held-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+  .held-row:hover { border-color: var(--ink-dim); }
+  .held-row span { color: var(--ink-dim); font-size: 12px; }
+  .held-row .when { grid-row: 1; grid-column: 2; }
   .meta { font-size: 12px; color: var(--ink-dim); margin: 4px 0 2px; }
   .sec { margin-top: 18px; }
   .sec h4 { margin: 0 0 7px; font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
@@ -435,7 +504,7 @@
 
 <nav class="sidebar" aria-label="메뉴">
   <div class="nav-views" id="nav-views"></div>
-  <button class="nav" id="nav-docs" aria-label="기준 문서 원문" data-tip-pos="right" data-tip="기준 문서 원문|AI가 판정 근거로 삼는 사내 규정 전문을 봅니다"><span data-icon="book"></span></button>
+  <button class="nav" id="nav-docs" aria-label="기준 문서 원문" data-tip-pos="right" data-tip="기준 문서 원문"><span data-icon="book"></span></button>
 </nav>
 
 <div class="workspace" data-tab="queue">
@@ -445,6 +514,8 @@
     <nav class="main-tabs" role="tablist" aria-label="보기 전환">
       <button class="main-tab" role="tab" id="tab-queue" data-tab="queue" aria-selected="true" aria-controls="view-queue"><span data-icon="list" class="sm"></span>검토 현황</button>
       <button class="main-tab" role="tab" id="tab-nodes" data-tab="nodes" aria-selected="false" aria-controls="view-nodes"><span data-icon="server" class="sm"></span>노드</button>
+      <button class="main-tab" role="tab" id="tab-stats" data-tab="stats" aria-selected="false" aria-controls="view-stats" hidden><span data-icon="activity" class="sm"></span>보안 통계</button>
+      <button class="main-tab" role="tab" id="tab-ustats" data-tab="ustats" aria-selected="false" aria-controls="view-stats" hidden><span data-icon="warn" class="sm"></span>사용자 위협</button>
       <button class="main-tab" role="tab" id="tab-logs" data-tab="logs" aria-selected="false" aria-controls="view-logs"><span data-icon="search" class="sm"></span>로그 조회</button>
       <button class="main-tab" role="tab" id="tab-ask" data-tab="ask" aria-selected="false" aria-controls="view-ask"><span data-icon="chat" class="sm"></span><span id="tab-ask-label">정책 질의</span></button>
     </nav>
@@ -496,7 +567,7 @@
     <!-- 수집 노드 — 서버마다 도는 node/sentinel_node 가 보낸 수집. 새 수집은 서버가 주기적으로 점검해 검토 현황에 올립니다 -->
     <section class="card nodes" id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes" hidden>
       <div class="logs-head"><h3>수집 노드</h3><span class="logs-count" id="node-count"></span>
-        <button class="rerun run" id="check-now" data-tip="지금 점검|새 수집이 온 노드를 주기(30분)를 기다리지 않고 지금 기준 문서와 비교합니다"><span data-icon="activity" class="sm"></span><span id="check-now-txt">지금 점검</span></button>
+        <button class="rerun run" id="check-now"><span data-icon="activity" class="sm"></span><span id="check-now-txt">지금 점검</span></button>
         <button class="rerun run" id="add-node"><span data-icon="plus" class="sm"></span>노드 등록</button></div>
       <div class="ltable-wrap">
         <table class="ltable">
@@ -505,6 +576,19 @@
         </table>
       </div>
     </section>
+
+    <!-- 보안 통계 — 반복 위협 사용자 · 추이, 서버 등급 변화 · 걸린 조항, 권한 신청 위험도 (/api/stats) -->
+    <div class="stats-view" id="view-stats" role="tabpanel" aria-labelledby="tab-stats" hidden>
+      <section class="card">
+        <div class="logs-head"><h3 id="stat-title">보안 통계</h3><div class="periods" id="stat-periods" role="group" aria-label="기간"></div>
+          <span class="logs-count" id="stat-range"></span></div>
+        <div class="safety" id="stat-safety"></div>
+        <div class="tiles" id="stat-tiles"></div>
+      </section>
+      <section class="card" id="stat-suspects" hidden></section>
+      <section class="card" id="stat-events"></section>
+      <section class="card" id="stat-servers"></section>
+    </div>
 
     <section class="card logs" id="view-logs" role="tabpanel" aria-labelledby="tab-logs" hidden>
       <div class="logs-head">
@@ -536,7 +620,6 @@
           <input id="ask-input" type="text" maxlength="500" autocomplete="off" aria-label="질문">
           <button type="submit" id="ask-send">질의</button>
         </form>
-        <p class="note" id="ask-note"></p>
       </div>
     </section>
 
@@ -624,23 +707,25 @@ const STAGE_LABEL = { manager: "1차 결재 대기", top: "최종 결재 대기"
 const STEP = { manager: "manager", top: "top" };
 // 메뉴마다 쓰는 탭 · 목록 칸만 둡니다. 정책 질의 · 로그 질의는 그 메뉴의 기능이라 정책 관리 · 로그 감시에만 있습니다.
 const VIEWS = {
-  requests: { label: "권한 신청", icon: "lock", tip: "권한 신청|결재할 신청 · AI 판정 · 유효 권한 회수",
+  requests: { label: "권한 신청", icon: "lock", tip: "권한 신청",
               tabs: ["queue"], cols: ["번호", "신청자", "신청 권한", "신청 시각", "AI 판정"], search: "신청 번호 · 신청자 · 권한으로 검색" },
-  policies: { title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리|솔루션 정책의 중복 · 충돌 · 과도한 허용과 수집 노드의 서버 점검",
+  policies: { title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리",
               tabs: ["queue", "nodes", "ask"], cols: ["분류", "대상", "상세 내용", "시간", "AI 판정"], search: "정책 ID · 서버 · 내용으로 검색" },
-  qa: { title: "정책 질의", label: "정책 질의", icon: "chat", tip: "정책 질의|사내 기준 문서와 솔루션 정책에 대해 묻고 답을 받습니다",
+  stats: { title: "통계", label: "통계", icon: "activity", tip: "통계",
+           tabs: ["stats", "ustats"], cols: [], search: "" },
+  qa: { title: "정책 질의", label: "정책 질의", icon: "chat", tip: "정책 질의",
         tabs: ["ask"], cols: [], search: "" },
-  events: { title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시|서버가 자동으로 돌린 로그 감시 판정 중 주의 · 위험",
+  events: { title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시",
             tabs: ["queue", "logs", "ask"], cols: ["분류", "대상 사용자", "상세 내용", "시간", "AI 판정"], search: "사용자 · 내용으로 검색" },
-  mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청|권한을 신청하고 결재 상태를 봅니다",
+  mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청",
           tabs: ["queue"], cols: ["번호", "신청 권한", "사유", "신청 시각", "상태"], search: "신청 번호 · 권한으로 검색" },
-  users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리|계정 생성 · 역할 · 정지 · 비밀번호 초기화 (보안 총책임자)",
+  users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리",
            tabs: ["queue"], cols: ["역할", "이름 (아이디)", "부서", "마지막 로그인", "상태"], search: "이름 · 아이디 · 부서로 검색" },
-  access: { title: "권한 목록", label: "권한 목록", icon: "key", tip: "권한 목록|일반 사용자가 신청할 수 있는 권한 — 등록 · 고치기 · 끄기 (보안 총책임자)",
+  access: { title: "권한 목록", label: "권한 목록", icon: "key", tip: "권한 목록",
             tabs: ["queue"], cols: ["시스템", "권한 (코드)", "분류 · 설명", "고친 시각", "상태"], search: "권한 이름 · 코드 · 시스템으로 검색" },
 };
 // 보안 총책임자는 보안 운영자와 같은 메뉴에 권한 목록 · 계정 관리를 더합니다.
-const ROLE_VIEWS = { user: ["mine"], manager: ["requests", "policies", "events", "qa"], top: ["requests", "policies", "events", "qa", "access", "users"] };
+const ROLE_VIEWS = { user: ["mine"], manager: ["requests", "policies", "events", "stats", "qa"], top: ["requests", "policies", "events", "stats", "qa", "access", "users"] };
 const roleViews = () => (state.me ? ROLE_VIEWS[state.me.role] : []);
 const RESULT_VIEWS = new Set(["policies", "events"]);
 const LEVEL_VIEWS = new Set(["requests", "policies", "events"]);
@@ -649,7 +734,6 @@ const ASK = {
   policy: {
     label: "정책 질의", url: "/api/ask", placeholder: "정책 · 접근 권한에 대해 질문하세요",
     empty: "사내 기준 문서와 솔루션 정책을 근거로 답합니다.",
-    note: "AI는 사내 기준 문서와 솔루션 정책으로 답합니다. 신청 목록의 인물 정보는 조회하지 않습니다.",
     examples: [
       "인사팀 김민수가 급여 테이블(HR_SALARY)에 접근할 수 있어?",
       "마케팅팀이 사내포털에 HTTPS로 접근하는 정책은 몇 개야?",
@@ -657,9 +741,8 @@ const ASK = {
     ],
   },
   server: {
-    label: "서버 질의", url: "/api/ask-servers", placeholder: "수집 노드 서버의 지금 상태 · 바뀐 설정 · 서버 점검 결과를 물어보세요",
-    empty: "수집 노드가 보낸 기록과 서버 점검 판정을 조건에 맞춰 골라서 답합니다.",
-    note: "AI는 수집 기록과 서버 점검 판정으로만 답합니다. 건수는 기록에서 직접 셉니다. 정책 위반 여부는 새로 판단하지 않습니다 (검토 현황의 서버 점검을 보세요).",
+    label: "서버 질의", url: "/api/ask-servers", placeholder: "서버 상태 · 바뀐 설정을 물어보세요",
+    empty: "수집 노드의 기록과 서버 점검 결과로 답합니다.",
     examples: [
       "지금 방화벽에 문제가 있는 서버는?",
       "어제부터 설정이 바뀐 서버가 있어?",
@@ -668,8 +751,7 @@ const ASK = {
   },
   log: {
     label: "로그 질의", url: "/api/ask-logs", placeholder: "보안 솔루션 로그에 대해 질문하세요",
-    empty: "보안 솔루션 로그를 조건에 맞춰 찾고 세어서 답합니다.",
-    note: "건수 · 합계는 AI가 세지 않고 로그에서 직접 셉니다. 정책 위반 여부는 판단하지 않습니다 (검토 현황의 로그 감시 판정을 보세요).",
+    empty: "보안 솔루션 로그를 찾아 세어서 답합니다.",
     examples: [
       "홍길동이 출력을 몇 번 했어?",
       "10월 6일 VDI에서 출력된 페이지는 모두 몇 장이야?",
@@ -710,6 +792,9 @@ const state = {
   // 로그 조회 — 조건 · 받은 결과(/api/logs) · 패널에 띄운 줄(없으면 집계)
   // 수집 노드 — 목록(/api/nodes) · 고른 노드 · 그 노드의 자세한 기록(/api/nodes/{이름})
   nodes: { list: null, error: "", selected: null, detail: null, adding: false },
+  // 보안 통계 — 기간 · 받은 결과(/api/stats) · 패널에 띄운 줄 { kind: suspect | user | module | node, key }
+  // 통계 메뉴의 두 탭 — 보안 통계(stats) · 사용자 위협(ustats)이 같은 화면 · 기간을 쓰고 결과만 따로 받습니다.
+  stats: { period: "month", data: null, error: "", loading: false, selected: null, kind: null },
   logs: { period: "week", user: "", solution: "", how: "", page: 1, data: null, error: "", loading: false, selected: null },
 };
 
@@ -809,6 +894,8 @@ function queue() {
       who: f.title,
       what: `로그 ${lines.length}건 — ${f.reason}`,
       when: stamp(f.detail && f.detail.last_event_at),
+      // 빠른 감시(생각 없이)의 1차 판정 — 정밀 감시가 같은 구간을 다시 판정하면 목록에서 빠지고 확정 판정이 뜹니다.
+      sub: f.stage === "fast" ? "1차 판정 · 확정 대기" : "",
       judge: f.level, raw: f,
     };
   });
@@ -925,21 +1012,20 @@ function renderStats() {
   document.querySelectorAll("[data-count]").forEach((el) => { el.textContent = n[el.dataset.count] ?? ""; });
   // 넓은 화면에는 세그먼트가 없으므로 건수를 사이드바 툴팁 제목에 붙입니다.
   document.querySelectorAll(".nav[data-view]").forEach((b) => {
-    const [title, desc] = VIEWS[b.dataset.view].tip.split("|");
-    b.dataset.tip = b.dataset.view in n ? `${title} — ${n[b.dataset.view]}건|${desc}` : VIEWS[b.dataset.view].tip;
+    b.dataset.tip = b.dataset.view in n ? `${VIEWS[b.dataset.view].tip} ${n[b.dataset.view]}건` : VIEWS[b.dataset.view].tip;
   });
 }
 
 /* ── 분석 큐 ────────────────────────────── */
 function emptyText() {
   if (queue().some(inView)) return "조건에 맞는 항목이 없습니다.";
-  if (state.view === "events") return "검토할 로그 감시 판정(주의 · 위험)이 없습니다. 로그 감시는 서버가 정해진 간격마다 자동으로 돌립니다.";
+  if (state.view === "events") return "검토할 주의 · 위험 판정이 없습니다.";
   if (RESULT_VIEWS.has(state.view)) return `아직 ${VIEWS[state.view].label} 결과가 없습니다. 오른쪽 위 [${runKindLabel()}]을 누르세요.`;
   return {
     requests: { pending: "지금 결재할 신청이 없습니다.", active: "지금 유효한 권한이 없습니다.", all: "신청이 없습니다." }[state.stageFilter],
     mine: "아직 신청한 권한이 없습니다. 위 신청서를 채워 신청하세요.",
     users: "계정이 없습니다.",
-    access: "등록한 권한이 없습니다. 오른쪽 위 [권한 등록]으로 일반 사용자가 신청할 권한을 넣으세요.",
+    access: "등록한 권한이 없습니다. [권한 등록]으로 넣으세요.",
   }[state.view];
 }
 
@@ -1031,6 +1117,7 @@ function renderPanel() {
   if (state.mainTab === "ask") { renderAskPanel(); return; }
   if (state.mainTab === "logs") { renderLogsPanel(); return; }
   if (state.mainTab === "nodes") { renderNodesPanel(); return; }
+  if (isStatTab(state.mainTab)) { renderStatsPanel(); return; }
   const it = queue().find((i) => i.key === state.selected);
   const panel = $("panel");
   if (state.view === "users" && (!it || it.type !== "user")) { renderUserPanel(null); return; }
@@ -1069,8 +1156,7 @@ function renderPanel() {
       ${isServer ? `
       ${Object.values(r.detail.state).some((v) => v) ? `<div class="sec"><h4>${icon("server", "sm")}서버 현황</h4>${kvTable(Object.entries(r.detail.state).filter(([, v]) => v))}</div>` : ""}
       ${moduleState(r.detail.snapshot)}
-      <div class="sec"><h4>${icon("file", "sm")}이 서버에 걸린 정책</h4><div class="box pre">${esc(r.detail.matched)}</div>
-        <p class="note">IP · 대역 · 호스트 이름이 맞는 규칙을 코드가 찾았습니다. 그 밖의 규칙은 AI가 검색해 함께 봅니다.</p></div>` : `
+      <div class="sec"><h4>${icon("file", "sm")}이 서버에 걸린 정책</h4><div class="box pre">${esc(r.detail.matched)}</div></div>` : `
       <div class="sec"><h4>${icon("file", "sm")}${isEvent ? "판정한 로그" : "관련 정책 원본"}</h4>
         ${isEvent
           ? `<div class="box pre">${esc((r.detail && r.detail.events) || "로그 없음")}</div>
@@ -1102,10 +1188,12 @@ function renderPanel() {
       <div class="sec"><h4>${icon("db", "sm")}근거 조항</h4>
         ${it.type !== "policy"
           ? sourceChips(it.key, r.sources)
-          : `<p class="note">정책 관리 검토는 근거 조항을 판단 이유에 함께 적습니다. 적용 기준은 기준 문서 5 · 6장입니다.</p>`}
+          : `<p class="note">근거는 판단 이유에 함께 적혀 있습니다.</p>`}
       </div>`}
       ${decisionLog(it)}
     </div>
+    ${r.stage === "fast" ? `<div class="panel-foot"><h4>1차 판정 — 확정 대기</h4>
+      <p class="note">빠른 감시의 판정입니다. 정밀 감시가 확정하면 결정할 수 있습니다.</p></div>` : `
     <div class="panel-foot">
       <h4>의사결정</h4>
       <textarea id="review-comment" maxlength="2000" placeholder="결정 의견 (선택)"></textarea>
@@ -1117,7 +1205,7 @@ function renderPanel() {
         ? `<span>결정 <b>${esc(DECISIONS[decision.action])}</b> · ${esc(`${decision.decider_department} ${decision.decider_name}`.trim())} · ${esc(stamp(decision.decided_at))}${decision.ai_level ? ` (그때 AI 판정: ${esc(decision.ai_level)})` : ""}${decision.comment ? ` — ${esc(decision.comment)}` : ""}</span><button id="undo">취소</button>`
         : `<span>AI는 권고만 합니다. 최종 결정은 사람이 내립니다.</span>`}</div>
       ${panelMsg()}
-    </div>`;
+    </div>`}`;
 
   bindChips(panel);
   const toLogs = $("to-logs");
@@ -1192,7 +1280,7 @@ function renderRequestPanel(it) {
       <div class="sec"><h4>${icon("activity", "sm")}AI 판단 이유</h4><div class="box">${esc(v.reason)}</div></div>
       <div class="sec"><h4>${icon("ok", "sm")}AI 권고</h4><div class="box">${esc(v.recommendation)}</div></div>
       <div class="sec"><h4>${icon("db", "sm")}근거 조항</h4>${sourceChips(it.key, v.sources)}</div>
-      <p class="note">${esc(v.model)} · ${esc(stamp(v.judged_at))} 판정</p>`;
+      <p class="note">${esc(stamp(v.judged_at))} 판정</p>`;
   }
 
   const steps = [
@@ -1209,7 +1297,7 @@ function renderRequestPanel(it) {
     foot = `<h4>${me.role === "manager" ? "1차 결재" : "최종 결재"}</h4>
       <textarea id="decision-comment" maxlength="2000" placeholder="결재 의견 (선택)"></textarea>
       <div class="panel-actions"><button class="good" data-act="approve">승인</button><button class="danger" data-act="reject">반려</button></div>
-      <p class="note">AI는 권고만 합니다. 결재는 지금 보이는 AI 판정과 함께 기록됩니다.</p>`;
+      <p class="note">AI는 권고만 합니다.</p>`;
   } else if (canRevoke) {
     foot = `<h4>권한 회수</h4>
       <input id="revoke-reason" maxlength="2000" placeholder="회수 사유 (필수)">
@@ -1334,7 +1422,8 @@ function renderUserPanel(u) {
         <label>이름<input name="display_name" value="${esc(u.display_name)}" maxlength="100"></label>
         <label>부서<input name="department" value="${esc(u.department)}" maxlength="100"></label>
         <label>역할${roleOptions(u.role, fixed)}</label>
-        <label class="check"><input type="checkbox" name="is_active" ${u.is_active ? "checked" : ""} ${fixed ? "disabled" : ""}>활성 (끄면 정지 · 세션 끊김)</label>
+        <label>로그 사용자 ID<input name="log_id" value="${esc(u.log_id || "")}" maxlength="100" placeholder="보안 솔루션 로그의 UserID"></label>
+        <label class="check wide"><input type="checkbox" name="is_active" ${u.is_active ? "checked" : ""} ${fixed ? "disabled" : ""}>활성 (끄면 정지 · 세션 끊김)</label>
         <div class="wide form-actions"><button type="submit" class="primary">저장</button></div>
       </form>
       <form class="form-grid" id="user-reset" style="padding:12px 0 0">
@@ -1347,7 +1436,7 @@ function renderUserPanel(u) {
   $("user-edit").addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = e.target;
-    const body = { display_name: f.display_name.value, department: f.department.value };
+    const body = { display_name: f.display_name.value, department: f.department.value, log_id: f.log_id.value };
     if (!fixed) { body.role = f.role.value; body.is_active = f.is_active.checked; }
     try { await send(`/api/users/${u.id}`, body, "PATCH"); state.panelMsg = "✓ 저장했습니다"; }
     catch (err) { state.panelMsg = err.message; }
@@ -1446,7 +1535,7 @@ function renderHeld() {
 function renderAccessNote() {
   const a = state.catalog.find((x) => x.code === $("req-access").value);
   $("req-access-note").textContent = a ? a.description || "" : state.catalog.some((x) => x.is_active) ? ""
-    : "보안 총책임자가 권한 목록을 등록하면 신청할 수 있습니다. 필요한 권한이 목록에 없으면 보안 총책임자에게 등록을 요청하세요.";
+    : "신청할 수 있는 권한이 없습니다. 보안 총책임자에게 등록을 요청하세요.";
 }
 
 async function refreshCatalog(selectKey) {
@@ -1509,7 +1598,6 @@ function renderAsk() {
   const mode = askMode(), cfg = ASK[mode], list = asks();
   $("tab-ask-label").textContent = cfg.label;
   $("ask-input").placeholder = cfg.placeholder;
-  $("ask-note").textContent = cfg.note;
   const busy = list.some((m) => m.started);
   $("ask-send").disabled = busy;
   $("ask-ex").querySelectorAll("button").forEach((b) => { b.disabled = busy; });
@@ -1588,7 +1676,6 @@ function renderServerAskPanel(m, i) {
         ["기간 안 수집", f["기간 안 첫 수집"] ? `${stamp(f["기간 안 첫 수집"])} ~ ${stamp(f["기간 안 마지막 수집"])}` : "없음"], ...nodes])}</div>
       <div class="sec"><h4>${icon("file", "sm")}바뀐 설정 · 서버 점검 기록</h4>${m.evidence.length
         ? `<div class="box pre">${esc(m.evidence.join("\n"))}</div>` : `<p class="note">기간 안에 바뀐 설정 · 서버 점검이 없습니다.</p>`}</div>
-      <p class="note">숫자는 코어가 수집 · 서버 점검 기록에서 직접 센 값입니다. 서버마다 지금 상태는 정책 관리 → [노드]에서 봅니다.</p>
     </div>`;
 }
 
@@ -1607,8 +1694,7 @@ function renderAskPanel() {
     <div class="panel-body">${source
       ? `<p class="subject">${esc(chipLabel(source))}</p>
         <div class="meta">Q${sel.i + 1} · ${esc(m.q)}</div>
-        <div class="sec"><h4>${icon("book", "sm")}기준 문서 원문</h4><div class="clause">${esc(clauseText(source))}</div></div>
-        <p class="note">모델이 밝힌 근거 문서에서 해당 조항을 잘라 보여줍니다.</p>`
+        <div class="sec"><h4>${icon("book", "sm")}기준 문서 원문</h4><div class="clause">${esc(clauseText(source))}</div></div>`
       : ""}</div>`;
 }
 
@@ -1620,7 +1706,7 @@ function renderLogPanel(m, i) {
     ...Object.entries(f.by_user).map(([u, n]) => [u, `${n}건`]),
     ...Object.entries(f.attribute_totals).map(([k, v]) => [`${k} 합계`, String(v)]),
   ];
-  const more = f.count > m.evidence.length ? `<p class="note">최근 ${m.evidence.length}건만 표시합니다. 건수 · 합계는 전체 ${f.count}건 기준입니다.</p>` : "";
+  const more = f.count > m.evidence.length ? `<p class="note">최근 ${m.evidence.length}건만 표시 (집계는 전체 ${f.count}건)</p>` : "";
   $("panel").innerHTML = `<div class="panel-head"><h3>근거 로그</h3>${CLOSE_BTN}</div>
     <div class="panel-body">
       <p class="subject">${esc(criteriaText(m.criteria))}</p>
@@ -1628,7 +1714,6 @@ function renderLogPanel(m, i) {
       <div class="sec"><h4>${icon("activity", "sm")}집계</h4><div class="box"><table class="kv">
         ${rows.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("")}</table></div></div>
       <div class="sec"><h4>${icon("file", "sm")}로그</h4><div class="box pre">${esc(m.evidence.join("\n"))}</div>${more}</div>
-      <p class="note">숫자는 코어가 로그에서 직접 센 값입니다.</p>
     </div>`;
 }
 
@@ -1704,10 +1789,6 @@ function renderRun() {
   } else {
     txt.textContent = runKindLabel();
   }
-  // 정책 관리 검토가 문서 · 규칙 적재까지 하고 서버 점검은 하지 않는다는 것이 버튼만 봐서는 보이지 않아 툴팁에 둡니다.
-  btn.dataset.tip = VIEW_KIND[state.view] === "policies"
-      ? `${runKindLabel()}|기준 문서 · 솔루션 정책을 RAG 에 맞추고 정책 간 중복 · 충돌 · 과도한 허용을 찾습니다. 서버 점검은 수집 노드가 보낸 것을 서버가 주기적으로 합니다`
-      : `${runKindLabel()}|수 분 걸릴 수 있습니다`;
 }
 
 async function startJob(kind = VIEW_KIND[state.view]) {
@@ -1719,6 +1800,9 @@ async function startJob(kind = VIEW_KIND[state.view]) {
   watchJobs(true);
 }
 
+// 빠른 로그 감시는 따로 돌아 running 에 나오지 않습니다. 끝난 시각이 바뀌면 결과를 다시 받습니다.
+const fastDone = () => (state.jobs && state.jobs.fast && (state.jobs.fast.last.events_fast || {}).finished_at) || null;
+
 // 작업이 끝나면 저장된 결과를 다시 받아 화면 전체를 갱신합니다.
 // 파일이 없을 때처럼 시작하자마자 끝난 작업도 결과 · 실패를 보여줘야 하므로 started 면 바로 갱신합니다.
 function watchJobs(started = false) {
@@ -1728,15 +1812,18 @@ function watchJobs(started = false) {
     state.results = await getJSON("/api/results");
     renderAll();
     if (state.mainTab === "nodes") loadNodes();
+    if (isStatTab(state.mainTab)) loadStats();
   };
   if (!roleViews().some((v) => RESULT_VIEWS.has(v))) return;
   if (!state.jobs || !state.jobs.running) {
     if (started) refresh();
     // 자동 감시는 화면이 시작하지 않으므로 쉬는 동안에도 가끔 보고, 돌기 시작하면 따라갑니다.
     jobTimer = setInterval(async () => {
+      const before = fastDone();
       try { state.jobs = await getJSON("/api/jobs"); } catch (e) { return; }
       renderRun();
-      if (state.jobs.running) watchJobs();
+      if (state.jobs.running) { watchJobs(); return; }
+      if (fastDone() !== before) refresh();
     }, 30000);
     return;
   }
@@ -1873,7 +1960,7 @@ function renderNodesPanel() {
           <label class="wide"><span>노드 이름 <b>*</b></span><input id="node-name" required maxlength="64" pattern="[A-Za-z0-9._\-]+" placeholder="예: cust-db01"></label>
           <div class="wide form-actions">${panelMsg()}<button type="submit" class="primary">등록하고 키 발급</button></div>
         </form>
-        <p class="note">점검할 서버 하나에 노드 하나입니다. 이름은 영문 · 숫자 · . _ - 로 짓고, 등록하면 그 서버에 넣을 키가 나옵니다 (노드 화면에서 언제든 다시 볼 수 있음). 노드는 이름 없이 키만 보내고, SentinelAI 가 키로 어느 노드인지 찾습니다.</p>
+        <p class="note">서버 하나에 노드 하나. 이름은 영문 · 숫자 · . _ - 로 짓습니다.</p>
       </div>`;
     $("node-form").addEventListener("submit", (e) => { e.preventDefault(); createNode($("node-name").value.trim()); });
     return;
@@ -1885,8 +1972,7 @@ function renderNodesPanel() {
         <div class="sec"><h4>${icon("activity", "sm")}상태</h4>${kvTable([["노드", `${list.length}대`], ["수집 중", `${count("on")}대`],
           ["끊김", `${count("stale")}대`], ["꺼짐 · 키 없음 · 기다리는 중", `${count("off") + count("wait")}대`]])}</div>
         <div class="sec"><h4>${icon("server", "sm")}노드 깔기</h4>
-          <p class="note">1. [노드 등록]으로 서버 이름을 넣고 키를 받습니다.<br>2. 그 서버에서 node/install.sh --server ${esc(location.origin)} --key &lt;키&gt;<br>
-          새 수집은 서버가 주기적으로 기준 문서와 비교해 검토 현황의 서버 점검에 올립니다.</p></div>
+          <p class="note">1. [노드 등록]으로 서버 이름을 넣고 키를 받습니다.<br>2. 그 서버에서 node/install.sh --server ${esc(location.origin)} --key &lt;키&gt;</p></div>
       </div>`;
     return;
   }
@@ -1945,6 +2031,292 @@ async function loadLogs() {
 }
 
 // 다른 화면(로그 감시 판정)에서 조건을 정해 엽니다.
+/* ── 보안 통계 — 줄마다 운영자가 이어 볼 곳(판정 · 노드 · 신청)을 패널에 둡니다 ── */
+const STAT_PERIODS = { week: "일주일", month: "한 달", quarter: "3개월", all: "전체" };
+const levelsText = (o) => ["위험", "주의", "정상", "판정 실패", "판정 없음"].filter((k) => o[k]).map((k) => `${k} ${o[k]}`).join(" · ") || "—";
+
+const STAT_KINDS = { stats: "/api/stats", ustats: "/api/user-stats" };
+const STAT_TITLES = { stats: "보안 통계", ustats: "사용자 위협" };
+// 직전 예측보다 10점 넘게 오르내리면 막대 옆에 화살표로 알립니다.
+const trendMark = (p) => {
+  const t = p.trend || [];
+  if (t.length < 2) return "";
+  const diff = t[t.length - 1].score - t[t.length - 2].score;
+  return diff > 10 ? ` · ▲${diff}` : diff < -10 ? ` · ▼${-diff}` : "";
+};
+// 의심 등급 → 막대 색 (등급 색을 빌려 씁니다 — 높음 = 위험 색)
+const SUSPECT_COLOR = { "높음": "위험", "보통": "주의", "낮음": "정상" };
+const isStatTab = (tab) => tab in STAT_KINDS;
+
+async function loadStats() {
+  const S = state.stats, kind = isStatTab(state.mainTab) ? state.mainTab : "stats";
+  if (S.kind !== kind) Object.assign(S, { kind, data: null, selected: null });
+  S.loading = true; renderStatsView();
+  try { S.data = await getJSON(`${STAT_KINDS[kind]}?period=${S.period}`); S.error = ""; }
+  catch (e) { S.error = e.message; }
+  S.loading = false;
+  renderStatsView();
+  renderPanel();
+}
+
+function statRow(kind, key, cells) {
+  const on = state.stats.selected && state.stats.selected.kind === kind && state.stats.selected.key === key;
+  return `<tr data-kind="${kind}" data-key="${esc(key)}" tabindex="0" aria-current="${on}">${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
+}
+
+function statTable(head, rows, empty) {
+  return rows.length
+    ? `<div class="ltable-wrap"><table class="ltable"><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`
+    : `<p class="sub">${empty}</p>`;
+}
+
+const pct = (n, d) => (d ? `${Math.round((n / d) * 1000) / 10}%` : "—");
+
+
+function periodDays(d) {
+  if (d.period !== "all") return { week: 7, month: 30, quarter: 90 }[d.period];
+  const days = Object.keys(d.logs.days).sort();
+  return days.length ? Math.max(1, Math.round((Date.now() - new Date(days[0])) / 86400000)) : 0;
+}
+
+const LEVEL_SEGS = ["위험", "주의", "정상"];
+
+// 가로 막대 — 줄마다 고르면 패널이 열립니다. segs = [[등급, 값]], max = 막대 길이의 기준 (비율이면 그 줄의 합).
+function hbars(kind, rows, { max, value } = {}) {
+  const top = max || Math.max(1, ...rows.map((r) => r.segs.reduce((a, [, v]) => a + v, 0)));
+  return `<div class="hbars">${rows.map((r) => {
+    const sum = r.segs.reduce((a, [, v]) => a + v, 0), base = r.base || top;
+    const on = state.stats.selected && state.stats.selected.kind === kind && state.stats.selected.key === r.key;
+    const tip = `${r.label}|${r.segs.filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(" · ") || "없음"}${r.extra ? ` · ${r.extra}` : ""}`;
+    return `<div class="hbar" data-kind="${kind}" data-key="${esc(r.key)}" aria-current="${on}">
+      <span class="lbl">${esc(r.label)}</span>
+      <span class="track" tabindex="0" data-tip="${esc(tip)}"><span class="bar" style="width:${base ? (sum / base) * 100 : 0}%">${r.segs.filter(([, v]) => v)
+        .map(([k, v]) => `<span class="mk ${k}" style="flex:${v} 1 0"></span>`).join("")}</span></span><span class="val">${esc(value ? value(r) : String(sum))}</span>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+function legend(items, round) {
+  return `<div class="legend">${items.map(([k, label]) => `<span><i class="mk ${k}${round ? " round" : ""}"></i>${esc(label)}</span>`).join("")}</div>`;
+}
+
+const tableView = (html) => (html ? `<details class="tableview"><summary>표로 보기</summary>${html}</details>` : "");
+const meter = (segs, total) => `<div class="meter">${segs.filter(([, v]) => v).map(([k, v]) => `<span class="mk ${k}" style="width:${total ? (v / total) * 100 : 0}%"></span>`).join("")}</div>`;
+
+function periodDays(d) {
+  if (d.period !== "all") return { week: 7, month: 30, quarter: 90 }[d.period];
+  const days = Object.keys(d.logs.days).sort();
+  return days.length ? Math.max(1, Math.round((Date.now() - new Date(days[0])) / 86400000)) : 0;
+}
+
+function niceMax(n) {
+  const step = Math.pow(10, Math.floor(Math.log10(Math.max(n, 1))));
+  return Math.ceil(n / step) * step;
+}
+
+function renderStatsView() {
+  const S = state.stats, d = S.data;
+  $("stat-periods").innerHTML = Object.entries(STAT_PERIODS).map(([k, label]) =>
+    `<button data-period="${k}" aria-pressed="${k === S.period}">${label}</button>`).join("");
+  $("stat-range").textContent = S.loading ? "세는 중…" : S.error ? S.error : d ? (d.since ? `${stamp(d.since)} 부터` : "처음부터") : "";
+  $("view-stats").style.opacity = S.loading && d ? ".55" : "";
+  const users = S.kind === "ustats";
+  $("stat-title").textContent = STAT_TITLES[S.kind || "stats"];
+  $("stat-servers").hidden = users;
+  $("stat-suspects").hidden = !users;
+  $("stat-events").hidden = users;
+  if (!d) { ["stat-safety", "stat-tiles", "stat-suspects", "stat-events", "stat-servers"].forEach((id) => { $(id).innerHTML = ""; }); return; }
+  if (users) { renderUserStats(d); return; }
+
+  const ev = d.events, L = ev.lines, threat = L["주의"] + L["위험"], logs = d.logs.count;
+  const days = periodDays(d);
+  const sv = d.servers, gaps = sv.nodes.reduce((a, n) => ({ 위험: a["위험"] + n.threats["위험"], 주의: a["주의"] + n.threats["주의"] }), { 위험: 0, 주의: 0 });
+
+  // 날짜별 — 위험 · 주의 · 그 외 로그를 쌓은 세로 막대. 높이 = 그날 로그 건수(빈도), 색 조각 = 위협 비율
+  const byDay = {};
+  Object.entries(d.logs.days).forEach(([day, n]) => { byDay[day] = { 위험: 0, 주의: 0, total: n }; });
+  ev.days.forEach((x) => { byDay[x.day] = { ...(byDay[x.day] || { total: 0 }), 위험: x["위험"], 주의: x["주의"] }; });
+  const dayKeys = Object.keys(byDay).sort();
+  const dayMax = niceMax(Math.max(1, ...dayKeys.map((k) => Math.max(byDay[k].total, byDay[k]["위험"] + byDay[k]["주의"]))));
+  const spark = dayKeys.map((k) => byDay[k]);
+
+  const items = (d.safety && d.safety.items) || [];
+  const nodeGroup = (f) => items.filter(f).map((i) => ({ key: i.node, label: i.node }));
+  $("stat-safety").innerHTML = safetyBand("시스템 안전 점수", d.safety, [["위험", nodeGroup((i) => i.level === "위험"), "node", "위험"], ["주의", nodeGroup((i) => i.level === "주의"), "node", "주의"],
+    ["끊김", nodeGroup((i) => i.stale), "node", "none"], ["판정 없음", nodeGroup((i) => !i.level), "node", "none"]]);
+  const tile = (label, big, note, extra = "") => `<div class="tile"><span class="label">${label}</span><span class="big">${big}</span>${extra}<p class="note">${note}</p></div>`;
+  const peak = ev.days.reduce((a, x) => (x["주의"] + x["위험"] > (a ? a["주의"] + a["위험"] : 0) ? x : a), null);
+  $("stat-tiles").innerHTML = [
+    tile("위협 로그 비율", logs == null ? "—" : pct(threat, logs), logs == null ? "로그를 읽지 못했습니다" : `${threat} / ${logs}건 · 위험 ${L["위험"]} · 주의 ${L["주의"]}`,
+      logs ? meter([["위험", L["위험"]], ["주의", L["주의"]]], logs) : ""),
+    tile("위협 로그 빈도", days ? `하루 ${Math.round((threat / days) * 10) / 10}건` : "—", peak ? `가장 많은 날 ${esc(peak.day)} ${peak["주의"] + peak["위험"]}건` : "주의 · 위험 로그 없음",
+      spark.length > 1 ? `<svg viewBox="0 0 ${spark.length * 4} 24" preserveAspectRatio="none" style="width:100%;height:24px;margin-top:4px" aria-hidden="true"><polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" points="${spark.map((x, n) => `${n * 4 + 2},${22 - ((x["위험"] + x["주의"]) / Math.max(1, ...spark.map((y) => y["위험"] + y["주의"]))) * 20}`).join(" ")}"/></svg>` : ""),
+    tile("위험 판정 로그", `${L["위험"]}건`, `위험 판정에 묶인 로그 · 주의 ${L["주의"]}건`, logs ? meter([["위험", L["위험"]]], logs) : ""),
+    tile("노드 위협 항목", `${gaps["위험"] + gaps["주의"]}건`, `위험 ${gaps["위험"]} · 주의 ${gaps["주의"]} · 위험 항목이 있는 서버 ${sv.nodes.filter((n) => n.threats["위험"]).length} / ${sv.nodes.length}대`,
+      gaps["위험"] + gaps["주의"] ? meter([["위험", gaps["위험"]], ["주의", gaps["주의"]]], gaps["위험"] + gaps["주의"]) : ""),
+  ].join("");
+
+  const cols = dayKeys.map((k) => {
+    const x = byDay[k], other = Math.max(0, x.total - x["위험"] - x["주의"]);
+    const h = (v) => `${(v / dayMax) * 100}%`;
+    return `<span class="col" tabindex="0" data-tip="${esc(k)}|로그 ${x.total}건 · 위험 ${x["위험"]} · 주의 ${x["주의"]} (${pct(x["위험"] + x["주의"], x.total)})"><span class="stack">${
+      [["위험", x["위험"]], ["주의", x["주의"]], ["기타", other]].filter(([, v]) => v).map(([c, v]) => `<span class="mk ${c}" style="height:${h(v)}"></span>`).join("")}</span></span>`;
+  }).join("");
+  // 날짜 글자는 그 막대 칸 가운데에 둡니다 (처음 · 가운데 · 끝).
+  const at = (n) => `${((n + 0.5) / dayKeys.length) * 100}%`;
+  const ticks = [...new Set([0, Math.floor(dayKeys.length / 2), dayKeys.length - 1])];
+  $("stat-events").innerHTML = `
+    <div class="logs-head"><h3>위협 로그 — 비율 · 빈도</h3><span class="logs-count">위협 로그 ${threat} / ${logs ?? "—"}건</span></div>
+    ${dayKeys.length ? `<div class="chart"><div class="cols" role="img" aria-label="날짜별 로그 건수와 주의 · 위험 로그">
+        ${[1, 0.5].map((f) => `<span class="grid" style="bottom:${f * 100}%"><span>${Math.round(dayMax * f)}</span></span>`).join("")}${cols}</div>
+      <div class="xaxis">${ticks.map((n, i) => `<span style="left:${i === 0 ? "0" : i === ticks.length - 1 ? "100%" : at(n)}">${esc(dayKeys[n])}</span>`).join("")}</div></div>
+      ${legend([["위험", "위험"], ["주의", "주의"], ["기타", "그 외 로그"]])}` : `<p class="sub">이 기간에 로그가 없습니다.</p>`}
+    ${tableView(statTable(["날짜", "로그", "위험", "주의", "비율"], dayKeys.map((k) => `<tr><td>${esc(k)}</td><td class="num">${byDay[k].total}</td><td class="num">${byDay[k]["위험"]}</td><td class="num">${byDay[k]["주의"]}</td><td class="num">${pct(byDay[k]["위험"] + byDay[k]["주의"], byDay[k].total)}</td></tr>`), ""))}`;
+
+  // 노드 위협 데이터 — 모듈별 위협 항목 · 노드별 항목
+  $("stat-servers").innerHTML = `
+    <div class="logs-head"><h3>노드 위협 데이터</h3><span class="logs-count">서버 ${sv.nodes.length} · 위협 항목 ${gaps["위험"] + gaps["주의"]}</span></div>
+    ${sv.modules.length ? `<p class="chart-title">모듈별 위협 항목</p><div class="chart">${hbars("module", sv.modules.map((m) => ({
+        key: m.module, label: m.module, segs: [["위험", m["위험"]], ["주의", m["주의"]]], extra: `걸린 서버 ${m.nodes.join(", ")}` })),
+        { value: (r) => { const m = sv.modules.find((x) => x.module === r.key); return `${m["위험"] + m["주의"]}건 · 서버 ${m.nodes.length}`; } })}</div>` : `<p class="sub">이 기간 서버 점검에서 찾은 위협 항목이 없습니다.</p>`}
+    ${sv.nodes.length ? `<p class="chart-title">노드별 위협 항목</p><div class="chart">${hbars("node", sv.nodes.map((n) => ({
+        key: n.node, label: n.node, segs: [["위험", n.threats["위험"]], ["주의", n.threats["주의"]]], extra: `마지막 등급 ${n.level || "판정 없음"} · 설정이 바뀐 수집 ${n.changed} / ${n.collected}` })),
+        { max: Math.max(1, ...sv.nodes.map((n) => n.threats["위험"] + n.threats["주의"])), value: (r) => { const n = sv.nodes.find((x) => x.node === r.key); return `${n.threats["위험"] + n.threats["주의"]}건 · ${n.level || "판정 없음"}`; } })}</div>
+      ${legend([["위험", "위험"], ["주의", "주의"]])}` : ""}
+    ${tableView(statTable(["노드", "마지막 등급", "위험", "주의", "등급 흐름", "설정이 바뀐 수집"], sv.nodes.map((n) => statRow("node", n.node, [esc(n.node), n.level || "판정 없음",
+      `<span class="num">${n.threats["위험"]}</span>`, `<span class="num">${n.threats["주의"]}</span>`, esc(n.grades.map((g) => g.level).join(" → ")), `<span class="num">${n.changed} / ${n.collected}</span>`])), "")
+      + statTable(["모듈", "위험", "주의", "걸린 서버"], sv.modules.map((m) => `<tr><td>${esc(m.module)}</td><td class="num">${m["위험"]}</td><td class="num">${m["주의"]}</td><td>${esc(m.nodes.join(", "))}</td></tr>`), ""))}`;
+}
+
+// 안전 점수 — 대상마다 마지막 등급의 비율(서버가 셉니다). 아래 묶음은 점수를 깎은 대상이고, 누르면 그 대상의 패널을 엽니다.
+function safetyBand(label, safety, groups) {
+  if (!safety || safety.score == null) return `<div class="score"><span class="label">${label}</span><span class="big">—</span><p class="note">아직 점검한 대상이 없습니다.</p></div>`;
+  const tone = safety.score >= 80 ? "정상" : safety.score >= 50 ? "주의" : "위험";
+  const t = safety.trend || [];
+  const line = t.length > 1 ? `<svg viewBox="0 0 ${(t.length - 1) * 10} 44" preserveAspectRatio="none" aria-label="${label} 흐름"><polyline fill="none" stroke="var(--ink-dim)" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"
+      points="${t.map((x, n) => `${n * 10},${42 - (x.score / 100) * 40}`).join(" ")}"/></svg>
+      <p class="note"><span>${esc(t[0].day.slice(5))} ${t[0].score}점</span><span>${esc(t[t.length - 1].day.slice(5))} ${t[t.length - 1].score}점</span></p>` : `<p class="note">흐름은 이틀 이상 쌓이면 보입니다.</p>`;
+  const shown = groups.filter(([, list]) => list.length);
+  return `<div class="score"><span class="label">${label}</span><span class="big ${tone}">${safety.score}점</span></div>
+    <div class="groups">${shown.length ? shown.map(([name, list, kind, dot]) => `<div><b><i class="ldot ${dot}"></i>${name} ${list.length}</b>${list.map((x) => `<span class="who" tabindex="0" data-kind="${kind}" data-key="${esc(x.key)}">${esc(x.label)}</span>`).join("")}</div>`).join("") : `<p class="note">점수를 깎은 대상이 없습니다.</p>`}</div>
+    <div class="trend">${line}</div>`;
+}
+
+// 사용자 위협 — 의심 점수(위협 예측)와 타일. 사람마다 로그 감시 판정 수는 의심 점수 막대에 함께 둡니다.
+function renderUserStats(d) {
+  const ev = d.events, rq = d.requests, ai = rq.ai || {}, judged = rq.total - (ai["판정 없음"] || 0);
+  const repeat = ev.users.filter((u) => u["위험"] + u["주의"] > 1).length;
+  const tile = (label, big, note, extra = "") => `<div class="tile"><span class="label">${label}</span><span class="big">${big}</span>${extra}<p class="note">${note}</p></div>`;
+  $("stat-tiles").innerHTML = [
+    tile("위협 사용자", `${ev.users.length}명`, `주의 · 위험 판정을 받은 사용자 · 위험 ${ev.users.filter((u) => u["위험"]).length}명`),
+    tile("위협 예측 높음", `${(d.suspects || []).filter((p) => p.level === "높음").length}명`, `의심 점수 70 이상 · 보통 ${(d.suspects || []).filter((p) => p.level === "보통").length}명 · 반복 위협 ${repeat}명`),
+    tile("신청 중 위험 비율", pct(ai["위험"] || 0, judged), `위험 ${ai["위험"] || 0} · 주의 ${ai["주의"] || 0} / 판정 ${judged}건`,
+      judged ? meter([["위험", ai["위험"] || 0], ["주의", ai["주의"] || 0], ["정상", ai["정상"] || 0]], judged) : ""),
+    tile("AI와 결재가 엇갈린 신청", `${rq.mismatches}건`, "AI 위험인데 승인 · AI 정상인데 반려"),
+  ].join("");
+  // 위협 예측 — 코드가 센 행동 신호 · 판정 · 신청 기록으로 판정 모델이 낸 의심 점수 (높은 순, 막대 색은 의심 등급)
+  const sus = d.suspects || [];
+  const susGroup = (lv) => sus.filter((p) => !p.failed && p.level === lv).map((p) => ({ key: p.key, label: p.subject }));
+  $("stat-safety").innerHTML = safetyBand("사용자 안전 점수", d.safety, [["의심 높음", susGroup("높음"), "suspect", "위험"], ["의심 보통", susGroup("보통"), "suspect", "주의"]]);
+  const verdicts = (p) => { const r = p.records || {}; return [["위험", r["로그 위험"]], ["주의", r["로그 주의"]]].filter(([, n]) => n).map(([k, n]) => `${k} 판정 ${n}`).join(" · "); };
+  const running = state.jobs && state.jobs.running === "suspects";
+  $("stat-suspects").innerHTML = `
+    <div class="logs-head"><h3>위협 예측 — 의심 점수</h3><span class="logs-count">${sus.length ? `${sus.length}명 · ${esc(stamp(sus.map((p) => p.created_at).sort().pop()))} 예측` : ""}</span>
+      <button class="rerun run" id="suspects-now" ${state.jobs && state.jobs.running ? "disabled" : ""}>${icon("activity", "sm")}${running ? `예측 중…${state.jobs.total ? ` ${state.jobs.done}/${state.jobs.total}` : ""}` : "지금 예측"}</button></div>
+    <p class="sub">앞으로 보안 위협이 될 가능성(0~100)입니다. 먼저 살펴볼 사람을 고르는 예측이고, 결정은 사람이 합니다.</p>
+    ${sus.length ? `<div class="chart">${hbars("suspect", sus.filter((p) => !p.failed).map((p) => ({
+        key: p.key, label: p.subject, segs: [[SUSPECT_COLOR[p.level], p.score]],
+        extra: [...(p.signals.highlights || []).slice(0, 2), p.login_id ? "" : "계정 미연결"].filter(Boolean).join(" · ") || "눈에 띄는 신호 없음" })),
+        { max: 100, value: (r) => { const p = sus.find((x) => x.key === r.key); return [`${p.score}점 · ${p.level}${trendMark(p)}`, verdicts(p)].filter(Boolean).join(" · "); } })}</div>
+      ${legend([["위험", "높음 (70 이상)"], ["주의", "보통 (40~69)"], ["정상", "낮음 (40 미만)"]])}
+      ${sus.some((p) => p.failed) ? `<p class="sub">예측하지 못한 사람: ${esc(sus.filter((p) => p.failed).map((p) => p.subject).join(", "))}</p>` : ""}`
+      : `<p class="sub">아직 예측이 없습니다. [지금 예측]을 누르세요.</p>`}
+    ${tableView(statTable(["사용자", "계정", "의심 점수", "로그 감시 판정", "눈에 띄는 신호", "예측 시각"], sus.map((p) => statRow("suspect", p.key, [
+      esc(p.subject), esc(p.login_id || "계정 미연결"), p.failed ? "예측 실패" : `<span class="num">${p.score}</span> ${esc(p.level)}`, esc(verdicts(p) || "—"),
+      esc((p.signals.highlights || []).join(" · ") || "—"), `<span class="when">${esc(stamp(p.created_at))}</span>`])), ""))}`;
+  const now = $("suspects-now");
+  if (now) now.addEventListener("click", () => startJob("suspects"));
+}
+
+function renderStatsPanel() {
+  const S = state.stats, d = S.data, sel = S.selected;
+  const body = (title, subject, inner) => {
+    $("panel").innerHTML = `<div class="panel-head"><h3>${esc(title)}</h3>${CLOSE_BTN}</div><div class="panel-body"><p class="subject">${esc(subject)}</p>${inner}</div>`;
+  };
+  if (!d || !sel) {
+    body(STAT_TITLES[S.kind || "stats"], "막대 · 줄을 고르세요", `<p class="note">막대를 누르면 자세한 내용이 나옵니다.</p>`);
+    return;
+  }
+  if (sel.kind === "node") {
+    const n = d.servers.nodes.find((x) => x.node === sel.key);
+    if (!n) return body("보안 통계", "기간 안에 없는 노드입니다", "");
+    const clauses = d.servers.clauses.filter((c) => c.nodes.includes(n.node));
+    body("서버 등급 변화", n.node, `${kvTable([["마지막 등급", n.level || "판정 없음"], ["기간 안 변화", n.trend],
+        ["점검", n.grades.map((g) => `${stamp(g.at)} ${g.level}`).join("\n") || "없음"], ["설정이 바뀐 수집", `${n.changed} / ${n.collected}`]])}
+      ${clauses.length ? `<div class="sec"><h4>${icon("warn", "sm")}걸린 조항</h4><div class="box pre">${esc(clauses.map((c) => `${chipLabel(c.source)} — ${c.items.filter((i) => i.startsWith(n.node + " ")).map((i) => i.slice(n.node.length + 3)).join(", ")}`).join("\n"))}</div></div>` : ""}
+      <div class="sec"><button class="rerun" id="stat-go">${icon("server", "sm")}노드 탭에서 보기</button></div>`);
+    $("stat-go").addEventListener("click", () => { setView("policies"); setMainTab("nodes"); pickNode(n.node); });
+    return;
+  }
+  if (sel.kind === "suspect") {
+    const p = (d.suspects || []).find((x) => x.key === sel.key);
+    if (!p) return body("위협 예측", "예측에 없는 사용자입니다", "");
+    const g = p.signals || {}, r = p.records || {};
+    const found = p.log_id && d.events.users.find((u) => u.log_id === p.log_id);
+    const spark = p.trend.length > 1 ? `<svg viewBox="0 0 ${(p.trend.length - 1) * 20} 40" preserveAspectRatio="none" style="width:100%;height:40px" aria-label="의심 점수 흐름"><polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke" points="${p.trend.map((t, n) => `${n * 20},${38 - (t.score / 100) * 36}`).join(" ")}"/></svg><p class="note">${p.trend.map((t) => t.score).join(" → ")} (${esc(stamp(p.trend[0].at))} ~ ${esc(stamp(p.trend[p.trend.length - 1].at))})</p>` : `<p class="note">예측이 한 번뿐이라 흐름이 아직 없습니다.</p>`;
+    body("위협 예측", p.subject, `${p.failed ? `<div class="box fail">예측 실패: ${esc(p.error || "")}</div>` : `
+      <div class="rec-line lv-${SUSPECT_COLOR[p.level]}">${icon(LEVEL_ICON[SUSPECT_COLOR[p.level]])}의심 ${p.score}점 · ${esc(p.level)}</div>
+      <div class="sec"><h4>${icon("activity", "sm")}예측 이유</h4><div class="box">${esc(p.reason)}</div></div>
+      <div class="sec"><h4>${icon("ok", "sm")}확인할 점</h4><div class="box">${esc(p.watch)}</div></div>`}
+      <div class="sec"><h4>${icon("key", "sm")}지금 가진 권한</h4>${p.held == null ? `<p class="note">계정 미연결 — 권한을 확인할 수 없습니다.</p>`
+        : p.held.length ? `<div class="held">${p.held.map((h) => `<button class="held-row" data-req="${esc(h.request_no)}"><b>${esc(h.access)}</b>
+          <span>${esc([h.system, h.category].filter(Boolean).join(" · ") || h.code || "")}</span><span class="when">${esc(h.period_end ? `${h.period_end}까지` : "기간 없음")}</span></button>`).join("")}</div>`
+        : `<p class="note">승인된 유효 권한이 없습니다.</p>`}</div>
+      <div class="sec"><h4>${icon("warn", "sm")}행동 신호 (최근 7일 vs 이전 4주)</h4>${(g.highlights || []).length ? `<div class="box pre">${esc(g.highlights.join("\n"))}</div>` : `<p class="note">눈에 띄는 신호가 없습니다.</p>`}
+        ${g.subject ? kvTable([["최근 · 평소 로그", `${g.recent_events}건 · ${g.baseline_events}건`], ["하루 양", `${g.baseline_daily_volume} → ${g.recent_daily_volume}${g.volume_ratio != null ? ` (${g.volume_ratio}배)` : ""}`],
+          ["근무 시간 밖 · 예외", `${Math.round(g.off_hours_ratio * 100)}% · ${Math.round(g.exception_ratio * 100)}%`], ["민감 문서", `${g.sensitive_events}건${(g.sensitive_words || []).length ? ` (${g.sensitive_words.join(", ")})` : ""}`],
+          ["30분 안 최대", `${g.max_burst_30min}건`], ["첫 · 마지막 로그", `${stamp(g.first_seen)} · ${stamp(g.last_seen)}`]]) : `<p class="note">로그가 없습니다 (권한 신청 기록만).</p>`}</div>
+      <div class="sec"><h4>${icon("list", "sm")}판정 · 신청 기록 (35일)</h4>${kvTable([["로그 감시", `위험 ${r["로그 위험"] || 0} · 주의 ${r["로그 주의"] || 0}`],
+        ["권한 신청", `${r["신청"] || 0}건 · AI 위험 ${r["신청 위험"] || 0} · 반려 ${r["반려"] || 0} · 회수 ${r["회수"] || 0}`], ["계정", p.login_id || "계정 미연결 — 계정 관리에서 로그 사용자 ID 를 적으면 이어집니다"]])}</div>
+      <div class="sec"><h4>${icon("activity", "sm")}의심 점수 흐름</h4>${spark}</div>
+      <p class="note">${esc(stamp(p.created_at))} 예측</p>
+      <div class="sec">${g.subject ? `<button class="rerun" id="stat-go">${icon("search", "sm")}이 사용자의 로그 조회</button>` : ""}
+        ${found ? `<button class="rerun" id="stat-go2">${icon("list", "sm")}로그 감시 판정 보기</button>` : ""}</div>`);
+    const go = $("stat-go");
+    if (go) go.addEventListener("click", () => { setView("events"); openLogs({ user: g.subject, period: "month" }); });
+    document.querySelectorAll("#panel .held-row").forEach((b) => b.addEventListener("click", () => {
+      setView("requests"); state.stageFilter = "active"; $("stage-filter").value = "active";
+      state.selected = `req:${b.dataset.req}`; renderRows(); renderPanel();
+    }));
+    if (found) $("stat-go2").addEventListener("click", () => { setView("events"); setMainTab("queue"); state.selected = `event:${found.keys[found.keys.length - 1]}`; renderRows(); renderPanel(); });
+    return;
+  }
+  if (sel.kind === "module") {
+    const m = d.servers.modules.find((x) => x.module === sel.key);
+    if (!m) return body("보안 통계", "기간 안에 없는 모듈입니다", "");
+    body("노드 위협 데이터", m.module, `${kvTable([["위험", `${m["위험"]}건`], ["주의", `${m["주의"]}건`], ["걸린 서버", m.nodes.join(", ")]])}
+      <div class="sec"><h4>${icon("warn", "sm")}항목 — 노드 · 지금 값</h4><div class="box pre">${esc(m.items.join("\n"))}</div></div>`);
+    return;
+  }
+}
+
+$("stat-periods").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-period]");
+  if (!b || b.dataset.period === state.stats.period) return;
+  state.stats.period = b.dataset.period;
+  loadStats();
+});
+$("view-stats").addEventListener("click", (e) => {
+  const tr = e.target.closest("[data-kind]");
+  if (!tr) return;
+  state.stats.selected = { kind: tr.dataset.kind, key: tr.dataset.key };
+  renderStatsView(); renderPanel(); openDrawer();
+});
+$("view-stats").addEventListener("keydown", (e) => {
+  const tr = e.target.closest("[data-kind]");
+  if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); tr.click(); }
+});
+
 function openLogs(cond) {
   Object.assign(state.logs, { user: "", solution: "", how: "", page: 1 }, cond);
   setMainTab("logs");
@@ -2040,7 +2412,7 @@ function renderLogsPanel() {
         ...Object.entries(f.attribute_totals).map(([k, v]) => [`${k} 합계`, String(v)])])}</div>
       <div class="sec"><h4>${icon("users", "sm")}사용자별</h4>${list(f.by_user, 20)}</div>
       <div class="sec"><h4>${icon("list", "sm")}날짜별 (많은 순)</h4>${list(f.by_day, 14)}</div>
-      <p class="note">숫자는 코어가 로그에서 직접 센 값입니다. 목록에서 줄을 고르면 그 로그의 원본을 봅니다.</p>`}
+      <p class="note">줄을 고르면 원본을 봅니다.</p>`}
     </div>`;
 }
 
@@ -2058,6 +2430,7 @@ function setMainTab(tab) {
   $("view-ask").hidden = tab !== "ask";
   $("view-logs").hidden = tab !== "logs";
   $("view-nodes").hidden = tab !== "nodes";
+  $("view-stats").hidden = !isStatTab(tab);
   renderFooter();
   document.querySelector(".workspace").dataset.tab = tab;
   syncCite();
@@ -2065,6 +2438,7 @@ function setMainTab(tab) {
   if (tab === "ask") $("ask-input").focus();
   if (tab === "logs" && !state.logs.data && !state.logs.loading) loadLogs();
   if (tab === "nodes") loadNodes();
+  if (isStatTab(tab)) loadStats();
 }
 
 document.querySelectorAll(".main-tab").forEach((b) => b.addEventListener("click", () => setMainTab(b.dataset.tab)));

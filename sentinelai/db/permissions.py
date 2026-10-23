@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from datetime import datetime
+from typing import Any
 
 from . import catalog
 from .auth import User
@@ -178,6 +179,53 @@ def revoke(db: Database, by: User, request_no: str, reason: str) -> dict:
         )
         audit(conn, "request_revoke", by.id, target_type="request", target_id=request_no)
         return _detail(conn, req["id"])
+
+
+# --- 보안 통계 ---------------------------------------------------------------
+
+
+def request_stats(db: Database, since: str | None = None) -> dict[str, Any]:
+    """사용자 위협 타일 — 신청 수 · AI 등급별 수 · AI 와 결재가 엇갈린 신청 수 (AI 위험인데 승인, AI 정상인데 반려). since(신청 시각)가 없으면 전체."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT stage, ai_level, ai_failed, ai_judged_at FROM access_requests"
+            + (" WHERE submitted_at >= ?" if since else ""), (since,) if since else ()).fetchall()
+    totals: dict[str, int] = {}
+    mismatches = 0
+    for r in rows:
+        ai = "판정 없음" if r["ai_judged_at"] is None else "판정 실패" if r["ai_failed"] else r["ai_level"]
+        totals[ai] = totals.get(ai, 0) + 1
+        # 회수는 최종 승인을 거친 것이라 결재 결과로는 승인입니다.
+        approved, rejected = r["stage"] in ("approved", "revoked"), r["stage"] == "rejected"
+        mismatches += (ai == "위험" and approved) or (ai == "정상" and rejected)
+    return {"total": len(rows), "ai": totals, "mismatches": mismatches}
+
+
+def user_requests(db: Database, since: str | None = None) -> list[dict[str, Any]]:
+    """의심 점수 — 기간 안 신청을 신청자 계정별로. AI 등급 · 결재 결과(반려 단계) · 회수를 함께 줍니다."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT request_no, requester_id, requested_access, stage, ai_level, ai_failed, ai_judged_at, manager_action, top_action,"
+            " revoke_reason, submitted_at FROM access_requests" + (" WHERE submitted_at >= ?" if since else "") + " ORDER BY submitted_at",
+            (since,) if since else ()).fetchall()
+    return [{"request_no": r["request_no"], "account_id": r["requester_id"], "access": r["requested_access"], "stage": r["stage"],
+             "ai": None if r["ai_judged_at"] is None or r["ai_failed"] else r["ai_level"],
+             "rejected_by": "최종" if r["top_action"] == "reject" else "1차" if r["manager_action"] == "reject" else None,
+             "revoke_reason": r["revoke_reason"], "at": r["submitted_at"]} for r in rows]
+
+
+def held_by_account(db: Database) -> dict[int, list[dict[str, Any]]]:
+    """사용자 위협 패널 — 계정마다 지금 가진 권한 (_held 와 같은 조건) + 권한 목록의 시스템 · 분류."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT r.requester_id, r.request_no, r.access_code, r.requested_access, r.period_end, c.system, c.category"
+            " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code"
+            " WHERE r.stage = 'approved' AND (r.period_end = '' OR r.period_end >= ?) ORDER BY r.submitted_at", (_today(),)).fetchall()
+    out: dict[int, list[dict[str, Any]]] = {}
+    for r in rows:
+        out.setdefault(r["requester_id"], []).append({"request_no": r["request_no"], "code": r["access_code"], "access": r["requested_access"],
+                                                      "system": r["system"] or "", "category": r["category"] or "", "period_end": r["period_end"]})
+    return out
 
 
 # --- AI 판정 (신청 행의 AI 칸) --------------------------------------------------
