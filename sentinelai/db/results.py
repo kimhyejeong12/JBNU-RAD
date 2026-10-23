@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .auth import User
@@ -250,7 +250,7 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
             d = days.setdefault(_day(f"{m.replace(' ', 'T')}+00:00"), {"주의": 0, "위험": 0})
             d[lv] += 1
         who = r["subject"] or r["user"]
-        u = users.setdefault(who, {"user": who, "주의": 0, "위험": 0, "lines": 0, "line_levels": {"주의": 0, "위험": 0},
+        u = users.setdefault(who, {"user": who, "log_id": r["user"], "주의": 0, "위험": 0, "lines": 0, "line_levels": {"주의": 0, "위험": 0},
                                    "last_at": "", "keys": []})
         u[lv] += 1
         u["lines"] += len(stamps)
@@ -297,6 +297,64 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
                     "modules": sorted(modules.values(), key=lambda m: (-m["위험"], -m["주의"], m["module"])),
                     "clauses": sorted(clauses.values(), key=lambda c: (-len(c["nodes"]), c["source"]))},
     }
+
+
+# 안전 점수 — 대상(노드 · 사람)마다 마지막 등급을 값으로 바꿔 평균 × 100. 감점식 대신 등급 비율이라 무엇이 점수를 깎았는지 그대로 보입니다.
+SERVER_SAFETY = {"정상": 1.0, "주의": 0.5, "위험": 0.0}
+USER_SAFETY = {"낮음": 1.0, "보통": 0.5, "높음": 0.0}
+
+
+def _score(values: list[float]) -> int | None:
+    return round(sum(values) / len(values) * 100) if values else None
+
+
+def _daily_scores(rows: list[tuple[str, str, float]], since: str | None) -> list[dict[str, Any]]:
+    """(시각, 대상, 값) → 날짜(서버 현지)마다 그날이 끝날 때 대상별 마지막 값의 안전 점수. since 가 없으면 첫 기록 날부터."""
+    if not rows:
+        return []
+    first = datetime.fromisoformat(since or rows[0][0]).astimezone().date()
+    today = datetime.now().astimezone().date()
+    last: dict[str, float] = {}
+    out, i = [], 0
+    day = first
+    while day <= today:
+        end = datetime.combine(day + timedelta(days=1), datetime.min.time()).astimezone().astimezone(timezone.utc).isoformat(timespec="seconds")
+        while i < len(rows) and rows[i][0] < end:
+            last[rows[i][1]] = rows[i][2]
+            i += 1
+        if last:
+            out.append({"day": day.isoformat(), "score": _score(list(last.values()))})
+        day += timedelta(days=1)
+    return out
+
+
+def server_safety(db: Database, enabled: list[str], stale: set[str], since: str | None = None) -> dict[str, Any]:
+    """시스템 안전 점수 — 켜 둔 노드마다 마지막 서버 점검 등급(판정 실패는 주의). 끊긴 노드는 지금 상태를 확인할 수 없어 주의보다 높게 치지 않습니다.
+    판정이 아직 없는 노드는 점수에서 빼고 따로 셉니다. 흐름은 날짜마다 그날까지의 마지막 등급으로 다시 셉니다 (끊김은 지금 값에만)."""
+    with db.connection() as conn:
+        rows = conn.execute("SELECT node, level, failed, created_at FROM node_findings ORDER BY created_at, id").fetchall()
+    on = set(enabled)
+    history = [(r["created_at"], r["node"], SERVER_SAFETY["주의" if r["failed"] else r["level"]]) for r in rows if r["node"] in on]
+    latest = {r["node"]: "주의" if r["failed"] else r["level"] for r in rows if r["node"] in on}
+    items = []
+    for name in sorted(on):
+        level = latest.get(name)
+        items.append({"node": name, "level": level, "stale": name in stale})
+    values = [min(SERVER_SAFETY[i["level"]], 0.5) if i["stale"] else SERVER_SAFETY[i["level"]] for i in items if i["level"]]
+    score = _score(values)
+    trend = _daily_scores(history, _utc(since))
+    if trend and score is not None:
+        trend[-1]["score"] = score
+    return {"score": score, "items": items, "trend": trend}
+
+
+def user_safety(db: Database, since: str | None = None) -> dict[str, Any]:
+    """사용자 안전 점수 — 의심 점수를 받은 사람마다 마지막 의심 등급 (예측 실패는 빼고 그 앞 것). 흐름은 날짜마다 그날까지의 마지막 등급으로."""
+    with db.connection() as conn:
+        rows = conn.execute("SELECT person, level, created_at FROM suspect_scores WHERE failed = 0 ORDER BY created_at, id").fetchall()
+    history = [(r["created_at"], r["person"], USER_SAFETY[r["level"]]) for r in rows if r["level"] in USER_SAFETY]
+    latest = {person: value for _, person, value in history}
+    return {"score": _score(list(latest.values())), "trend": _daily_scores(history, _utc(since))}
 
 
 def user_findings(db: Database, since: str | None = None) -> list[dict[str, Any]]:

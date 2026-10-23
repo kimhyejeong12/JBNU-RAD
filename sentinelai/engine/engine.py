@@ -378,15 +378,22 @@ class Engine:
         except (FileNotFoundError, ValueError) as exc:
             total = {"count": None, "days": {}, "error": str(exc)}
         found = results.threat_stats(self.results_db, at)
-        return {"period": period, "since": at, "logs": total,
+        registry = [n for n in nodes.list_nodes(self.main_db) if n["enabled"]]
+        safety = results.server_safety(self.results_db, [n["name"] for n in registry], {n["name"] for n in registry if nodes.is_stale(n)}, at)
+        return {"period": period, "since": at, "logs": total, "safety": safety,
                 "events": {k: v for k, v in found["events"].items() if k != "users"}, "servers": found["servers"]}
 
     def user_stats(self, period: str) -> dict[str, Any]:
-        """사용자 위협 — 사용자별 위협 로그(로그 감시)와 부서 · 권한별 신청 위험도(권한 신청). 위협 예측은 같은 자리에 더할 예정입니다 (CLAUDE.md §8)."""
+        """사용자 위협 — 의심 점수(사람마다 지금 가진 권한 포함) · 사용자별 위협 로그 판정 · 권한 신청 타일."""
         since = period_since(period, datetime.now(timezone.utc))
         at = since.isoformat(timespec="seconds") if since else None
+        suspects = results.latest_suspects(self.results_db)
+        held = permissions.held_by_account(self.main_db)
+        for p in suspects:
+            # 의심 점수의 사람 키는 계정이면 account:{id} 입니다 (data.suspect.suspect_people). 계정 미연결은 권한을 알 수 없어 None.
+            p["held"] = held.get(int(p["key"].split(":", 1)[1]), []) if p["key"].startswith("account:") else None
         return {"period": period, "since": at, "events": {"users": results.threat_stats(self.results_db, at)["events"]["users"]},
-                "requests": permissions.request_stats(self.main_db, at), "suspects": results.latest_suspects(self.results_db)}
+                "requests": permissions.request_stats(self.main_db, at), "suspects": suspects, "safety": results.user_safety(self.results_db, at)}
 
     def run_suspects(self, progress: Progress | None = None) -> dict[str, Any]:
         """위협 예측 1회 — 사람마다 행동 신호(코드) · 판정 · 신청 기록으로 판정 모델이 의심 점수를 냅니다. 한 사람씩 바로 쌓습니다.

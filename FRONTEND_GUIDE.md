@@ -100,8 +100,8 @@
   - `failed: true`인 판정은 서버가 이미 `level: "주의"`, 이유 칸에 원인으로 바꿔 줍니다.
 - `GET /api/requests` 한 건: 신청 칸 + `ai_verdict`(일반 사용자에게는 없음) · `approvals[]` · `revocation` · `judging`(AI 판정 중).
 - `GET /api/jobs` → `running`(지금 도는 작업 이름 또는 null) · `done/total` · `last[작업]`(마지막 실행 · 실패) · `kinds`(작업 이름 → 화면 이름) · `fast`(빠른 로그 감시: `every_min · next_at · last.events_fast.finished_at`).
-- `GET /api/stats` → `logs`(기간 안 로그 수 · 날짜별) · `events.lines`(위험 · 주의 · 정상 판정에 묶인 로그 줄) · `events.days[]` · `servers.nodes[] · modules[] · clauses[]`.
-- `GET /api/user-stats` → `suspects[]`(의심 점수: `score · level · reason · watch · signals · records · trend[]`) · `events.users[]` · `requests`(타일용 수).
+- `GET /api/stats` → `logs`(기간 안 로그 수 · 날짜별) · `events.lines`(위험 · 주의 · 정상 판정에 묶인 로그 줄) · `events.days[]` · `servers.nodes[] · modules[] · clauses[]` · `safety`(`score` · `items[]`(node · level · stale) · `trend[]`(day · score)).
+- `GET /api/user-stats` → `suspects[]`(의심 점수: `score · level · reason · watch · signals · records · trend[] · held[]`, 계정 미연결이면 `held` null) · `safety`(`score · trend[]`) · `events.users[]` · `requests`(타일용 수).
 
 ---
 
@@ -147,8 +147,9 @@
 
 ### 통계 → 보안 통계 · 사용자 위협
 - 두 탭이 같은 기간 버튼 [일주일 · 한 달 · 3개월 · 전체]을 씁니다. 탭을 바꾸면 그 탭의 API를 받습니다.
+- 두 탭 모두 맨 위에 안전 점수(0~100, 서버가 셈) · 점수를 깎은 대상(누르면 그 패널) · 날짜별 흐름.
 - 보안 통계: 타일 넷(위협 로그 비율 · 위협 로그 빈도 · 위험 판정 로그 · 노드 위협 항목) · 날짜별 세로 막대(높이 = 그날 로그 수, 조각 = 위험 · 주의 · 그 외) · 모듈별 · 노드별 위협 항목 가로 막대.
-- 사용자 위협: 타일 넷 · **위협 예측 — 의심 점수** 막대(높은 순, 높음 70 이상 · 보통 40~69 · 낮음, 직전보다 10점 넘게 바뀌면 ▲ · ▼) + [지금 예측] · 사용자별 위협 로그 막대.
+- 사용자 위협: 타일 넷 · **위협 예측 — 의심 점수** 막대(높은 순, 높음 70 이상 · 보통 40~69 · 낮음, 직전보다 10점 넘게 바뀌면 ▲ · ▼, 옆에 로그 감시 위험 · 주의 판정 수) + [지금 예측]. 사람을 누르면 지금 가진 권한(누르면 결재함의 그 유효 권한 — 회수는 거기서) · [이 사용자의 로그 조회] · [로그 감시 판정 보기].
 - 막대를 누르면 패널: 의심 점수면 예측 이유 · 확인할 점 · 행동 신호 · 판정 · 신청 기록 · 점수 흐름 · [이 사용자의 로그 조회]. 노드면 등급 변화 · 걸린 조항 · [노드 탭에서 보기].
 - 모든 차트에 [표로 보기]를 둡니다 (색을 못 보는 사람 · 인쇄 · 정확한 값).
 

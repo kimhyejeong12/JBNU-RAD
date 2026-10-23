@@ -214,6 +214,20 @@ def user_requests(db: Database, since: str | None = None) -> list[dict[str, Any]
              "revoke_reason": r["revoke_reason"], "at": r["submitted_at"]} for r in rows]
 
 
+def held_by_account(db: Database) -> dict[int, list[dict[str, Any]]]:
+    """사용자 위협 패널 — 계정마다 지금 가진 권한 (_held 와 같은 조건) + 권한 목록의 시스템 · 분류."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT r.requester_id, r.request_no, r.access_code, r.requested_access, r.period_end, c.system, c.category"
+            " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code"
+            " WHERE r.stage = 'approved' AND (r.period_end = '' OR r.period_end >= ?) ORDER BY r.submitted_at", (_today(),)).fetchall()
+    out: dict[int, list[dict[str, Any]]] = {}
+    for r in rows:
+        out.setdefault(r["requester_id"], []).append({"request_no": r["request_no"], "code": r["access_code"], "access": r["requested_access"],
+                                                      "system": r["system"] or "", "category": r["category"] or "", "period_end": r["period_end"]})
+    return out
+
+
 # --- AI 판정 (신청 행의 AI 칸) --------------------------------------------------
 
 
