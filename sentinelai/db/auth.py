@@ -106,14 +106,19 @@ def create_user(db: Database, by: User, login_id: str, password: str, display_na
 
 
 def update_user(db: Database, by: User, user_id: int, **changes: object) -> User:
-    """역할 · 부서 · 이름 · 활성 여부를 바꿉니다. 정지하면 그 사람의 세션도 끊습니다."""
+    """역할 · 부서 · 이름 · 활성 여부 · 로그 사용자 ID 를 바꿉니다. 정지하면 그 사람의 세션도 끊습니다.
+
+    로그 사용자 ID 는 보안 솔루션 로그의 UserID 입니다. 사용자 위협의 의심 점수가 로그 감시 판정 · 행동 신호와 권한 신청을 이 값으로 한 사람에 모읍니다.
+    """
     _require_top(by)
-    allowed = {"display_name", "department", "role", "is_active"}
+    allowed = {"display_name", "department", "role", "is_active", "log_id"}
     fields = {k: v for k, v in changes.items() if k in allowed and v is not None}
     if not fields:
         raise Denied("바꿀 항목이 없습니다")
     if "role" in fields and fields["role"] not in ROLES:
         raise Denied(f"역할은 {', '.join(ROLES)} 중 하나입니다")
+    if "log_id" in fields:
+        fields["log_id"] = str(fields["log_id"]).strip()
     with db.transaction() as conn:
         target = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         if target is None:
@@ -155,9 +160,16 @@ def list_users(db: Database, by: User) -> list[dict]:
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT id, login_id, display_name, department, role, is_root, is_active, must_change_password,"
-            " locked_until, last_login_at, created_at FROM users ORDER BY id"
+            " locked_until, last_login_at, created_at, log_id FROM users ORDER BY id"
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def accounts_brief(db: Database) -> list[dict]:
+    """사용자 위협 — 의심 점수를 사람별로 모을 때 쓰는 계정 요약 (이름 · 부서 · 역할 · 로그 사용자 ID). 비밀번호 칸은 읽지 않습니다."""
+    with db.connection() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT id, login_id, display_name, department, role, is_active, log_id FROM users ORDER BY id")]
 
 
 def _login_failed(db: Database, user_id: int | None, login_id: str, ip: str | None, reason: str) -> bool:

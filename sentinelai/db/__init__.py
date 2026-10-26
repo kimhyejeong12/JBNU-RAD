@@ -12,7 +12,7 @@ from .core import Database, Denied
 
 def open_main_db(path: str) -> Database:
     """권한 DB. 처음이면 스키마를 만듭니다."""
-    db = Database(path, "schema.sql", "decisions.sql", "accounts.sql", "decisions_server.sql", "roles_names.sql", "nodes.sql", "nodes_keys.sql", "nodes_key_view.sql", "access_catalog.sql")
+    db = Database(path, "schema.sql", "decisions.sql", "accounts.sql", "decisions_server.sql", "roles_names.sql", "nodes.sql", "nodes_keys.sql", "nodes_key_view.sql", "access_catalog.sql", "users_log_id.sql")
     db.init()
     with db.connection() as conn:
         columns = {r[1] for r in conn.execute("PRAGMA table_info(access_requests)")}
@@ -24,7 +24,7 @@ def open_main_db(path: str) -> Database:
 
 def open_results_db(path: str) -> Database:
     """AI 결과 DB. 처음이면 스키마를 만듭니다."""
-    db = Database(path, "results_schema.sql", "results_servers.sql", "results_server_gaps.sql", "results_server_snapshots.sql", "results_nodes.sql", "results_qa_servers.sql")
+    db = Database(path, "results_schema.sql", "results_servers.sql", "results_server_gaps.sql", "results_server_snapshots.sql", "results_nodes.sql", "results_qa_servers.sql", "results_monitor_stage.sql", "results_suspects.sql")
     db.init()
     return db
 

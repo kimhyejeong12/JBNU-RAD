@@ -75,7 +75,7 @@ def results(request: Request, user: Approver) -> dict[str, Any]:
 @app.get("/api/jobs", dependencies=analyst)
 def jobs(request: Request) -> dict[str, Any]:
     """돌고 있는 작업과 진행 상황, 구역별 마지막 실행 결과."""
-    return {**_engine(request).jobs.status(), "kinds": KINDS}
+    return {**_engine(request).job_status(), "kinds": KINDS}
 
 
 @app.post("/api/jobs/{kind}", status_code=202, dependencies=analyst)
@@ -121,6 +121,24 @@ def ask_servers(body: AskRequest, request: Request, user: Approver) -> dict[str,
 
 
 Filter = Annotated[str, Query(max_length=200)]
+
+
+@app.get("/api/stats")
+def stats(request: Request, user: Approver, period: str = "month") -> dict[str, Any]:
+    """보안 통계 — 위협 로그 비율 · 빈도, 노드 위협 데이터. 모델 없이 쌓인 판정을 셉니다."""
+    try:
+        return _engine(request).stats(period)
+    except ValueError as exc:  # 없는 기간
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+@app.get("/api/user-stats")
+def user_stats(request: Request, user: Approver, period: str = "month") -> dict[str, Any]:
+    """사용자 위협 — 사용자별 위협 로그, 부서 · 권한별 신청 위험도, AI와 결재가 엇갈린 신청. 모델 없이 셉니다."""
+    try:
+        return _engine(request).user_stats(period)
+    except ValueError as exc:  # 없는 기간
+        raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
 @app.get("/api/logs")
