@@ -12,7 +12,7 @@ DEV_ENV := SENTINELAI_DB_PATH=.dev/sentinelai.db SENTINELAI_RESULTS_DB_PATH=.dev
 PODMAN ?= podman
 TARGETS := cd node/testenv && $(PODMAN) compose --env-file targets.env
 
-.PHONY: dev-setup dev dev-node dev-sim dev-targets dev-targets-stop help install health index review-policies check-nodes monitor import-snapshots create-root web docker-build docker-run clean
+.PHONY: dev-setup dev dev-node dev-sim dev-targets dev-targets-stop front-install front front-test help install health index review-policies check-nodes monitor import-snapshots create-root web docker-build docker-run clean
 
 help:
 	@echo "install                        venv 생성 + 의존성 설치 + .env 준비"
@@ -34,6 +34,10 @@ help:
 	@echo "                               값은 node/testenv/targets.env (없으면 시험 환경 키로 만듦, 고쳐서 다른 키 · 서버로)"
 	@echo "dev-targets-stop               위 컨테이너 내리기"
 	@echo "dev-node                       이 컴퓨터를 노드로 한 번 보내기 (root 가 아니면 SSH · sudo 는 확인 못함)"
+	@echo "--- React 화면 (frontend/, make dev 가 떠 있을 때) ---"
+	@echo "front-install                  npm 의존성 설치 (처음 한 번)"
+	@echo "front                          화면 개발 서버 (http://localhost:5173, /api 는 8001 로 넘김)"
+	@echo "front-test                     화면 단위 시험 · 타입 검사 · 린트"
 	@echo "docker-build · docker-run · clean"
 
 install:
@@ -75,6 +79,15 @@ dev:
 
 dev-node:
 	cd node && python3 -m sentinel_node once -c ../.dev/node.conf
+
+front-install:
+	cd frontend && npm ci
+
+front:
+	cd frontend && npm run dev
+
+front-test:
+	cd frontend && npm test && npm run typecheck && npm run lint
 
 dev-sim:
 	$(DEV_ENV) $(PY) scripts/dev_nodes.py sim -n $(or $(NODES),3) -r $(or $(ROUNDS),3) -e $(or $(EVERY),5)
