@@ -1,5 +1,7 @@
-import { VIEWS, type MainTab, type View } from "./views";
+import { VIEWS, type MainTab } from "./views";
 import { useUi } from "./ui/UiContext";
+import { ASK } from "@/features/ask/config";
+import { askMode } from "@/features/ask/lib";
 import { Icon } from "@/shared/ui/Icon";
 
 const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
@@ -11,9 +13,6 @@ const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
   { tab: "ask", icon: "chat", label: "정책 질의", panel: "view-ask" },
 ];
 
-// 질의 탭은 메뉴를 따릅니다 (정책 관리 → 서버 질의, 로그 감시 → 로그 질의).
-const askLabel = (view: View | null) => (view === "policies" ? "서버 질의" : view === "events" ? "로그 질의" : "정책 질의");
-
 export function MainTabs() {
   const { ui, setMainTab } = useUi();
   const tabs = ui.view ? VIEWS[ui.view].tabs : [];
@@ -24,7 +23,7 @@ export function MainTabs() {
         <button key={t.tab} className="main-tab" role="tab" id={`tab-${t.tab}`} aria-selected={ui.mainTab === t.tab} aria-controls={t.panel}
           hidden={!tabs.includes(t.tab)} onClick={() => setMainTab(t.tab)}>
           <Icon name={t.icon} className="sm" />
-          {t.tab === "ask" ? <span id="tab-ask-label">{askLabel(ui.view)}</span> : t.label}
+          {t.tab === "ask" ? <span id="tab-ask-label">{ASK[askMode(ui.view)].label}</span> : t.label}
         </button>
       ))}
     </nav>

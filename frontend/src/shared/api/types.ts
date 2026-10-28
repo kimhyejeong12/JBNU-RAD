@@ -207,19 +207,33 @@ export interface Jobs {
 
 export type AskKind = "policy" | "servers" | "logs";
 
+// 서버 질의의 집계 — 서버가 센 값을 그대로 보여줍니다 (키도 서버의 것).
+export interface ServerFacts {
+  "노드 수": number;
+  "마지막 판정 등급별 노드 수"?: Record<string, number>;
+  "기간 안 첫 수집"?: string | null;
+  "기간 안 마지막 수집"?: string | null;
+  "노드별"?: Record<string, { "수집": number; "바뀐 설정": number; "판정": Record<string, number> }>;
+}
+
 export interface AskAnswer {
   answer: string;
   sources?: string[];
-  criteria?: Record<string, unknown>;
-  facts?: Record<string, unknown>;
-  evidence?: Record<string, unknown>[];
+  criteria?: Record<string, string> | null;
+  facts?: LogFacts | ServerFacts | null;
+  evidence?: string[];
   failed?: boolean;
 }
 
 export interface QaRecord extends AskAnswer {
-  id?: number;
   question: string;
-  asked_at?: string;
+}
+
+// 화면의 질의 한 건 — 기록(/api/qa)과 지금 보낸 질의를 한 목록에 둡니다. started 가 있으면 답을 기다리는 중.
+export interface AskItem extends Partial<AskAnswer> {
+  id: string;
+  q: string;
+  started: number | null;
 }
 
 export type LogPeriod = "day" | "week" | "month" | "quarter" | "half" | "year" | "all";

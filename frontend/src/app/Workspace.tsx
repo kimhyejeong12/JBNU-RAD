@@ -7,6 +7,7 @@ import { Footer } from "./Footer";
 
 import { NodesTab } from "@/features/nodes/NodesTab";
 import { LogsTab } from "@/features/logs/LogsTab";
+import { AskTab } from "@/features/ask/AskTab";
 
 // 검토 현황은 늘 그려 두고 hidden 으로 숨깁니다. 노드 · 로그 · 질의 · 통계 탭은 들어올 때 마운트해 그때 데이터를 받습니다 (옛 화면의 loadNodes 등).
 export function Workspace() {
@@ -23,7 +24,7 @@ export function Workspace() {
         {ui.mainTab === "nodes" ? <NodesTab /> : <section className="card nodes" id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes" hidden />}
         <div className="stats-view" id="view-stats" role="tabpanel" aria-labelledby="tab-stats" hidden={!stat} />
         {ui.mainTab === "logs" ? <LogsTab /> : <section className="card logs" id="view-logs" role="tabpanel" aria-labelledby="tab-logs" hidden />}
-        <section className="card ask" id="view-ask" role="tabpanel" aria-labelledby="tab-ask" hidden={ui.mainTab !== "ask"} />
+        {ui.mainTab === "ask" ? <AskTab /> : <section className="card ask" id="view-ask" role="tabpanel" aria-labelledby="tab-ask" hidden />}
         <Footer />
       </div>
       <RightPanel />

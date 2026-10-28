@@ -2,7 +2,7 @@ import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { getJSON } from "./http";
 import { jobsInterval } from "./jobs";
 import type {
-  AccessItem, AskKind, Health, Jobs, LogsPage, LogsParams, Me, NodeDetail, NodeRow, QaRecord, Regulation,
+  AccessItem, AskItem, AskKind, Health, Jobs, LogsPage, LogsParams, Me, NodeDetail, NodeRow, QaRecord, Regulation,
   RequestRow, Results, StatPeriod, Stats, UserRow, UserStats,
 } from "./types";
 
@@ -32,7 +32,12 @@ export const jobsQuery = () => queryOptions({
   refetchInterval: (q) => jobsInterval(q.state.data),
 });
 
-export const qaQuery = (kind: AskKind) => queryOptions({ queryKey: ["qa", kind], queryFn: () => getJSON<QaRecord[]>(`/api/qa?kind=${kind}`) });
+// 질의 기록은 내 것만 옵니다. 메뉴마다 따로라 정책 질의 · 서버 질의 · 로그 질의를 나눠 받고, 새 질의는 이 캐시에 덧붙입니다.
+export const qaQuery = (kind: AskKind) => queryOptions({
+  queryKey: ["qa", kind],
+  queryFn: async (): Promise<AskItem[]> =>
+    (await getJSON<QaRecord[]>(`/api/qa?kind=${kind}`)).map(({ question, ...rest }, n) => ({ ...rest, id: `qa-${n}`, q: question, started: null })),
+});
 
 // 노드 · 통계는 탭에 들어올 때마다 다시 받습니다.
 export const nodesQuery = () => queryOptions({ queryKey: ["nodes"], queryFn: () => getJSON<NodeRow[]>("/api/nodes"), refetchOnMount: "always" });
