@@ -1,16 +1,15 @@
-import { useMe } from "./me";
-import { ROLE_VIEWS, VIEWS } from "./views";
+import { useMe, useViews } from "./me";
+import { VIEWS } from "./views";
 import { useUi } from "./ui/UiContext";
-import { useQueue } from "./queue/useQueue";
-import { viewCounts } from "./queue/select";
+import { useViewCounts } from "./queue/useViewCounts";
 import { Icon } from "@/shared/ui/Icon";
 
 // 넓은 화면의 메뉴 — 건수는 세그먼트가 없으므로 툴팁 제목에 붙입니다.
 export function Sidebar({ onDocs }: { onDocs: () => void }) {
   const me = useMe();
   const { ui, navigate } = useUi();
-  const views = ROLE_VIEWS[me.role];
-  const counts = viewCounts(useQueue(), views, ui.stageFilter, me.role);
+  const views = useViews();
+  const counts = useViewCounts();
   return (
     <nav className="sidebar" aria-label="메뉴">
       <div className="nav-views" id="nav-views">

@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { PERIOD_LABEL } from "./constants";
+import { useLogsPage } from "./useLogsPage";
 import { useUi } from "@/app/ui/UiContext";
 import { PanelHead } from "@/app/ui/PanelHead";
-import { logsQuery } from "@/shared/api/queries";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
 import { KvTable } from "@/shared/ui/KvTable";
@@ -13,7 +12,7 @@ import { Section } from "@/shared/ui/Section";
 export function LogsPanel() {
   const { ui, closePanel } = useUi();
   const L = ui.logs;
-  const logs = useQuery(logsQuery({ period: L.period, user: L.user, solution: L.solution, how: L.how, page: L.page }));
+  const logs = useLogsPage();
   const d = logs.data;
   const e = d && L.selected !== null ? d.events[L.selected] : null;
 

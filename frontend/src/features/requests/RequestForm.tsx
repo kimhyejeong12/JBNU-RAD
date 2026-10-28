@@ -1,15 +1,14 @@
 import { useState, type FormEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { accessOptions } from "./accessOptions";
+import { accessOptions, type AccessOptions } from "./accessOptions";
 import { useCreateRequest } from "./api";
-import { catalogQuery, requestsQuery } from "@/shared/api/queries";
+import { useCatalog, useMine } from "@/app/data";
 import { isActive } from "@/shared/lib/request";
 
 // 일반 사용자의 권한 신청서 — 권한은 권한 목록의 켜진 권한에서 고르고, 현재 보유 권한은 적지 않고 보여주기만 합니다.
 // (서버도 신청 때 같은 조건으로 읽어 신청 행에 남깁니다.)
 export function RequestForm({ hidden }: { hidden: boolean }) {
-  const catalog = useQuery(catalogQuery()).data ?? [];
-  const mine = useQuery(requestsQuery(true)).data ?? [];
+  const catalog = useCatalog();
+  const mine = useMine();
   const create = useCreateRequest();
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState({ text: "", ok: false });
@@ -38,22 +37,7 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
       <form id="new-request" className="form-grid" onSubmit={onSubmit}>
         <label className="wide">
           <span>신청할 권한 <b>*</b></span>
-          <select name="access_code" id="req-access" required value={o.value} disabled={o.empty} onChange={(e) => setCode(e.target.value)}>
-            {o.empty ? <option value="">신청할 수 있는 권한이 없습니다</option> : (
-              <>
-                <option value="">권한을 고르세요</option>
-                {o.groups.map(([sys, list]) => (
-                  <optgroup key={sys} label={sys}>
-                    {list.map((a) => (
-                      <option key={a.code} value={a.code} disabled={!!o.reason[a.code]}>
-                        {a.name}{a.category ? ` · ${a.category}` : ""}{o.reason[a.code] ? ` (${o.reason[a.code]})` : ""}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </>
-            )}
-          </select>
+          <AccessSelect o={o} onChange={setCode} />
           <span className="note" id="req-access-note">{note}</span>
         </label>
         <div className="wide held">
@@ -73,5 +57,27 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
         </div>
       </form>
     </section>
+  );
+}
+
+// 신청할 권한 고르기 — 시스템별로 묶고, 보유 중 · 결재 중인 권한은 이유와 함께 막습니다.
+function AccessSelect({ o, onChange }: { o: AccessOptions; onChange: (code: string) => void }) {
+  return (
+    <select name="access_code" id="req-access" required value={o.value} disabled={o.empty} onChange={(e) => onChange(e.target.value)}>
+      {o.empty ? <option value="">신청할 수 있는 권한이 없습니다</option> : (
+        <>
+          <option value="">권한을 고르세요</option>
+          {o.groups.map(([sys, list]) => (
+            <optgroup key={sys} label={sys}>
+              {list.map((a) => (
+                <option key={a.code} value={a.code} disabled={!!o.reason[a.code]}>
+                  {a.name}{a.category ? ` · ${a.category}` : ""}{o.reason[a.code] ? ` (${o.reason[a.code]})` : ""}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </>
+      )}
+    </select>
   );
 }

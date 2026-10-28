@@ -1,13 +1,13 @@
 import type { FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateAccess, useUpdateAccess } from "./api";
-import { useUi } from "@/app/ui/UiContext";
+import { useRequests } from "@/app/data";
 import { PanelHead } from "@/app/ui/PanelHead";
-import { catalogQuery, requestsQuery } from "@/shared/api/queries";
+import { PanelFoot, PanelMsg } from "@/app/ui/PanelMsg";
+import { catalogQuery } from "@/shared/api/queries";
 import type { AccessItem } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { isActive } from "@/shared/lib/request";
-import { PanelMsg } from "@/shared/ui/PanelMsg";
 
 const Fields = ({ v }: { v?: AccessItem }) => (
   <>
@@ -24,7 +24,6 @@ export function AccessPanel({ a }: { a: AccessItem | null }) {
 }
 
 function NewAccess() {
-  const { ui } = useUi();
   const create = useCreateAccess();
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -36,16 +35,16 @@ function NewAccess() {
       <form className="panel-body form-grid" id="access-form" style={{ padding: "16px 18px" }} onSubmit={onSubmit}>
         <label>코드 (바꿀 수 없음)<input name="code" required maxLength={64} pattern="[A-Za-z0-9_.\-]+" autoComplete="off" placeholder="예: HR_SALARY_READ" /></label>
         <Fields />
-        <div className="wide form-actions"><PanelMsg msg={ui.panelMsg} /><button type="submit" className="primary">등록</button></div>
+        <div className="wide form-actions"><PanelMsg /><button type="submit" className="primary">등록</button></div>
       </form>
     </>
   );
 }
 
 function EditAccess({ a }: { a: AccessItem }) {
-  const { ui } = useUi();
   const update = useUpdateAccess();
-  const requests = useQuery(requestsQuery(false)).data ?? [];
+  const requests = useRequests();
+  // 저장 뒤 서버 값으로 다시 그립니다 (폼은 uncontrolled).
   const formKey = `${a.code}:${useQuery(catalogQuery()).dataUpdatedAt}`;
   const used = requests.filter((r) => r.access_code === a.code);
   const active = used.filter((r) => isActive(r)).length;
@@ -68,7 +67,7 @@ function EditAccess({ a }: { a: AccessItem }) {
           <div className="wide form-actions"><button type="submit" className="primary">저장</button></div>
         </form>
       </div>
-      <div className="panel-foot">{ui.panelMsg ? <PanelMsg msg={ui.panelMsg} /> : <p className="note">이름을 바꿔도 이미 낸 신청에는 신청 때 이름이 남습니다.</p>}</div>
+      <PanelFoot note="이름을 바꿔도 이미 낸 신청에는 신청 때 이름이 남습니다." />
     </>
   );
 }

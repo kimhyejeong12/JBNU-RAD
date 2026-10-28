@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { STAT_TITLES, SUSPECT_COLOR } from "./constants";
+import { useStatsData } from "./useStatsData";
 import { useClauses } from "@/app/data";
 import { useUi } from "@/app/ui/UiContext";
 import { PanelHead } from "@/app/ui/PanelHead";
-import { statsQuery, userStatsQuery } from "@/shared/api/queries";
 import type { Stats, Suspect, UserStats } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/levels";
@@ -16,10 +15,7 @@ import { Sparkline } from "@/shared/ui/charts/parts";
 // 통계 패널 — 고른 막대 · 줄의 자세한 내용과 운영자가 이어 볼 곳(노드 탭 · 로그 조회 · 결재함 · 로그 감시 판정).
 export function StatsPanel() {
   const { ui } = useUi();
-  const kind = ui.stats.kind ?? "stats";
-  const period = ui.stats.period;
-  const sys = useQuery({ ...statsQuery(period), enabled: kind === "stats" });
-  const usr = useQuery({ ...userStatsQuery(period), enabled: kind === "ustats" });
+  const { kind, sys, usr } = useStatsData();
   const sel = ui.stats.selected;
   const d = kind === "stats" ? sys.data : usr.data;
   if (!d || !sel) return <Body title={STAT_TITLES[kind]} subject="막대 · 줄을 고르세요"><p className="note">막대를 누르면 자세한 내용이 나옵니다.</p></Body>;

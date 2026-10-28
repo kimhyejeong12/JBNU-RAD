@@ -13,7 +13,7 @@ export const period = (r: Pick<RequestRow, "period_start" | "period_end">): stri
 export const requester = (r: Pick<RequestRow, "requester_department" | "requester_name">): string =>
   `${r.requester_department} ${r.requester_name}`.trim();
 
-export const today = (): string => new Date().toLocaleDateString("sv-SE");
+const today = (): string => new Date().toLocaleDateString("sv-SE");
 
 // 권한 DB의 active_grants 뷰와 같은 조건입니다 — 승인됐고 사용 기간이 끝나지 않은 신청.
 export const isActive = (r: Pick<RequestRow, "stage" | "period_end">, on: string = today()): boolean =>

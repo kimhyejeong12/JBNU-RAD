@@ -2,13 +2,12 @@ import type { FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateUser, useUserAction } from "./api";
 import { useMe } from "@/app/me";
-import { useUi } from "@/app/ui/UiContext";
 import { PanelHead } from "@/app/ui/PanelHead";
+import { PanelFoot, PanelMsg } from "@/app/ui/PanelMsg";
 import { usersQuery } from "@/shared/api/queries";
 import type { Role, UserRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { ROLE_LABEL } from "@/shared/lib/labels";
-import { PanelMsg } from "@/shared/ui/PanelMsg";
 
 const RoleSelect = ({ value, disabled }: { value: Role; disabled?: boolean }) => (
   <select name="role" defaultValue={value} disabled={disabled}>
@@ -22,7 +21,6 @@ export function UserPanel({ u }: { u: UserRow | null }) {
 }
 
 function NewUser() {
-  const { ui } = useUi();
   const create = useCreateUser();
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -37,7 +35,7 @@ function NewUser() {
         <label>부서<input name="department" maxLength={100} /></label>
         <label>역할<RoleSelect value="user" /></label>
         <label className="wide">임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input name="password" type="password" required autoComplete="new-password" /></label>
-        <div className="wide form-actions"><PanelMsg msg={ui.panelMsg} /><button type="submit" className="primary">계정 만들기</button></div>
+        <div className="wide form-actions"><PanelMsg /><button type="submit" className="primary">계정 만들기</button></div>
       </form>
     </>
   );
@@ -45,7 +43,6 @@ function NewUser() {
 
 function EditUser({ u }: { u: UserRow }) {
   const me = useMe();
-  const { ui } = useUi();
   const action = useUserAction();
   // 저장 뒤 서버 값으로 다시 그리고 초기화 칸을 비웁니다 (폼은 uncontrolled).
   const formKey = `${u.id}:${useQuery(usersQuery()).dataUpdatedAt}`;
@@ -95,7 +92,7 @@ function EditUser({ u }: { u: UserRow }) {
           </>
         )}
       </div>
-      <div className="panel-foot">{ui.panelMsg ? <PanelMsg msg={ui.panelMsg} /> : <p className="note">{note}</p>}</div>
+      <PanelFoot note={note} />
     </>
   );
 }

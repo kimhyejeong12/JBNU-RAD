@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { MeContext, useMe } from "./me";
-import { RESULT_VIEWS, ROLE_VIEWS } from "./views";
+import { MeContext, useViews } from "./me";
+import { useNeeds } from "./data";
 import { NARROW, UiContext, useUiStore } from "./ui/UiContext";
 import { useBoot } from "./useBoot";
 import { useJobsWatcher } from "./useJobsWatcher";
@@ -8,6 +8,7 @@ import { useQueue } from "./queue/useQueue";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { Workspace } from "./Workspace";
+import { LoadError } from "./LoadError";
 import { DocsModal } from "./DocsModal";
 import { TooltipLayer } from "./TooltipLayer";
 import type { Me } from "@/shared/api/types";
@@ -23,12 +24,11 @@ export function AppShell({ me }: { me: Me }) {
 
 // body 가 그리드라 자식 순서를 지키고 감싸는 요소를 두지 않습니다 (#root 는 display: contents).
 function Shell() {
-  const me = useMe();
-  const views = ROLE_VIEWS[me.role];
+  const views = useViews();
   const store = useUiStore();
   const { ui, dispatch, navigate } = store;
   const boot = useBoot();
-  useJobsWatcher(views.some((v) => RESULT_VIEWS.has(v)));
+  useJobsWatcher(useNeeds().results);
   const [docsOpen, setDocsOpen] = useState(false);
   const narrow = useMediaQuery(NARROW);
 
@@ -69,9 +69,7 @@ function Shell() {
     <UiContext.Provider value={store}>
       <TopBar />
       <Sidebar onDocs={() => setDocsOpen(true)} />
-      {boot.error
-        ? <div className="workspace"><div className="card empty" style={{ gridColumn: "1 / -1" }}>서버에서 화면 데이터를 받지 못했습니다: {boot.error}</div></div>
-        : <Workspace />}
+      {boot.error ? <LoadError message={boot.error} /> : <Workspace />}
       <div className={ui.drawerOpen ? "drawer-back show" : "drawer-back"} id="drawer-back" onClick={store.closePanel} />
       <DocsModal open={docsOpen} onClose={() => setDocsOpen(false)} />
       <TooltipLayer />

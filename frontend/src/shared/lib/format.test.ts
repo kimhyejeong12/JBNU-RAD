@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { niceMax, pct, stamp } from "./format";
+import { niceMax, pct, person, stamp } from "./format";
 
 test("stamp: 한국 시간 분 단위, 없으면 빈 문자열", () => {
   expect(stamp("2026-10-29T03:49:00+09:00")).toBe("2026-10-29 03:49");
@@ -17,4 +17,10 @@ test("niceMax: 자릿수 단위로 올림", () => {
   expect(niceMax(37)).toBe(40);
   expect(niceMax(120)).toBe(200);
   expect(niceMax(0)).toBe(0);
+});
+
+test("person: 이름 뒤에 부서를 괄호로, 부서가 없으면 이름만", () => {
+  expect(person("김민수", "보안팀")).toBe("김민수 (보안팀)");
+  expect(person("김민수", null)).toBe("김민수");
+  expect(person("김민수", "")).toBe("김민수");
 });

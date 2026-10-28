@@ -1,13 +1,13 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { ASK } from "./config";
+import { useQa } from "@/app/data";
 import { errorText, send } from "@/shared/api/http";
-import { qaQuery } from "@/shared/api/queries";
 import type { AskAnswer, AskItem, AskKind } from "@/shared/api/types";
 
 // 질의 보내기 — 기다리는 항목을 먼저 캐시에 넣어 탭을 떠나도 남고, 답이 오면 같은 항목을 바꿉니다.
 export function useAsk(kind: AskKind) {
   const qc = useQueryClient();
-  const list = useQuery(qaQuery(kind)).data ?? [];
+  const list = useQa(kind);
   const busy = list.some((m) => m.started);
   const key = ["qa", kind];
 

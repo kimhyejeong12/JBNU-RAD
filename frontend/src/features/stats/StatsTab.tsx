@@ -1,10 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
 import { STAT_PERIODS, STAT_TITLES } from "./constants";
 import { SystemHead, SystemSections } from "./SystemStats";
 import { UserHead, UserSections } from "./UserStats";
+import { useStatsData } from "./useStatsData";
 import { useJobs } from "@/app/data";
 import { useUi } from "@/app/ui/UiContext";
-import { statsQuery, userStatsQuery } from "@/shared/api/queries";
 import type { StatPeriod } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { Periods } from "@/shared/ui/Periods";
@@ -12,11 +11,8 @@ import { Periods } from "@/shared/ui/Periods";
 // 통계 — 보안 통계(stats) · 사용자 위협(ustats)이 같은 화면 · 기간을 쓰고 결과만 따로 받습니다. 막대를 누르면 패널이 열립니다.
 export function StatsTab() {
   const { ui, setStats, openDrawer } = useUi();
-  const kind = ui.stats.kind ?? "stats";
-  const period = ui.stats.period;
+  const { kind, period, sys, usr } = useStatsData();
   const jobs = useJobs();
-  const sys = useQuery({ ...statsQuery(period), enabled: kind === "stats" });
-  const usr = useQuery({ ...userStatsQuery(period), enabled: kind === "ustats" });
   const q = kind === "stats" ? sys : usr;
   const d = q.data;
   const range = q.isFetching ? "세는 중…" : q.isError ? q.error.message : d ? (d.since ? `${stamp(d.since)} 부터` : "처음부터") : "";

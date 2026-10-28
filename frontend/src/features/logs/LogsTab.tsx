@@ -1,26 +1,27 @@
 import { useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { LOG_FILTERS, PERIOD_LABEL } from "./constants";
 import { logAttrs, pageCount } from "./lib";
+import { useLogsPage } from "./useLogsPage";
 import { useUi } from "@/app/ui/UiContext";
-import { logsQuery } from "@/shared/api/queries";
-import type { LogPeriod } from "@/shared/api/types";
+import type { UiState } from "@/app/ui/uiReducer";
+import type { LogPeriod, LogsPage } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { activateProps } from "@/shared/lib/hooks";
 import { Periods } from "@/shared/ui/Periods";
 
 const PERIODS = Object.entries(PERIOD_LABEL) as [LogPeriod, string][];
+type LogCond = UiState["logs"];
 
 // 로그 조회 — 거르기 · 세기는 서버가 합니다. 화면은 조건을 넘기고 받은 그대로 보여줍니다. 조건이 바뀔 때만 다시 받습니다.
 export function LogsTab() {
   const { ui, setLogs, openDrawer } = useUi();
   const L = ui.logs;
   const section = useRef<HTMLElement>(null);
-  const logs = useQuery(logsQuery({ period: L.period, user: L.user, solution: L.solution, how: L.how, page: L.page }));
+  const logs = useLogsPage();
   const d = logs.data;
   const pages = d ? pageCount(d) : 1;
 
-  const change = (patch: Partial<typeof L>) => setLogs({ ...patch, page: patch.page ?? 1, selected: null });
+  const change = (patch: Partial<LogCond>) => setLogs({ ...patch, page: patch.page ?? 1, selected: null });
   const goPage = (page: number) => {
     change({ page });
     section.current?.scrollIntoView({ block: "start" });
@@ -37,19 +38,7 @@ export function LogsTab() {
         <Periods id="log-periods" labels={PERIODS} value={L.period} onChange={(period) => { if (period !== L.period) change({ period }); }} />
         <span className="logs-count" id="log-count">{logs.isFetching ? "불러오는 중…" : d ? `${d.total.toLocaleString()}건` : ""}</span>
       </div>
-      <div className="logs-filters">
-        {LOG_FILTERS.map(([k, id, all, opt]) => {
-          // 고른 값이 로그에 없더라도(판정에서 넘어온 사용자 등) 칸에서 사라지지 않게 둡니다.
-          const values = [...(d?.options[opt] ?? [])];
-          if (L[k] && !values.includes(L[k])) values.unshift(L[k]);
-          return (
-            <select key={k} id={id} className="select" aria-label={all.replace("전체 ", "")} value={L[k]} onChange={(e) => change({ [k]: e.target.value })}>
-              <option value="">{all}</option>
-              {values.map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          );
-        })}
-      </div>
+      <LogFilters options={d?.options} cond={L} onChange={change} />
       <div className="ltable-wrap">
         <table className="ltable">
           <thead><tr><th>시각</th><th>사용자</th><th className="col-sol">솔루션</th><th className="col-where">위치</th><th className="col-how">행위</th><th>항목</th></tr></thead>
@@ -76,5 +65,23 @@ export function LogsTab() {
         )}
       </div>
     </section>
+  );
+}
+
+// 거르기 칸 — 값은 응답의 options 에서. 고른 값이 로그에 없더라도(판정에서 넘어온 사용자 등) 칸에서 사라지지 않게 둡니다.
+function LogFilters({ options, cond, onChange }: { options?: LogsPage["options"]; cond: LogCond; onChange: (patch: Partial<LogCond>) => void }) {
+  return (
+    <div className="logs-filters">
+      {LOG_FILTERS.map(([k, id, all, opt]) => {
+        const values = [...(options?.[opt] ?? [])];
+        if (cond[k] && !values.includes(cond[k])) values.unshift(cond[k]);
+        return (
+          <select key={k} id={id} className="select" aria-label={all.replace("전체 ", "")} value={cond[k]} onChange={(e) => onChange({ [k]: e.target.value })}>
+            <option value="">{all}</option>
+            {values.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        );
+      })}
+    </div>
   );
 }

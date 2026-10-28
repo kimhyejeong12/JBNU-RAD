@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import { ROLE_VIEWS, type View } from "./views";
 import type { Me } from "@/shared/api/types";
 
 export const MeContext = createContext<Me | null>(null);
@@ -9,3 +10,6 @@ export function useMe(): Me {
   if (!me) throw new Error("MeContext 밖에서 useMe 를 불렀습니다");
   return me;
 }
+
+// 이 역할의 메뉴.
+export const useViews = (): View[] => ROLE_VIEWS[useMe().role];

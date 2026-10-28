@@ -1,9 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
 import { askMode, criteriaText, serverCriteriaText } from "./lib";
-import { useClauses } from "@/app/data";
+import { useClauses, useQa } from "@/app/data";
 import { useUi } from "@/app/ui/UiContext";
 import { PanelHead } from "@/app/ui/PanelHead";
-import { qaQuery } from "@/shared/api/queries";
 import type { AskItem, LogFacts, ServerFacts } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { KvTable } from "@/shared/ui/KvTable";
@@ -13,7 +11,7 @@ import { Section } from "@/shared/ui/Section";
 export function AskPanel() {
   const { ui } = useUi();
   const mode = askMode(ui.view);
-  const list = useQuery(qaQuery(mode)).data ?? [];
+  const list = useQa(mode);
   const sel = ui.askSource;
   const m = sel ? list[sel.i] : undefined;
   if (m && sel && mode === "logs") return <LogAskPanel m={m} i={sel.i} />;

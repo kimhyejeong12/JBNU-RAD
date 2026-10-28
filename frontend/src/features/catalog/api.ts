@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUi } from "@/app/ui/UiContext";
+import { usePanelAction } from "@/app/ui/usePanelAction";
 import { send } from "@/shared/api/http";
 import type { AccessItem } from "@/shared/api/types";
 
@@ -20,12 +21,8 @@ export function useCreateAccess() {
 
 // 이름 · 시스템 · 분류 · 설명 · 켜짐 고치기. 코드는 못 바꾸고 지우지 않습니다 (지난 신청이 가리킵니다).
 export function useUpdateAccess() {
-  const qc = useQueryClient();
-  const { setPanelMsg } = useUi();
-  return useMutation({
-    mutationFn: ({ code, patch }: { code: string; patch: Record<string, unknown> }) => send(`/api/access-catalog/${encodeURIComponent(code)}`, patch, "PATCH"),
-    onSuccess: () => setPanelMsg("✓ 저장했습니다"),
-    onError: (e) => setPanelMsg(e.message),
-    onSettled: () => qc.invalidateQueries({ queryKey: ["catalog"] }),
-  });
+  return usePanelAction(async ({ code, patch }: { code: string; patch: Record<string, unknown> }) => {
+    await send(`/api/access-catalog/${encodeURIComponent(code)}`, patch, "PATCH");
+    return "✓ 저장했습니다";
+  }, ["catalog"]);
 }

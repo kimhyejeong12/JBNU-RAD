@@ -5,6 +5,7 @@ import { DecisionLog } from "./DecisionLog";
 import { useResults } from "@/app/data";
 import { useUi } from "@/app/ui/UiContext";
 import { PanelHead } from "@/app/ui/PanelHead";
+import { PanelMsg } from "@/app/ui/PanelMsg";
 import { SourceChips } from "@/app/ui/SourceChips";
 import type { EventFinding, PolicyIssue, PolicyRow, ServerFinding } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
@@ -13,20 +14,15 @@ import { Icon } from "@/shared/ui/Icon";
 import { KvTable } from "@/shared/ui/KvTable";
 import { LevelDot } from "@/shared/ui/LevelDot";
 import { ModuleState } from "@/shared/ui/ModuleTables";
-import { PanelMsg } from "@/shared/ui/PanelMsg";
 import { Section } from "@/shared/ui/Section";
 
 // 정책 문제 · 서버 점검 · 로그 감시 판정의 근거와 운영자 결정.
 export function ReviewPanel({ it }: { it: ReviewItem }) {
-  const { ui, openLogs } = useUi();
+  const { openLogs } = useUi();
   const results = useResults();
-  const decide = useDecide();
-  const [comment, setComment] = useState("");
   const r = it.raw;
-  const decision = it.decision;
   // 10/14부터 서버 점검은 다른 곳마다 지금 · 기준 · 바꿀 것을 따로 받습니다. 그 전 결과(recommendation 이 있음)는 예전 칸으로 보입니다.
   const gapped = it.type === "server" && !it.raw.failed && !it.raw.recommendation;
-  const act = (action: string) => decide.mutate({ it, action, comment }, { onSuccess: () => setComment("") });
 
   return (
     <>
@@ -57,30 +53,39 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
           <h4>1차 판정 — 확정 대기</h4>
           <p className="note">빠른 감시의 판정입니다. 정밀 감시가 확정하면 결정할 수 있습니다.</p>
         </div>
-      ) : (
-        <div className="panel-foot">
-          <h4>의사결정</h4>
-          <textarea id="review-comment" maxLength={2000} placeholder="결정 의견 (선택)" value={comment} onChange={(e) => setComment(e.target.value)} />
-          <div className="decide">
-            {Object.entries(DECISION_SET[it.type]).map(([a, cls]) => (
-              <button key={a} className={cls} aria-pressed={decision?.action === a} onClick={() => act(a)}>{DECISIONS[a]}</button>
-            ))}
-          </div>
-          <div className="decision-state">
-            {decision ? (
-              <>
-                <span>
-                  결정 <b>{DECISIONS[decision.action]}</b> · {`${decision.decider_department ?? ""} ${decision.decider_name}`.trim()} · {stamp(decision.decided_at)}
-                  {decision.ai_level ? ` (그때 AI 판정: ${decision.ai_level})` : ""}{decision.comment ? ` — ${decision.comment}` : ""}
-                </span>
-                <button id="undo" onClick={() => act("cancel")}>취소</button>
-              </>
-            ) : <span>AI는 권고만 합니다. 최종 결정은 사람이 내립니다.</span>}
-          </div>
-          <PanelMsg msg={ui.panelMsg} />
-        </div>
-      )}
+      ) : <DecisionFoot it={it} />}
     </>
+  );
+}
+
+// 운영자 결정 — 의견과 함께 권한 DB 에 남고, 지금 결정과 [취소]를 보여줍니다. 결정 버튼은 종류마다 다릅니다.
+function DecisionFoot({ it }: { it: ReviewItem }) {
+  const decide = useDecide();
+  const [comment, setComment] = useState("");
+  const decision = it.decision;
+  const act = (action: string) => decide.mutate({ it, action, comment }, { onSuccess: () => setComment("") });
+  return (
+    <div className="panel-foot">
+      <h4>의사결정</h4>
+      <textarea id="review-comment" maxLength={2000} placeholder="결정 의견 (선택)" value={comment} onChange={(e) => setComment(e.target.value)} />
+      <div className="decide">
+        {Object.entries(DECISION_SET[it.type]).map(([a, cls]) => (
+          <button key={a} className={cls} aria-pressed={decision?.action === a} onClick={() => act(a)}>{DECISIONS[a]}</button>
+        ))}
+      </div>
+      <div className="decision-state">
+        {decision ? (
+          <>
+            <span>
+              결정 <b>{DECISIONS[decision.action]}</b> · {`${decision.decider_department ?? ""} ${decision.decider_name}`.trim()} · {stamp(decision.decided_at)}
+              {decision.ai_level ? ` (그때 AI 판정: ${decision.ai_level})` : ""}{decision.comment ? ` — ${decision.comment}` : ""}
+            </span>
+            <button id="undo" onClick={() => act("cancel")}>취소</button>
+          </>
+        ) : <span>AI는 권고만 합니다. 최종 결정은 사람이 내립니다.</span>}
+      </div>
+      <PanelMsg />
+    </div>
   );
 }
 

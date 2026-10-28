@@ -1,7 +1,7 @@
 import { DECISIONS } from "./constants";
 import type { ReviewItem } from "./api";
 import type { Decision } from "@/shared/api/types";
-import { stamp } from "@/shared/lib/format";
+import { person, stamp } from "@/shared/lib/format";
 import { History } from "@/shared/ui/History";
 import { Section } from "@/shared/ui/Section";
 
@@ -10,7 +10,7 @@ export function DecisionLog({ log, it }: { log: Record<string, Record<string, De
   const rows = log[it.type]?.[it.itemKey!] ?? [];
   const steps = rows.map((d) => ({
     title: d.action === "cancel" ? "결정 취소" : DECISIONS[d.action],
-    who: `${d.decider_name}${d.decider_department ? ` (${d.decider_department})` : ""}`,
+    who: person(d.decider_name, d.decider_department),
     when: `${stamp(d.decided_at)}${d.ai_level ? ` · 그때 AI 판정 ${d.ai_level}` : ""}`,
     say: d.comment,
   }));

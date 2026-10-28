@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { queryClient } from "./queryClient";
 import { AppShell } from "./AppShell";
+import { LoadError } from "./LoadError";
 import { AuthContext, useAuth, type GateMode } from "@/features/auth/AuthContext";
 import { Gate } from "@/features/auth/Gate";
 import { onUnauthorized } from "@/shared/api/http";
@@ -32,13 +33,10 @@ function Root() {
   // 첫 로그인 · 비밀번호 초기화 뒤에는 비밀번호부터 바꾸고, 그 전에는 다른 API 가 403 이라 껍데기를 띄우지 않습니다.
   const mode = auth.gate ?? (me.data?.must_change_password ? "password-forced" : null);
   const shell = me.data && mode !== "login" && mode !== "password-forced" ? <AppShell me={me.data} /> : null;
-  const error = me.isError && !auth.gate
-    ? <div className="workspace"><div className="card empty" style={{ gridColumn: "1 / -1" }}>서버에서 화면 데이터를 받지 못했습니다: {me.error.message}</div></div>
-    : null;
   return (
     <>
       {shell}
-      {error}
+      {me.isError && !auth.gate && <LoadError message={me.error.message} />}
       {mode && <Gate mode={mode} />}
     </>
   );

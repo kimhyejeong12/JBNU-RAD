@@ -54,84 +54,97 @@ export function SystemHead({ d, onSelect }: Props) {
 }
 
 // 위협 로그(날짜별 세로 막대)와 노드 위협 데이터(모듈별 · 노드별 가로 막대).
-export function SystemSections({ d, selected, onSelect }: Props) {
+export function SystemSections(p: Props) {
+  return (
+    <>
+      <ThreatLogs {...p} />
+      <NodeThreats {...p} />
+    </>
+  );
+}
+
+// 날짜별 세로 막대 — 높이 = 그날 로그 건수(빈도), 색 조각 = 위험 · 주의 · 그 외 로그(비율).
+function ThreatLogs({ d }: Props) {
   const { threat, logs } = threatOf(d);
-  const sv = d.servers;
-  const gaps = gapsOf(d);
   const { keys, byDay } = mergeDays(d.logs.days, d.events.days);
   const dayMax = niceMax(Math.max(1, ...keys.map((k) => Math.max(byDay[k].total, byDay[k]["위험"] + byDay[k]["주의"]))));
   // 날짜 글자는 그 막대 칸 가운데에 둡니다 (처음 · 가운데 · 끝).
   const at = (n: number) => `${((n + 0.5) / keys.length) * 100}%`;
   const ticks = [...new Set([0, Math.floor(keys.length / 2), keys.length - 1])];
+  return (
+    <section className="card" id="stat-events">
+      <div className="logs-head"><h3>위협 로그 — 비율 · 빈도</h3><span className="logs-count">위협 로그 {threat} / {logs ?? "—"}건</span></div>
+      {keys.length ? (
+        <>
+          <div className="chart">
+            <div className="cols" role="img" aria-label="날짜별 로그 건수와 주의 · 위험 로그">
+              {[1, 0.5].map((f) => <span key={f} className="grid" style={{ bottom: `${f * 100}%` }}><span>{Math.round(dayMax * f)}</span></span>)}
+              {keys.map((k) => {
+                const x = byDay[k];
+                const other = Math.max(0, x.total - x["위험"] - x["주의"]);
+                return (
+                  <span key={k} className="col" tabIndex={0} data-tip={`${k}|로그 ${x.total}건 · 위험 ${x["위험"]} · 주의 ${x["주의"]} (${pct(x["위험"] + x["주의"], x.total)})`}>
+                    <span className="stack">
+                      {([["위험", x["위험"]], ["주의", x["주의"]], ["기타", other]] as [string, number][]).filter(([, v]) => v)
+                        .map(([c, v]) => <span key={c} className={`mk ${c}`} style={{ height: `${(v / dayMax) * 100}%` }} />)}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+            <div className="xaxis">
+              {ticks.map((n, i) => <span key={n} style={{ left: i === 0 ? "0" : i === ticks.length - 1 ? "100%" : at(n) }}>{keys[n]}</span>)}
+            </div>
+          </div>
+          <Legend items={[["위험", "위험"], ["주의", "주의"], ["기타", "그 외 로그"]]} />
+        </>
+      ) : <p className="sub">이 기간에 로그가 없습니다.</p>}
+      <TableView>
+        <DataTable head={["날짜", "로그", "위험", "주의", "비율"]} empty="" numCols={[1, 2, 3, 4]}
+          rows={keys.map((k) => ({ key: k, cells: [k, byDay[k].total, byDay[k]["위험"], byDay[k]["주의"], pct(byDay[k]["위험"] + byDay[k]["주의"], byDay[k].total)] }))} />
+      </TableView>
+    </section>
+  );
+}
+
+// 모듈별 · 노드별 위협 항목 가로 막대 — 누르면 패널이 열립니다.
+function NodeThreats({ d, selected, onSelect }: Props) {
+  const sv = d.servers;
+  const gaps = gapsOf(d);
   const sel = (kind: string) => (selected?.kind === kind ? selected.key : null);
   return (
-    <>
-      <section className="card" id="stat-events">
-        <div className="logs-head"><h3>위협 로그 — 비율 · 빈도</h3><span className="logs-count">위협 로그 {threat} / {logs ?? "—"}건</span></div>
-        {keys.length ? (
-          <>
-            <div className="chart">
-              <div className="cols" role="img" aria-label="날짜별 로그 건수와 주의 · 위험 로그">
-                {[1, 0.5].map((f) => <span key={f} className="grid" style={{ bottom: `${f * 100}%` }}><span>{Math.round(dayMax * f)}</span></span>)}
-                {keys.map((k) => {
-                  const x = byDay[k];
-                  const other = Math.max(0, x.total - x["위험"] - x["주의"]);
-                  return (
-                    <span key={k} className="col" tabIndex={0} data-tip={`${k}|로그 ${x.total}건 · 위험 ${x["위험"]} · 주의 ${x["주의"]} (${pct(x["위험"] + x["주의"], x.total)})`}>
-                      <span className="stack">
-                        {([["위험", x["위험"]], ["주의", x["주의"]], ["기타", other]] as [string, number][]).filter(([, v]) => v)
-                          .map(([c, v]) => <span key={c} className={`mk ${c}`} style={{ height: `${(v / dayMax) * 100}%` }} />)}
-                      </span>
-                    </span>
-                  );
-                })}
-              </div>
-              <div className="xaxis">
-                {ticks.map((n, i) => <span key={n} style={{ left: i === 0 ? "0" : i === ticks.length - 1 ? "100%" : at(n) }}>{keys[n]}</span>)}
-              </div>
-            </div>
-            <Legend items={[["위험", "위험"], ["주의", "주의"], ["기타", "그 외 로그"]]} />
-          </>
-        ) : <p className="sub">이 기간에 로그가 없습니다.</p>}
-        <TableView>
-          <DataTable head={["날짜", "로그", "위험", "주의", "비율"]} empty="" numCols={[1, 2, 3, 4]}
-            rows={keys.map((k) => ({ key: k, cells: [k, byDay[k].total, byDay[k]["위험"], byDay[k]["주의"], pct(byDay[k]["위험"] + byDay[k]["주의"], byDay[k].total)] }))} />
-        </TableView>
-      </section>
-
-      <section className="card" id="stat-servers">
-        <div className="logs-head"><h3>노드 위협 데이터</h3><span className="logs-count">서버 {sv.nodes.length} · 위협 항목 {gaps["위험"] + gaps["주의"]}</span></div>
-        {sv.modules.length ? (
-          <>
-            <p className="chart-title">모듈별 위협 항목</p>
-            <div className="chart">
-              <HBars selectedKey={sel("module")} onSelect={(key) => onSelect("module", key)}
-                rows={sv.modules.map((m) => ({ key: m.module, label: m.module, segs: [["위험", m["위험"]], ["주의", m["주의"]]], extra: `걸린 서버 ${m.nodes.join(", ")}` }))}
-                value={(r) => { const m = sv.modules.find((x) => x.module === r.key)!; return `${m["위험"] + m["주의"]}건 · 서버 ${m.nodes.length}`; }} />
-            </div>
-          </>
-        ) : <p className="sub">이 기간 서버 점검에서 찾은 위협 항목이 없습니다.</p>}
-        {sv.nodes.length > 0 && (
-          <>
-            <p className="chart-title">노드별 위협 항목</p>
-            <div className="chart">
-              <HBars selectedKey={sel("node")} onSelect={(key) => onSelect("node", key)} max={Math.max(1, ...sv.nodes.map((n) => n.threats["위험"] + n.threats["주의"]))}
-                rows={sv.nodes.map((n) => ({ key: n.node, label: n.node, segs: [["위험", n.threats["위험"]], ["주의", n.threats["주의"]]], extra: `마지막 등급 ${n.level || "판정 없음"} · 설정이 바뀐 수집 ${n.changed} / ${n.collected}` }))}
-                value={(r) => { const n = sv.nodes.find((x) => x.node === r.key)!; return `${n.threats["위험"] + n.threats["주의"]}건 · ${n.level || "판정 없음"}`; }} />
-            </div>
-            <Legend items={[["위험", "위험"], ["주의", "주의"]]} />
-          </>
-        )}
-        <TableView>
-          <DataTable head={["노드", "마지막 등급", "위험", "주의", "등급 흐름", "설정이 바뀐 수집"]} empty=""
-            rows={sv.nodes.map((n) => ({
-              key: n.node, current: selected?.kind === "node" && selected.key === n.node, onSelect: () => onSelect("node", n.node),
-              cells: [n.node, n.level || "판정 없음", <span key="r" className="num">{n.threats["위험"]}</span>, <span key="w" className="num">{n.threats["주의"]}</span>, n.grades.map((g) => g.level).join(" → "), <span key="c" className="num">{n.changed} / {n.collected}</span>],
-            }))} />
-          <DataTable head={["모듈", "위험", "주의", "걸린 서버"]} empty="" numCols={[1, 2]}
-            rows={sv.modules.map((m) => ({ key: m.module, cells: [m.module, m["위험"], m["주의"], m.nodes.join(", ")] }))} />
-        </TableView>
-      </section>
-    </>
+    <section className="card" id="stat-servers">
+      <div className="logs-head"><h3>노드 위협 데이터</h3><span className="logs-count">서버 {sv.nodes.length} · 위협 항목 {gaps["위험"] + gaps["주의"]}</span></div>
+      {sv.modules.length ? (
+        <>
+          <p className="chart-title">모듈별 위협 항목</p>
+          <div className="chart">
+            <HBars selectedKey={sel("module")} onSelect={(key) => onSelect("module", key)}
+              rows={sv.modules.map((m) => ({ key: m.module, label: m.module, segs: [["위험", m["위험"]], ["주의", m["주의"]]], extra: `걸린 서버 ${m.nodes.join(", ")}` }))}
+              value={(r) => { const m = sv.modules.find((x) => x.module === r.key)!; return `${m["위험"] + m["주의"]}건 · 서버 ${m.nodes.length}`; }} />
+          </div>
+        </>
+      ) : <p className="sub">이 기간 서버 점검에서 찾은 위협 항목이 없습니다.</p>}
+      {sv.nodes.length > 0 && (
+        <>
+          <p className="chart-title">노드별 위협 항목</p>
+          <div className="chart">
+            <HBars selectedKey={sel("node")} onSelect={(key) => onSelect("node", key)} max={Math.max(1, ...sv.nodes.map((n) => n.threats["위험"] + n.threats["주의"]))}
+              rows={sv.nodes.map((n) => ({ key: n.node, label: n.node, segs: [["위험", n.threats["위험"]], ["주의", n.threats["주의"]]], extra: `마지막 등급 ${n.level || "판정 없음"} · 설정이 바뀐 수집 ${n.changed} / ${n.collected}` }))}
+              value={(r) => { const n = sv.nodes.find((x) => x.node === r.key)!; return `${n.threats["위험"] + n.threats["주의"]}건 · ${n.level || "판정 없음"}`; }} />
+          </div>
+          <Legend items={[["위험", "위험"], ["주의", "주의"]]} />
+        </>
+      )}
+      <TableView>
+        <DataTable head={["노드", "마지막 등급", "위험", "주의", "등급 흐름", "설정이 바뀐 수집"]} empty=""
+          rows={sv.nodes.map((n) => ({
+            key: n.node, current: selected?.kind === "node" && selected.key === n.node, onSelect: () => onSelect("node", n.node),
+            cells: [n.node, n.level || "판정 없음", <span key="r" className="num">{n.threats["위험"]}</span>, <span key="w" className="num">{n.threats["주의"]}</span>, n.grades.map((g) => g.level).join(" → "), <span key="c" className="num">{n.changed} / {n.collected}</span>],
+          }))} />
+        <DataTable head={["모듈", "위험", "주의", "걸린 서버"]} empty="" numCols={[1, 2]}
+          rows={sv.modules.map((m) => ({ key: m.module, cells: [m.module, m["위험"], m["주의"], m.nodes.join(", ")] }))} />
+      </TableView>
+    </section>
   );
 }

@@ -6,14 +6,14 @@ import { NodeKey } from "./NodeKey";
 import { useQueue } from "@/app/queue/useQueue";
 import { useUi } from "@/app/ui/UiContext";
 import { PanelHead } from "@/app/ui/PanelHead";
+import { PanelMsg } from "@/app/ui/PanelMsg";
 import { nodeQuery, nodesQuery } from "@/shared/api/queries";
-import type { NodeRow } from "@/shared/api/types";
+import type { NodeDetail, NodeRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
 import { KvTable } from "@/shared/ui/KvTable";
 import { LevelDot } from "@/shared/ui/LevelDot";
 import { ModuleTables } from "@/shared/ui/ModuleTables";
-import { PanelMsg } from "@/shared/ui/PanelMsg";
 import { Section } from "@/shared/ui/Section";
 
 // 노드 탭의 패널 — 고르지 않으면 상태 집계와 까는 법, [노드 등록]이면 등록 폼, 고르면 노드 정보 · 키 · 기록.
@@ -28,7 +28,6 @@ export function NodesPanel() {
 }
 
 function AddNodePanel() {
-  const { ui } = useUi();
   const create = useCreateNode();
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -40,7 +39,7 @@ function AddNodePanel() {
       <div className="panel-body">
         <form id="node-form" className="form-grid" onSubmit={onSubmit}>
           <label className="wide"><span>노드 이름 <b>*</b></span><input id="node-name" name="name" required maxLength={64} pattern="[A-Za-z0-9._\-]+" placeholder="예: cust-db01" autoFocus /></label>
-          <div className="wide form-actions"><PanelMsg msg={ui.panelMsg} /><button type="submit" className="primary">등록하고 키 발급</button></div>
+          <div className="wide form-actions"><PanelMsg /><button type="submit" className="primary">등록하고 키 발급</button></div>
         </form>
         <p className="note">서버 하나에 노드 하나. 이름은 영문 · 숫자 · . _ - 로 짓습니다.</p>
       </div>
@@ -66,14 +65,9 @@ function SummaryPanel({ list }: { list: NodeRow[] }) {
 }
 
 function NodePanel({ n }: { n: NodeRow }) {
-  const { ui, select } = useUi();
   const detail = useQuery(nodeQuery(n.name));
   const action = useNodeAction();
-  const items = useQueue();
-  const d = detail.data;
   const [cls, label, tip] = nodeState(n);
-  const finding = d?.findings?.[0];
-  const item = finding && items.find((i) => i.itemKey === finding.key);
 
   const act = (a: NodeAct) => {
     if (a === "key" && !confirm(`${n.name} 의 키를 새로 발급합니다. 지금 키는 바로 못 쓰게 되어, 그 서버의 node.conf 를 새 키로 바꿔야 다시 보냅니다. 계속할까요?`)) return;
@@ -85,9 +79,37 @@ function NodePanel({ n }: { n: NodeRow }) {
     ["등록", stamp(n.registered_at)], ["마지막 연락", stamp(n.last_seen_at)], ["마지막 수집", stamp(n.last_collected_at)],
   ] as [string, string | null][]).filter((row): row is [string, string] => !!row[1]);
 
-  let body: ReactNode;
-  if (!d) body = detail.isError ? <p className="form-msg">{detail.error.message}</p> : <div className="empty">불러오는 중…</div>;
-  else body = (
+  return (
+    <>
+      <PanelHead title="수집 노드" />
+      <div className="panel-body">
+        <p className="subject">{n.name}</p>
+        <div className="rec-line"><span className={`nstate ${cls}`}>{label}</span></div>
+        <div className="meta">{tip}</div>
+        <Section icon="server" title="노드">
+          <KvTable rows={info} />
+          <div className="node-actions">
+            <button className="rerun" onClick={() => act(n.enabled ? "off" : "on")}>{n.enabled ? "노드 끄기" : "노드 켜기"}</button>
+            <button className="rerun" onClick={() => act("key")}>{n.key_issued ? "키 다시 발급" : "키 발급"}</button>
+          </div>
+          <PanelMsg />
+        </Section>
+        <NodeKey n={n} d={detail.data} />
+        {detail.data ? <NodeRecords d={detail.data} />
+          : detail.isError ? <p className="form-msg">{detail.error.message}</p>
+            : <div className="empty">불러오는 중…</div>}
+      </div>
+    </>
+  );
+}
+
+// 마지막 서버 점검(→ 검토 현황의 그 항목) · 최근 수집(달라진 설정) · 모듈 상태.
+function NodeRecords({ d }: { d: NodeDetail }) {
+  const { select } = useUi();
+  const items = useQueue();
+  const finding = d.findings?.[0];
+  const item = finding && items.find((i) => i.itemKey === finding.key);
+  return (
     <>
       <Section icon="activity" title="마지막 서버 점검">
         {finding ? (
@@ -104,27 +126,6 @@ function NodePanel({ n }: { n: NodeRow }) {
           : <p className="note">없음</p>}
       </Section>
       {d.latest && <ModuleTables snap={d.latest} />}
-    </>
-  );
-
-  return (
-    <>
-      <PanelHead title="수집 노드" />
-      <div className="panel-body">
-        <p className="subject">{n.name}</p>
-        <div className="rec-line"><span className={`nstate ${cls}`}>{label}</span></div>
-        <div className="meta">{tip}</div>
-        <Section icon="server" title="노드">
-          <KvTable rows={info} />
-          <div className="node-actions">
-            <button className="rerun" onClick={() => act(n.enabled ? "off" : "on")}>{n.enabled ? "노드 끄기" : "노드 켜기"}</button>
-            <button className="rerun" onClick={() => act("key")}>{n.key_issued ? "키 다시 발급" : "키 발급"}</button>
-          </div>
-          <PanelMsg msg={ui.panelMsg} />
-        </Section>
-        <NodeKey n={n} d={d} />
-        {body}
-      </div>
     </>
   );
 }

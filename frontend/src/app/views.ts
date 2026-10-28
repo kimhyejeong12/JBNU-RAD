@@ -44,3 +44,19 @@ export const RESULT_VIEWS: ReadonlySet<View> = new Set<View>(["policies", "event
 export const LEVEL_VIEWS: ReadonlySet<View> = new Set<View>(["requests", "policies", "events"]);
 export const TYPE_VIEW: Record<ItemType, View> = { req: "requests", server: "policies", mine: "mine", user: "users", access: "access", policy: "policies", event: "events" };
 export const TYPE_LABEL: Record<ItemType, string> = { req: "권한 신청", server: "서버 점검", mine: "내 신청", user: "계정", access: "권한", policy: "정책 관리", event: "로그 감시" };
+
+export interface DataNeeds { operator: boolean; requests: boolean; mine: boolean; users: boolean; catalog: boolean; results: boolean }
+
+// 역할마다 받을 데이터 — 메뉴가 없는 역할에는 요청하지 않습니다 (일반 사용자에게는 엔진 상태도 묻지 않습니다).
+export function dataNeeds(role: Role): DataNeeds {
+  const views = ROLE_VIEWS[role];
+  const mine = views.includes("mine");
+  return {
+    operator: role !== "user",
+    requests: views.includes("requests"),
+    mine,
+    users: views.includes("users"),
+    catalog: views.includes("access") || mine,
+    results: views.some((v) => RESULT_VIEWS.has(v)),
+  };
+}
