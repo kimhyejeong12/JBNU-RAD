@@ -121,18 +121,36 @@ export interface PolicyIssue {
   sources?: string[];
 }
 
+// 수집 노드가 읽어 온 모듈 상태 — 모듈별 사실(키 · 값)과 직전 수집과 달라진 설정.
+export interface Snapshot {
+  collected_at?: string | null;
+  collected_by?: string | null;
+  modules?: Record<string, Record<string, string>>;
+  changes?: string[];
+}
+
+// 서버 점검의 "정책과 다른 곳" 한 곳 — 지금 · 기준 · 바꿀 것 · 근거 조항.
+export interface ServerGap {
+  level: Level;
+  item: string;
+  current: string;
+  required: string;
+  change: string;
+  source?: string | null;
+}
+
 export interface ServerFinding {
   key: string;
   id: string;
   title: string;
   level: Level;
   reason: string;
-  recommendation?: string;
+  recommendation?: string | null;   // 10/14 전 결과에만 있음 — 있으면 예전 칸으로 보입니다
   sources?: string[];
-  gaps: Record<string, unknown>[];
-  unjudged?: string[];
+  gaps: ServerGap[];
+  unjudged: string[];
   failed?: boolean;
-  detail?: Record<string, unknown>;
+  detail?: { state?: Record<string, string | null>; snapshot?: Snapshot | null; matched?: string };
 }
 
 export interface EventFinding {
@@ -157,6 +175,7 @@ export interface Section {
 export interface Decision {
   action: string;
   decider_name: string;
+  decider_department?: string | null;
   decided_at: string;
   comment: string | null;
   ai_level: string | null;

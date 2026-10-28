@@ -3,6 +3,7 @@ import { useUi } from "./ui/UiContext";
 import { useQueue } from "./queue/useQueue";
 import { EmptyQueuePanel } from "./queue/EmptyPanel";
 import { RequestPanel } from "@/features/requests/RequestPanel";
+import { ReviewPanel } from "@/features/review/ReviewPanel";
 
 // 오른쪽 패널 — 메뉴 · 탭마다 내용이 다릅니다. 작은 화면에서는 서랍으로 뜹니다.
 export function RightPanel() {
@@ -11,6 +12,7 @@ export function RightPanel() {
   const it = items.find((i) => i.key === ui.selected);
   let body: ReactNode;
   if (it && (it.type === "req" || it.type === "mine")) body = <RequestPanel key={it.key} it={it} />;
+  else if (it && (it.type === "policy" || it.type === "server" || it.type === "event")) body = <ReviewPanel key={it.key} it={it} />;
   else body = <EmptyQueuePanel view={ui.view} />;
   return (
     <aside className={ui.drawerOpen ? "card panel open" : "card panel"} id="panel">
