@@ -13,4 +13,6 @@ make index            # docs/ 기준 문서 적재
 make web              # http://localhost:8000
 ```
 
+화면 소스는 `frontend/`(React · Vite)에 있고, `make web`은 커밋된 빌드 결과(`sentinelai/web/static/`)를 서빙한다 — 서버에 Node 는 필요 없다. 화면을 고치면 `make front-build` 결과를 함께 커밋한다.
+
 설정은 `.env`의 `SENTINELAI_*` 값에서 읽습니다.

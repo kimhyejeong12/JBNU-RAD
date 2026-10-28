@@ -63,7 +63,7 @@ JBNU-RAD/
 │       ├── api_nodes.py          수집 노드 API — 노드가 보내는 수집 받기(키만) · 노드 등록 · 키 발급 · 목록 · 끄기 (/api/nodes)
 │       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 권한 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 준다
 │       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
-│       └── static/index.html     단일 파일 대시보드 — 메뉴(권한 신청 · 정책 관리 · 로그 감시 · 통계 · 정책 질의)별 검토 현황, 정책 관리의 서버 질의 · 로그 감시의 로그 질의 탭 (CSS · JS · 아이콘 인라인)
+│       └── static/               화면 빌드 결과 (index.html · assets/) — frontend/ 에서 `make front-build` 로 만들어 커밋한다. 서버는 이 폴더를 그대로 서빙한다
 ├── docs/                     판정 근거 기준 문서 — 수정 금지
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
@@ -76,11 +76,16 @@ JBNU-RAD/
 ├── scripts/
 │   ├── dev_setup.py            로컬 시험 환경 만들기 (`make dev-setup`) — .dev/ 에 시험 계정 · 시험용 권한 목록 · 이 컴퓨터용 노드 설정
 │   └── dev_nodes.py            노드 수집 시험 — 시험 환경의 노드 키 꺼내기(`key`) · 흉내 노드(`sim`, make dev-sim)
+├── frontend/                 React 화면 소스 (김혜정) — 10/29에 static/index.html 한 파일을 기능 · 모양 그대로 옮겼다 (리디자인은 다음). TypeScript · Vite · TanStack Query · Vitest. 빌드 결과를 sentinelai/web/static/ 에 커밋하므로 서버에는 Node 가 없어도 된다
+│   └── src/
+│       ├── app/                  껍데기 — App(로그인 게이트) · AppShell · TopBar · Sidebar · Workspace · RightPanel · Footer, ui/(UiContext · uiReducer · PanelHead · PanelMsg · SourceChips · usePanelAction), queue/(검토 현황 공통 — useQueue · select · QueueTable …), data.ts(역할별 데이터 훅) · views.ts(메뉴 · 탭 · 역할)
+│       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · levels …) · ui/(Icon · LevelDot · KvTable · Section · History · charts/) · styles/(옛 CSS 를 영역별로 나눈 것, 클래스 이름 그대로)
+│       └── features/             메뉴별 — auth · requests(결재함 · 신청서) · review(정책 · 서버 점검 · 로그 감시 패널) · nodes · logs · ask(정책 · 서버 · 로그 질의, 예시 질문은 config.ts) · stats · catalog · accounts. 서로 import 하지 않고 shared 와 app/{me,data,ui,views} 만 쓴다
 ├── .dev/                     로컬 시험 환경의 두 DB · 벡터 DB · node.conf (git 제외)
 ├── .milvus/                  벡터 DB 파일 (Milvus Lite, git 제외)
 ├── .env · .env.example       설정. .env는 git 제외, make install이 예시에서 만든다
 ├── design/                   설계 문서 — db-schema.md (권한 DB 결정 경위 · 남은 질문) · results-db.md (AI 결과 DB)
-├── FRONTEND_GUIDE.md         화면을 React로 전체 리디자인하기 위한 가이드 — 지킬 것(제약 · 역할별 기능 · API · 화면마다 할 일 · 글 원칙)과 바꿔도 되는 것(배치 · 색 · 컴포넌트) · 확인 목록 (10/23)
+├── FRONTEND_GUIDE.md         화면 가이드 — 지킬 것(제약 · 역할별 기능 · API · 화면마다 할 일 · 글 원칙)과 바꿔도 되는 것(배치 · 색 · 컴포넌트) · 확인 목록 (10/23, 10/29 React 이식 뒤 갱신)
 ├── NOTES.md                  작업 메모 — 설정 값의 이유 · 서버 이슈 경위 · 모델 비교 결과. 설정 파일과 코드에는 설명 주석을 두지 않고 여기에 적는다
 ├── Makefile · requirements.txt
 └── Dockerfile · README.md    코어 컨테이너(엔진 · data · db, `python -m sentinelai`) · 저장소 소개 (웹은 컨테이너에 없음)
@@ -178,7 +183,7 @@ JBNU-RAD/
 | 서버 질의 (정책 관리 탭) | 내 지난 질의가 먼저 보인다 (`/api/qa?kind=servers`). 답 = `answer`, 조건 = `criteria`(노드 · 모듈 · 기간), 근거 칩 "서버 N대 · 기록 N줄" → 누르면 오른쪽 패널에 집계(서버 수 · 마지막 판정 등급별 · 노드별 수집 · 바뀐 설정 · 판정 건수)와 바뀐 설정 · 서버 점검 기록 줄. 숫자는 모두 코드가 센 값이다 |
 | 보안 통계 (통계 메뉴의 탭) | 10/21. 10/22에 사용자 위협과 한 메뉴 "통계"[보안 통계 · 사용자 위협]로 묶었다. `GET /api/stats` — 기간 버튼 [일주일 · 한 달 · 3개월 · 전체](지금부터, 기본 한 달, 사용자 위협과 같이 씀). **대부분 그래프** (외부 라이브러리 없이 HTML · CSS · 작은 SVG, 값은 막대 옆 글자 · 툴팁 · 구역마다 [표로 보기]로도 준다). 맨 위 **시스템 안전 점수** (10/23): 큰 숫자(80 이상 정상 색 · 50 이상 주의 색 · 그 아래 위험 색) · 점수를 깎은 노드(위험 · 주의 · 끊김 · 판정 없음, 누르면 노드 패널) · 날짜별 흐름선. 감점식이 아니라 등급 비율이라 무엇이 깎았는지 그대로 보인다. 위 타일 넷: 위협 로그 비율(+ 위험 · 주의 막대) · 위협 로그 빈도(하루 평균 + 날짜별 꺾은선) · 위험 판정 로그 · 노드 위협 항목. 위협 로그: 날짜별 세로 막대(높이 = 그날 로그 건수, 조각 = 위험 · 주의 · 그 외 로그 — 빈도와 비율을 한 번에). 노드 위협 데이터: 모듈별 · 노드별 위협 항목 가로 막대 (서버 점검 등급 흐름 · 걸린 조항 차트는 10/22에 뺐다 — 노드 패널에 점검 기록 · 걸린 조항이 남아 있다). 색은 등급 색(위험 · 주의 · 정상)만, 그 외는 회색. 로그 감시는 사용자별로 묶어 판정하므로 줄마다 자기 시각으로 센다 (판정 하나가 몇 주를 묶는다). 막대를 누르면 패널에 내용과 이어 볼 곳 — 노드 → 노드 탭. 판정 실패는 주의로 센다 |
 | 사용자 위협 (통계 메뉴의 탭) | 10/22에 보안 통계에서 사용자 · 권한 신청 쪽을 나눴다. `GET /api/user-stats`, 보안 통계와 같은 화면 · 기간 버튼. **위협 예측 — 의심 점수**(맨 위, 10/22): 사람마다 0~100 막대(높은 순, 색 = 높음 70 이상 · 보통 40~69 · 낮음, 직전보다 10점 넘게 오르내리면 ▲ · ▼, 옆에 35일 로그 감시 위험 · 주의 판정 수), [지금 예측](작업 `suspects`). 맨 위 **사용자 안전 점수** (10/23, 시스템 안전 점수와 같은 모양 — 의심 높음 · 보통인 사람을 누르면 그 사람 패널). 누르면 패널 = 의심 점수 · 등급, 예측 이유 · 확인할 점(모델), 지금 가진 권한(시스템 · 분류 · 기간 끝, 누르면 권한 신청 [유효 권한]의 그 신청 — 회수는 거기서), 행동 신호(코드가 센 값), 판정 · 신청 기록(35일), 점수 흐름, [이 사용자의 로그 조회] · [로그 감시 판정 보기]. 계정과 로그 사용자는 계정의 로그 사용자 ID로 잇는다 (잇지 않은 로그 사용자는 계정 미연결). 판정이 아니라 먼저 살펴볼 사람을 고르는 예측이다. 처음의 규칙 신뢰 수치(100점에서 감점)는 원래 목적(위협 예측)에 맞지 않아 같은 날 바꿨다. 타일: 위협 예측 높음(보통 · 반복 위협 수 함께) · 위협 사용자 · 신청 중 위험 비율(+ 막대) · AI와 결재가 엇갈린 신청. 사용자별 위협 로그 가로 막대는 10/23에 의심 점수에 합쳤다 (막대 길이는 로그 줄 수 · 글자는 판정 수로 단위가 섞였고, 누구를 먼저 볼지는 의심 점수와 겹쳤다). 부서 · 권한별 신청 위험도 구역은 10/22에 뺐다 (API 의 `requests`는 타일이 쓴다). |
-| 정책 질의 (메뉴) | 10/21에 정책 관리의 탭에서 독립 메뉴로 뺐다 (정책 질문은 어느 메뉴에도 속하지 않아서). 탭 줄 없이 질의 화면 하나, 목록 건수는 달지 않는다. 내 지난 질의가 먼저 보인다. 답 = `Answer.answer`, 근거 = `Answer.sources` → 누르면 그때 오른쪽 패널을 열어 원문을 보여준다. 예시 질문 버튼(스크립트의 `ASK_EXAMPLES`)도 직접 입력과 똑같이 실시간으로 답을 만든다. 등급 배지는 달지 않는다 |
+| 정책 질의 (메뉴) | 10/21에 정책 관리의 탭에서 독립 메뉴로 뺐다 (정책 질문은 어느 메뉴에도 속하지 않아서). 탭 줄 없이 질의 화면 하나, 목록 건수는 달지 않는다. 내 지난 질의가 먼저 보인다. 답 = `Answer.answer`, 근거 = `Answer.sources` → 누르면 그때 오른쪽 패널을 열어 원문을 보여준다. 예시 질문 버튼(`frontend/src/features/ask/config.ts`의 `ASK`)도 직접 입력과 똑같이 실시간으로 답을 만든다. 등급 배지는 달지 않는다 |
 | 하단 | 계산 시각 = 구역별 마지막 실행 중 가장 늦은 것. 판정 실패 · 읽지 못한 행 · 작업 실패는 있을 때만 경고 |
 
 ---
@@ -201,6 +206,8 @@ JBNU-RAD/
 | `make dev-sim [NODES=3] [ROUNDS=3] [EVERY=5]` | **노드 수집 흉내** — 흉내 노드(sim-01…)가 잠근 Ubuntu 서버 원문(`scripts/dev_nodes.py`의 BASE)에서 시작해 차례마다 반쯤 확률로 설정 하나를 바꿔(UFW 끄기 · root · 비밀번호 로그인 열기 · NOPASSWD 더하기 · 실패 잠금 빼기) 진짜 노드와 같은 주소 · 키로 보낸다. 받기 · 바뀐 것 · 주기 점검 · 화면을 컨테이너 없이 시험 |
 | `make dev-targets` · `make dev-targets-stop` | **진짜 수집** — `node/testenv/compose.yaml`(podman compose)로 점검 대상 컨테이너 2대(`target-weak`: root · 비밀번호 로그인, NOPASSWD, 실패 잠금 없음, 22 · 3306 어디서나 / `target-strict`: 잠근 설정)를 올리고 내린다. 그 안에서 진짜 노드가 root 로 읽어 보낸다. 값은 옵션 파일 `node/testenv/targets.env`(git 제외: `SERVER` · `KEY_WEAK` · `KEY_STRICT` · `INTERVAL`) — 없으면 시험 환경 키로 만들고, 화면에서 발급한 키 · 진짜 서버(`:8000`)로 고쳐 다시 `make dev-targets` 하면 그 값으로 바꿔 띄운다. `host.containers.internal`을 호스트 127.0.0.1로 이어(pasta `--map-host-loopback`) SentinelAI를 바깥에 열지 않고, NET_ADMIN 으로 ufw 가 실제로 켜진다. podman compose 는 사용자 podman 소켓이 필요해 대상이 켠다(`systemctl --user start podman.socket`). 10/20 시험: weak 위험 · strict 정상 |
 | `make dev-node` | 이 컴퓨터를 노드로 한 번 보내기 (root 가 아니면 SSH · sudo 는 "확인 못함") |
+| `make front-install` · `make front` · `make front-test` | **React 화면 개발** — npm 의존성 설치(처음 한 번) · 개발 서버 http://localhost:5173 (`/api` 는 8001 의 `make dev` 로 넘긴다. 쿠키는 호스트별이라 `127.0.0.1:8001` 과 세션이 따로다) · 단위 시험 · 타입 검사 · 린트 |
+| `make front-build` · `make front-check` | 화면 빌드 → `sentinelai/web/static/` (결과를 **커밋**한다 — 팀 서버에 Node · 외부망이 없어도 `make web` 만으로 새 화면). 화면 소스를 고치면 빌드 결과를 같은 커밋에 넣는다. `front-check` 는 깨끗이 설치해 빌드한 결과가 커밋된 것과 같은지 확인 |
 
 10/20에 CLI를 줄였다 — `config` · `models` · `search` · `ask` · `chat` · `index-policies` · `review-requests`(CSV 권한 신청 평가) · `ask-logs`는 없앴다 (질의는 화면에서, 규칙 적재는 `review-policies`가 한다). 대상 위치는 모두 `.env`에서만 정한다.
 
@@ -225,7 +232,7 @@ JBNU-RAD/
 - ❌ `sentinelai/engine/`, `docs/` 수정. 프롬프트(`sentinelai/engine/prompt.py`)도 엔진 담당자와 상의 없이 바꾸지 않는다
 - ❌ 엔진 기능 재구현, 엔진 타입을 대체하는 웹 전용 스키마
 - ❌ 서버 주소 · 모델명 하드코딩 — 전부 `Settings`
-- ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제), React · Tailwind · 빌드 도구 — 화면을 React로 전체 리디자인하기로 했다 (10/23, `FRONTEND_GUIDE.md`). 시작할 때 이 규칙과 아래 화면 규칙을 새 디자인에 맞게 고친다 (빌드 결과만 서빙하므로 외부망 제약은 그대로)
+- ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제). 화면은 React + Vite(TypeScript)로 옮겼다 (10/29, `frontend/`) — 빌드 결과(`sentinelai/web/static/`)를 커밋해 서버에 Node 가 필요 없고, 화면 소스를 고치면 `make front-build` 결과를 함께 커밋한다. Tailwind 등 새 의존성은 리디자인 때 정한다 (지금은 옛 CSS 를 클래스 이름 그대로 나눠 둠)
 - ❌ 파일 업로드 (문서 데이터 읽기 · §8에서 다시 정한다)
 - 데이터베이스와 로그인(ID/PW, 운영자 분리)은 10/11에 금지를 풀었다 — 더 이상 데모가 아니다. DB · 로그인 · 권한 관리 화면까지 구현했다 (10/11)
 - ❌ 정책 자동 수정 · 권한 자동 승인 — 결정은 사람이 한다 (권한 신청은 보안 운영자 · 보안 총책임자가 결재해 DB에 남는다)
@@ -278,7 +285,7 @@ JBNU-RAD/
 
 **REQ-002 · REQ-004가 가장 중요하다.** 정상을 정상으로 판정하는 것(오탐률)이 실무 도입을 좌우한다. 두 건은 현재 모두 맞았다.
 
-정책 질의 예시 질문(화면 `ASK_EXAMPLES`)은 10/8부터 실시간으로 답한다. 9/30 `qwen2.5:7b` 캐시에서는 "감사팀 담당자 → 인사 정보" 질문이 원문 "인사팀 소속 임직원"을 "감사팀 소속 임직원"으로 바꿔 옮겨 예시에서 뺐다.
+정책 질의 예시 질문(`frontend/src/features/ask/config.ts`)은 10/8부터 실시간으로 답한다. 9/30 `qwen2.5:7b` 캐시에서는 "감사팀 담당자 → 인사 정보" 질문이 원문 "인사팀 소속 임직원"을 "감사팀 소속 임직원"으로 바꿔 옮겨 예시에서 뺐다.
 
 ---
 

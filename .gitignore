@@ -13,5 +13,4 @@ node/testenv/targets.env
 
 # React 화면 소스 (frontend/) — 빌드 결과만 sentinelai/web/static/ 에 둡니다
 frontend/node_modules/
-frontend/dist/
 .superpowers/

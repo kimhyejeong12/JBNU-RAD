@@ -12,7 +12,7 @@ DEV_ENV := SENTINELAI_DB_PATH=.dev/sentinelai.db SENTINELAI_RESULTS_DB_PATH=.dev
 PODMAN ?= podman
 TARGETS := cd node/testenv && $(PODMAN) compose --env-file targets.env
 
-.PHONY: dev-setup dev dev-node dev-sim dev-targets dev-targets-stop front-install front front-test help install health index review-policies check-nodes monitor import-snapshots create-root web docker-build docker-run clean
+.PHONY: dev-setup dev dev-node dev-sim dev-targets dev-targets-stop front-install front front-test front-build front-check help install health index review-policies check-nodes monitor import-snapshots create-root web docker-build docker-run clean
 
 help:
 	@echo "install                        venv 생성 + 의존성 설치 + .env 준비"
@@ -38,6 +38,8 @@ help:
 	@echo "front-install                  npm 의존성 설치 (처음 한 번)"
 	@echo "front                          화면 개발 서버 (http://localhost:5173, /api 는 8001 로 넘김)"
 	@echo "front-test                     화면 단위 시험 · 타입 검사 · 린트"
+	@echo "front-build                    화면 빌드 → sentinelai/web/static/ (결과를 커밋한다, 서버에 Node 불필요)"
+	@echo "front-check                    깨끗이 설치해 빌드한 결과가 커밋된 것과 같은지 확인"
 	@echo "docker-build · docker-run · clean"
 
 install:
@@ -88,6 +90,12 @@ front:
 
 front-test:
 	cd frontend && npm test && npm run typecheck && npm run lint
+
+front-build:
+	cd frontend && npm run build
+
+front-check:
+	$(MAKE) front-install front-build && git status --porcelain sentinelai/web/static | (! grep .)
 
 dev-sim:
 	$(DEV_ENV) $(PY) scripts/dev_nodes.py sim -n $(or $(NODES),3) -r $(or $(ROUNDS),3) -e $(or $(EVERY),5)
