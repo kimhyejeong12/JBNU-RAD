@@ -264,7 +264,40 @@ export interface NodeDetail {
   snapshots: { collected_at: string; changes: string[] }[];
 }
 
-// 로그 · 통계 응답은 그 화면을 옮길 때 칸을 채웁니다.
-export type LogsPage = Record<string, unknown> & { options: Record<string, string[]> };
+export interface LogEvent {
+  occurred_at: string;
+  user: string;              // "부서 이름"
+  user_id?: string | null;
+  solution: string;
+  where: string;
+  how: string;
+  source_ip?: string | null;
+  attributes?: Record<string, string | number> | null;
+  raw?: Record<string, string> | null;   // 내보낸 행 그대로
+}
+
+export interface LogFacts {
+  count: number;
+  first?: string | null;
+  last?: string | null;
+  attribute_totals: Record<string, number>;
+  by_user: Record<string, number>;
+  by_day: Record<string, number>;
+}
+
+export interface LogsPage {
+  period: LogPeriod;
+  since: string | null;
+  until: string | null;
+  criteria: Record<string, string>;
+  total: number;
+  page: number;
+  page_size: number;
+  facts?: LogFacts | null;
+  events: LogEvent[];
+  options: { users: string[]; solutions: string[]; how: string[] };
+}
+
+// 통계 응답은 그 화면을 옮길 때 칸을 채웁니다.
 export type Stats = Record<string, unknown>;
 export type UserStats = Record<string, unknown>;

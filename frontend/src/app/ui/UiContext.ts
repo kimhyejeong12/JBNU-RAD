@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useReducer, type Dispatch } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { initialUi, uiReducer, type AskSource, type StageFilter, type UiAction, type UiState } from "./uiReducer";
 import { TYPE_VIEW, type MainTab, type View } from "@/app/views";
 import { firstKeyInView, inView } from "@/app/queue/select";
@@ -46,6 +47,7 @@ export function useUiStore(): UiStore {
   const items = useQueue();
   const [ui, dispatch] = useReducer(uiReducer, initialUi);
   const narrow = useMediaQuery(NARROW);
+  const qc = useQueryClient();
   return useMemo<UiStore>(() => {
     const role = me.role;
     const current = items.find((i) => i.key === ui.selected);
@@ -72,7 +74,11 @@ export function useUiStore(): UiStore {
       },
       setMainTab: (tab) => dispatch({ type: "SET_MAIN_TAB", tab }),
       closePanel: () => dispatch({ type: "CLOSE_PANEL" }),
-      openLogs: (cond) => dispatch({ type: "OPEN_LOGS", cond }),
+      // 다른 화면(로그 감시 판정)에서 조건을 정해 엽니다 — 옛 화면처럼 그때 다시 받습니다.
+      openLogs: (cond) => {
+        qc.removeQueries({ queryKey: ["logs"] });
+        dispatch({ type: "OPEN_LOGS", cond });
+      },
       toggleFilter: (level) => dispatch({ type: "TOGGLE_FILTER", level }),
       setQuery: (query) => dispatch({ type: "SET_QUERY", query }),
       setStageFilter: (value) => {
@@ -92,5 +98,5 @@ export function useUiStore(): UiStore {
       setStats: (patch) => dispatch({ type: "SET_STATS", patch }),
       setAskSource: (src) => dispatch({ type: "SET_ASK_SOURCE", src }),
     };
-  }, [ui, items, me.role, narrow]);
+  }, [ui, items, me.role, narrow, qc]);
 }
