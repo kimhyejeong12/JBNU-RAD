@@ -1,0 +1,26 @@
+/* ── 작업 영역 ─────────────────────────── */
+.workspace {
+  display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 18px;
+  padding: 18px 22px 22px; min-height: 0;
+}
+.main-col { display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: auto; }
+.main-col > * { flex-shrink: 0; }
+.card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
+/* 정책 질의 탭은 질의를 넓게 쓰고, 근거 칩을 눌렀을 때만 오른쪽에 인용 조항 패널을 엽니다 */
+.workspace[data-tab="ask"]:not(.cite) { grid-template-columns: minmax(0, 1fr); }
+.workspace[data-tab="ask"]:not(.cite) > .panel { display: none; }
+.workspace[data-tab="ask"] .drawer-close { display: block; }
+/* 메인 탭 — 분석 대기열 · 통계 대시보드 · 권한 질의 */
+.main-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.main-tabs[hidden], .main-tab[hidden] { display: none; }
+.main-tab {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 14px; margin-bottom: -1px; border: none; border-bottom: 2px solid transparent;
+  background: none; font-size: 14px; font-weight: 700; color: var(--ink-dim);
+}
+.main-tab:hover { color: var(--ink); }
+.main-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.view-queue { display: flex; flex-direction: column; gap: 14px; }
+/* display 를 지정한 요소는 hidden 속성만으로 숨겨지지 않아 직접 끕니다. */
+.view-queue[hidden], .ask[hidden], .logs[hidden], .nodes[hidden], .stats-view[hidden] { display: none; }
+footer.foot { font-size: 11.5px; color: var(--ink-dim); padding: 2px 4px; }

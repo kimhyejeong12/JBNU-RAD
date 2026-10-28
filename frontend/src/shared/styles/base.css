@@ -1,0 +1,32 @@
+:root {
+  --accent: #EA002C;   /* SK쉴더스 CI — 강조 · 위험 */
+  --sub: #FF7A00;      /* 보조 · 주의 */
+  --ok: #2E7D5B;       /* 정상 */
+  --ink: #111111;
+  --ink-dim: #666666;
+  --bg: #FFFFFF;
+  --bg-soft: #F5F5F6;
+  --line: #E4E4E7;
+  --risk-tint: #FFF4F6;
+  --warn-tint: #FFF6EE;
+  --ok-tint: #EFF7F3;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  height: 100vh; overflow: hidden;
+  display: grid;
+  grid-template-rows: 56px minmax(0, 1fr);
+  grid-template-columns: 60px minmax(0, 1fr);
+  background: var(--bg-soft);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+               "Malgun Gothic", sans-serif;
+  font-size: 14px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none;
+        stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+svg.i.sm { width: 15px; height: 15px; }
+#root { display: contents; }   /* body 가 그리드라 React 의 뿌리 요소는 투명하게 둡니다 */

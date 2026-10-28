@@ -1,0 +1,18 @@
+/* ── 우측 패널 ─────────────────────────── */
+.panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.panel-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
+.panel-head h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
+.drawer-close { display: none; margin-left: auto; padding: 0 4px; border: none; background: none; font-size: 22px; line-height: 1; color: var(--ink-dim); }
+.drawer-close:hover { color: var(--ink); }
+.rerun ~ .drawer-close { margin-left: 4px; }
+.drawer-back { display: none; }
+.rerun {
+  margin-left: auto; display: flex; align-items: center; gap: 6px;
+  padding: 6px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg);
+  font-size: 12.5px; font-weight: 600;
+}
+.rerun:hover { border-color: var(--ink-dim); }
+.rerun:disabled { color: var(--ink-dim); background: var(--bg-soft); cursor: progress; }
+.panel-body { flex: 1; overflow: auto; padding: 16px 18px; }
+.panel-foot { padding: 14px 18px 16px; border-top: 1px solid var(--line); background: var(--bg); }
+.panel-foot h4 { margin: 0 0 9px; font-size: 12.5px; font-weight: 700; }

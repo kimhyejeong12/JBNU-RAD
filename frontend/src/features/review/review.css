@@ -1,0 +1,16 @@
+.gap { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.gap-head { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.gap .kv th { width: 52px; }
+.gap .chips { margin-top: 6px; }
+.decide { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.decide button {
+  height: 40px; border-radius: 8px; font-weight: 700; font-size: 13.5px; border: 1px solid;
+}
+.decide .approve { color: var(--ok); border-color: #9CCDB5; background: var(--ok-tint); }
+.decide .cond { color: #B85600; border-color: #FFC999; background: var(--warn-tint); }
+.decide .reject { color: #fff; border-color: var(--accent); background: var(--accent); }
+.decide button:hover { filter: brightness(0.97); }
+.decide button[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 1px; }
+.decision-state { font-size: 12px; margin-top: 8px; color: var(--ink-dim); display: flex; gap: 8px; align-items: center; }
+.decision-state b { color: var(--ink); }
+.decision-state button { border: none; background: none; padding: 0; color: var(--ink-dim); text-decoration: underline; font-size: 12px; }

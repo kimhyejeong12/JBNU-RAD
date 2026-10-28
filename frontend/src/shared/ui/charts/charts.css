@@ -1,0 +1,36 @@
+/* 차트 — 막대는 24px 이하 · 끝만 4px 둥글게 · 맞닿는 조각은 2px 흰 틈. 숫자는 막대 옆 글자로 줘서 색만으로 읽지 않게 합니다 */
+.chart { padding: 4px 18px 6px; }
+.cols { position: relative; display: flex; align-items: flex-end; gap: 2px; height: 140px; margin-left: 30px; border-bottom: 1px solid var(--line); }
+.cols .grid { position: absolute; left: -30px; right: 0; border-top: 1px solid var(--line); font-size: 10.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.cols .grid span { position: absolute; top: -7px; left: 0; width: 26px; text-align: right; background: var(--bg); }
+.cols .col { position: relative; z-index: 1; flex: 1 1 0; height: 100%; display: flex; justify-content: center; outline-offset: 2px; }
+.cols .stack { width: 100%; max-width: 24px; height: 100%; display: flex; flex-direction: column-reverse; gap: 2px; }
+.cols .col:hover .mk, .cols .col:focus .mk { filter: brightness(1.12); }
+.mk { display: block; flex: none; }
+.cols .stack .mk:last-child { border-radius: 4px 4px 0 0; }
+.mk.위험 { background: var(--accent); } .mk.주의 { background: var(--sub); } .mk.정상 { background: var(--ok); } .mk.기타 { background: #D4D4D8; }
+.xaxis { position: relative; height: 18px; margin-left: 30px; font-size: 11px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.xaxis span { position: absolute; top: 4px; transform: translateX(-50%); white-space: nowrap; }
+.xaxis span:first-child { transform: none; } .xaxis span:last-child { transform: translateX(-100%); }
+.hbars { display: grid; grid-template-columns: minmax(90px, max-content) 1fr max-content; gap: 6px 10px; align-items: center; }
+.hbar { display: contents; cursor: pointer; }
+.hbar .lbl { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+.hbar .track { display: flex; align-items: center; min-width: 0; }
+.hbar .bar { display: flex; gap: 2px; height: 14px; min-width: 0; }
+.hbar .bar .mk { height: 100%; }
+.hbar .bar .mk:last-child { border-radius: 0 4px 4px 0; }
+.hbar .val { font-size: 12px; color: var(--ink-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hbar:hover .lbl, .hbar:focus-within .lbl, .hbar[aria-current="true"] .lbl { font-weight: 700; }
+.hbar[aria-current="true"] .bar { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 4px; }
+@media (max-width: 760px) {
+  .hbars { grid-template-columns: minmax(70px, 34%) 1fr; row-gap: 2px; }
+  .hbar .val { grid-column: 2; margin-bottom: 6px; }
+}
+.legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 8px 18px 4px; font-size: 12px; color: var(--ink-dim); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.legend i.round { border-radius: 50%; }
+.chart-title { margin: 0; padding: 10px 18px 2px; font-size: 13px; font-weight: 700; }
+.tableview { padding: 4px 18px 12px; }
+.tableview summary { cursor: pointer; font-size: 12px; color: var(--ink-dim); padding: 4px 0; }
+.tableview .ltable-wrap { margin: 6px -18px 0; }
+.meter { display: flex; gap: 2px; height: 8px; margin-top: 6px; background: var(--bg-soft); border-radius: 4px; overflow: hidden; }
