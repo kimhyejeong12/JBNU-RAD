@@ -4,6 +4,7 @@ import { RESULT_VIEWS, ROLE_VIEWS } from "./views";
 import { NARROW, UiContext, useUiStore } from "./ui/UiContext";
 import { useBoot } from "./useBoot";
 import { useJobsWatcher } from "./useJobsWatcher";
+import { useQueue } from "./queue/useQueue";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { Workspace } from "./Workspace";
@@ -58,6 +59,11 @@ function Shell() {
   useEffect(() => {
     if (boot.ready && ui.view === null) navigate(views[0]);
   }, [boot.ready, ui.view, navigate, views]);
+  // 결재 · 회수로 목록에서 빠진 항목을 고르고 있었으면 같은 신청을 다른 메뉴에서 찾지 않고 그대로 비웁니다.
+  const items = useQueue();
+  useEffect(() => {
+    if (ui.selected && !items.some((i) => i.key === ui.selected)) dispatch({ type: "SELECT_SILENT", key: null });
+  }, [items, ui.selected, dispatch]);
 
   return (
     <UiContext.Provider value={store}>

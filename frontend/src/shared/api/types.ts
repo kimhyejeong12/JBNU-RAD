@@ -43,17 +43,20 @@ export interface Verdict {
 }
 
 export interface Approval {
-  step: string;
-  decided_by_name: string;
-  action: string;
-  comment: string | null;
+  step: "manager" | "top";
+  action: "approve" | "reject";
+  approver_name: string;
+  approver_department: string | null;
   decided_at: string;
+  ai_level: string | null;
+  comment: string | null;
 }
 
 export interface Revocation {
-  revoked_by_name: string;
-  reason: string | null;
+  revoker_name: string;
+  revoker_department: string | null;
   revoked_at: string;
+  reason: string;
 }
 
 export interface RequestRow {

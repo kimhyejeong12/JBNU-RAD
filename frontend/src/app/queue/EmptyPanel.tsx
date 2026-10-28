@@ -1,5 +1,5 @@
 import type { View } from "@/app/views";
-import { PanelHead } from "@/shared/ui/PanelHead";
+import { PanelHead } from "@/app/ui/PanelHead";
 
 // 빈 패널도 메뉴를 따릅니다. 일반 사용자에게는 AI 문구를 보이지 않습니다.
 export function EmptyQueuePanel({ view }: { view: View | null }) {

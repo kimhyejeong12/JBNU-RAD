@@ -16,7 +16,10 @@ export function runButton(jobs: Jobs | null | undefined, view: string | null): {
   return { hidden: false, disabled: false, text: `${jobs.kinds[kind] || "분석"} 실행` };
 }
 
-export const jobsInterval = (jobs: Jobs | null | undefined): 2000 | 30000 => (jobs?.running ? 2000 : 30000);
+export const runKindLabel = (jobs: Jobs | null | undefined, view: string): string =>
+  `${(jobs && jobs.kinds[VIEW_KIND[view]]) || "분석"} 실행`;
+
+export const jobsInterval =(jobs: Jobs | null | undefined): 2000 | 30000 => (jobs?.running ? 2000 : 30000);
 
 // 빠른 로그 감시는 따로 돌아 running 에 나오지 않습니다. 끝난 시각이 바뀌면 결과를 다시 받습니다.
 export const fastDone = (jobs: Jobs | null | undefined): string | null => jobs?.fast?.last?.events_fast?.finished_at ?? null;
