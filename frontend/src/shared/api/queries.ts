@@ -53,8 +53,16 @@ export const logsQuery = (p: LogsParams) => queryOptions({
   placeholderData: keepPreviousData,
 });
 
-export const statsQuery = (kind: "stats" | "ustats", period: StatPeriod) => queryOptions({
-  queryKey: ["stats", kind, period],
-  queryFn: () => getJSON<Stats | UserStats>(`${kind === "stats" ? "/api/stats" : "/api/user-stats"}?period=${period}`),
+// 통계는 탭에 들어올 때마다 다시 받고, 기간을 바꾸면 같은 종류의 직전 값을 흐리게 보여줍니다.
+export const statsQuery = (period: StatPeriod) => queryOptions({
+  queryKey: ["stats", "stats", period],
+  queryFn: () => getJSON<Stats>(`/api/stats?period=${period}`),
   refetchOnMount: "always",
+  placeholderData: keepPreviousData,
+});
+export const userStatsQuery = (period: StatPeriod) => queryOptions({
+  queryKey: ["stats", "ustats", period],
+  queryFn: () => getJSON<UserStats>(`/api/user-stats?period=${period}`),
+  refetchOnMount: "always",
+  placeholderData: keepPreviousData,
 });

@@ -7,6 +7,7 @@ import { ReviewPanel } from "@/features/review/ReviewPanel";
 import { NodesPanel } from "@/features/nodes/NodesPanel";
 import { LogsPanel } from "@/features/logs/LogsPanel";
 import { AskPanel } from "@/features/ask/AskPanel";
+import { StatsPanel } from "@/features/stats/StatsPanel";
 
 // 오른쪽 패널 — 메뉴 · 탭마다 내용이 다릅니다. 작은 화면에서는 서랍으로 뜹니다.
 export function RightPanel() {
@@ -17,6 +18,7 @@ export function RightPanel() {
   if (ui.mainTab === "ask") body = <AskPanel />;
   else if (ui.mainTab === "logs") body = <LogsPanel />;
   else if (ui.mainTab === "nodes") body = <NodesPanel />;
+  else if (ui.mainTab === "stats" || ui.mainTab === "ustats") body = <StatsPanel />;
   else if (it && (it.type === "req" || it.type === "mine")) body = <RequestPanel key={it.key} it={it} />;
   else if (it && (it.type === "policy" || it.type === "server" || it.type === "event")) body = <ReviewPanel key={it.key} it={it} />;
   else body = <EmptyQueuePanel view={ui.view} />;

@@ -31,6 +31,10 @@ export interface UiStore {
   setLogs(patch: Partial<UiState["logs"]>): void;
   setStats(patch: Partial<UiState["stats"]>): void;
   setAskSource(src: AskSource | null): void;
+  // 다른 메뉴로 이어 보기 (통계 패널 · 노드 패널에서)
+  gotoNode(name: string): void;
+  gotoActiveGrant(no: string): void;
+  gotoEvent(key: string): void;
 }
 
 export const UiContext = createContext<UiStore | null>(null);
@@ -97,6 +101,21 @@ export function useUiStore(): UiStore {
       setLogs: (patch) => dispatch({ type: "SET_LOGS", patch }),
       setStats: (patch) => dispatch({ type: "SET_STATS", patch }),
       setAskSource: (src) => dispatch({ type: "SET_ASK_SOURCE", src }),
+      gotoNode: (name) => {
+        dispatch({ type: "NAVIGATE", view: "policies", nextSelected: keepOrFirst("policies", ui.stageFilter) });
+        dispatch({ type: "SET_MAIN_TAB", tab: "nodes" });
+        dispatch({ type: "PICK_NODE", name });
+        openDrawer();
+      },
+      gotoActiveGrant: (no) => {
+        dispatch({ type: "NAVIGATE", view: "requests", nextSelected: `req:${no}` });
+        dispatch({ type: "SET_STAGE_FILTER", value: "active", nextSelected: `req:${no}` });
+        openDrawer();
+      },
+      gotoEvent: (key) => {
+        dispatch({ type: "NAVIGATE", view: "events", nextSelected: key });
+        openDrawer();
+      },
     };
   }, [ui, items, me.role, narrow, qc]);
 }

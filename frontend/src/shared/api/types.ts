@@ -312,6 +312,92 @@ export interface LogsPage {
   options: { users: string[]; solutions: string[]; how: string[] };
 }
 
-// 통계 응답은 그 화면을 옮길 때 칸을 채웁니다.
-export type Stats = Record<string, unknown>;
-export type UserStats = Record<string, unknown>;
+// 안전 점수 — 대상마다 마지막 등급의 비율(서버가 셉니다). items 는 시스템 안전 점수에만.
+export interface SafetyScore {
+  score: number | null;
+  items?: { node: string; level: Level | null; stale: boolean }[];
+  trend: { day: string; score: number }[];
+}
+
+export interface StatNode {
+  node: string;
+  grades: { at: string; level: string }[];
+  collected: number;
+  changed: number;
+  trend: string;
+  level: Level | null;
+  threats: { "위험": number; "주의": number };
+}
+
+export interface StatModule {
+  module: string;
+  "위험": number;
+  "주의": number;
+  nodes: string[];
+  items: string[];
+}
+
+export interface Stats {
+  period: StatPeriod;
+  since: string | null;
+  logs: { count: number | null; days: Record<string, number> };
+  safety: SafetyScore | null;
+  events: { lines: Record<string, number>; days: { day: string; "주의": number; "위험": number }[] };
+  servers: { nodes: StatNode[]; modules: StatModule[]; clauses: { source: string; nodes: string[]; items: string[] }[] };
+}
+
+export type SuspectLevel = "높음" | "보통" | "낮음";
+
+// 행동 신호 — 최근 7일을 그 앞 4주와 견준 값 (서버가 셉니다).
+export interface SuspectSignals {
+  subject?: string | null;
+  first_seen?: string | null;
+  last_seen?: string | null;
+  recent_events?: number;
+  baseline_events?: number;
+  recent_daily_volume?: number;
+  baseline_daily_volume?: number;
+  volume_ratio?: number | null;
+  off_hours_ratio?: number;
+  exception_ratio?: number;
+  sensitive_events?: number;
+  sensitive_words?: string[];
+  max_burst_30min?: number;
+  highlights?: string[];
+}
+
+export interface HeldAccess {
+  request_no: string;
+  access: string;
+  code?: string | null;
+  system?: string | null;
+  category?: string | null;
+  period_end: string | null;
+}
+
+export interface Suspect {
+  key: string;
+  subject: string;
+  log_id: string | null;
+  login_id: string | null;
+  score: number;
+  level: SuspectLevel;
+  reason: string;
+  watch: string;
+  signals: SuspectSignals;
+  records: Record<string, number>;
+  failed: boolean;
+  error: string | null;
+  created_at: string;
+  trend: { at: string; score: number }[];
+  held: HeldAccess[] | null;   // 계정 미연결이면 null
+}
+
+export interface UserStats {
+  period: StatPeriod;
+  since: string | null;
+  events: { users: { user: string; log_id: string; "주의": number; "위험": number; lines: number; last_at: string; keys: string[] }[] };
+  requests: { total: number; ai: Record<string, number>; mismatches: number };
+  suspects: Suspect[];
+  safety: SafetyScore | null;
+}
