@@ -153,7 +153,7 @@ export interface Section {
 
 export interface Decision {
   action: string;
-  decided_by_name: string;
+  decider_name: string;
   decided_at: string;
   comment: string | null;
   ai_level: string | null;

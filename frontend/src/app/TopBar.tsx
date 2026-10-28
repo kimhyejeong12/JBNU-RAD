@@ -1,0 +1,58 @@
+import { useEffect, useRef, useState } from "react";
+import { useMe } from "./me";
+import { useHealth } from "./data";
+import { engineProblems } from "./engine";
+import { useUi } from "./ui/UiContext";
+import { useQueue } from "./queue/useQueue";
+import { openRisks } from "./queue/select";
+import { AlertPop } from "./AlertPop";
+import { useAuth } from "@/features/auth/AuthContext";
+import { logout } from "@/features/auth/api";
+import { ROLE_LABEL } from "@/shared/lib/labels";
+import { Icon } from "@/shared/ui/Icon";
+import { LevelDot } from "@/shared/ui/LevelDot";
+
+export function TopBar() {
+  const me = useMe();
+  const auth = useAuth();
+  const { select } = useUi();
+  const health = useHealth();
+  const risks = openRisks(useQueue(), me.role);
+  const [popOpen, setPopOpen] = useState(false);
+  const pop = useRef<HTMLDivElement>(null);
+
+  // 정상일 때는 아무것도 띄우지 않고, 문제가 있을 때만 경고 1개를 띄웁니다. 일반 사용자에게는 AI 가 보이지 않으므로 엔진 경고도 없습니다.
+  const problems = me.role === "user" || health.isPending || health.data?.ok ? [] : engineProblems(health.data);
+
+  useEffect(() => {
+    if (!popOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (!pop.current?.contains(e.target as Node)) setPopOpen(false);
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, [popOpen]);
+
+  return (
+    <header className="topbar">
+      <div className="logo"><Icon name="shield" />SentinelAI</div>
+      <div className="top-right">
+        <span className="engine-warn" id="engine-warn" hidden={!problems.length}
+          data-tip={`점검 항목|${problems.join(" · ")}. 저장된 판정 결과는 계속 볼 수 있습니다`}>
+          <LevelDot level="위험" />AI 엔진 점검 필요
+        </span>
+        <div className="whoami" id="who">
+          <span id="who-name">{me.display_name} · {ROLE_LABEL[me.role]}{me.is_root ? " (루트)" : ""}</span>
+          <button className="top-btn" id="btn-password" onClick={() => auth.showPassword(false)}>비밀번호 변경</button>
+          <button className="top-btn" id="btn-logout" onClick={() => void logout()}>로그아웃</button>
+        </div>
+        <button className="bell" id="bell" hidden={me.role === "user"} aria-label="위험 알림"
+          data-tip={risks.length ? `위험 알림 — 미결 ${risks.length}건|눌러서 목록을 봅니다` : "위험 알림|미결 위험이 없습니다"}
+          onClick={(e) => { e.stopPropagation(); setPopOpen((o) => !o); }}>
+          <Icon name="bell" /><span className={risks.length ? "count show" : "count"} id="bell-count">{risks.length}</span>
+        </button>
+      </div>
+      <AlertPop ref={pop} open={popOpen} risks={risks} onPick={(key) => { setPopOpen(false); select(key); }} />
+    </header>
+  );
+}

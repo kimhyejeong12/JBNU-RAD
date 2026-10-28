@@ -39,3 +39,5 @@ export async function getJSON<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const send = <T>(url: string, body?: unknown, method = "POST"): Promise<T> =>
   getJSON<T>(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
+
+export const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e));

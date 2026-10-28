@@ -1,0 +1,74 @@
+import { useEffect, useState } from "react";
+import { MeContext, useMe } from "./me";
+import { RESULT_VIEWS, ROLE_VIEWS } from "./views";
+import { NARROW, UiContext, useUiStore } from "./ui/UiContext";
+import { useBoot } from "./useBoot";
+import { useJobsWatcher } from "./useJobsWatcher";
+import { TopBar } from "./TopBar";
+import { Sidebar } from "./Sidebar";
+import { Workspace } from "./Workspace";
+import { DocsModal } from "./DocsModal";
+import { TooltipLayer } from "./TooltipLayer";
+import type { Me } from "@/shared/api/types";
+import { useMediaQuery } from "@/shared/lib/hooks";
+
+export function AppShell({ me }: { me: Me }) {
+  return (
+    <MeContext.Provider value={me}>
+      <Shell />
+    </MeContext.Provider>
+  );
+}
+
+// body 가 그리드라 자식 순서를 지키고 감싸는 요소를 두지 않습니다 (#root 는 display: contents).
+function Shell() {
+  const me = useMe();
+  const views = ROLE_VIEWS[me.role];
+  const store = useUiStore();
+  const { ui, dispatch, navigate } = store;
+  const boot = useBoot();
+  useJobsWatcher(views.some((v) => RESULT_VIEWS.has(v)));
+  const [docsOpen, setDocsOpen] = useState(false);
+  const narrow = useMediaQuery(NARROW);
+
+  // 메뉴가 하나뿐인 일반 사용자는 사이드바 없이 신청 화면만 씁니다.
+  const solo = views.length < 2;
+  useEffect(() => {
+    document.body.classList.toggle("solo", solo);
+    return () => document.body.classList.remove("solo");
+  }, [solo]);
+  useEffect(() => {
+    document.body.classList.toggle("drawer-open", ui.drawerOpen);
+    return () => document.body.classList.remove("drawer-open");
+  }, [ui.drawerOpen]);
+  // 넓은 화면으로 바뀌면 서랍 상태를 풀어 배경 막이 남지 않게 합니다.
+  useEffect(() => {
+    if (!narrow) dispatch({ type: "CLOSE_DRAWER" });
+  }, [narrow, dispatch]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setDocsOpen(false);
+      dispatch({ type: "CLOSE_PANEL" });
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [dispatch]);
+  // 데이터를 다 받으면 첫 메뉴를 엽니다.
+  useEffect(() => {
+    if (boot.ready && ui.view === null) navigate(views[0]);
+  }, [boot.ready, ui.view, navigate, views]);
+
+  return (
+    <UiContext.Provider value={store}>
+      <TopBar />
+      <Sidebar onDocs={() => setDocsOpen(true)} />
+      {boot.error
+        ? <div className="workspace"><div className="card empty" style={{ gridColumn: "1 / -1" }}>서버에서 화면 데이터를 받지 못했습니다: {boot.error}</div></div>
+        : <Workspace />}
+      <div className={ui.drawerOpen ? "drawer-back show" : "drawer-back"} id="drawer-back" onClick={store.closePanel} />
+      <DocsModal open={docsOpen} onClose={() => setDocsOpen(false)} />
+      <TooltipLayer />
+    </UiContext.Provider>
+  );
+}

@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useReducer, useSyncExternalStore, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 
-// 경과 시간 표시용 — active 일 때 everyMs 마다 다시 그려 지금 시각을 읽습니다.
+// 경과 시간 표시용 — active 일 때 everyMs 마다 지금 시각을 다시 읽습니다 (첫 값은 다음 틱에).
 export function useNow(everyMs: number, active: boolean): number {
-  const [, tick] = useReducer((n: number) => n + 1, 0);
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!active) return;
-    const t = setInterval(tick, everyMs);
+    const t = setInterval(() => setNow(Date.now()), everyMs);
     return () => clearInterval(t);
   }, [everyMs, active]);
-  return Date.now();
+  return now;
 }
 
 export function useMediaQuery(query: string): boolean {

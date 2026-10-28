@@ -1,3 +1,45 @@
+import { useEffect, useMemo, useState } from "react";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { queryClient } from "./queryClient";
+import { AppShell } from "./AppShell";
+import { AuthContext, useAuth, type GateMode } from "@/features/auth/AuthContext";
+import { Gate } from "@/features/auth/Gate";
+import { onUnauthorized } from "@/shared/api/http";
+import { meQuery } from "@/shared/api/queries";
+
 export default function App() {
-  return <></>;
+  const [gate, setGate] = useState<GateMode>(null);
+  // 세션이 끊기면(401) 어느 요청에서든 로그인 화면으로 돌아갑니다.
+  useEffect(() => onUnauthorized(() => setGate("login")), []);
+  const auth = useMemo(() => ({
+    gate,
+    showLogin: () => setGate("login"),
+    showPassword: (forced: boolean) => setGate(forced ? "password-forced" : "password"),
+    hideGate: () => setGate(null),
+  }), [gate]);
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={auth}>
+        <Root />
+      </AuthContext.Provider>
+    </QueryClientProvider>
+  );
+}
+
+function Root() {
+  const auth = useAuth();
+  const me = useQuery(meQuery());
+  // 첫 로그인 · 비밀번호 초기화 뒤에는 비밀번호부터 바꾸고, 그 전에는 다른 API 가 403 이라 껍데기를 띄우지 않습니다.
+  const mode = auth.gate ?? (me.data?.must_change_password ? "password-forced" : null);
+  const shell = me.data && mode !== "login" && mode !== "password-forced" ? <AppShell me={me.data} /> : null;
+  const error = me.isError && !auth.gate
+    ? <div className="workspace"><div className="card empty" style={{ gridColumn: "1 / -1" }}>서버에서 화면 데이터를 받지 못했습니다: {me.error.message}</div></div>
+    : null;
+  return (
+    <>
+      {shell}
+      {error}
+      {mode && <Gate mode={mode} />}
+    </>
+  );
 }
