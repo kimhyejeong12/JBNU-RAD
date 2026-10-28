@@ -24,7 +24,8 @@ export function NodesPanel() {
   if (!ui.nodes.selected) return <SummaryPanel list={list} />;
   const n = list.find((x) => x.name === ui.nodes.selected);
   if (!n) return <><PanelHead title="수집 노드" /><div className="panel-body"><div className="empty">없는 노드입니다.</div></div></>;
-  return <NodePanel n={n} />;
+  // key 로 노드마다 새로 그려 복사 버튼 글자 같은 상태가 다른 노드로 넘어가지 않게 합니다.
+  return <NodePanel key={n.name} n={n} />;
 }
 
 function AddNodePanel() {

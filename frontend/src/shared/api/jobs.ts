@@ -19,13 +19,17 @@ export function runButton(jobs: Jobs | null | undefined, view: string | null): {
 export const runKindLabel = (jobs: Jobs | null | undefined, view: string): string =>
   `${(jobs && jobs.kinds[VIEW_KIND[view]]) || "분석"} 실행`;
 
-export const jobsInterval =(jobs: Jobs | null | undefined): 2000 | 30000 => (jobs?.running ? 2000 : 30000);
+export const jobsInterval = (jobs: Jobs | null | undefined): 2000 | 30000 => (jobs?.running ? 2000 : 30000);
 
 // 빠른 로그 감시는 따로 돌아 running 에 나오지 않습니다. 끝난 시각이 바뀌면 결과를 다시 받습니다.
 export const fastDone = (jobs: Jobs | null | undefined): string | null => jobs?.fast?.last?.events_fast?.finished_at ?? null;
 
+// 작업별 마지막 실행 시각 — 두 폴링 사이에 시작해서 끝난 작업(뒤에 둔 탭 · 짧은 작업)도 이것이 바뀌어 알 수 있습니다.
+const finishedStamps = (jobs: Jobs | null | undefined): string =>
+  Object.entries(jobs?.last ?? {}).map(([kind, last]) => `${kind}=${last.finished_at ?? ""}`).sort().join(" ");
+
 export const shouldRefresh = (prev: Jobs | null | undefined, next: Jobs): boolean =>
-  !next.running && (!!prev?.running || fastDone(prev) !== fastDone(next));
+  !next.running && (!!prev?.running || fastDone(prev) !== fastDone(next) || finishedStamps(prev) !== finishedStamps(next));
 
 // 작업이 끝나면 저장된 결과를 다시 받습니다. 활성 쿼리만 다시 받으므로 열려 있는 탭의 것만 갱신됩니다.
 export function refreshResults(qc: QueryClient): void {

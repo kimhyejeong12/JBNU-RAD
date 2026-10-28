@@ -39,3 +39,10 @@ test("shouldRefresh: 작업이 끝났거나 빠른 감시가 끝났을 때만", 
   expect(shouldRefresh(idle("t1"), idle("t1"))).toBe(false);
   expect(shouldRefresh(idle("t1"), { ...idle("t2"), running: "policies" })).toBe(false);
 });
+
+test("shouldRefresh: 두 폴링 사이에 끝난 작업(마지막 실행 시각이 바뀜)도 알아챈다", () => {
+  const idle = { running: null, auto: false, done: 0, total: 0, kinds: {}, last: { events: { finished_at: "2026-10-29T06:00:00", error: null, auto: true } } } as unknown as Jobs;
+  const later = { ...idle, last: { events: { finished_at: "2026-10-29T06:30:00", error: null, auto: true } } } as unknown as Jobs;
+  expect(shouldRefresh(idle, later)).toBe(true);
+  expect(shouldRefresh(idle, { ...idle })).toBe(false);
+});

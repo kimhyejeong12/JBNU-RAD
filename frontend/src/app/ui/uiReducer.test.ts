@@ -76,3 +76,10 @@ test("TOGGLE_CHIP: 펼친 칩을 넣고 뺀다", () => {
   expect(s.expanded.has("req:1:0")).toBe(true);
   expect(uiReducer(s, { type: "TOGGLE_CHIP", key: "req:1:0" }).expanded.has("req:1:0")).toBe(false);
 });
+
+// 옛 화면(setView)처럼 지금 탭이 새 메뉴에도 있으면 그대로 두고, 없으면 그 메뉴의 첫 탭으로 갑니다.
+test("NAVIGATE: 지금 탭이 새 메뉴에도 있으면 탭을 유지한다", () => {
+  expect(uiReducer(at({ view: "policies", mainTab: "ask" }), { type: "NAVIGATE", view: "events", nextSelected: null }).mainTab).toBe("ask");
+  expect(uiReducer(at({ view: "qa", mainTab: "ask" }), { type: "NAVIGATE", view: "policies", nextSelected: null }).mainTab).toBe("ask");
+  expect(uiReducer(at({ view: "policies", mainTab: "nodes" }), { type: "NAVIGATE", view: "events", nextSelected: null }).mainTab).toBe("queue");
+});

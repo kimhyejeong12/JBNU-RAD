@@ -71,9 +71,10 @@ function withView(s: UiState, view: View): UiState {
 
 export function uiReducer(s: UiState, a: UiAction): UiState {
   switch (a.type) {
+    // 옛 화면처럼 지금 탭이 새 메뉴에도 있으면(질의 · 검토 현황) 그대로 두고, 없으면 그 메뉴의 첫 탭으로 갑니다.
     case "NAVIGATE": {
       const tabs = VIEWS[a.view].tabs;
-      return { ...withTab(withView(s, a.view), tabs.includes("queue") ? "queue" : tabs[0]), selected: a.nextSelected };
+      return { ...withTab(withView(s, a.view), tabs.includes(s.mainTab) ? s.mainTab : tabs[0]), selected: a.nextSelected };
     }
     case "SET_MAIN_TAB":
       return withTab(s, a.tab);
