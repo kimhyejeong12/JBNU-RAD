@@ -3,7 +3,7 @@ import type { AccessItem, RequestRow } from "@/shared/api/types";
 import { accessOptions } from "./accessOptions";
 
 const access = (code: string, system: string | null, extra: Partial<AccessItem> = {}): AccessItem =>
-  ({ code, name: `권한 ${code}`, system, category: null, description: null, is_active: true, updated_at: null, ...extra });
+  ({ code, name: `권한 ${code}`, system, category: null, description: null, is_active: true, updated_at: null, created_at: null, ...extra });
 const mine = (access_code: string, stage: RequestRow["stage"], period_end: string | null = null): RequestRow =>
   ({ access_code, stage, period_end } as RequestRow);
 

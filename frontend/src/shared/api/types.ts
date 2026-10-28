@@ -85,6 +85,7 @@ export interface AccessItem {
   description: string | null;
   is_active: boolean;
   updated_at: string | null;
+  created_at: string | null;
 }
 
 export interface UserRow {
@@ -99,6 +100,7 @@ export interface UserRow {
   locked_until: string | null;
   last_login_at: string | null;
   log_id: string | null;
+  created_at: string;
 }
 
 export interface PolicyRow {
