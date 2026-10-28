@@ -233,9 +233,38 @@ export interface LogsParams {
   page: number;
 }
 
-// 노드 · 로그 · 통계 응답은 그 화면을 옮길 때 칸을 채웁니다.
-export type NodeRow = Record<string, unknown> & { name: string; enabled: boolean };
-export type NodeDetail = Record<string, unknown> & { name: string };
+export interface NodeRow {
+  name: string;
+  host: string | null;
+  ip: string | null;
+  enabled: boolean;
+  key_issued: boolean;
+  stale: boolean;               // 간격의 세 배 넘게 소식 없음
+  interval_min: number | null;
+  agent_version: string | null;
+  registered_at: string | null;
+  last_seen_at: string | null;
+  last_collected_at: string | null;
+  level: Level | null;          // 마지막 서버 점검 등급
+}
+
+export interface NodeFindingBrief {
+  key: string;
+  level: Level | null;
+  failed?: boolean;
+  created_at: string;
+  summary: string;
+}
+
+export interface NodeDetail {
+  name: string;
+  key?: string | null;          // 해시만 남은 예전 키는 없음
+  findings: NodeFindingBrief[];
+  latest: Snapshot | null;
+  snapshots: { collected_at: string; changes: string[] }[];
+}
+
+// 로그 · 통계 응답은 그 화면을 옮길 때 칸을 채웁니다.
 export type LogsPage = Record<string, unknown> & { options: Record<string, string[]> };
 export type Stats = Record<string, unknown>;
 export type UserStats = Record<string, unknown>;
