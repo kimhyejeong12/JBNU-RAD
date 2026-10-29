@@ -9,10 +9,7 @@ import { activateProps } from "@/shared/lib/hooks";
 import { Icon } from "@/shared/ui/base/Icon";
 import { LevelDot } from "@/shared/ui/base/parts";
 import { cn } from "@/shared/lib/cn";
-import { card, cardCount, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, lth, note, toolButton } from "@/shared/ui/base/styles";
-
-// 빈 줄 안내 — 표 칸의 여백 그대로 가운데 정렬 (옛 .ltable td 가 .empty 의 여백을 이겼습니다).
-const EMPTY_CELL = cn(ltd, "text-center text-ink-dim");
+import { card, cardCount, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton } from "@/shared/ui/base/styles";
 
 // 수집 노드 — 서버마다 도는 node/sentinel_node 가 보낸 수집. 새 수집은 서버가 주기적으로 점검해 검토 현황에 올립니다.
 // 탭에 들어올 때마다 마운트되어 목록을 다시 받습니다.
@@ -39,9 +36,9 @@ export function NodesTab() {
         <table className={ltable}>
           <thead><tr><th className={lth}>노드</th><th className={lth}>호스트</th><th className={lth}>상태</th><th className={cn(lth, "narrow:hidden")}>마지막 수집</th><th className={lth}>판정</th></tr></thead>
           <tbody id="node-rows">
-            {nodes.isError ? <tr><td colSpan={5} className={EMPTY_CELL}>노드 목록을 받지 못했습니다: {nodes.error.message}</td></tr>
-              : !nodes.data ? <tr><td colSpan={5} className={EMPTY_CELL}>불러오는 중…</td></tr>
-                : !list.length ? <tr><td colSpan={5} className={EMPTY_CELL}>아직 등록된 노드가 없습니다.<br />[노드 등록]으로 서버마다 키를 발급하고, 그 서버에 node/install.sh 로 노드를 까세요.</td></tr>
+            {nodes.isError ? <tr className={lrowTone(false)}><td colSpan={5} className={ltdEmpty}>노드 목록을 받지 못했습니다: {nodes.error.message}</td></tr>
+              : !nodes.data ? <tr className={lrowTone(false)}><td colSpan={5} className={ltdEmpty}>불러오는 중…</td></tr>
+                : !list.length ? <tr className={lrowTone(false)}><td colSpan={5} className={ltdEmpty}>아직 등록된 노드가 없습니다.<br />[노드 등록]으로 서버마다 키를 발급하고, 그 서버에 node/install.sh 로 노드를 까세요.</td></tr>
                   : list.map((n) => {
                     const [cls, label, tip] = nodeState(n);
                     return (

@@ -1,8 +1,3 @@
 @media (max-width: 1150px) {
-  .ask { flex: none; min-height: 0; }
-  .ask-log { max-height: 60vh; }
-  
   .form-grid { grid-template-columns: 1fr; }
-  
-  .ltable .col-sol, .ltable .col-where, .ltable .col-how { display: none; }
 }

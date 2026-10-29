@@ -55,6 +55,8 @@ export const ltableWrap = "overflow-x-auto border-t border-line";
 export const ltable = "w-full border-collapse text-[12.5px]";
 export const lth = "whitespace-nowrap border-b border-line px-3 py-[9px] text-left font-semibold text-ink-dim";
 export const ltd = "border-b border-line px-3 py-[9px] align-top";
+// 표의 빈 줄 안내 — 표 칸의 여백 그대로 가운데 정렬 (옛 .ltable td 가 .empty 의 여백을 이겼습니다).
+export const ltdEmpty = `${ltd} text-center text-ink-dim`;
 // 표의 줄 — 고른 줄은 hover 보다 고른 색이 이깁니다.
 export const lrowTone = (current: boolean): string => (current ? "cursor-pointer bg-warn-tint" : "cursor-pointer hover:bg-canvas");
 

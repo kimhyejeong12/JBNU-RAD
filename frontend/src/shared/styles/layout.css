@@ -1,10 +1,6 @@
 /* ── 작업 영역 ─────────────────────────── */
 
 .card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
-/* 정책 질의 탭은 질의를 넓게 쓰고, 근거 칩을 눌렀을 때만 오른쪽에 인용 조항 패널을 엽니다 */
-
-/* 메인 탭 — 분석 대기열 · 통계 대시보드 · 권한 질의 */
 
 /* display 를 지정한 요소는 hidden 속성만으로 숨겨지지 않아 직접 끕니다. */
-.ask[hidden], .logs[hidden], .stats-view[hidden] { display: none; }
-
+.stats-view[hidden] { display: none; }
