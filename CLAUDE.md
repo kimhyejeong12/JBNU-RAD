@@ -84,15 +84,15 @@ JBNU-RAD/
 │       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 줌
 │       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
 │       └── static/               화면 빌드 결과 — frontend/ 에서 `make front-build` 로 만들어 커밋. 서버는 그대로 서빙
-├── frontend/                 React 화면 소스 (김혜정) — TypeScript · Vite · TanStack Query · Vitest. 10/29에 옛 index.html 을 기능 · 모양 그대로 옮겼음 (리디자인은 다음)
+├── frontend/                 React 화면 소스 (김혜정) — TypeScript · Vite · TanStack Query · Vitest · Tailwind v4. 10/29에 옛 index.html 을 기능 · 모양 그대로 옮기고 10/30에 CSS를 Tailwind로 바꿨음 (화면 그대로, 리디자인은 다음)
 │   └── src/
-│       ├── app/                  껍데기 — App(로그인 게이트) · styles.css(CSS 순서)
+│       ├── app/                  껍데기 — App(로그인 게이트) · styles.css(CSS는 이 파일 하나 — Tailwind · 색 토큰 · 화면 틀)
 │       │   ├── layout/             화면 틀 — AppShell · TopBar · Sidebar · Workspace · MainTabs · RightPanel · Footer
 │       │   ├── overlays/           기준 문서 창 · 툴팁
 │       │   ├── session/            로그인한 사람(me) · 역할별 메뉴(views) · 역할별 데이터 훅(data) · 부팅(useBoot)
 │       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · SourceChips)
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
-│       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels …) · ui/(base · charts · server) · styles/
+│       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
 │       └── features/             메뉴별 — auth · requests · review · nodes · logs · ask(예시 질문은 config.ts) · stats · catalog · accounts. 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
 ├── docs/                     판정 근거 기준 문서 — 수정 금지 (make index 가 RAG에 적재)
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
@@ -294,7 +294,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 - ❌ `sentinelai/engine/` · `docs/` 수정. 프롬프트(`sentinelai/engine/prompt.py`)도 엔진 담당자와 상의 없이 안 바꿈
 - ❌ 엔진 기능 재구현 · 엔진 타입을 대체하는 웹 전용 스키마
 - ❌ 서버 주소 · 모델명 하드코딩 — 전부 `Settings`
-- ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제). 화면은 React + Vite, 빌드 결과를 커밋 (서버에 Node 불필요). 화면 소스를 고치면 `make front-build` 결과를 같은 커밋에. Tailwind 등 새 의존성은 리디자인 때 정함
+- ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제). 화면은 React + Vite, 빌드 결과를 커밋 (서버에 Node 불필요). 화면 소스를 고치면 `make front-build` 결과를 같은 커밋에. 스타일은 Tailwind v4 유틸리티 (`FRONTEND_GUIDE.md` §9). shadcn/ui 부품 등 새 의존성은 리디자인 때 정함
 - ❌ 파일 업로드 (문서 데이터 읽기 · §8 6에서 다시 정함)
 - ❌ 정책 자동 수정 · 권한 자동 승인 — 결정은 사람이 함
 - ❌ 엔진 출력을 손으로 고치기 · 근거 없는 목업 데이터 · 사전 계산 답을 실시간처럼 보이는 연출 (10/8에 모두 걷어냈음)

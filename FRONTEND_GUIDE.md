@@ -4,7 +4,8 @@
 
 - 지금 화면: `frontend/`의 React 앱. 10/29에 옛 `index.html` 한 파일을 기능 · 모양 그대로 옮겼음 (옛 파일은 화면을 바꾼 커밋 `08b7d0f`의 바로 앞)
 - 빌드 결과는 `sentinelai/web/static/`에 커밋함. 서버에는 Node 필요 없음
-- 다음 단계: **리디자인** (Tailwind 포함, §10)
+- 스타일은 Tailwind v4 유틸리티 (10/30, 화면은 픽셀 그대로 옮겼음)
+- 다음 단계: **리디자인** (배치 · 색 · 컴포넌트, §10)
 - 동작이 애매하면 지금 코드(`frontend/src/features/<메뉴>/`)가 정답지. 디자인의 정답지는 아님
 - 화면을 바꾸면 이 문서를 같이 고침
 
@@ -230,7 +231,8 @@
 |---|---|
 | 색 | 강조 · 위험 `#EA002C` · 보조 · 주의 `#FF7A00` · 정상 `#2E7D5B` · 본문 `#111111` / `#666666` · 배경 `#F5F5F6` + 흰 카드 · 선 `#E4E4E7` · 회색 `#D4D4D8` |
 | 글꼴 | `-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif` |
-| 등급 점 | `.ldot` — 8px 점 + 같은 색 반투명 3px 링 |
+| 색 토큰 | `app/styles.css`의 `@theme` — `text-ink` · `bg-canvas` · `border-line` · `bg-risk` · `text-warn` · `bg-ok-tint` 등으로 씀 |
+| 등급 점 | `levelDot`(`shared/ui/base/styles.ts`) — 8px 점 + 같은 색 반투명 3px 링 |
 | 막대 | 두께 24px 이하 · 끝 4px 둥글게 · 조각 사이 2px 틈 |
 | 엔진 경고 | 검은 바 위 흰 알약에 빨간 글자 |
 
@@ -253,15 +255,22 @@
 
 폴더 (자세한 나무는 `CLAUDE.md` §1):
 - `app/`: `layout`(화면 틀) · `overlays`(기준 문서 창 · 툴팁) · `session`(로그인한 사람 · 역할별 메뉴 · 데이터) · `ui/state`(UI 상태) · `ui/panel`(패널 공통 부품) · `queue`(검토 현황 공통)
-- `shared/`: `api` · `lib` · `ui/base` · `ui/charts` · `ui/server` · `styles`
-- `features/<메뉴>/`: 그 메뉴의 화면 · 함수 · CSS를 한 폴더에. 서로 import 하지 않고 `shared/*`와 `app/{session,ui,queue}`만 씀. `shared/`는 `app/`을 import 하지 않음
+- `shared/`: `api` · `lib` · `ui/base` · `ui/charts` · `ui/server`
+- `features/<메뉴>/`: 그 메뉴의 화면 · 함수를 한 폴더에. 서로 import 하지 않고 `shared/*`와 `app/{session,ui,queue}`만 씀. `shared/`는 `app/`을 import 하지 않음
 
 파일 · 폴더를 나누는 기준:
 - 파일 하나로 두는 경우: 다른 영역 두 곳 이상이 씀 · 여러 곳이 기대는 중심 파일 · 40줄 넘음
 - 한 파일만 쓰는 20줄 미만 부품은 쓰는 파일 안에. 기능의 순수 함수 · 상수는 그 기능의 `lib.ts` 하나에
 - 훅은 `useX.ts`로 따로. 컴포넌트 파일에 넣지 않음 (oxlint `only-export-components`, 빠른 새로고침이 깨짐)
 - 역할이 다른 파일(화면 틀 · 상태 · 부품)이 한 폴더에 섞이면 역할별 하위 폴더로
-- CSS는 쓰는 부품 옆에. 순서는 `app/styles.css` 한 곳에서 정함 (순서가 곧 우선순위, `responsive.css`가 마지막)
+
+스타일 (Tailwind v4):
+- 모양은 className의 유틸리티로. CSS 파일은 `app/styles.css` 하나 — preflight · 색 토큰(`@theme`) · 반응형 변형 · body 화면 틀 · 브라우저 기본값을 되돌린 몇 줄
+- 여러 영역이 같이 쓰는 모양은 `shared/ui/base/styles.ts` 상수, 한 기능만 쓰면 그 기능의 `lib.ts`나 파일 안 상수. 합칠 때는 `cn()` (`shared/lib/cn.ts`, 뒤 클래스가 이김)
+- 값은 옛 화면 그대로라 글자 크기도 임의 값(`text-[12.5px]`). 이름 붙은 크기(`text-sm` 등)는 줄 높이까지 바꿈
+- 클래스 이름을 조각으로 만들지 않음 (`bg-${tone}` ✗ → 값마다 전체 문자열을 둔 맵). Tailwind가 소스 글자에서 클래스를 찾기 때문. `cn.test.ts`가 막음
+- 반응형은 큰 화면 기준: `narrow:`(1150px 이하) · `phone:`(760px 이하)만. `narrow`는 JS의 `NARROW`와 같은 쿼리
+- hover와 고른 상태가 겹치면 React에서 하나만 줌 (변형 순서에 기대지 않음)
 
 ```sh
 make install          # 처음 한 번 (Python venv · .env)
@@ -278,13 +287,16 @@ make front-check      # 깨끗이 설치해 빌드한 결과가 커밋된 것과
 - 노드 · 서버 점검 화면을 채우려면 `make dev-sim`(흉내 노드). 로그 감시는 `.env`의 `SENTINELAI_EVENTS_SOURCE` 로그 파일
 - 쿠키는 포트가 아니라 호스트별. 커밋된 화면은 `127.0.0.1:8001`, 개발 서버는 `localhost:5173`으로 열면 세션이 따로 감
 - `make front-check` 뒤에는 개발 서버를 다시 띄움 (의존성 캐시가 낡아 504)
-- 빌드 대상은 Vite 8 기본 (Chrome · Edge 111, Firefox 114, Safari 16.4 이상). 사내 PC 브라우저가 더 오래됐으면 `frontend/vite.config.ts`의 `build.target`을 낮춤
+- 지원 브라우저: Chrome · Edge 111+, Safari 16.4+, Firefox 128+ (Tailwind v4 — cascade layer · `@property`). 더 오래된 브라우저에서는 스타일이 통째로 빠지고 `build.target`으로 낮출 수 없음
 
 ---
 
 ## 10. 리디자인 때 볼 것
 
-- Tailwind 등 새 의존성 · CSS 정리 (지금은 옛 CSS를 클래스 이름 그대로 나눠 둠)
+- 값 정리: 글자 크기 · 간격이 옛 px 그대로 (`text-[12.5px]` · `px-[18px]` 등). 토큰 단위로 맞춤
+- shadcn/ui 부품: 바탕(`components.json` · `cn()` · 색 변수)만 깔아 둠
+- `app/styles.css`에서 브라우저 기본값으로 되돌린 줄(placeholder · 날짜 칸 · 글상자 크기 조절 등)을 preflight 값으로 바꿀지
+- 좁은 화면에서 [표로 보기]를 펼치면 화면이 가로로 넓어짐 (옛 화면부터. 작업 공간 칸이 `1fr`이라 표 폭만큼 늘어남) — §11의 "가로 스크롤 없음"에 어긋남
 - 라우터: 지금은 URL 상태가 없음. `StaticFiles`가 깊은 경로 새로고침을 404로 내므로 붙이면 해시 라우팅
 - 검토 현황 목록(`useQueue`)을 아홉 곳에서 각자 계산함. 같은 캐시라 느리지 않지만 context 하나로 올리면 없어짐
 - 신청서를 연 사이 권한이 꺼지면 고르기 칸에 남음. 신청하면 서버가 400으로 막고 그 문장이 뜸
