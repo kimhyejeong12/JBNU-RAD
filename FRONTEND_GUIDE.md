@@ -267,7 +267,8 @@
 스타일 (Tailwind v4):
 - 모양은 className의 유틸리티로. CSS 파일은 `app/styles.css` 하나 — preflight · 색 토큰(`@theme`) · 반응형 변형 · body 화면 틀 · 브라우저 기본값을 되돌린 몇 줄
 - 여러 영역이 같이 쓰는 모양은 `shared/ui/base/styles.ts` 상수, 한 기능만 쓰면 그 기능의 `lib.ts`나 파일 안 상수. 합칠 때는 `cn()` (`shared/lib/cn.ts`, 뒤 클래스가 이김)
-- 값은 옛 화면 그대로라 글자 크기도 임의 값(`text-[12.5px]`). 이름 붙은 크기(`text-sm` 등)는 줄 높이까지 바꿈
+- 간격 · 크기는 4px 단위 표준 이름으로 씀 (`gap-4.5` = 18px, `size-3.75` = 15px). 편집기의 Tailwind CSS 확장이 "표준 이름으로 쓸 수 있음" 경고를 내지 않게
+- 글자 크기는 옛 화면 값 그대로 임의 값(`text-[12.5px]`). 이름 붙은 크기(`text-sm` 등)는 줄 높이까지 바꿈
 - 클래스 이름을 조각으로 만들지 않음 (`bg-${tone}` ✗ → 값마다 전체 문자열을 둔 맵). Tailwind가 소스 글자에서 클래스를 찾기 때문. `cn.test.ts`가 막음
 - 반응형은 큰 화면 기준: `narrow:`(1150px 이하) · `phone:`(760px 이하)만. `narrow`는 JS의 `NARROW`와 같은 쿼리
 - hover와 고른 상태가 겹치면 React에서 하나만 줌 (변형 순서에 기대지 않음)
@@ -295,7 +296,7 @@ make front-check      # 깨끗이 설치해 빌드한 결과가 커밋된 것과
 
 ## 10. 리디자인 때 볼 것
 
-- 값 정리: 글자 크기 · 간격이 옛 px 그대로 (`text-[12.5px]` · `px-[18px]` 등). 토큰 단위로 맞춤
+- 값 정리: 간격이 4px 단위의 반 칸 값까지 그대로 (`px-4.5` · `gap-1.75` 등), 글자 크기는 임의 값 (`text-[12.5px]`). 디자인 단위에 맞춰 줄임
 - shadcn/ui 부품: 바탕(`components.json` · `cn()` · 색 변수)만 깔아 둠
 - `app/styles.css`에서 브라우저 기본값으로 되돌린 줄(placeholder · 날짜 칸 · 글상자 크기 조절 등)을 preflight 값으로 바꿀지
 - 간격 단위: px 고정(`--spacing: 4px`)을 rem으로 돌릴지 (shadcn/ui는 rem 전제). `hover:`를 Tailwind 기본(마우스 기기에서만)으로 돌릴지

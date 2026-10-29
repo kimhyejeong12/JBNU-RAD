@@ -165,7 +165,8 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - **왜**: 리디자인 1단계 — 옛 CSS 18개 파일 469줄, 전역 클래스 163종, 불러오는 순서가 곧 우선순위라 고치기 어려웠음. 업계에서 많이 쓰는 조합으로 바탕을 바꾸고 화면은 그대로 둠. 배치 · 색 · 컴포넌트는 2단계
 - **정한 것**
   - Tailwind v4 (설정 파일 없이 `app/styles.css`의 `@theme`), `clsx` + `tailwind-merge`(`cn()`), shadcn/ui는 바탕(`components.json` · 색 변수)만
-  - 값은 바꾸지 않음 — 색은 같은 값으로 토큰화, 글자 크기 · 간격은 임의 값 그대로
+  - 값은 바꾸지 않음 — 색은 같은 값으로 토큰화, 간격은 4px 단위 표준 이름(`gap-4.5` = 18px), 글자 크기는 임의 값 그대로
+  - shadcn의 `--radius`(8px)를 `@theme`에도 둠 — Tailwind 기본 테마에 옛 `--radius: 0.25rem`이 남아 있어 편집기 확장이 둥근 모서리 값을 4px로 잘못 계산했음
   - preflight를 켬 (2단계 shadcn이 전제함). 브라우저 기본값에 기대던 배치(제목 굵기 · 버튼 · 입력 칸 여백 · 인라인 SVG · 글머리표)는 요소마다 명시, 브라우저가 그리는 부분(placeholder 색 · 날짜 칸 안쪽 · 쓸 수 없는 칸의 흐림 · 글상자 크기 조절)은 `revert`로 기본값 그대로
   - 반응형은 옛 `max-width` 그대로 `narrow`(1150px) · `phone`(760px) 변형
   - 최종 검토(스크린샷 밖의 조건)에서 옛 동작으로 되돌린 셋: 고르기 칸 묶음 이름(optgroup) 굵기, 터치 기기의 hover(Tailwind 기본은 마우스 기기에서만), 간격 단위 px(Tailwind 기본 rem은 브라우저 기본 글자 크기를 키우면 여백만 커짐)
