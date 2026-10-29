@@ -50,7 +50,7 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
       <div className="logs-head">
         <h3>위협 예측 — 의심 점수</h3>
         <span className="logs-count">{sus.length ? `${sus.length}명 · ${stamp(latest)} 예측` : ""}</span>
-        <button className="rerun run" id="suspects-now" disabled={!!jobs?.running} onClick={() => start.mutate("suspects")}>
+        <button className="rerun run" id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
           <Icon name="activity" className="sm" />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
         </button>
       </div>

@@ -17,7 +17,7 @@ export function QueueHead() {
     ? `${meta?.label} — ${me.role === "manager" ? "1차" : "최종"} 결재함`
     : meta?.title ?? "현황";
   // 분석 실행은 정책 관리만 합니다. 수 분 걸리므로 진행 상황을 버튼에 띄웁니다.
-  const run = runButton(jobs, ui.view);
+  const run = runButton(jobs, ui.view, start.isPending);
   return (
     <div className="queue-head">
       <h3 id="queue-title">{title}</h3>

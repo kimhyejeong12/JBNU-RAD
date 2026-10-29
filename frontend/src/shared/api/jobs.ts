@@ -5,10 +5,12 @@ import type { JobKind, Jobs } from "./types";
 // 분석 실행은 정책 관리만 합니다. 권한 신청은 들어오면 바로 판정되고, 로그 감시는 서버가 스스로 돌립니다.
 const VIEW_KIND: Record<string, JobKind> = { policies: "policies" };
 
-export function runButton(jobs: Jobs | null | undefined, view: string | null): { hidden: boolean; disabled: boolean; text: string } {
+// pending 은 시작 요청이 가는 동안 — 두 번 누르면 두 번째가 409 를 받아 오류 창이 뜨므로 막습니다.
+export function runButton(jobs: Jobs | null | undefined, view: string | null, pending = false): { hidden: boolean; disabled: boolean; text: string } {
   const kind = view ? VIEW_KIND[view] : undefined;
   if (!kind) return { hidden: true, disabled: true, text: "" };
   if (!jobs) return { hidden: false, disabled: true, text: "분석 실행 불가" };
+  if (pending) return { hidden: false, disabled: true, text: `${jobs.kinds[kind] || "분석"} 실행` };
   if (jobs.running) {
     const name = jobs.kinds[jobs.running] || jobs.running;
     return { hidden: false, disabled: true, text: `${name}${jobs.auto ? "(자동)" : ""} 중…${jobs.total ? ` ${jobs.done}/${jobs.total}` : ""}` };

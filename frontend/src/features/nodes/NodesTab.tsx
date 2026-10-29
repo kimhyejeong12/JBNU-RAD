@@ -24,7 +24,7 @@ export function NodesTab() {
       <div className="logs-head">
         <h3>수집 노드</h3>
         <span className="logs-count" id="node-count">{nodes.data ? `${list.length}대` : ""}</span>
-        <button className="rerun run" id="check-now" disabled={!jobs || !!jobs.running} onClick={() => start.mutate("nodes")}>
+        <button className="rerun run" id="check-now" disabled={!jobs || !!jobs.running || start.isPending} onClick={() => start.mutate("nodes")}>
           <Icon name="activity" className="sm" />
           <span id="check-now-txt">{checking ? `점검 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 점검"}</span>
         </button>

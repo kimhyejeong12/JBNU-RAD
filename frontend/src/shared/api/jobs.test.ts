@@ -46,3 +46,8 @@ test("shouldRefresh: 두 폴링 사이에 끝난 작업(마지막 실행 시각�
   expect(shouldRefresh(idle, later)).toBe(true);
   expect(shouldRefresh(idle, { ...idle })).toBe(false);
 });
+
+test("runButton: 시작 요청이 가는 동안은 막는다 (두 번 누르면 두 번째가 409)", () => {
+  expect(runButton(idle("t"), "policies", true).disabled).toBe(true);
+  expect(runButton(idle("t"), "policies", false).disabled).toBe(false);
+});
