@@ -22,7 +22,7 @@ export function MainTabs() {
       {TABS.map((t) => (
         // 아래 테두리 2px 가 탭 줄의 선과 겹치게 1px 내립니다. 고른 탭은 검은 글자 · 검은 밑줄.
         <button key={t.tab} role="tab"
-          className="-mb-px inline-flex items-center gap-[7px] border-0 border-b-2 border-transparent bg-transparent px-[14px] py-[9px] text-[14px] font-bold text-ink-dim hover:text-ink aria-selected:border-b-ink aria-selected:text-ink" id={`tab-${t.tab}`} aria-selected={ui.mainTab === t.tab} aria-controls={t.panel}
+          className="-mb-px inline-flex items-center gap-1.75 border-0 border-b-2 border-transparent bg-transparent px-3.5 py-2.25 text-[14px] font-bold text-ink-dim hover:text-ink aria-selected:border-b-ink aria-selected:text-ink" id={`tab-${t.tab}`} aria-selected={ui.mainTab === t.tab} aria-controls={t.panel}
           hidden={!tabs.includes(t.tab)} onClick={() => setMainTab(t.tab)}>
           <Icon name={t.icon} small />
           {t.tab === "ask" ? <span id="tab-ask-label">{ASK[askMode(ui.view)].label}</span> : t.label}

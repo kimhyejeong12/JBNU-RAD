@@ -35,7 +35,7 @@ function NewUser() {
   return (
     <>
       <PanelHead title="새 계정" />
-      <form className={cn(panelBody, formGrid, "px-[18px] py-4")} id="user-form" onSubmit={onSubmit}>
+      <form className={cn(panelBody, formGrid, "px-4.5 py-4")} id="user-form" onSubmit={onSubmit}>
         <label className={field}>아이디<input className={input} name="login_id" required maxLength={100} autoComplete="off" /></label>
         <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
         <label className={field}>부서<input className={input} name="department" maxLength={100} /></label>

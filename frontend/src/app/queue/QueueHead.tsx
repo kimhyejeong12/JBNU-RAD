@@ -22,11 +22,11 @@ export function QueueHead() {
   // 분석 실행은 정책 관리만 합니다. 수 분 걸리므로 진행 상황을 버튼에 띄웁니다.
   const run = runButton(jobs, ui.view, start.isPending);
   return (
-    <div className="flex flex-wrap items-center gap-3 px-[18px] pt-4 pb-3">
+    <div className="flex flex-wrap items-center gap-3 px-4.5 pt-4 pb-3">
       <h3 id="queue-title" className="m-0 text-[15.5px] font-bold">{title}</h3>
-      <label className="ml-auto flex h-8 max-w-[320px] flex-[1_1_220px] items-center gap-2 rounded-lg border border-line bg-surface px-[11px] text-[13px] text-ink-dim focus-within:border-ink">
+      <label className="ml-auto flex h-8 max-w-[320px] flex-[1_1_220px] items-center gap-2 rounded-lg border border-line bg-surface px-2.75 text-[13px] text-ink-dim focus-within:border-ink">
         <Icon name="search" small />
-        <input id="q" type="search" className="flex-1 border-none bg-transparent px-0.5 py-px text-ink outline-none [font-family:inherit] [font-size:inherit] [font-weight:inherit] [line-height:inherit]" placeholder={meta?.search ?? ""} autoComplete="off" value={ui.query} onChange={(e) => setQuery(e.target.value)} />
+        <input id="q" type="search" className="flex-1 border-none bg-transparent px-0.5 py-px text-ink outline-none font-[inherit] [font-size:inherit] [font-weight:inherit] leading-[inherit]" placeholder={meta?.search ?? ""} autoComplete="off" value={ui.query} onChange={(e) => setQuery(e.target.value)} />
       </label>
       <select id="stage-filter" className={select} aria-label="결재 단계" hidden={ui.view !== "requests"} value={ui.stageFilter}
         onChange={(e) => setStageFilter(e.target.value as StageFilter)}>

@@ -7,11 +7,11 @@ import { Icon } from "@/shared/ui/base/Icon";
 import { actionButton, field, formActions, formMsg, input, note, primaryButton } from "@/shared/ui/base/styles";
 
 // 로그인 화면은 앱 위를 덮는 카드 하나입니다.
-const CARD = "flex w-[min(380px,100%)] flex-col gap-3 rounded-[14px] border border-line bg-surface px-6 pt-[26px] pb-[18px]";
+const CARD = "flex w-[min(380px,100%)] flex-col gap-3 rounded-[14px] border border-line bg-surface px-6 pt-6.5 pb-4.5";
 
 export function Gate({ mode }: { mode: Exclude<GateMode, null> }) {
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-canvas p-4" id="gate">
+    <div className="fixed inset-0 z-70 flex items-center justify-center bg-canvas p-4" id="gate">
       {mode === "login" ? <LoginForm /> : <PasswordForm forced={mode === "password-forced"} />}
     </div>
   );
@@ -36,7 +36,7 @@ function LoginForm() {
 
   return (
     <form className={CARD} id="login-form" autoComplete="on" onSubmit={onSubmit}>
-      <div className="flex items-center gap-[9px] text-[20px] font-extrabold"><Icon name="shield" className="size-[26px] stroke-risk stroke-[2.2]" />SentinelAI</div>
+      <div className="flex items-center gap-2.25 text-[20px] font-extrabold"><Icon name="shield" className="size-6.5 stroke-risk stroke-[2.2]" />SentinelAI</div>
       <label className={field}>아이디<input className={input} name="login_id" autoComplete="username" required autoFocus /></label>
       <label className={field}>비밀번호<input className={input} ref={password} name="password" type="password" autoComplete="current-password" required /></label>
       <button type="submit" className={cn(primaryButton, "h-10 rounded-lg border-none font-bold")}>로그인</button>

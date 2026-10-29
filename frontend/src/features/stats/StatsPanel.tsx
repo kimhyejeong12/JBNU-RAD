@@ -14,7 +14,7 @@ import { cn } from "@/shared/lib/cn";
 import { box, boxPre, levelText, note, panelBody, recLine, subject as subjectCls, toolButton } from "@/shared/ui/base/styles";
 
 // 지금 가진 권한 한 줄 — 이름 · 시스템은 왼쪽, 기한은 첫 줄 오른쪽.
-const HELD_ROW = "grid cursor-pointer grid-cols-[1fr_auto] gap-x-[10px] gap-y-0.5 rounded-lg border border-line bg-surface px-[10px] py-2 text-left text-[13px] [font-family:inherit] [font-weight:inherit] [line-height:inherit] hover:border-ink-dim";
+const HELD_ROW = "grid cursor-pointer grid-cols-[1fr_auto] gap-x-2.5 gap-y-0.5 rounded-lg border border-line bg-surface px-2.5 py-2 text-left text-[13px] font-[inherit] [font-weight:inherit] leading-[inherit] hover:border-ink-dim";
 const HELD_SUB = "text-[12px] text-ink-dim";
 
 // 통계 패널 — 고른 막대 · 줄의 자세한 내용과 운영자가 이어 볼 곳(노드 탭 · 로그 조회 · 결재함 · 로그 감시 판정).
@@ -54,7 +54,7 @@ function NodePanel({ d, node }: { d: Stats; node: string }) {
           <div className={boxPre}>{hit.map((c) => `${clauses.label(c.source)} — ${c.items.filter((i) => i.startsWith(n.node + " ")).map((i) => i.slice(n.node.length + 3)).join(", ")}`).join("\n")}</div>
         </Section>
       )}
-      <div className="mt-[18px]"><button className={toolButton} id="stat-go" onClick={() => gotoNode(n.node)}><Icon name="server" small />노드 탭에서 보기</button></div>
+      <div className="mt-4.5"><button className={toolButton} id="stat-go" onClick={() => gotoNode(n.node)}><Icon name="server" small />노드 탭에서 보기</button></div>
     </Body>
   );
 }
@@ -118,7 +118,7 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
       </Section>
       <Section icon="activity" title="의심 점수 흐름"><ScoreTrend p={p} /></Section>
       <p className={note}>{stamp(p.created_at)} 예측</p>
-      <div className="mt-[18px]">
+      <div className="mt-4.5">
         {g.subject && <button className={toolButton} id="stat-go" onClick={() => { navigate("events"); openLogs({ user: g.subject!, period: "month" }); }}><Icon name="search" small />이 사용자의 로그 조회</button>}
         {found && <button className={toolButton} id="stat-go2" onClick={() => gotoEvent(`event:${found.keys[found.keys.length - 1]}`)}><Icon name="list" small />로그 감시 판정 보기</button>}
       </div>

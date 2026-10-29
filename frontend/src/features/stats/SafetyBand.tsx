@@ -26,7 +26,7 @@ export function SafetyBand({ label, safety, groups, onSelect }: { label: string;
       <div className="grid min-w-0 gap-1 text-[13px]">
         {shown.length ? shown.map(([name, list, kind, dot]) => (
           <div key={name} className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <b className="min-w-[86px] font-bold"><LevelDot level={dot === "none" ? null : dot} />{name} {list.length}</b>
+            <b className="min-w-21.5 font-bold"><LevelDot level={dot === "none" ? null : dot} />{name} {list.length}</b>
             {list.map((x) => <span key={x.key} className="min-w-0 cursor-pointer leading-[1.35] font-semibold underline decoration-line underline-offset-[3px] line-clamp-2 hover:decoration-current focus:decoration-current" {...activateProps(() => onSelect(kind, x.key))}>{x.label}</span>)}
           </div>
         )) : <p className={note}>점수를 깎은 대상이 없습니다.</p>}

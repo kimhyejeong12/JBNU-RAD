@@ -30,9 +30,9 @@ export function SummaryCards() {
     <section className="grid gap-3" id="stats" style={{ gridTemplateColumns: `repeat(${levels.length}, minmax(0, 1fr))` }}>
       {levels.map((l) => (
         <button key={l} aria-pressed={ui.filter === l} data-tip={LEVEL_TIP[l]} onClick={() => toggleFilter(l)}
-          className={cn(card, "w-full px-4 py-[14px] text-left", ui.filter === l ? PRESSED[l] : "hover:border-ink-dim")}>
+          className={cn(card, "w-full px-4 py-3.5 text-left", ui.filter === l ? PRESSED[l] : "hover:border-ink-dim")}>
           <span className="flex items-center gap-1.5 text-[12px] text-ink-dim"><LevelDot level={l} className="mr-0" />{l}</span>
-          <span className={cn("block text-[26px] leading-[1.25] font-extrabold tracking-[-0.8px] tabular-nums", levelText[l])}>{shown.filter((it) => it.level === l).length}</span>
+          <span className={cn("block text-[26px] leading-tight font-extrabold tracking-[-0.8px] tabular-nums", levelText[l])}>{shown.filter((it) => it.level === l).length}</span>
         </button>
       ))}
     </section>

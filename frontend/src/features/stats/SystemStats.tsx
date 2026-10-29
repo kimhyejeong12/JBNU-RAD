@@ -12,10 +12,10 @@ import { cardCount, cardHead, cardTitle, mark, markTone, type MarkKey } from "@/
 interface Props { d: Stats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
 
 // 세로 막대 — 막대 칸에 올리거나 고르면(focus) 조각이 조금 밝아지고, 맨 위 조각만 위를 둥글게.
-const MK = "last:rounded-t-[4px] group-hover:brightness-[1.12] group-focus:brightness-[1.12]";
+const MK = "last:rounded-t-sm group-hover:brightness-[1.12] group-focus:brightness-[1.12]";
 // 날짜 글자는 그 자리 가운데 정렬 — 처음 글자는 왼쪽 끝, 마지막 글자는 오른쪽 끝에 맞춥니다.
 const TICK = "absolute top-1 -translate-x-1/2 whitespace-nowrap first:translate-x-0 last:-translate-x-full";
-const CHART_TITLE = "m-0 px-[18px] pt-[10px] pb-0.5 text-[13px] font-bold";
+const CHART_TITLE = "m-0 px-4.5 pt-2.5 pb-0.5 text-[13px] font-bold";
 
 const threatOf = (d: Stats) => ({ threat: d.events.lines["주의"] + d.events.lines["위험"], logs: d.logs.count });
 const gapsOf = (d: Stats) => d.servers.nodes.reduce((a, n) => ({ "위험": a["위험"] + n.threats["위험"], "주의": a["주의"] + n.threats["주의"] }), { "위험": 0, "주의": 0 });
@@ -85,13 +85,13 @@ function ThreatLogs({ d }: Props) {
       {keys.length ? (
         <>
           <div className={statChart}>
-            <div className="relative ml-[30px] flex h-[140px] items-end gap-0.5 border-b border-line" role="img" aria-label="날짜별 로그 건수와 주의 · 위험 로그">
-              {[1, 0.5].map((f) => <span key={f} className="absolute -left-[30px] right-0 border-t border-line text-[10.5px] text-ink-dim tabular-nums" style={{ bottom: `${f * 100}%` }}><span className="absolute -top-[7px] left-0 w-[26px] bg-surface text-right">{Math.round(dayMax * f)}</span></span>)}
+            <div className="relative ml-7.5 flex h-35 items-end gap-0.5 border-b border-line" role="img" aria-label="날짜별 로그 건수와 주의 · 위험 로그">
+              {[1, 0.5].map((f) => <span key={f} className="absolute -left-7.5 right-0 border-t border-line text-[10.5px] text-ink-dim tabular-nums" style={{ bottom: `${f * 100}%` }}><span className="absolute -top-1.75 left-0 w-6.5 bg-surface text-right">{Math.round(dayMax * f)}</span></span>)}
               {keys.map((k) => {
                 const x = byDay[k];
                 const other = Math.max(0, x.total - x["위험"] - x["주의"]);
                 return (
-                  <span key={k} className="group relative z-[1] flex h-full flex-[1_1_0] justify-center outline-offset-2" tabIndex={0} data-tip={`${k}|로그 ${x.total}건 · 위험 ${x["위험"]} · 주의 ${x["주의"]} (${pct(x["위험"] + x["주의"], x.total)})`}>
+                  <span key={k} className="group relative z-1 flex h-full flex-[1_1_0] justify-center outline-offset-2" tabIndex={0} data-tip={`${k}|로그 ${x.total}건 · 위험 ${x["위험"]} · 주의 ${x["주의"]} (${pct(x["위험"] + x["주의"], x.total)})`}>
                     <span className="flex h-full w-full max-w-6 flex-col-reverse gap-0.5">
                       {([["위험", x["위험"]], ["주의", x["주의"]], ["기타", other]] as [MarkKey, number][]).filter(([, v]) => v)
                         .map(([c, v]) => <span key={c} className={cn(mark, markTone[c], MK)} style={{ height: `${(v / dayMax) * 100}%` }} />)}
@@ -100,7 +100,7 @@ function ThreatLogs({ d }: Props) {
                 );
               })}
             </div>
-            <div className="relative ml-[30px] h-[18px] text-[11px] text-ink-dim tabular-nums">
+            <div className="relative ml-7.5 h-4.5 text-[11px] text-ink-dim tabular-nums">
               {ticks.map((n, i) => <span key={n} className={TICK} style={{ left: i === 0 ? "0" : i === ticks.length - 1 ? "100%" : at(n) }}>{keys[n]}</span>)}
             </div>
           </div>

@@ -24,7 +24,7 @@ export function ModuleTables({ snap }: { snap: Snapshot }) {
       <p className={note}>{stamp(snap.collected_at)} 수집 · {snap.collected_by || "수집 계정 모름"}</p>
       {Object.entries(snap.modules ?? {}).map(([m, facts]) => (
         <Fragment key={m}>
-          <p className="mx-0 mt-[10px] mb-1 text-[12px] font-bold text-ink-dim">{MODULE_LABEL[m] || m}</p>
+          <p className="mx-0 mt-2.5 mb-1 text-[12px] font-bold text-ink-dim">{MODULE_LABEL[m] || m}</p>
           <KvTable rows={Object.entries(facts)} />
         </Fragment>
       ))}

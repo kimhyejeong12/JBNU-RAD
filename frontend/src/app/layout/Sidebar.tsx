@@ -19,7 +19,7 @@ export function Sidebar({ onDocs }: { onDocs: () => void }) {
   const counts = useViewCounts();
   return (
     <nav data-tip-instant aria-label="메뉴"
-      className={cn("row-start-2 flex flex-col items-center gap-1.5 border-r border-line bg-surface px-0 py-[14px] narrow:hidden", views.length < 2 && "hidden")}>
+      className={cn("row-start-2 flex flex-col items-center gap-1.5 border-r border-line bg-surface px-0 py-3.5 narrow:hidden", views.length < 2 && "hidden")}>
       <div className="flex flex-col gap-1.5" id="nav-views">
         {views.map((v) => (
           <button key={v} className={cn(NAV, navTone(ui.view === v))} data-view={v} aria-label={VIEWS[v].label} aria-current={ui.view === v} data-tip-pos="right"
@@ -41,10 +41,10 @@ export function Seg() {
   const views = useViews();
   const counts = useViewCounts();
   return (
-    <div className="hidden self-start rounded-lg bg-canvas p-[3px] narrow:flex" role="tablist" id="seg" aria-label="메뉴" hidden={views.length < 2}>
+    <div className="hidden self-start rounded-lg bg-canvas p-0.75 narrow:flex" role="tablist" id="seg" aria-label="메뉴" hidden={views.length < 2}>
       {views.map((v) => (
         <button key={v} role="tab" aria-selected={ui.view === v} onClick={() => navigate(v)}
-          className="rounded-md border-none bg-transparent px-3 py-[5px] text-[12.5px] font-semibold text-ink-dim aria-selected:bg-surface aria-selected:text-ink aria-selected:shadow-[0_1px_2px_rgba(0,0,0,.08)]">
+          className="rounded-md border-none bg-transparent px-3 py-1.25 text-[12.5px] font-semibold text-ink-dim aria-selected:bg-surface aria-selected:text-ink aria-selected:shadow-[0_1px_2px_rgba(0,0,0,.08)]">
           {VIEWS[v].label}{" "}<span data-count={v}>{counts[v] ?? ""}</span>
         </button>
       ))}

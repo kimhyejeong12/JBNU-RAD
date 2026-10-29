@@ -67,7 +67,7 @@ function Shell() {
       <Sidebar onDocs={() => setDocsOpen(true)} />
       {boot.error ? <LoadError message={boot.error} /> : <Workspace />}
       <div id="drawer-back" onClick={store.closePanel}
-        className={cn("hidden", ui.drawerOpen && "narrow:fixed narrow:inset-0 narrow:z-[45] narrow:block narrow:bg-[rgba(17,17,17,.4)]")} />
+        className={cn("hidden", ui.drawerOpen && "narrow:fixed narrow:inset-0 narrow:z-45 narrow:block narrow:bg-[rgba(17,17,17,.4)]")} />
       <DocsModal open={docsOpen} onClose={() => setDocsOpen(false)} />
       <TooltipLayer />
     </UiContext.Provider>

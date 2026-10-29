@@ -22,7 +22,7 @@ export function NodesTab() {
   // 노드 탭의 [지금 점검]도 같은 작업 큐를 씁니다. 다른 작업이 돌면 기다립니다.
   const checking = jobs?.running === "nodes";
   return (
-    <section className={cn(card, "flex min-h-[320px] flex-col")} id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes">
+    <section className={cn(card, "flex min-h-80 flex-col")} id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes">
       <div className={cardHead}>
         <h3 className={cardTitle}>수집 노드</h3>
         <span className={cardCount} id="node-count">{nodes.data ? `${list.length}대` : ""}</span>

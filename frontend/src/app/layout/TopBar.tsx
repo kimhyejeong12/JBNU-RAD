@@ -36,10 +36,10 @@ export function TopBar() {
 
   return (
     // 툴팁이 곧바로 뜨는 구역입니다 (data-tip-instant).
-    <header data-tip-instant className="col-span-full flex items-center gap-[18px] bg-ink px-5 py-0 text-white narrow:flex-wrap narrow:gap-y-2 narrow:px-4 narrow:py-[10px]">
-      <div className="flex items-center gap-[9px] text-[17px] font-extrabold tracking-[-0.3px]"><Icon name="shield" className="size-6 stroke-risk stroke-[2.2]" />SentinelAI</div>
+    <header data-tip-instant className="col-span-full flex items-center gap-4.5 bg-ink px-5 py-0 text-white narrow:flex-wrap narrow:gap-y-2 narrow:px-4 narrow:py-2.5">
+      <div className="flex items-center gap-2.25 text-[17px] font-extrabold tracking-[-0.3px]"><Icon name="shield" className="size-6 stroke-risk stroke-[2.2]" />SentinelAI</div>
       <div className="ml-auto flex items-center gap-2">
-        <span className="flex items-center whitespace-nowrap rounded-[7px] bg-white px-[11px] py-[5px] text-[12.5px] font-bold text-risk" id="engine-warn" hidden={!problems.length}
+        <span className="flex items-center whitespace-nowrap rounded-[7px] bg-white px-2.75 py-1.25 text-[12.5px] font-bold text-risk" id="engine-warn" hidden={!problems.length}
           data-tip={`점검 항목|${problems.join(" · ")}. 저장된 판정 결과는 계속 볼 수 있습니다`}>
           <LevelDot level="위험" />AI 엔진 점검 필요
         </span>
@@ -67,7 +67,7 @@ const TOP_BTN = "rounded-[7px] border border-bar-line bg-transparent px-2.5 py-1
 function AlertPop({ ref, open, risks, onPick }: { ref: Ref<HTMLDivElement>; open: boolean; risks: QueueItem[]; onPick: (key: string) => void }) {
   return (
     <div id="alert-pop" ref={ref}
-      className={cn("absolute top-[50px] right-4 z-30 w-[330px] rounded-[10px] border border-line bg-surface p-[14px] text-ink shadow-[0_12px_32px_rgba(0,0,0,.14)]", open ? "block" : "hidden")}>
+      className={cn("absolute top-12.5 right-4 z-30 w-82.5 rounded-[10px] border border-line bg-surface p-3.5 text-ink shadow-[0_12px_32px_rgba(0,0,0,.14)]", open ? "block" : "hidden")}>
       <h4 className="m-0 mb-2 text-[13px] font-bold">위험 알림 {risks.length ? `— 미결 ${risks.length}건` : "— 미결 없음"}</h4>
       {risks.length
         ? risks.map((it) => (

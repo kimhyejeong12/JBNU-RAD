@@ -12,8 +12,8 @@ export function LevelDot({ level, className }: { level?: Level | null; className
 // 패널 안의 작은 구역 — 아이콘 + 제목 + 내용.
 export function Section({ icon, title, className, children }: { icon: string; title: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <div className={cn("mt-[18px]", className)}>
-      <h4 className="m-0 mb-[7px] flex items-center gap-1.5 text-[12.5px] font-bold"><Icon name={icon} small />{title}</h4>
+    <div className={cn("mt-4.5", className)}>
+      <h4 className="m-0 mb-1.75 flex items-center gap-1.5 text-[12.5px] font-bold"><Icon name={icon} small />{title}</h4>
       {children}
     </div>
   );
@@ -39,10 +39,10 @@ export function KvTable({ rows }: { rows: [label: string, value: ReactNode][] })
 // 기간 버튼 묶음 — 지금부터 거슬러 올라가는 기간을 고릅니다.
 export function Periods<K extends string>({ id, labels, value, onChange }: { id: string; labels: [K, string][]; value: K; onChange: (k: K) => void }) {
   return (
-    <div className="flex flex-wrap gap-0.5 rounded-lg bg-canvas p-[3px]" id={id} role="group" aria-label="기간">
+    <div className="flex flex-wrap gap-0.5 rounded-lg bg-canvas p-0.75" id={id} role="group" aria-label="기간">
       {labels.map(([k, label]) => (
         <button key={k} aria-pressed={k === value} onClick={() => onChange(k)}
-          className="rounded-md border-none bg-transparent px-[11px] py-[5px] text-[12.5px] font-semibold text-ink-dim aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-[0_1px_2px_rgba(0,0,0,.08)]">
+          className="rounded-md border-none bg-transparent px-2.75 py-1.25 text-[12.5px] font-semibold text-ink-dim aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-[0_1px_2px_rgba(0,0,0,.08)]">
           {label}
         </button>
       ))}

@@ -132,14 +132,14 @@ function PolicySection({ issue, policies }: { issue: PolicyIssue; policies: Poli
 }
 
 // 서버 점검 — 기준 문서와 다른 곳마다 지금 · 기준 · 바꿀 것 · 근거 조항. 이름 칸은 짧아 좁게 둡니다.
-const GAP_TH = "w-[52px]";
+const GAP_TH = "w-13";
 function GapSections({ itemKey, f }: { itemKey: string; f: ServerFinding }) {
   return (
     <>
       <Section icon="activity" title="요약"><div className={box}>{f.reason}</div></Section>
       <Section icon="warn" title={`정책과 다른 곳 ${f.gaps.length}`}>
         {f.gaps.length ? f.gaps.map((g, n) => (
-          <div className="mb-2 rounded-lg border border-line px-3 py-[10px]" key={n}>
+          <div className="mb-2 rounded-lg border border-line px-3 py-2.5" key={n}>
             <div className="mb-1.5 text-[13px] font-bold"><LevelDot level={g.level} />{g.item}</div>
             <table className={kvTable}><tbody>
               <tr><th className={cn(kvTh, GAP_TH)}>지금</th><td className={kvTd}>{g.current}</td></tr>

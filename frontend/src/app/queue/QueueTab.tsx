@@ -12,10 +12,10 @@ export function QueueTab() {
   const me = useMe();
   const { ui } = useUi();
   return (
-    <div className="flex flex-col gap-[14px]" id="view-queue" role="tabpanel" aria-labelledby="tab-queue" hidden={ui.mainTab !== "queue"}>
+    <div className="flex flex-col gap-3.5" id="view-queue" role="tabpanel" aria-labelledby="tab-queue" hidden={ui.mainTab !== "queue"}>
       {me.role === "user" && <RequestForm hidden={ui.view !== "mine"} />}
       <SummaryCards />
-      <section className={cn(card, "flex min-h-[320px] flex-col")}>
+      <section className={cn(card, "flex min-h-80 flex-col")}>
         <QueueHead />
         <QueueTable />
       </section>

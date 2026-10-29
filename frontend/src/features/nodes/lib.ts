@@ -6,7 +6,7 @@ export type NodeStateClass = "off" | "wait" | "stale" | "on";
 export const nodeStateTone: Record<NodeStateClass, string> = { on: "text-ok", stale: "text-warn", off: "text-ink-dim", wait: "text-ink-dim" };
 export const nodeStateText = "whitespace-nowrap text-[12px] font-bold";
 // 노드 패널 · 노드 키의 버튼 줄
-export const nodeActions = "mt-[10px] flex flex-wrap gap-2";
+export const nodeActions = "mt-2.5 flex flex-wrap gap-2";
 
 // 노드 상태 — [상태, 글자, 툴팁 설명]. 꺼짐 · 키 없음 · 끊김 · 기다리는 중 · 수집 중 순서로 봅니다.
 export function nodeState(n: NodeRow): [NodeStateClass, string, string] {

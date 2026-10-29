@@ -42,9 +42,9 @@ export function RightPanel() {
 
 // 넓은 화면은 오른쪽 칸, 좁은 화면은 오른쪽에서 밀려 나오는 서랍 — 폰에서도 바깥을 눌러 닫을 48px 를 남깁니다.
 // 밀려 나오는 움직임은 transform 전환이라 Tailwind 의 translate(별도 속성) 대신 transform 값을 그대로 씁니다.
-const PANEL = "flex min-h-0 flex-col overflow-hidden narrow:fixed narrow:inset-y-0 narrow:right-0 narrow:z-50 narrow:w-[min(430px,calc(100vw_-_48px))] narrow:rounded-none narrow:border-0 narrow:shadow-[-12px_0_32px_rgba(0,0,0,.16)]";
-const DRAWER_SHUT = "narrow:invisible narrow:[transform:translateX(100%)] narrow:[transition:transform_.2s_ease,visibility_0s_linear_.2s]";
-const DRAWER_OPEN = "narrow:visible narrow:[transform:none] narrow:[transition:transform_.2s_ease]";
+const PANEL = "flex min-h-0 flex-col overflow-hidden narrow:fixed narrow:inset-y-0 narrow:right-0 narrow:z-50 narrow:w-[min(430px,calc(100vw-48px))] narrow:rounded-none narrow:border-0 narrow:shadow-[-12px_0_32px_rgba(0,0,0,.16)]";
+const DRAWER_SHUT = "narrow:invisible narrow:transform-[translateX(100%)] narrow:[transition:transform_.2s_ease,visibility_0s_linear_.2s]";
+const DRAWER_OPEN = "narrow:visible narrow:transform-none narrow:[transition:transform_.2s_ease]";
 
 // 빈 패널도 메뉴를 따릅니다. 일반 사용자에게는 AI 문구를 보이지 않습니다.
 function EmptyQueuePanel({ view }: { view: View | null }) {

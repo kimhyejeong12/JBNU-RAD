@@ -13,7 +13,7 @@ import { StatsTab } from "@/features/stats/StatsTab";
 
 // 작업 공간 칸 — 목록과 오른쪽 패널(430px). 좁은 화면은 한 칸 (1fr 이라 넓은 표를 펼치면 칸이 표만큼 넓어집니다 — 옛 화면 그대로).
 // 받아 오지 못했을 때의 안내(AppShell)도 같은 칸을 씁니다.
-export const workspace = "grid min-h-0 grid-cols-[minmax(0,1fr)_430px] gap-[18px] px-[22px] pt-[18px] pb-[22px] narrow:grid-cols-[1fr] narrow:px-4 narrow:py-[14px]";
+export const workspace = "grid min-h-0 grid-cols-[minmax(0,1fr)_430px] gap-4.5 px-5.5 pt-4.5 pb-5.5 narrow:grid-cols-[1fr] narrow:px-4 narrow:py-3.5";
 
 // 검토 현황은 늘 그려 두고 hidden 으로 숨깁니다. 노드 · 로그 · 질의 · 통계 탭은 들어올 때 마운트해 그때 데이터를 받습니다 (옛 화면의 loadNodes 등).
 export function Workspace() {
@@ -21,10 +21,9 @@ export function Workspace() {
   // 질의 탭은 질의를 넓게 쓰고, 근거 칩을 눌렀을 때만 오른쪽에 인용 조항 패널을 엽니다 (좁은 화면에서도 한 칸 minmax).
   const wideAsk = ui.mainTab === "ask" && !ui.askSource;
   const stat = ui.mainTab === "stats" || ui.mainTab === "ustats";
-  // data-tab 은 패널 닫기 버튼이 질의 탭에서 보이게 하는 데 씁니다.
   return (
-    <div className={cn(workspace, wideAsk && "grid-cols-[minmax(0,1fr)] narrow:grid-cols-[minmax(0,1fr)]")} data-tab={ui.mainTab}>
-      <div className="flex min-h-0 flex-col gap-[14px] overflow-auto narrow:overflow-visible [&>*]:shrink-0">
+    <div className={cn(workspace, wideAsk && "grid-cols-[minmax(0,1fr)] narrow:grid-cols-[minmax(0,1fr)]")}>
+      <div className="flex min-h-0 flex-col gap-3.5 overflow-auto narrow:overflow-visible *:shrink-0">
         <Seg />
         <MainTabs />
         <QueueTab />

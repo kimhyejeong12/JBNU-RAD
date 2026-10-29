@@ -22,7 +22,7 @@ export function StatsTab() {
     openDrawer();
   };
   return (
-    <div className="flex flex-col gap-[14px]" id="view-stats" role="tabpanel" aria-labelledby="tab-stats" style={{ opacity: q.isFetching && d ? 0.55 : undefined }}>
+    <div className="flex flex-col gap-3.5" id="view-stats" role="tabpanel" aria-labelledby="tab-stats" style={{ opacity: q.isFetching && d ? 0.55 : undefined }}>
       <section className={statCard}>
         <div className={cardHead}>
           <h3 className={cardTitle} id="stat-title">{STAT_TITLES[kind]}</h3>

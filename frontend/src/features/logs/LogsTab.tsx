@@ -36,7 +36,7 @@ export function LogsTab() {
   };
 
   return (
-    <section className={cn(card, "flex min-h-[320px] flex-col")} id="view-logs" role="tabpanel" aria-labelledby="tab-logs" ref={section}>
+    <section className={cn(card, "flex min-h-80 flex-col")} id="view-logs" role="tabpanel" aria-labelledby="tab-logs" ref={section}>
       <div className={cardHead}>
         <h3 className={cardTitle}>로그 조회</h3>
         <Periods id="log-periods" labels={PERIODS} value={L.period} onChange={(period) => { if (period !== L.period) change({ period }); }} />
@@ -75,7 +75,7 @@ export function LogsTab() {
 // 거르기 칸 — 값은 응답의 options 에서. 고른 값이 로그에 없더라도(판정에서 넘어온 사용자 등) 칸에서 사라지지 않게 둡니다.
 function LogFilters({ options, cond, onChange }: { options?: LogsPage["options"]; cond: LogCond; onChange: (patch: Partial<LogCond>) => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 px-[18px] pb-3">
+    <div className="flex flex-wrap items-center gap-2 px-4.5 pb-3">
       {LOG_FILTERS.map(([k, id, all, opt]) => {
         const values = [...(options?.[opt] ?? [])];
         if (cond[k] && !values.includes(cond[k])) values.unshift(cond[k]);

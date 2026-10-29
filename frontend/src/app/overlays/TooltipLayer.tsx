@@ -72,8 +72,8 @@ export function TooltipLayer() {
   // 움직임은 transform 전환이라 Tailwind 의 translate(별도 속성) 대신 transform 값을 그대로 쓰고, 세 상태가 서로 겹치지 않게 둡니다.
   return (
     <div role="tooltip" ref={ref}
-      className="pointer-events-none fixed z-[60] max-w-[270px] rounded-lg bg-ink px-[11px] py-2 text-[12px] leading-[1.5] text-white opacity-0 shadow-[0_8px_24px_rgba(0,0,0,.18)] [overflow-wrap:anywhere] [transform:translateY(3px)] [transition:opacity_.12s_ease,transform_.12s_ease] [word-break:keep-all] data-show:opacity-100 data-show:[transform:none] data-[pos=right]:not-data-show:[transform:translateX(-3px)]">
-      <b className="block text-[12.5px] font-bold" /><span className="mt-[3px] block text-tip-dim" />
+      className="pointer-events-none fixed z-60 max-w-67.5 rounded-lg bg-ink px-2.75 py-2 text-[12px] leading-normal text-white opacity-0 shadow-[0_8px_24px_rgba(0,0,0,.18)] wrap-anywhere transform-[translateY(3px)] [transition:opacity_.12s_ease,transform_.12s_ease] break-keep data-show:opacity-100 data-show:transform-none data-[pos=right]:not-data-show:transform-[translateX(-3px)]">
+      <b className="block text-[12.5px] font-bold" /><span className="mt-0.75 block text-tip-dim" />
     </div>
   );
 }

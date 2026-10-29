@@ -36,6 +36,8 @@
   --color-tip-dim: #CFCFCF;
   /* 간격(p · m · gap · h · size …)의 단위는 px — 옛 CSS 처럼 브라우저 기본 글자 크기를 키워도 여백은 그대로 (리디자인에서 rem 으로 바꿀지 정함). */
   --spacing: 4px;
+  /* 둥근 모서리 기준 — shadcn 의 --radius 를 테마에도 둡니다 (Tailwind 기본 테마의 0.25rem 대신, 편집기 확장 · 유틸리티가 같은 값을 보게). */
+  --radius: 8px;
   --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }
 
@@ -66,7 +68,6 @@
   --border: #E4E4E7;
   --input: #E4E4E7;
   --ring: #111111;
-  --radius: 8px;
 }
 
 @theme inline {

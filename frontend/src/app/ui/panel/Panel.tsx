@@ -6,13 +6,13 @@ import { formMsg, formMsgOk, note, panelFoot } from "@/shared/ui/base/styles";
 // 패널 제목 줄 — 닫기 버튼은 작은 화면의 서랍과 질의 탭의 인용 패널에서만 보입니다.
 // 다른 버튼(children)은 닫기 앞에 두고, 그때 닫기는 그 버튼 바로 옆에 붙습니다.
 export function PanelHead({ title, children }: { title: ReactNode; children?: ReactNode }) {
-  const { closePanel } = useUi();
+  const { closePanel, ui } = useUi();
   return (
-    <div className="flex items-center gap-[10px] border-b border-line px-[18px] pt-4 pb-3">
+    <div className="flex items-center gap-2.5 border-b border-line px-4.5 pt-4 pb-3">
       <h3 className="m-0 text-[15.5px] font-bold">{title}</h3>
       {children}
       <button aria-label="닫기" onClick={closePanel}
-        className={cn("hidden border-none bg-transparent px-1 py-0 text-[22px] leading-none text-ink-dim hover:text-ink narrow:block [[data-tab=ask]_&]:block", children ? "ml-1" : "ml-auto")}>
+        className={cn("hidden border-none bg-transparent px-1 py-0 text-[22px] leading-none text-ink-dim hover:text-ink narrow:block", ui.mainTab === "ask" && "block", children ? "ml-1" : "ml-auto")}>
         ×
       </button>
     </div>

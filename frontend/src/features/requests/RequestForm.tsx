@@ -35,7 +35,7 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
 
   return (
     <section className={card} id="req-form" hidden={hidden}>
-      <h3 className="m-0 px-[18px] pt-4 pb-2 text-[15.5px] font-bold">권한 신청</h3>
+      <h3 className="m-0 px-4.5 pt-4 pb-2 text-[15.5px] font-bold">권한 신청</h3>
       <form id="new-request" className={formGrid} onSubmit={onSubmit}>
         <label className={cn(field, "col-span-full")}>
           <span>신청할 권한 <b className="text-risk">*</b></span>
@@ -46,7 +46,7 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
           <span className="text-[12.5px] font-semibold text-ink-dim">현재 보유 권한</span>
           <div id="req-held">
             {held.length
-              ? <ul className="mx-0 mt-1 mb-0 list-disc pl-[18px] text-[13px]">{held.map((r) => <li key={r.request_no}>{r.requested_access}{" "}<span className={cn(note, "mt-1")}>{r.period_end ? `${r.period_end}까지` : "기간 없음"}</span></li>)}</ul>
+              ? <ul className="mx-0 mt-1 mb-0 list-disc pl-4.5 text-[13px]">{held.map((r) => <li key={r.request_no}>{r.requested_access}{" "}<span className={cn(note, "mt-1")}>{r.period_end ? `${r.period_end}까지` : "기간 없음"}</span></li>)}</ul>
               : <p className={cn(note, "mt-1")}>이 시스템에서 승인받은 유효 권한이 없습니다.</p>}
           </div>
         </div>
