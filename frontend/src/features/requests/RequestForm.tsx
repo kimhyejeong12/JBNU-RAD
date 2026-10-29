@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { accessOptions, type AccessOptions } from "./lib";
 import { useCreateRequest } from "./api";
-import { useCatalog, useMine } from "@/app/data";
+import { useCatalog, useMine } from "@/app/session/data";
 import { isActive } from "@/shared/lib/request";
 
 // 일반 사용자의 권한 신청서 — 권한은 권한 목록의 켜진 권한에서 고르고, 현재 보유 권한은 적지 않고 보여주기만 합니다.

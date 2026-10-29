@@ -1,8 +1,8 @@
 import { criteriaText, serverCriteriaText } from "./lib";
-import { useClauses } from "@/app/data";
+import { useClauses } from "@/app/session/data";
 import type { AskItem, AskKind, LogFacts, ServerFacts } from "@/shared/api/types";
-import { Icon } from "@/shared/ui/Icon";
-import { Section } from "@/shared/ui/parts";
+import { Icon } from "@/shared/ui/base/Icon";
+import { Section } from "@/shared/ui/base/parts";
 
 interface Props { m: AskItem; i: number; pressed: (n: number) => boolean; onToggle: (n: number) => void }
 

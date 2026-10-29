@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
 import { STAT_TITLES, SUSPECT_COLOR } from "./lib";
 import { useStatsData } from "./useStatsData";
-import { useClauses } from "@/app/data";
-import { useUi } from "@/app/ui/UiContext";
-import { PanelHead } from "@/app/ui/panel";
+import { useClauses } from "@/app/session/data";
+import { useUi } from "@/app/ui/state/UiContext";
+import { PanelHead } from "@/app/ui/panel/Panel";
 import type { Stats, Suspect, UserStats } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
-import { Icon } from "@/shared/ui/Icon";
-import { KvTable, Section } from "@/shared/ui/parts";
+import { Icon } from "@/shared/ui/base/Icon";
+import { KvTable, Section } from "@/shared/ui/base/parts";
 import { Sparkline } from "@/shared/ui/charts/parts";
 
 // 통계 패널 — 고른 막대 · 줄의 자세한 내용과 운영자가 이어 볼 곳(노드 탭 · 로그 조회 · 결재함 · 로그 감시 판정).

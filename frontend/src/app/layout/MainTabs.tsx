@@ -1,8 +1,8 @@
-import { VIEWS, type MainTab } from "./views";
-import { useUi } from "./ui/UiContext";
+import { VIEWS, type MainTab } from "@/app/session/views";
+import { useUi } from "@/app/ui/state/UiContext";
 import { ASK } from "@/features/ask/config";
 import { askMode } from "@/features/ask/lib";
-import { Icon } from "@/shared/ui/Icon";
+import { Icon } from "@/shared/ui/base/Icon";
 
 const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
   { tab: "queue", icon: "list", label: "검토 현황", panel: "view-queue" },

@@ -1,10 +1,10 @@
-import { useMe } from "@/app/me";
-import { useJobs } from "@/app/data";
-import { VIEWS } from "@/app/views";
-import { useUi } from "@/app/ui/UiContext";
-import type { StageFilter } from "@/app/ui/uiReducer";
+import { useMe } from "@/app/session/me";
+import { useJobs } from "@/app/session/data";
+import { VIEWS } from "@/app/session/views";
+import { useUi } from "@/app/ui/state/UiContext";
+import type { StageFilter } from "@/app/ui/state/uiReducer";
 import { runButton, useStartJob } from "@/shared/api/jobs";
-import { Icon } from "@/shared/ui/Icon";
+import { Icon } from "@/shared/ui/base/Icon";
 
 // 대기열 제목 줄 — 검색 · 결재 단계 거르기 · 실행 버튼. 세 실행 버튼은 빼지 않고 hidden 으로 숨깁니다 (.run + .run 여백 규칙).
 export function QueueHead() {

@@ -1,6 +1,6 @@
 import type { QueueItem } from "./types";
-import { TYPE_VIEW, VIEWS, type View, RESULT_VIEWS } from "@/app/views";
-import type { LevelFilter, StageFilter } from "@/app/ui/uiReducer";
+import { TYPE_VIEW, VIEWS, type View, RESULT_VIEWS } from "@/app/session/views";
+import type { LevelFilter, StageFilter } from "@/app/ui/state/uiReducer";
 import type { Role, Jobs } from "@/shared/api/types";
 import { STEP, isActive } from "@/shared/lib/request";
 import { runKindLabel } from "@/shared/api/jobs";

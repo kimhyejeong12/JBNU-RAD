@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { DECISIONS } from "./lib";
-import { useUi } from "@/app/ui/UiContext";
+import { useUi } from "@/app/ui/state/UiContext";
 import type { QueueItem } from "@/app/queue/types";
 import { send } from "@/shared/api/http";
 import type { Decision, Results } from "@/shared/api/types";

@@ -1,9 +1,9 @@
-import { useMe, useViews } from "./me";
-import { VIEWS } from "./views";
-import { useUi } from "./ui/UiContext";
-import { Icon } from "@/shared/ui/Icon";
-import { useQueue } from "./queue/useQueue";
-import { viewCounts } from "./queue/select";
+import { useMe, useViews } from "@/app/session/me";
+import { VIEWS } from "@/app/session/views";
+import { useUi } from "@/app/ui/state/UiContext";
+import { Icon } from "@/shared/ui/base/Icon";
+import { useQueue } from "@/app/queue/useQueue";
+import { viewCounts } from "@/app/queue/select";
 
 // 넓은 화면의 메뉴 — 건수는 세그먼트가 없으므로 툴팁 제목에 붙입니다.
 export function Sidebar({ onDocs }: { onDocs: () => void }) {

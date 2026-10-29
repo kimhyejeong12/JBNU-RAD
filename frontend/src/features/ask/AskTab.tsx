@@ -3,7 +3,7 @@ import { ASK } from "./config";
 import { Evidence } from "./Evidence";
 import { askMode, askWaitLabel } from "./lib";
 import { useAsk } from "./useAsk";
-import { useUi } from "@/app/ui/UiContext";
+import { useUi } from "@/app/ui/state/UiContext";
 import { useNow } from "@/shared/lib/hooks";
 
 // 질의 — 정책 질의(Answer)도 로그 질의도 등급이 없으므로 등급 배지를 달지 않습니다.

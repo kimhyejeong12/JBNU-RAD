@@ -1,10 +1,10 @@
 import { createContext, useContext, useMemo, useReducer, type Dispatch } from "react";
 import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { initialUi, uiReducer, type AskSource, type StageFilter, type UiAction, type UiState } from "./uiReducer";
-import { TYPE_VIEW, type MainTab, type View } from "@/app/views";
+import { TYPE_VIEW, type MainTab, type View } from "@/app/session/views";
 import { firstKeyInView, inView } from "@/app/queue/select";
 import { useQueue } from "@/app/queue/useQueue";
-import { useMe } from "@/app/me";
+import { useMe } from "@/app/session/me";
 import type { Level } from "@/shared/api/types";
 import { useMediaQuery } from "@/shared/lib/hooks";
 

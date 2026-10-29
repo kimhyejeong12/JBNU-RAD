@@ -2,7 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { type GateMode, useAuth } from "./AuthContext";
 import { login, changePassword } from "./api";
 import { errorText } from "@/shared/api/http";
-import { Icon } from "@/shared/ui/Icon";
+import { Icon } from "@/shared/ui/base/Icon";
 
 export function Gate({ mode }: { mode: Exclude<GateMode, null> }) {
   return (

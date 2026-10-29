@@ -1,7 +1,7 @@
 import { SafetyBand } from "./SafetyBand";
 import { Tile } from "./Tile";
 import { mergeDays, periodDays } from "./lib";
-import type { StatSelection } from "@/app/ui/uiReducer";
+import type { StatSelection } from "@/app/ui/state/uiReducer";
 import type { Stats } from "@/shared/api/types";
 import { niceMax, pct } from "@/shared/lib/format";
 import { HBars } from "@/shared/ui/charts/HBars";

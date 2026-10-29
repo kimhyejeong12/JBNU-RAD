@@ -2,7 +2,7 @@ import type { QueueItem } from "@/app/queue/types";
 import type { RequestRow, AccessItem } from "@/shared/api/types";
 import { stamp, person } from "@/shared/lib/format";
 import { STAGE_LABEL, isActive, requester } from "@/shared/lib/request";
-import type { HistoryStep } from "@/shared/ui/parts";
+import type { HistoryStep } from "@/shared/ui/base/parts";
 
 // 결재자가 보는 신청 — AI 판정이 없거나 실패한 신청도 깨지지 않게 글자로 적습니다.
 export function requestItem(r: RequestRow): QueueItem {

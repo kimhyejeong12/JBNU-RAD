@@ -4,14 +4,14 @@ import { nodeState, type NodeStateClass } from "./lib";
 import { useCreateNode, useNodeAction, type NodeAct } from "./api";
 import { NodeKey } from "./NodeKey";
 import { useQueue } from "@/app/queue/useQueue";
-import { useUi } from "@/app/ui/UiContext";
-import { PanelHead, PanelMsg } from "@/app/ui/panel";
+import { useUi } from "@/app/ui/state/UiContext";
+import { PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
 import { nodeQuery, nodesQuery } from "@/shared/api/queries";
 import type { NodeDetail, NodeRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { Icon } from "@/shared/ui/Icon";
-import { KvTable, LevelDot, Section } from "@/shared/ui/parts";
-import { ModuleTables } from "@/shared/ui/ModuleTables";
+import { Icon } from "@/shared/ui/base/Icon";
+import { KvTable, LevelDot, Section } from "@/shared/ui/base/parts";
+import { ModuleTables } from "@/shared/ui/server/ModuleTables";
 
 // 노드 탭의 패널 — 고르지 않으면 상태 집계와 까는 법, [노드 등록]이면 등록 폼, 고르면 노드 정보 · 키 · 기록.
 export function NodesPanel() {

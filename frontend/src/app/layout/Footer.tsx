@@ -1,8 +1,8 @@
 import { Fragment } from "react";
-import { useJobs, useResults } from "./data";
+import { useJobs, useResults } from "@/app/session/data";
 import { footerWarnings } from "./warnings";
-import { RESULT_VIEWS } from "./views";
-import { useUi } from "./ui/UiContext";
+import { RESULT_VIEWS } from "@/app/session/views";
+import { useUi } from "@/app/ui/state/UiContext";
 import { stamp } from "@/shared/lib/format";
 
 // 계산 시각 · 분석 경고는 정책 관리 · 로그 감시 결과의 것이라 그 메뉴의 검토 현황에서만 보입니다.

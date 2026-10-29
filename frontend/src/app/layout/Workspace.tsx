@@ -1,7 +1,7 @@
-import { useUi } from "./ui/UiContext";
+import { useUi } from "@/app/ui/state/UiContext";
 import { Seg } from "./Sidebar";
 import { MainTabs } from "./MainTabs";
-import { QueueTab } from "./queue/QueueTab";
+import { QueueTab } from "@/app/queue/QueueTab";
 import { RightPanel } from "./RightPanel";
 import { Footer } from "./Footer";
 

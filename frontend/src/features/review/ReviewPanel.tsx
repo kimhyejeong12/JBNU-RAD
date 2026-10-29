@@ -2,16 +2,16 @@ import { useState } from "react";
 import { DECISIONS, DECISION_SET } from "./lib";
 import { useDecide, type ReviewItem } from "./api";
 import { DecisionLog } from "./DecisionLog";
-import { useResults } from "@/app/data";
-import { useUi } from "@/app/ui/UiContext";
-import { PanelHead, PanelMsg } from "@/app/ui/panel";
-import { SourceChips } from "@/app/ui/SourceChips";
+import { useResults } from "@/app/session/data";
+import { useUi } from "@/app/ui/state/UiContext";
+import { PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
+import { SourceChips } from "@/app/ui/panel/SourceChips";
 import type { EventFinding, PolicyIssue, PolicyRow, ServerFinding } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
-import { Icon } from "@/shared/ui/Icon";
-import { KvTable, LevelDot, Section } from "@/shared/ui/parts";
-import { ModuleState } from "@/shared/ui/ModuleTables";
+import { Icon } from "@/shared/ui/base/Icon";
+import { KvTable, LevelDot, Section } from "@/shared/ui/base/parts";
+import { ModuleState } from "@/shared/ui/server/ModuleTables";
 
 // 정책 문제 · 서버 점검 · 로그 감시 판정의 근거와 운영자 결정.
 export function ReviewPanel({ it }: { it: ReviewItem }) {

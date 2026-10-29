@@ -1,7 +1,7 @@
 import { safetyTone } from "./lib";
 import type { Level, SafetyScore } from "@/shared/api/types";
 import { activateProps } from "@/shared/lib/hooks";
-import { LevelDot } from "@/shared/ui/parts";
+import { LevelDot } from "@/shared/ui/base/parts";
 import { Sparkline } from "@/shared/ui/charts/parts";
 
 export type SafetyGroup = [name: string, list: { key: string; label: string }[], kind: string, dot: Level | "none"];

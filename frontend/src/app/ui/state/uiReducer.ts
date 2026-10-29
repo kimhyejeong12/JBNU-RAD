@@ -1,5 +1,5 @@
 import type { Level, LogPeriod, StatPeriod } from "@/shared/api/types";
-import { VIEWS, type MainTab, type View } from "@/app/views";
+import { VIEWS, type MainTab, type View } from "@/app/session/views";
 
 // 화면(UI) 상태 — 서버 데이터는 TanStack Query 에 있고, 여기에는 어느 메뉴 · 탭 · 항목을 보고 있는지만 둡니다.
 

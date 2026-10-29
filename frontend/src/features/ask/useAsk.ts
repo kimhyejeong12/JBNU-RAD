@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ASK } from "./config";
-import { useQa } from "@/app/data";
+import { useQa } from "@/app/session/data";
 import { errorText, send } from "@/shared/api/http";
 import type { AskAnswer, AskItem, AskKind } from "@/shared/api/types";
 

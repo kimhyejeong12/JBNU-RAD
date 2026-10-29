@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState, type Ref } from "react";
-import { useMe } from "./me";
-import { useHealth } from "./data";
+import { useMe } from "@/app/session/me";
+import { useHealth } from "@/app/session/data";
 import { engineProblems } from "./warnings";
-import { useUi } from "./ui/UiContext";
-import { useQueue } from "./queue/useQueue";
-import { openRisks } from "./queue/select";
+import { useUi } from "@/app/ui/state/UiContext";
+import { useQueue } from "@/app/queue/useQueue";
+import { openRisks } from "@/app/queue/select";
 import { useAuth } from "@/features/auth/AuthContext";
 import { logout } from "@/features/auth/api";
 import { ROLE_LABEL } from "@/shared/lib/labels";
-import { Icon } from "@/shared/ui/Icon";
-import { LevelDot } from "@/shared/ui/parts";
-import type { QueueItem } from "./queue/types";
+import { Icon } from "@/shared/ui/base/Icon";
+import { LevelDot } from "@/shared/ui/base/parts";
+import type { QueueItem } from "@/app/queue/types";
 
 export function TopBar() {
   const me = useMe();

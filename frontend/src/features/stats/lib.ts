@@ -1,4 +1,4 @@
-import type { StatKind } from "@/app/ui/uiReducer";
+import type { StatKind } from "@/app/ui/state/uiReducer";
 import type { Level, StatPeriod, SuspectLevel, Suspect } from "@/shared/api/types";
 
 export const STAT_PERIODS: [StatPeriod, string][] = [["week", "일주일"], ["month", "한 달"], ["quarter", "3개월"], ["all", "전체"]];

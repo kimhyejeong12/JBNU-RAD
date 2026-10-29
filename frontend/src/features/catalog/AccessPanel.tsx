@@ -1,8 +1,8 @@
 import type { FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateAccess, useUpdateAccess } from "./api";
-import { useRequests } from "@/app/data";
-import { PanelHead, PanelFoot, PanelMsg } from "@/app/ui/panel";
+import { useRequests } from "@/app/session/data";
+import { PanelHead, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
 import { catalogQuery } from "@/shared/api/queries";
 import type { AccessItem } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";

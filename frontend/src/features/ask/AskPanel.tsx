@@ -1,10 +1,10 @@
 import { askMode, criteriaText, serverCriteriaText } from "./lib";
-import { useClauses, useQa } from "@/app/data";
-import { useUi } from "@/app/ui/UiContext";
-import { PanelHead } from "@/app/ui/panel";
+import { useClauses, useQa } from "@/app/session/data";
+import { useUi } from "@/app/ui/state/UiContext";
+import { PanelHead } from "@/app/ui/panel/Panel";
 import type { AskItem, LogFacts, ServerFacts } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { KvTable, Section } from "@/shared/ui/parts";
+import { KvTable, Section } from "@/shared/ui/base/parts";
 
 // 질의 탭의 패널 — 근거 칩을 눌렀을 때만 보입니다 (인용 조항 원문 · 근거 로그 · 근거 기록).
 export function AskPanel() {

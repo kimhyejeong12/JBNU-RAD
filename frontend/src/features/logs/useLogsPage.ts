@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useUi } from "@/app/ui/UiContext";
+import { useUi } from "@/app/ui/state/UiContext";
 import { logsQuery } from "@/shared/api/queries";
 
 // 지금 조건의 로그 한 쪽 — 탭과 패널이 같은 쿼리를 봅니다.

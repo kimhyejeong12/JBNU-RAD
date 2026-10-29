@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { QueueItem } from "./types";
-import { useCatalog, useMine, useRequests, useResults, useUsers } from "@/app/data";
-import { useViews } from "@/app/me";
+import { useCatalog, useMine, useRequests, useResults, useUsers } from "@/app/session/data";
+import { useViews } from "@/app/session/me";
 import { userItem } from "@/features/accounts/lib";
 import { accessItem } from "@/features/catalog/lib";
 import { mineItem, requestItem } from "@/features/requests/lib";

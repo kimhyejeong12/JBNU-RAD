@@ -1,5 +1,5 @@
-import { useMe } from "@/app/me";
-import { useUi } from "@/app/ui/UiContext";
+import { useMe } from "@/app/session/me";
+import { useUi } from "@/app/ui/state/UiContext";
 import { QueueHead } from "./QueueHead";
 import { SummaryCards } from "./SummaryCards";
 import { QueueTable } from "./QueueTable";

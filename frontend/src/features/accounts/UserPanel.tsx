@@ -1,8 +1,8 @@
 import type { FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateUser, useUserAction } from "./api";
-import { useMe } from "@/app/me";
-import { PanelHead, PanelFoot, PanelMsg } from "@/app/ui/panel";
+import { useMe } from "@/app/session/me";
+import { PanelHead, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
 import { usersQuery } from "@/shared/api/queries";
 import type { Role, UserRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";

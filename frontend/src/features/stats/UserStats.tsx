@@ -1,13 +1,13 @@
 import { SUSPECT_COLOR, trendMark, verdictsText } from "./lib";
 import { SafetyBand } from "./SafetyBand";
 import { Tile } from "./Tile";
-import type { StatSelection } from "@/app/ui/uiReducer";
+import type { StatSelection } from "@/app/ui/state/uiReducer";
 import { useStartJob } from "@/shared/api/jobs";
 import type { Jobs, SuspectLevel, UserStats } from "@/shared/api/types";
 import { pct, stamp } from "@/shared/lib/format";
 import { HBars } from "@/shared/ui/charts/HBars";
 import { DataTable, Legend, Meter, TableView } from "@/shared/ui/charts/parts";
-import { Icon } from "@/shared/ui/Icon";
+import { Icon } from "@/shared/ui/base/Icon";
 
 interface Props { d: UserStats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
 

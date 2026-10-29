@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
-import { MeContext, useViews } from "./me";
-import { useNeeds } from "./data";
-import { NARROW, UiContext, useUiStore } from "./ui/UiContext";
-import { useBoot } from "./useBoot";
-import { useJobsWatcher } from "./useJobsWatcher";
-import { useQueue } from "./queue/useQueue";
+import { MeContext, useViews } from "@/app/session/me";
+import { useNeeds } from "@/app/session/data";
+import { NARROW, UiContext, useUiStore } from "@/app/ui/state/UiContext";
+import { useBoot } from "@/app/session/useBoot";
+import { useJobsWatcher } from "@/app/session/useJobsWatcher";
+import { useQueue } from "@/app/queue/useQueue";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { Workspace } from "./Workspace";
-import { DocsModal } from "./DocsModal";
-import { TooltipLayer } from "./TooltipLayer";
+import { DocsModal } from "@/app/overlays/DocsModal";
+import { TooltipLayer } from "@/app/overlays/TooltipLayer";
 import type { Me } from "@/shared/api/types";
 import { useMediaQuery } from "@/shared/lib/hooks";
 

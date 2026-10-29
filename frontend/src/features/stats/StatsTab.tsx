@@ -2,11 +2,11 @@ import { STAT_PERIODS, STAT_TITLES } from "./lib";
 import { SystemHead, SystemSections } from "./SystemStats";
 import { UserHead, UserSections } from "./UserStats";
 import { useStatsData } from "./useStatsData";
-import { useJobs } from "@/app/data";
-import { useUi } from "@/app/ui/UiContext";
+import { useJobs } from "@/app/session/data";
+import { useUi } from "@/app/ui/state/UiContext";
 import type { StatPeriod } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { Periods } from "@/shared/ui/parts";
+import { Periods } from "@/shared/ui/base/parts";
 
 // 통계 — 보안 통계(stats) · 사용자 위협(ustats)이 같은 화면 · 기간을 쓰고 결과만 따로 받습니다. 막대를 누르면 패널이 열립니다.
 export function StatsTab() {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { queryClient, meQuery } from "@/shared/api/queries";
-import { AppShell, LoadError } from "./AppShell";
+import { AppShell, LoadError } from "./layout/AppShell";
 import { AuthContext, useAuth, type GateMode } from "@/features/auth/AuthContext";
 import { Gate } from "@/features/auth/Gate";
 import { onUnauthorized } from "@/shared/api/http";

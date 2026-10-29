@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { usePanelAction, useUi } from "@/app/ui/UiContext";
+import { usePanelAction, useUi } from "@/app/ui/state/UiContext";
 import { send } from "@/shared/api/http";
 import type { UserRow } from "@/shared/api/types";
 

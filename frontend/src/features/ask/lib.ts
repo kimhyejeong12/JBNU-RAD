@@ -1,4 +1,4 @@
-import type { View } from "@/app/views";
+import type { View } from "@/app/session/views";
 import type { AskKind } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 

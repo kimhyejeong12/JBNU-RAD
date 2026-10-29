@@ -1,4 +1,4 @@
-import { useRegulations } from "./data";
+import { useRegulations } from "@/app/session/data";
 
 // 기준 문서 원문 — 사이드바의 책 아이콘. 배경 · × · Esc 로 닫습니다.
 export function DocsModal({ open, onClose }: { open: boolean; onClose: () => void }) {

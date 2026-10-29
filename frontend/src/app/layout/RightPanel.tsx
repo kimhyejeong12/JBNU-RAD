@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { useUi } from "./ui/UiContext";
-import { useQueue } from "./queue/useQueue";
+import { useUi } from "@/app/ui/state/UiContext";
+import { useQueue } from "@/app/queue/useQueue";
 import { RequestPanel } from "@/features/requests/RequestPanel";
 import { ReviewPanel } from "@/features/review/ReviewPanel";
 import { NodesPanel } from "@/features/nodes/NodesPanel";
@@ -9,8 +9,8 @@ import { AskPanel } from "@/features/ask/AskPanel";
 import { StatsPanel } from "@/features/stats/StatsPanel";
 import { UserPanel } from "@/features/accounts/UserPanel";
 import { AccessPanel } from "@/features/catalog/AccessPanel";
-import type { View } from "./views";
-import { PanelHead } from "./ui/panel";
+import type { View } from "@/app/session/views";
+import { PanelHead } from "@/app/ui/panel/Panel";
 
 // 오른쪽 패널 — 메뉴 · 탭마다 내용이 다릅니다. 작은 화면에서는 서랍으로 뜹니다.
 export function RightPanel() {
