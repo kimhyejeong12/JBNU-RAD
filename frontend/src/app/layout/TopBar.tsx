@@ -35,7 +35,7 @@ export function TopBar() {
 
   return (
     <header className="topbar">
-      <div className="logo"><Icon name="shield" />SentinelAI</div>
+      <div className="logo"><Icon name="shield" className="size-6 stroke-risk stroke-[2.2]" />SentinelAI</div>
       <div className="top-right">
         <span className="engine-warn" id="engine-warn" hidden={!problems.length}
           data-tip={`점검 항목|${problems.join(" · ")}. 저장된 판정 결과는 계속 볼 수 있습니다`}>

@@ -50,7 +50,7 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
         <h3>위협 예측 — 의심 점수</h3>
         <span className="logs-count">{sus.length ? `${sus.length}명 · ${stamp(latest)} 예측` : ""}</span>
         <button className="rerun run" id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
-          <Icon name="activity" className="sm" />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
+          <Icon name="activity" small />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
         </button>
       </div>
       <p className="sub">앞으로 보안 위협이 될 가능성(0~100)입니다. 먼저 살펴볼 사람을 고르는 예측이고, 결정은 사람이 합니다.</p>

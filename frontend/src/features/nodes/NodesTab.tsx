@@ -25,10 +25,10 @@ export function NodesTab() {
         <h3>수집 노드</h3>
         <span className="logs-count" id="node-count">{nodes.data ? `${list.length}대` : ""}</span>
         <button className="rerun run" id="check-now" disabled={!jobs || !!jobs.running || start.isPending} onClick={() => start.mutate("nodes")}>
-          <Icon name="activity" className="sm" />
+          <Icon name="activity" small />
           <span id="check-now-txt">{checking ? `점검 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 점검"}</span>
         </button>
-        <button className="rerun run" id="add-node" onClick={addNode}><Icon name="plus" className="sm" />노드 등록</button>
+        <button className="rerun run" id="add-node" onClick={addNode}><Icon name="plus" small />노드 등록</button>
       </div>
       <div className="ltable-wrap">
         <table className="ltable">

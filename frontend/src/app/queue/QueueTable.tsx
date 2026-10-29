@@ -42,11 +42,11 @@ function Row({ it, current, onSelect }: { it: QueueItem; current: boolean; onSel
       <span className="time">{it.when}</span>
       <span className="judge">
         {it.level
-          ? <span className={`line lv-${it.level}`}><Icon name={LEVEL_ICON[it.level]} className="sm" />{it.level}</span>
+          ? <span className={`line lv-${it.level}`}><Icon name={LEVEL_ICON[it.level]} small />{it.level}</span>
           : <span className="line">{it.judge}</span>}
         {sub && <span className="op">{sub}</span>}
       </span>
-      <span className="chev"><Icon name="chev" className="sm" /></span>
+      <span className="chev"><Icon name="chev" small /></span>
     </button>
   );
 }

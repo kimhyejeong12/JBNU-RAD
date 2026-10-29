@@ -22,7 +22,7 @@ export function QueueHead() {
     <div className="queue-head">
       <h3 id="queue-title">{title}</h3>
       <label className="search">
-        <Icon name="search" className="sm" />
+        <Icon name="search" small />
         <input id="q" type="search" placeholder={meta?.search ?? ""} autoComplete="off" value={ui.query} onChange={(e) => setQuery(e.target.value)} />
       </label>
       <select id="stage-filter" className="select" aria-label="결재 단계" hidden={ui.view !== "requests"} value={ui.stageFilter}
@@ -32,10 +32,10 @@ export function QueueHead() {
         <option value="all">전체</option>
       </select>
       <button className="rerun run" id="run" hidden={run.hidden} disabled={run.disabled} onClick={() => start.mutate("policies")}>
-        <Icon name="activity" className="sm" /><span id="run-txt">{run.text}</span>
+        <Icon name="activity" small /><span id="run-txt">{run.text}</span>
       </button>
-      <button className="rerun run" id="add-user" hidden={ui.view !== "users"} onClick={deselect}><Icon name="plus" className="sm" />새 계정</button>
-      <button className="rerun run" id="add-access" hidden={ui.view !== "access"} onClick={deselect}><Icon name="plus" className="sm" />권한 등록</button>
+      <button className="rerun run" id="add-user" hidden={ui.view !== "users"} onClick={deselect}><Icon name="plus" small />새 계정</button>
+      <button className="rerun run" id="add-access" hidden={ui.view !== "access"} onClick={deselect}><Icon name="plus" small />권한 등록</button>
     </div>
   );
 }

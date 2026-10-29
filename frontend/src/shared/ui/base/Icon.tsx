@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
+import { cn } from "@/shared/lib/cn";
 
-// 인라인 SVG 아이콘 — 외부망이 없으므로 번들에 둡니다. 선 굵기 · 색은 CSS 의 svg.i 가 정합니다.
+// 인라인 SVG 아이콘 — 외부망이 없으므로 번들에 둡니다. 선은 글자색을 따르고, small 이면 15px.
 const ICONS: Record<string, ReactNode> = {
   shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></>,
   lock: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
@@ -23,9 +24,11 @@ const ICONS: Record<string, ReactNode> = {
   key: <><circle cx="7.5" cy="15.5" r="4.5" /><path d="m10.7 12.3 9.3-9.3M17 6l3 3M15 8l2 2" /></>,
 };
 
-export function Icon({ name, className }: { name: string; className?: string }) {
+const BASE = "size-[18px] flex-none fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]";
+
+export function Icon({ name, small, className }: { name: string; small?: boolean; className?: string }) {
   return (
-    <svg className={className ? `i ${className}` : "i"} viewBox="0 0 24 24" aria-hidden="true">
+    <svg className={cn(BASE, small && "size-[15px]", className)} viewBox="0 0 24 24" aria-hidden="true">
       {ICONS[name]}
     </svg>
   );

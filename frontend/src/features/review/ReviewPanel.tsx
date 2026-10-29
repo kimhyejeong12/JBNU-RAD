@@ -26,7 +26,7 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
       <PanelHead title="AI 판단 근거" />
       <div className="panel-body">
         <p className="subject">{it.type === "policy" ? `${it.who} · ${it.raw.kind}` : it.raw.title}</p>
-        <div className={`rec-line lv-${it.level}`}><Icon name={(it.level && LEVEL_ICON[it.level]) || "warn"} />{it.level}</div>
+        <div className={`rec-line lv-${it.level}`}><Icon name={(it.level && LEVEL_ICON[it.level]) || "warn"} className="size-5" />{it.level}</div>
         <div className="meta">{it.id}</div>
 
         {it.type === "server" && <ServerSections f={it.raw} />}
@@ -101,7 +101,7 @@ function EventSection({ f, onLogs }: { f: EventFinding; onLogs: () => void }) {
   return (
     <Section icon="file" title="판정한 로그">
       <div className="box pre">{f.detail?.events || "로그 없음"}</div>
-      <button className="rerun" id="to-logs" onClick={onLogs}><Icon name="search" className="sm" />이 사용자의 최근 한 달 로그</button>
+      <button className="rerun" id="to-logs" onClick={onLogs}><Icon name="search" small />이 사용자의 최근 한 달 로그</button>
     </Section>
   );
 }
@@ -137,7 +137,7 @@ function GapSections({ itemKey, f }: { itemKey: string; f: ServerFinding }) {
               <tr><th>기준</th><td>{g.required}</td></tr>
               <tr><th>바꿀 것</th><td>{g.change}</td></tr>
             </tbody></table>
-            {g.source && <SourceChips itemKey={`${itemKey}:gap${n}`} sources={[g.source]} />}
+            {g.source && <SourceChips itemKey={`${itemKey}:gap${n}`} sources={[g.source]} className="mt-1.5" />}
           </div>
         )) : <div className="box">기준 문서와 다른 곳을 찾지 못했습니다.</div>}
         {f.unjudged.length > 0 && <p className="note">다루는 조항이 없어 판단하지 않은 항목: {f.unjudged.join(", ")}</p>}

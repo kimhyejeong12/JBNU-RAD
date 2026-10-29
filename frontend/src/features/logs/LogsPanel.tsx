@@ -27,7 +27,7 @@ export function LogsPanel() {
           <div className="meta">{stamp(e.occurred_at)} · {e.solution}</div>
           <Section icon="list" title="내용"><KvTable rows={fields} /></Section>
           <Section icon="file" title="내보낸 행 그대로"><KvTable rows={Object.entries(e.raw || {})} /></Section>
-          <button className="rerun" id="log-back" onClick={closePanel}><Icon name="activity" className="sm" />집계로 돌아가기</button>
+          <button className="rerun" id="log-back" onClick={closePanel}><Icon name="activity" small />집계로 돌아가기</button>
         </div>
       </>
     );

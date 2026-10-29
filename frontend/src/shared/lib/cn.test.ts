@@ -5,7 +5,9 @@ import { expect, test } from "vitest";
 import { cn } from "./cn";
 
 // Tailwind 는 소스의 글자에서 클래스를 찾으므로 `bg-${tone}` 처럼 조각으로 만든 이름은 CSS 가 생기지 않습니다.
+// 유틸리티 앞부분에 이어 붙이는 꼴(`bg-${x}`)과, className 줄에서 변형을 변수로 붙이는 꼴(`${variant}:x`)을 막습니다.
 const FRAGMENT = /\b(?:bg|text|border|shadow|fill|stroke|ring|outline|from|to)-\$\{/;
+const VARIANT = /\$\{[\w.]+\}:[a-z[]/;
 
 function fragmentClasses(dir: string): string[] {
   const found: string[] = [];
@@ -14,7 +16,8 @@ function fragmentClasses(dir: string): string[] {
     if (entry.isDirectory()) found.push(...fragmentClasses(path));
     else if (/\.tsx?$/.test(entry.name) && !entry.name.endsWith(".test.ts")) {
       readFileSync(path, "utf8").split("\n").forEach((line, i) => {
-        if (FRAGMENT.test(line)) found.push(`${path}:${i + 1}`);
+        const cls = line.search(/className|\bcn\(/);   // 클래스 값이 시작하는 곳부터만 봅니다 (같은 줄의 키 문자열 `${key}:x` 는 빼고)
+        if (FRAGMENT.test(line) || (cls >= 0 && VARIANT.test(line.slice(cls)))) found.push(`${path}:${i + 1}`);
       });
     }
   }

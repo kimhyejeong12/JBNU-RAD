@@ -31,7 +31,7 @@ function LoginForm() {
 
   return (
     <form className="gate-card" id="login-form" autoComplete="on" onSubmit={onSubmit}>
-      <div className="gate-logo"><Icon name="shield" />SentinelAI</div>
+      <div className="gate-logo"><Icon name="shield" className="size-[26px] stroke-risk stroke-[2.2]" />SentinelAI</div>
       <label>아이디<input name="login_id" autoComplete="username" required autoFocus /></label>
       <label>비밀번호<input ref={password} name="password" type="password" autoComplete="current-password" required /></label>
       <button type="submit" className="primary">로그인</button>

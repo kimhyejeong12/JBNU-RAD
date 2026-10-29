@@ -113,7 +113,7 @@ function NodeRecords({ d }: { d: NodeDetail }) {
         {finding ? (
           <>
             <div className="box"><LevelDot level={finding.level || "주의"} />{finding.failed ? "판정 실패" : finding.level} · {stamp(finding.created_at)}<br />{finding.summary}</div>
-            {item && <button className="rerun" id="to-finding" onClick={() => select(item.key)}><Icon name="list" className="sm" />검토 현황에서 보기</button>}
+            {item && <button className="rerun" id="to-finding" onClick={() => select(item.key)}><Icon name="list" small />검토 현황에서 보기</button>}
           </>
         ) : <p className="note">{d.latest ? "다음 주기 점검을 기다리고 있습니다." : "아직 받은 수집이 없습니다."}</p>}
       </Section>

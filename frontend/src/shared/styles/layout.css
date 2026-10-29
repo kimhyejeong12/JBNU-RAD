@@ -9,7 +9,7 @@
 /* 정책 질의 탭은 질의를 넓게 쓰고, 근거 칩을 눌렀을 때만 오른쪽에 인용 조항 패널을 엽니다 */
 .workspace[data-tab="ask"]:not(.cite) { grid-template-columns: minmax(0, 1fr); }
 .workspace[data-tab="ask"]:not(.cite) > .panel { display: none; }
-.workspace[data-tab="ask"] .drawer-close { display: block; }
+
 /* 메인 탭 — 분석 대기열 · 통계 대시보드 · 권한 질의 */
 .main-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
 .main-tabs[hidden], .main-tab[hidden] { display: none; }

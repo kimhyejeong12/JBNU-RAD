@@ -55,13 +55,13 @@ export function RequestPanel({ it }: { it: RequestItem }) {
   return (
     <>
       <PanelHead title={applicant ? "내 신청" : "권한 신청 검토"}>
-        {rejudge && <button className="rerun" onClick={() => act("rejudge")}><Icon name="activity" className="sm" />다시 판정</button>}
+        {rejudge && <button className="rerun" onClick={() => act("rejudge")}><Icon name="activity" small />다시 판정</button>}
       </PanelHead>
       <div className="panel-body">
         <p className="subject">{r.requested_access}</p>
         {!applicant && (
           <div className={it.level ? `rec-line lv-${it.level}` : "rec-line"}>
-            {it.level && <Icon name={LEVEL_ICON[it.level]} />}{it.judge}
+            {it.level && <Icon name={LEVEL_ICON[it.level]} className="size-5" />}{it.judge}
           </div>
         )}
         <div className="meta">{no} · {STAGE_LABEL[r.stage]}</div>

@@ -48,7 +48,7 @@ function NodePanel({ d, node }: { d: Stats; node: string }) {
           <div className="box pre">{hit.map((c) => `${clauses.label(c.source)} — ${c.items.filter((i) => i.startsWith(n.node + " ")).map((i) => i.slice(n.node.length + 3)).join(", ")}`).join("\n")}</div>
         </Section>
       )}
-      <div className="sec"><button className="rerun" id="stat-go" onClick={() => gotoNode(n.node)}><Icon name="server" className="sm" />노드 탭에서 보기</button></div>
+      <div className="sec"><button className="rerun" id="stat-go" onClick={() => gotoNode(n.node)}><Icon name="server" small />노드 탭에서 보기</button></div>
     </Body>
   );
 }
@@ -76,7 +76,7 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
     <Body title="위협 예측" subject={p.subject}>
       {p.failed ? <div className="box fail">예측 실패: {p.error || ""}</div> : (
         <>
-          <div className={`rec-line lv-${tone}`}><Icon name={LEVEL_ICON[tone]} />의심 {p.score}점 · {p.level}</div>
+          <div className={`rec-line lv-${tone}`}><Icon name={LEVEL_ICON[tone]} className="size-5" />의심 {p.score}점 · {p.level}</div>
           <Section icon="activity" title="예측 이유"><div className="box">{p.reason}</div></Section>
           <Section icon="ok" title="확인할 점"><div className="box">{p.watch}</div></Section>
         </>
@@ -113,8 +113,8 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
       <Section icon="activity" title="의심 점수 흐름"><ScoreTrend p={p} /></Section>
       <p className="note">{stamp(p.created_at)} 예측</p>
       <div className="sec">
-        {g.subject && <button className="rerun" id="stat-go" onClick={() => { navigate("events"); openLogs({ user: g.subject!, period: "month" }); }}><Icon name="search" className="sm" />이 사용자의 로그 조회</button>}
-        {found && <button className="rerun" id="stat-go2" onClick={() => gotoEvent(`event:${found.keys[found.keys.length - 1]}`)}><Icon name="list" className="sm" />로그 감시 판정 보기</button>}
+        {g.subject && <button className="rerun" id="stat-go" onClick={() => { navigate("events"); openLogs({ user: g.subject!, period: "month" }); }}><Icon name="search" small />이 사용자의 로그 조회</button>}
+        {found && <button className="rerun" id="stat-go2" onClick={() => gotoEvent(`event:${found.keys[found.keys.length - 1]}`)}><Icon name="list" small />로그 감시 판정 보기</button>}
       </div>
     </Body>
   );

@@ -21,7 +21,7 @@ export function SummaryCards() {
     <section className="stats" id="stats" style={{ gridTemplateColumns: `repeat(${levels.length}, minmax(0, 1fr))` }}>
       {levels.map((l) => (
         <button key={l} className={`card stat ${l}`} aria-pressed={ui.filter === l} data-tip={LEVEL_TIP[l]} onClick={() => toggleFilter(l)}>
-          <span className="label"><LevelDot level={l} />{l}</span>
+          <span className="label"><LevelDot level={l} className="mr-0" />{l}</span>
           <span className="num">{shown.filter((it) => it.level === l).length}</span>
         </button>
       ))}

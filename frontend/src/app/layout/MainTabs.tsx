@@ -22,7 +22,7 @@ export function MainTabs() {
       {TABS.map((t) => (
         <button key={t.tab} className="main-tab" role="tab" id={`tab-${t.tab}`} aria-selected={ui.mainTab === t.tab} aria-controls={t.panel}
           hidden={!tabs.includes(t.tab)} onClick={() => setMainTab(t.tab)}>
-          <Icon name={t.icon} className="sm" />
+          <Icon name={t.icon} small />
           {t.tab === "ask" ? <span id="tab-ask-label">{ASK[askMode(ui.view)].label}</span> : t.label}
         </button>
       ))}
