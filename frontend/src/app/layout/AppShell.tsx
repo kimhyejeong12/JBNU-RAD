@@ -7,13 +7,12 @@ import { useJobsWatcher } from "@/app/session/useJobsWatcher";
 import { useQueue } from "@/app/queue/useQueue";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
-import { Workspace } from "./Workspace";
+import { Workspace, workspace } from "./Workspace";
 import { DocsModal } from "@/app/overlays/DocsModal";
 import { TooltipLayer } from "@/app/overlays/TooltipLayer";
 import type { Me } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { card, empty } from "@/shared/ui/base/styles";
-import { workspace } from "./styles";
 import { useMediaQuery } from "@/shared/lib/hooks";
 
 export function AppShell({ me }: { me: Me }) {
