@@ -1,5 +1,6 @@
 import type { StatKind } from "@/app/ui/state/uiReducer";
 import type { Level, StatPeriod, SuspectLevel, Suspect } from "@/shared/api/types";
+import { card } from "@/shared/ui/base/styles";
 
 export const STAT_PERIODS: [StatPeriod, string][] = [["week", "일주일"], ["month", "한 달"], ["quarter", "3개월"], ["all", "전체"]];
 export const STAT_TITLES: Record<StatKind, string> = { stats: "보안 통계", ustats: "사용자 위협" };
@@ -40,3 +41,11 @@ export function verdictsText(p: Suspect): string {
   return ([["위험", r["로그 위험"]], ["주의", r["로그 주의"]]] as [string, number | undefined][])
     .filter(([, n]) => n).map(([k, n]) => `${k} 판정 ${n}`).join(" · ");
 }
+
+// 보안 통계 · 사용자 위협이 같이 쓰는 모양 — 카드는 세로로 쌓고, 안전 점수 띠는 받기 전(비었을 때) 접힙니다.
+export const statCard = `${card} flex flex-col`;
+export const statSub = "m-0 px-[18px] pb-[10px] text-[12.5px] text-ink-dim";
+export const statChart = "px-[18px] pt-1 pb-1.5";
+export const statLabel = "text-[12px] font-semibold text-ink-dim";
+export const statTiles = "grid grid-cols-4 gap-[10px] px-[18px] pb-4 phone:grid-cols-2";
+export const statSafety = "mx-[18px] mb-3 grid grid-cols-[auto_minmax(0,1fr)_minmax(160px,260px)] items-center gap-[18px] rounded-[10px] border border-line px-4 py-[14px] empty:hidden phone:grid-cols-[auto_minmax(0,1fr)]";

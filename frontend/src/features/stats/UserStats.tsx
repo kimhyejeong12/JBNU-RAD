@@ -1,4 +1,4 @@
-import { SUSPECT_COLOR, trendMark, verdictsText } from "./lib";
+import { SUSPECT_COLOR, statCard, statChart, statSafety, statSub, statTiles, trendMark, verdictsText } from "./lib";
 import { SafetyBand } from "./SafetyBand";
 import { Tile } from "./Tile";
 import type { StatSelection } from "@/app/ui/state/uiReducer";
@@ -8,6 +8,7 @@ import { pct, stamp } from "@/shared/lib/format";
 import { HBars } from "@/shared/ui/charts/HBars";
 import { DataTable, Legend, Meter, TableView } from "@/shared/ui/charts/parts";
 import { Icon } from "@/shared/ui/base/Icon";
+import { cardCount, cardHead, cardTitle, toolButton } from "@/shared/ui/base/styles";
 
 interface Props { d: UserStats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
 
@@ -22,11 +23,11 @@ export function UserHead({ d, onSelect }: Props) {
   const susGroup = (lv: SuspectLevel) => sus.filter((p) => !p.failed && p.level === lv).map((p) => ({ key: p.key, label: p.subject }));
   return (
     <>
-      <div className="safety" id="stat-safety">
+      <div className={statSafety} id="stat-safety">
         <SafetyBand label="사용자 안전 점수" safety={d.safety} onSelect={onSelect}
           groups={[["의심 높음", susGroup("높음"), "suspect", "위험"], ["의심 보통", susGroup("보통"), "suspect", "주의"]]} />
       </div>
-      <div className="tiles" id="stat-tiles">
+      <div className={statTiles} id="stat-tiles">
         <Tile label="위협 사용자" big={`${ev.users.length}명`} note={`주의 · 위험 판정을 받은 사용자 · 위험 ${ev.users.filter((u) => u["위험"]).length}명`} />
         <Tile label="위협 예측 높음" big={`${sus.filter((p) => p.level === "높음").length}명`} note={`의심 점수 70 이상 · 보통 ${sus.filter((p) => p.level === "보통").length}명 · 반복 위협 ${repeat}명`} />
         <Tile label="신청 중 위험 비율" big={pct(ai["위험"] || 0, judged)} note={`위험 ${ai["위험"] || 0} · 주의 ${ai["주의"] || 0} / 판정 ${judged}건`}>
@@ -45,18 +46,18 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
   const running = jobs?.running === "suspects";
   const latest = sus.map((p) => p.created_at).sort().pop();
   return (
-    <section className="card" id="stat-suspects">
-      <div className="logs-head">
-        <h3>위협 예측 — 의심 점수</h3>
-        <span className="logs-count">{sus.length ? `${sus.length}명 · ${stamp(latest)} 예측` : ""}</span>
-        <button className="rerun run" id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
+    <section className={statCard} id="stat-suspects">
+      <div className={cardHead}>
+        <h3 className={cardTitle}>위협 예측 — 의심 점수</h3>
+        <span className={cardCount}>{sus.length ? `${sus.length}명 · ${stamp(latest)} 예측` : ""}</span>
+        <button className={toolButton} id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
           <Icon name="activity" small />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
         </button>
       </div>
-      <p className="sub">앞으로 보안 위협이 될 가능성(0~100)입니다. 먼저 살펴볼 사람을 고르는 예측이고, 결정은 사람이 합니다.</p>
+      <p className={statSub}>앞으로 보안 위협이 될 가능성(0~100)입니다. 먼저 살펴볼 사람을 고르는 예측이고, 결정은 사람이 합니다.</p>
       {sus.length ? (
         <>
-          <div className="chart">
+          <div className={statChart}>
             <HBars max={100} selectedKey={selected?.kind === "suspect" ? selected.key : null} onSelect={(key) => onSelect("suspect", key)}
               rows={sus.filter((p) => !p.failed).map((p) => ({
                 key: p.key, label: p.subject, segs: [[SUSPECT_COLOR[p.level], p.score]],
@@ -65,15 +66,15 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
               value={(r) => { const p = sus.find((x) => x.key === r.key)!; return [`${p.score}점 · ${p.level}${trendMark(p.trend)}`, verdictsText(p)].filter(Boolean).join(" · "); }} />
           </div>
           <Legend items={[["위험", "높음 (70 이상)"], ["주의", "보통 (40~69)"], ["정상", "낮음 (40 미만)"]]} />
-          {sus.some((p) => p.failed) && <p className="sub">예측하지 못한 사람: {sus.filter((p) => p.failed).map((p) => p.subject).join(", ")}</p>}
+          {sus.some((p) => p.failed) && <p className={statSub}>예측하지 못한 사람: {sus.filter((p) => p.failed).map((p) => p.subject).join(", ")}</p>}
         </>
-      ) : <p className="sub">아직 예측이 없습니다. [지금 예측]을 누르세요.</p>}
+      ) : <p className={statSub}>아직 예측이 없습니다. [지금 예측]을 누르세요.</p>}
       <TableView>
         <DataTable head={["사용자", "계정", "의심 점수", "로그 감시 판정", "눈에 띄는 신호", "예측 시각"]} empty=""
           rows={sus.map((p) => ({
             key: p.key, current: selected?.kind === "suspect" && selected.key === p.key, onSelect: () => onSelect("suspect", p.key),
-            cells: [p.subject, p.login_id || "계정 미연결", p.failed ? "예측 실패" : <span key="s"><span className="num">{p.score}</span> {p.level}</span>,
-              verdictsText(p) || "—", (p.signals.highlights || []).join(" · ") || "—", <span key="t" className="when">{stamp(p.created_at)}</span>],
+            cells: [p.subject, p.login_id || "계정 미연결", p.failed ? "예측 실패" : <span key="s"><span className="tabular-nums">{p.score}</span> {p.level}</span>,
+              verdictsText(p) || "—", (p.signals.highlights || []).join(" · ") || "—", <span key="t" className="whitespace-nowrap tabular-nums">{stamp(p.created_at)}</span>],
           }))} />
       </TableView>
     </section>

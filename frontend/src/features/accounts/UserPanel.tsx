@@ -7,9 +7,16 @@ import { usersQuery } from "@/shared/api/queries";
 import type { Role, UserRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { ROLE_LABEL } from "@/shared/lib/labels";
+import { cn } from "@/shared/lib/cn";
+import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+
+// 두 칸을 다 쓰는 칸 · 체크 칸(글자 옆에 상자) · 버튼 줄.
+const WIDE_FIELD = cn(field, "col-span-full");
+const CHECK_FIELD = cn(field, "col-span-full flex-row items-center gap-2 text-ink");
+const WIDE_ACTIONS = cn(formActions, "col-span-full");
 
 const RoleSelect = ({ value, disabled }: { value: Role; disabled?: boolean }) => (
-  <select name="role" defaultValue={value} disabled={disabled}>
+  <select className={input} name="role" defaultValue={value} disabled={disabled}>
     {(Object.entries(ROLE_LABEL) as [Role, string][]).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
   </select>
 );
@@ -28,13 +35,13 @@ function NewUser() {
   return (
     <>
       <PanelHead title="새 계정" />
-      <form className="panel-body form-grid" id="user-form" style={{ padding: "16px 18px" }} onSubmit={onSubmit}>
-        <label>아이디<input name="login_id" required maxLength={100} autoComplete="off" /></label>
-        <label>이름<input name="display_name" required maxLength={100} /></label>
-        <label>부서<input name="department" maxLength={100} /></label>
-        <label>역할<RoleSelect value="user" /></label>
-        <label className="wide">임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input name="password" type="password" required autoComplete="new-password" /></label>
-        <div className="wide form-actions"><PanelMsg /><button type="submit" className="primary">계정 만들기</button></div>
+      <form className={cn(panelBody, formGrid, "px-[18px] py-4")} id="user-form" onSubmit={onSubmit}>
+        <label className={field}>아이디<input className={input} name="login_id" required maxLength={100} autoComplete="off" /></label>
+        <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
+        <label className={field}>부서<input className={input} name="department" maxLength={100} /></label>
+        <label className={field}>역할<RoleSelect value="user" /></label>
+        <label className={WIDE_FIELD}>임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input className={input} name="password" type="password" required autoComplete="new-password" /></label>
+        <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>계정 만들기</button></div>
       </form>
     </>
   );
@@ -71,22 +78,22 @@ function EditUser({ u }: { u: UserRow }) {
   return (
     <>
       <PanelHead title="계정" />
-      <div className="panel-body">
-        <p className="subject">{u.display_name} ({u.login_id})</p>
-        <div className="meta">{ROLE_LABEL[u.role]}{u.is_root ? " · 루트" : ""} · 만든 날 {stamp(u.created_at)}{u.last_login_at ? ` · 마지막 로그인 ${stamp(u.last_login_at)}` : ""}</div>
+      <div className={panelBody}>
+        <p className={subject}>{u.display_name} ({u.login_id})</p>
+        <div className={meta}>{ROLE_LABEL[u.role]}{u.is_root ? " · 루트" : ""} · 만든 날 {stamp(u.created_at)}{u.last_login_at ? ` · 마지막 로그인 ${stamp(u.last_login_at)}` : ""}</div>
         {!locked && (
           <>
-            <form key={`edit:${formKey}`} className="form-grid" id="user-edit" style={{ padding: "12px 0 0" }} onSubmit={onEdit}>
-              <label>이름<input name="display_name" defaultValue={u.display_name} maxLength={100} /></label>
-              <label>부서<input name="department" defaultValue={u.department ?? ""} maxLength={100} /></label>
-              <label>역할<RoleSelect value={u.role} disabled={fixed} /></label>
-              <label>로그 사용자 ID<input name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="보안 솔루션 로그의 UserID" /></label>
-              <label className="check wide"><input type="checkbox" name="is_active" defaultChecked={u.is_active} disabled={fixed} />활성 (끄면 정지 · 세션 끊김)</label>
-              <div className="wide form-actions"><button type="submit" className="primary">저장</button></div>
+            <form key={`edit:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-edit" onSubmit={onEdit}>
+              <label className={field}>이름<input className={input} name="display_name" defaultValue={u.display_name} maxLength={100} /></label>
+              <label className={field}>부서<input className={input} name="department" defaultValue={u.department ?? ""} maxLength={100} /></label>
+              <label className={field}>역할<RoleSelect value={u.role} disabled={fixed} /></label>
+              <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="보안 솔루션 로그의 UserID" /></label>
+              <label className={CHECK_FIELD}><input className={input} type="checkbox" name="is_active" defaultChecked={u.is_active} disabled={fixed} />활성 (끄면 정지 · 세션 끊김)</label>
+              <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
             </form>
-            <form key={`reset:${formKey}`} className="form-grid" id="user-reset" style={{ padding: "12px 0 0" }} onSubmit={onReset}>
-              <label className="wide">비밀번호 초기화 — 임시 비밀번호<input name="temporary_password" type="password" required autoComplete="new-password" /></label>
-              <div className="wide form-actions"><button type="submit">초기화</button></div>
+            <form key={`reset:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-reset" onSubmit={onReset}>
+              <label className={WIDE_FIELD}>비밀번호 초기화 — 임시 비밀번호<input className={input} name="temporary_password" type="password" required autoComplete="new-password" /></label>
+              <div className={WIDE_ACTIONS}><button type="submit" className={actionButton}>초기화</button></div>
             </form>
           </>
         )}

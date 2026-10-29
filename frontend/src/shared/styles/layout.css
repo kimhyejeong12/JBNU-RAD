@@ -1,6 +1,0 @@
-/* ── 작업 영역 ─────────────────────────── */
-
-.card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; }
-
-/* display 를 지정한 요소는 hidden 속성만으로 숨겨지지 않아 직접 끕니다. */
-.stats-view[hidden] { display: none; }

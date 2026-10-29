@@ -1,4 +1,4 @@
-import { STAT_PERIODS, STAT_TITLES } from "./lib";
+import { STAT_PERIODS, STAT_TITLES, statCard, statSafety, statTiles } from "./lib";
 import { SystemHead, SystemSections } from "./SystemStats";
 import { UserHead, UserSections } from "./UserStats";
 import { useStatsData } from "./useStatsData";
@@ -7,6 +7,7 @@ import { useUi } from "@/app/ui/state/UiContext";
 import type { StatPeriod } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { Periods } from "@/shared/ui/base/parts";
+import { cardCount, cardHead, cardTitle } from "@/shared/ui/base/styles";
 
 // 통계 — 보안 통계(stats) · 사용자 위협(ustats)이 같은 화면 · 기간을 쓰고 결과만 따로 받습니다. 막대를 누르면 패널이 열립니다.
 export function StatsTab() {
@@ -21,12 +22,12 @@ export function StatsTab() {
     openDrawer();
   };
   return (
-    <div className="stats-view" id="view-stats" role="tabpanel" aria-labelledby="tab-stats" style={{ opacity: q.isFetching && d ? 0.55 : undefined }}>
-      <section className="card">
-        <div className="logs-head">
-          <h3 id="stat-title">{STAT_TITLES[kind]}</h3>
+    <div className="flex flex-col gap-[14px]" id="view-stats" role="tabpanel" aria-labelledby="tab-stats" style={{ opacity: q.isFetching && d ? 0.55 : undefined }}>
+      <section className={statCard}>
+        <div className={cardHead}>
+          <h3 className={cardTitle} id="stat-title">{STAT_TITLES[kind]}</h3>
           <Periods<StatPeriod> id="stat-periods" labels={STAT_PERIODS} value={period} onChange={(p) => { if (p !== period) setStats({ period: p }); }} />
-          <span className="logs-count" id="stat-range">{range}</span>
+          <span className={cardCount} id="stat-range">{range}</span>
         </div>
         {kind === "stats"
           ? sys.data ? <SystemHead d={sys.data} selected={ui.stats.selected} onSelect={select} /> : <EmptyHead />
@@ -39,5 +40,5 @@ export function StatsTab() {
   );
 }
 
-// 받기 전에는 자리만 (.safety:empty 가 공간을 접습니다).
-const EmptyHead = () => <><div className="safety" id="stat-safety" /><div className="tiles" id="stat-tiles" /></>;
+// 받기 전에는 자리만 — 빈 안전 점수 띠는 접히고, 타일 자리는 아래 여백만 남습니다.
+const EmptyHead = () => <><div className={statSafety} id="stat-safety" /><div className={statTiles} id="stat-tiles" /></>;

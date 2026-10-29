@@ -8,15 +8,6 @@
 @source not "../**/*.test.ts";
 
 @import "../shared/styles/base.css" layer(components);
-@import "./queue/queue.css" layer(components);
-@import "../shared/styles/layout.css" layer(components);
-@import "../shared/styles/components.css" layer(components);
-@import "../shared/styles/panel.css" layer(components);
-@import "../shared/styles/forms.css" layer(components);
-@import "../shared/ui/charts/charts.css" layer(components);
-@import "../features/stats/stats.css" layer(components);
-@import "../features/requests/requests.css" layer(components);
-@import "../shared/styles/responsive.css" layer(components);
 
 /* 색 토큰 — 값은 지금 화면 그대로. static 이라 쓰지 않은 토큰도 CSS 변수로 나와 인라인 스타일(차트 선 색 등)에서 쓸 수 있습니다. */
 @theme static {

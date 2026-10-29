@@ -10,6 +10,12 @@ import { LEVEL_ICON } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/base/Icon";
 import { KvTable, Section } from "@/shared/ui/base/parts";
 import { Sparkline } from "@/shared/ui/charts/parts";
+import { cn } from "@/shared/lib/cn";
+import { box, boxPre, levelText, note, panelBody, recLine, subject as subjectCls, toolButton } from "@/shared/ui/base/styles";
+
+// 지금 가진 권한 한 줄 — 이름 · 시스템은 왼쪽, 기한은 첫 줄 오른쪽.
+const HELD_ROW = "grid cursor-pointer grid-cols-[1fr_auto] gap-x-[10px] gap-y-0.5 rounded-lg border border-line bg-surface px-[10px] py-2 text-left text-[13px] [font-family:inherit] [font-weight:inherit] [line-height:inherit] hover:border-ink-dim";
+const HELD_SUB = "text-[12px] text-ink-dim";
 
 // 통계 패널 — 고른 막대 · 줄의 자세한 내용과 운영자가 이어 볼 곳(노드 탭 · 로그 조회 · 결재함 · 로그 감시 판정).
 export function StatsPanel() {
@@ -17,18 +23,18 @@ export function StatsPanel() {
   const { kind, sys, usr } = useStatsData();
   const sel = ui.stats.selected;
   const d = kind === "stats" ? sys.data : usr.data;
-  if (!d || !sel) return <Body title={STAT_TITLES[kind]} subject="막대 · 줄을 고르세요"><p className="note">막대를 누르면 자세한 내용이 나옵니다.</p></Body>;
+  if (!d || !sel) return <Body title={STAT_TITLES[kind]} subject="막대 · 줄을 고르세요"><p className={note}>막대를 누르면 자세한 내용이 나옵니다.</p></Body>;
   if (sel.kind === "node" && sys.data) return <NodePanel d={sys.data} node={sel.key} />;
   if (sel.kind === "module" && sys.data) return <ModulePanel d={sys.data} module={sel.key} />;
   if (sel.kind === "suspect" && usr.data) return <SuspectPanel d={usr.data} suspectKey={sel.key} />;
-  return <Body title={STAT_TITLES[kind]} subject="막대 · 줄을 고르세요"><p className="note">막대를 누르면 자세한 내용이 나옵니다.</p></Body>;
+  return <Body title={STAT_TITLES[kind]} subject="막대 · 줄을 고르세요"><p className={note}>막대를 누르면 자세한 내용이 나옵니다.</p></Body>;
 }
 
 function Body({ title, subject, children }: { title: string; subject: string; children?: ReactNode }) {
   return (
     <>
       <PanelHead title={title} />
-      <div className="panel-body"><p className="subject">{subject}</p>{children}</div>
+      <div className={panelBody}><p className={subjectCls}>{subject}</p>{children}</div>
     </>
   );
 }
@@ -45,10 +51,10 @@ function NodePanel({ d, node }: { d: Stats; node: string }) {
         ["점검", n.grades.map((g) => `${stamp(g.at)} ${g.level}`).join("\n") || "없음"], ["설정이 바뀐 수집", `${n.changed} / ${n.collected}`]]} />
       {hit.length > 0 && (
         <Section icon="warn" title="걸린 조항">
-          <div className="box pre">{hit.map((c) => `${clauses.label(c.source)} — ${c.items.filter((i) => i.startsWith(n.node + " ")).map((i) => i.slice(n.node.length + 3)).join(", ")}`).join("\n")}</div>
+          <div className={boxPre}>{hit.map((c) => `${clauses.label(c.source)} — ${c.items.filter((i) => i.startsWith(n.node + " ")).map((i) => i.slice(n.node.length + 3)).join(", ")}`).join("\n")}</div>
         </Section>
       )}
-      <div className="sec"><button className="rerun" id="stat-go" onClick={() => gotoNode(n.node)}><Icon name="server" small />노드 탭에서 보기</button></div>
+      <div className="mt-[18px]"><button className={toolButton} id="stat-go" onClick={() => gotoNode(n.node)}><Icon name="server" small />노드 탭에서 보기</button></div>
     </Body>
   );
 }
@@ -59,7 +65,7 @@ function ModulePanel({ d, module }: { d: Stats; module: string }) {
   return (
     <Body title="노드 위협 데이터" subject={m.module}>
       <KvTable rows={[["위험", `${m["위험"]}건`], ["주의", `${m["주의"]}건`], ["걸린 서버", m.nodes.join(", ")]]} />
-      <Section icon="warn" title="항목 — 노드 · 지금 값"><div className="box pre">{m.items.join("\n")}</div></Section>
+      <Section icon="warn" title="항목 — 노드 · 지금 값"><div className={boxPre}>{m.items.join("\n")}</div></Section>
     </Body>
   );
 }
@@ -74,36 +80,36 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
   const tone = SUSPECT_COLOR[p.level];
   return (
     <Body title="위협 예측" subject={p.subject}>
-      {p.failed ? <div className="box fail">예측 실패: {p.error || ""}</div> : (
+      {p.failed ? <div className={box}>예측 실패: {p.error || ""}</div> : (
         <>
-          <div className={`rec-line lv-${tone}`}><Icon name={LEVEL_ICON[tone]} className="size-5" />의심 {p.score}점 · {p.level}</div>
-          <Section icon="activity" title="예측 이유"><div className="box">{p.reason}</div></Section>
-          <Section icon="ok" title="확인할 점"><div className="box">{p.watch}</div></Section>
+          <div className={cn(recLine, levelText[tone])}><Icon name={LEVEL_ICON[tone]} className="size-5" />의심 {p.score}점 · {p.level}</div>
+          <Section icon="activity" title="예측 이유"><div className={box}>{p.reason}</div></Section>
+          <Section icon="ok" title="확인할 점"><div className={box}>{p.watch}</div></Section>
         </>
       )}
       <Section icon="key" title="지금 가진 권한">
-        {p.held == null ? <p className="note">계정 미연결 — 권한을 확인할 수 없습니다.</p>
+        {p.held == null ? <p className={note}>계정 미연결 — 권한을 확인할 수 없습니다.</p>
           : p.held.length ? (
-            <div className="held">
+            <div className="grid gap-1.5">
               {p.held.map((h) => (
-                <button className="held-row" key={h.request_no} onClick={() => gotoActiveGrant(h.request_no)}>
+                <button className={HELD_ROW} key={h.request_no} onClick={() => gotoActiveGrant(h.request_no)}>
                   <b>{h.access}</b>
-                  <span>{[h.system, h.category].filter(Boolean).join(" · ") || h.code || ""}</span>
-                  <span className="when">{h.period_end ? `${h.period_end}까지` : "기간 없음"}</span>
+                  <span className={HELD_SUB}>{[h.system, h.category].filter(Boolean).join(" · ") || h.code || ""}</span>
+                  <span className={cn(HELD_SUB, "col-start-2 row-start-1")}>{h.period_end ? `${h.period_end}까지` : "기간 없음"}</span>
                 </button>
               ))}
             </div>
-          ) : <p className="note">승인된 유효 권한이 없습니다.</p>}
+          ) : <p className={note}>승인된 유효 권한이 없습니다.</p>}
       </Section>
       <Section icon="warn" title="행동 신호 (최근 7일 vs 이전 4주)">
-        {g.highlights?.length ? <div className="box pre">{g.highlights.join("\n")}</div> : <p className="note">눈에 띄는 신호가 없습니다.</p>}
+        {g.highlights?.length ? <div className={boxPre}>{g.highlights.join("\n")}</div> : <p className={note}>눈에 띄는 신호가 없습니다.</p>}
         {g.subject ? (
           <KvTable rows={[["최근 · 평소 로그", `${g.recent_events}건 · ${g.baseline_events}건`],
             ["하루 양", `${g.baseline_daily_volume} → ${g.recent_daily_volume}${g.volume_ratio != null ? ` (${g.volume_ratio}배)` : ""}`],
             ["근무 시간 밖 · 예외", `${Math.round((g.off_hours_ratio ?? 0) * 100)}% · ${Math.round((g.exception_ratio ?? 0) * 100)}%`],
             ["민감 문서", `${g.sensitive_events}건${g.sensitive_words?.length ? ` (${g.sensitive_words.join(", ")})` : ""}`],
             ["30분 안 최대", `${g.max_burst_30min}건`], ["첫 · 마지막 로그", `${stamp(g.first_seen)} · ${stamp(g.last_seen)}`]]} />
-        ) : <p className="note">로그가 없습니다 (권한 신청 기록만).</p>}
+        ) : <p className={note}>로그가 없습니다 (권한 신청 기록만).</p>}
       </Section>
       <Section icon="list" title="판정 · 신청 기록 (35일)">
         <KvTable rows={[["로그 감시", `위험 ${r["로그 위험"] || 0} · 주의 ${r["로그 주의"] || 0}`],
@@ -111,10 +117,10 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
           ["계정", p.login_id || "계정 미연결 — 계정 관리에서 로그 사용자 ID 를 적으면 이어집니다"]]} />
       </Section>
       <Section icon="activity" title="의심 점수 흐름"><ScoreTrend p={p} /></Section>
-      <p className="note">{stamp(p.created_at)} 예측</p>
-      <div className="sec">
-        {g.subject && <button className="rerun" id="stat-go" onClick={() => { navigate("events"); openLogs({ user: g.subject!, period: "month" }); }}><Icon name="search" small />이 사용자의 로그 조회</button>}
-        {found && <button className="rerun" id="stat-go2" onClick={() => gotoEvent(`event:${found.keys[found.keys.length - 1]}`)}><Icon name="list" small />로그 감시 판정 보기</button>}
+      <p className={note}>{stamp(p.created_at)} 예측</p>
+      <div className="mt-[18px]">
+        {g.subject && <button className={toolButton} id="stat-go" onClick={() => { navigate("events"); openLogs({ user: g.subject!, period: "month" }); }}><Icon name="search" small />이 사용자의 로그 조회</button>}
+        {found && <button className={toolButton} id="stat-go2" onClick={() => gotoEvent(`event:${found.keys[found.keys.length - 1]}`)}><Icon name="list" small />로그 감시 판정 보기</button>}
       </div>
     </Body>
   );
@@ -122,12 +128,12 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
 
 function ScoreTrend({ p }: { p: Suspect }) {
   const t = p.trend || [];
-  if (t.length < 2) return <p className="note">예측이 한 번뿐이라 흐름이 아직 없습니다.</p>;
+  if (t.length < 2) return <p className={note}>예측이 한 번뿐이라 흐름이 아직 없습니다.</p>;
   return (
     <>
-      <Sparkline width={(t.length - 1) * 20} height={40} stroke="var(--brand)" style={{ width: "100%", height: 40 }} ariaLabel="의심 점수 흐름"
+      <Sparkline width={(t.length - 1) * 20} height={40} stroke="var(--color-risk)" style={{ width: "100%", height: 40 }} ariaLabel="의심 점수 흐름"
         points={t.map((x, n) => [n * 20, 38 - (x.score / 100) * 36])} />
-      <p className="note">{t.map((x) => x.score).join(" → ")} ({stamp(t[0].at)} ~ {stamp(t[t.length - 1].at)})</p>
+      <p className={note}>{t.map((x) => x.score).join(" → ")} ({stamp(t[0].at)} ~ {stamp(t[t.length - 1].at)})</p>
     </>
   );
 }
