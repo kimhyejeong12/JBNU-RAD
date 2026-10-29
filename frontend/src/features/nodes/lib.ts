@@ -2,7 +2,13 @@ import type { NodeRow } from "@/shared/api/types";
 
 export type NodeStateClass = "off" | "wait" | "stale" | "on";
 
-// 노드 상태 — [CSS 클래스, 글자, 툴팁 설명]. 꺼짐 · 키 없음 · 끊김 · 기다리는 중 · 수집 중 순서로 봅니다.
+// 노드 상태 글자 — 수집 중은 초록, 끊김은 주의 색, 꺼짐 · 기다리는 중은 회색.
+export const nodeStateTone: Record<NodeStateClass, string> = { on: "text-ok", stale: "text-warn", off: "text-ink-dim", wait: "text-ink-dim" };
+export const nodeStateText = "whitespace-nowrap text-[12px] font-bold";
+// 노드 패널 · 노드 키의 버튼 줄
+export const nodeActions = "mt-[10px] flex flex-wrap gap-2";
+
+// 노드 상태 — [상태, 글자, 툴팁 설명]. 꺼짐 · 키 없음 · 끊김 · 기다리는 중 · 수집 중 순서로 봅니다.
 export function nodeState(n: NodeRow): [NodeStateClass, string, string] {
   if (!n.enabled) return ["off", "꺼짐", "보내도 받지 않고 주기 점검에서도 빠집니다"];
   if (!n.key_issued) return ["wait", "키 없음", "손으로 넣은 수집뿐입니다. 키를 발급해 노드에 넣으면 직접 보낼 수 있습니다"];

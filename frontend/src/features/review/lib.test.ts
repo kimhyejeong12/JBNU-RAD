@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { EMPTY_RESULTS } from "@/shared/api/queries";
 import type { EventFinding, Results, ServerFinding } from "@/shared/api/types";
-import { eventItems, policyItems, serverItems } from "./lib";
+import { eventItems, policyItems, serverItems, decisionTone } from "./lib";
 
 const decision = { action: "approve", decider_name: "운영자", decided_at: "2026-10-29T04:00:00+09:00", comment: null, ai_level: "위험" };
 const event = (p: Partial<EventFinding>): EventFinding =>
@@ -36,4 +36,8 @@ test("아무것도 돌리지 않은 서버는 세 목록이 모두 빈다", () =
   expect(policyItems(EMPTY_RESULTS)).toEqual([]);
   expect(serverItems(EMPTY_RESULTS)).toEqual([]);
   expect(eventItems(EMPTY_RESULTS)).toEqual([]);
+});
+
+test("결정 버튼 표가 모든 버튼 색을 덮음", () => {
+  expect(Object.keys(decisionTone).sort()).toEqual(["approve", "cond", "reject"]);
 });

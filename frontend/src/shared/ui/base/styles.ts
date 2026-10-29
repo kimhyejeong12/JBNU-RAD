@@ -11,6 +11,18 @@ export const subject = "m-0 mb-1 text-[15px] font-bold";
 export const meta = "mx-0 mt-1 mb-0.5 text-[12px] text-ink-dim";
 export const recLine = "flex items-center gap-[7px] text-[16px] font-extrabold tracking-[-0.3px]";
 export const box = "rounded-lg bg-canvas px-[13px] py-[11px] text-[13.5px]";
+// 줄바꿈을 그대로 보이는 상자 (로그 줄 · 설치 명령 · 바뀐 설정)
+export const boxPre = "rounded-lg bg-canvas px-[13px] py-[11px] whitespace-pre-wrap text-[12px] leading-[1.6]";
+
+// 키 · 값 표 — 왼쪽 칸은 회색 이름(36%), 오른쪽 칸은 줄바꿈을 지킵니다.
+export const kvTable = "w-full border-collapse text-[12.5px]";
+export const kvTh = "w-[36%] whitespace-nowrap py-1 pr-2.5 pl-0 text-left align-top font-semibold text-ink-dim";
+export const kvTd = "whitespace-pre-line px-0 py-1 text-left align-top";
+
+// 카드 제목 줄 — 제목 · 건수(오른쪽) · 버튼
+export const cardHead = "flex flex-wrap items-center gap-[10px] px-[18px] pt-4 pb-[10px]";
+export const cardTitle = "m-0 text-[15.5px] font-bold";
+export const cardCount = "ml-auto text-[12.5px] text-ink-dim tabular-nums";
 
 // 고르기 칸 — 글꼴은 둘레 글자를 이어받고 크기만 13px (font 축약형은 크기 유틸리티와 순서가 엇갈릴 수 있어 나눠 씁니다).
 export const select = "h-8 rounded-lg border border-line bg-surface px-2 text-[13px] [font-family:inherit] [font-weight:inherit] [line-height:inherit]";
@@ -43,6 +55,8 @@ export const ltableWrap = "overflow-x-auto border-t border-line";
 export const ltable = "w-full border-collapse text-[12.5px]";
 export const lth = "whitespace-nowrap border-b border-line px-3 py-[9px] text-left font-semibold text-ink-dim";
 export const ltd = "border-b border-line px-3 py-[9px] align-top";
+// 표의 줄 — 고른 줄은 hover 보다 고른 색이 이깁니다.
+export const lrowTone = (current: boolean): string => (current ? "cursor-pointer bg-warn-tint" : "cursor-pointer hover:bg-canvas");
 
 // 등급 점 — 같은 색을 옅게 깐 3px 링. 등급이 없으면 회색.
 export const levelDot: Record<Level | "none", string> = {

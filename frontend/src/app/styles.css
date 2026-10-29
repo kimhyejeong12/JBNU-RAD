@@ -16,9 +16,7 @@
 @import "../shared/ui/charts/charts.css" layer(components);
 @import "../features/stats/stats.css" layer(components);
 @import "../features/logs/logs.css" layer(components);
-@import "../features/nodes/nodes.css" layer(components);
 @import "../features/ask/ask.css" layer(components);
-@import "../features/review/review.css" layer(components);
 @import "../features/requests/requests.css" layer(components);
 @import "../shared/styles/responsive.css" layer(components);
 

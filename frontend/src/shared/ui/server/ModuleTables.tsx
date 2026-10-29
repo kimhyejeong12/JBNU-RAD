@@ -1,7 +1,6 @@
 import { Fragment } from "react";
 import { KvTable, Section } from "@/shared/ui/base/parts";
-import { box, note } from "@/shared/ui/base/styles";
-import { cn } from "@/shared/lib/cn";
+import { boxPre, note } from "@/shared/ui/base/styles";
 import type { Snapshot } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { MODULE_LABEL } from "@/shared/lib/labels";
@@ -12,7 +11,7 @@ export function ModuleState({ snap }: { snap?: Snapshot | null }) {
   return (
     <>
       <Section icon="activity" title="직전 수집과 달라진 설정">
-        {snap.changes?.length ? <div className={cn(box, "whitespace-pre-wrap text-[12px] leading-[1.6]")}>{snap.changes.join("\n")}</div> : <p className={note}>직전 수집과 달라진 설정이 없습니다.</p>}
+        {snap.changes?.length ? <div className={boxPre}>{snap.changes.join("\n")}</div> : <p className={note}>직전 수집과 달라진 설정이 없습니다.</p>}
       </Section>
       <ModuleTables snap={snap} />
     </>

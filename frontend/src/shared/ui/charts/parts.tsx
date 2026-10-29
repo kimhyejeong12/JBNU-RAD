@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/shared/lib/cn";
 import { activateProps } from "@/shared/lib/hooks";
-import { ltable, ltableWrap, ltd, lth, mark, markTone, type MarkKey } from "@/shared/ui/base/styles";
+import { lrowTone, ltable, ltableWrap, ltd, lth, mark, markTone, type MarkKey } from "@/shared/ui/base/styles";
 
 export function Legend({ items, round }: { items: [cls: MarkKey, label: string][]; round?: boolean }) {
   return (
@@ -50,8 +50,7 @@ export function DataTable({ head, rows, empty, numCols = [] }: { head: string[];
         <thead><tr>{head.map((h) => <th key={h} className={lth}>{h}</th>)}</tr></thead>
         <tbody>
           {rows.map((r) => (
-            // 고른 줄은 hover 보다 고른 색이 이깁니다.
-            <tr key={r.key} className={cn("cursor-pointer", r.onSelect && r.current ? "bg-warn-tint" : "hover:bg-canvas")}
+            <tr key={r.key} className={lrowTone(!!(r.onSelect && r.current))}
               aria-current={r.onSelect ? !!r.current : undefined} {...(r.onSelect ? activateProps(r.onSelect) : {})}>
               {r.cells.map((c, i) => <td key={i} className={cn(ltd, numCols.includes(i) && "tabular-nums")}>{c}</td>)}
             </tr>

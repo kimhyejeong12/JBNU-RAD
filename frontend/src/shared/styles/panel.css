@@ -8,5 +8,4 @@
 .rerun:hover { border-color: var(--ink-dim); }
 .rerun:disabled { color: var(--ink-dim); background: var(--bg-soft); cursor: progress; }
 .panel-body { flex: 1; overflow: auto; padding: 16px 18px; }
-.panel-foot { padding: 14px 18px 16px; border-top: 1px solid var(--line); background: var(--bg); }
-.panel-foot h4 { margin: 0 0 9px; font-size: 12.5px; font-weight: 700; }
+

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Level } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "./Icon";
-import { box, levelDot } from "./styles";
+import { box, kvTable, kvTd, kvTh, levelDot } from "./styles";
 
 // 등급 점 — 8px 점 + 같은 색 반투명 링. 등급이 없으면 회색.
 export function LevelDot({ level, className }: { level?: Level | null; className?: string }) {
@@ -22,12 +22,12 @@ export function Section({ icon, title, className, children }: { icon: string; ti
 export function KvTable({ rows }: { rows: [label: string, value: ReactNode][] }) {
   return (
     <div className={box}>
-      <table className="w-full border-collapse text-[12.5px]">
+      <table className={kvTable}>
         <tbody>
           {rows.map(([k, v]) => (
             <tr key={k}>
-              <th className="w-[36%] whitespace-nowrap py-1 pr-2.5 pl-0 text-left align-top font-semibold text-ink-dim">{k}</th>
-              <td className="whitespace-pre-line px-0 py-1 text-left align-top">{v}</td>
+              <th className={kvTh}>{k}</th>
+              <td className={kvTd}>{v}</td>
             </tr>
           ))}
         </tbody>

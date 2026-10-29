@@ -4,11 +4,19 @@ import { stamp } from "@/shared/lib/format";
 
 export const DECISIONS: Record<string, string> = { approve: "승인", cond: "조건부 승인", reject: "반려 확정", clear: "이상 없음", act: "조치 필요" };
 
-// 로그 감시 · 서버 점검은 승인할 대상이 아니라 확인할 대상이라 결정 버튼이 다릅니다. 값은 버튼 색(CSS 클래스)입니다.
-export const DECISION_SET: Record<string, Record<string, string>> = {
+// 로그 감시 · 서버 점검은 승인할 대상이 아니라 확인할 대상이라 결정 버튼이 다릅니다. 값은 버튼 색(decisionTone 의 키)입니다.
+export type DecisionColor = "approve" | "cond" | "reject";
+export const DECISION_SET: Record<string, Record<string, DecisionColor>> = {
   policy: { approve: "approve", cond: "cond", reject: "reject" },
   event: { clear: "approve", act: "reject" },
   server: { clear: "approve", act: "reject" },
+};
+
+// 결정 버튼 색 — 승인 · 이상 없음은 초록, 조건부는 주의 색, 반려 · 조치 필요는 빨강.
+export const decisionTone: Record<DecisionColor, string> = {
+  approve: "border-ok-line bg-ok-tint text-ok",
+  cond: "border-warn-line bg-warn-tint text-warn-ink",
+  reject: "border-risk bg-risk text-white",
 };
 
 // 정책 · 서버 · 로그 결정은 권한 DB에 남고 /api/results 의 decisions 로 함께 옵니다.
