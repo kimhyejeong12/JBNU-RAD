@@ -1,0 +1,4 @@
+/* 로그 조회 — 지금부터 거슬러 올라가는 기간 · 사용자로 거른 로그. 집계와 원본은 오른쪽 패널에 둡니다 */
+.logs, .nodes { display: flex; flex-direction: column; min-height: 320px; }
+.logs-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 18px 12px; }
+.logs-filters .select { max-width: 100%; }

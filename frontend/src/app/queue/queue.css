@@ -1,0 +1,52 @@
+/* ── 검색 — 대기열만 거르므로 대기열 카드 제목 줄에 둡니다 ── */
+.search {
+  flex: 1 1 220px; max-width: 320px; margin-left: auto; display: flex; align-items: center; gap: 8px;
+  padding: 0 11px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+  color: var(--ink-dim); font-size: 13px;
+}
+.search:focus-within { border-color: var(--ink); }
+.search input { flex: 1; border: none; outline: none; font: inherit; color: var(--ink); background: none; }
+/* 요약 지표 (제안서 ①) — 누르면 그 등급만 보는 필터 */
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.stat { padding: 14px 16px; width: 100%; text-align: left; }
+.stat:hover { border-color: var(--ink-dim); }
+.stat.정상[aria-pressed="true"] { border-color: var(--ok); background: var(--ok-tint); }
+.stat.주의[aria-pressed="true"] { border-color: var(--sub); background: var(--warn-tint); }
+.stat.위험[aria-pressed="true"] { border-color: var(--accent); background: var(--risk-tint); }
+.stat .label { font-size: 12px; color: var(--ink-dim); display: flex; align-items: center; gap: 6px; }
+.stat .num { display: block; font-size: 26px; font-weight: 800; letter-spacing: -0.8px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.stat.정상 .num { color: var(--ok); } .stat.주의 .num { color: var(--sub); } .stat.위험 .num { color: var(--accent); }
+
+/* 분석 큐 */
+.queue { display: flex; flex-direction: column; min-height: 320px; }
+.queue-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px 12px; flex-wrap: wrap; }
+.queue-head h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
+/* 넓은 화면에서는 좌측 사이드바가 같은 필터를 맡으므로, 사이드바가 사라지는 작은 화면에서만 보입니다 */
+.seg { display: none; padding: 3px; background: var(--bg-soft); border-radius: 8px; }
+.seg button { border: none; background: none; padding: 5px 12px; border-radius: 6px; font-size: 12.5px; color: var(--ink-dim); font-weight: 600; }
+.seg button[aria-selected="true"] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.table { border-top: 1px solid var(--line); }
+.tr {
+  display: grid; align-items: center; gap: 12px;
+  grid-template-columns: 84px minmax(200px, 1.4fr) minmax(160px, 1.3fr) 92px 112px 16px;
+  padding: 0 18px;
+}
+.thead { height: 38px; font-size: 12px; color: var(--ink-dim); font-weight: 600; border-bottom: 1px solid var(--line); }
+.row {
+  width: 100%; text-align: left; min-height: 56px; padding-top: 8px; padding-bottom: 8px; background: var(--bg);
+  border: none; border-bottom: 1px solid var(--line); border-left: 3px solid transparent; padding-left: 15px;
+}
+.row:hover { background: #FAFAFB; }
+.row[aria-current="true"] { background: var(--risk-tint); border-left-color: var(--accent); }
+.cell-type { font-size: 12.5px; color: var(--ink-dim); }
+.cell-type small { display: block; font-size: 11px; color: #999; font-variant-numeric: tabular-nums; }
+.who { min-width: 0; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.detail-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #333; }
+.time { font-size: 12.5px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.judge { display: flex; flex-direction: column; gap: 1px; font-size: 13px; font-weight: 600; }
+.judge .line { display: flex; align-items: center; gap: 5px; }
+.judge .op { font-size: 11px; font-weight: 500; color: var(--ink-dim); }
+.chev { color: #BBB; }
+.queue-head .run { margin-left: auto; }
+.queue-head .run + .run { margin-left: 0; }
+.run[hidden], .stats[hidden], .req-form[hidden], .select[hidden], .nav[hidden], .seg[hidden] { display: none; }

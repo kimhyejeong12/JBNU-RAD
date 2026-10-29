@@ -1,0 +1,27 @@
+@media (max-width: 1150px) {
+  body { height: auto; overflow: auto; grid-template-columns: 1fr; grid-template-rows: auto auto; }
+  body.solo { grid-template-columns: minmax(0, 1fr); }
+body.solo .sidebar { display: none; }
+.sidebar { display: none; }
+  .seg { display: flex; align-self: flex-start; }
+  .topbar { flex-wrap: wrap; padding: 10px 16px; row-gap: 8px; }
+  .workspace { grid-template-columns: 1fr; padding: 14px 16px; }
+  .main-col { overflow: visible; }
+  /* 패널은 목록 아래가 아니라 오른쪽에서 밀려 나오는 서랍으로 띄웁니다 */
+  .panel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; width: min(430px, calc(100vw - 48px));   /* 폰에서도 바깥을 눌러 닫을 자리를 남깁니다 */
+    border: none; border-radius: 0; box-shadow: -12px 0 32px rgba(0,0,0,.16);
+    transform: translateX(100%); visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s;
+  }
+  .panel.open { transform: none; visibility: visible; transition: transform .2s ease; }
+  .drawer-close { display: block; }
+  .drawer-back.show { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(17,17,17,.4); }
+  body.drawer-open { overflow: hidden; }
+  .ask { flex: none; min-height: 0; }
+  .ask-log { max-height: 60vh; }
+  .tr { grid-template-columns: 70px minmax(0, 1fr) 100px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .whoami #who-name { display: none; }
+  .tr > :nth-child(3), .tr > :nth-child(4), .tr > :nth-child(6) { display: none; }
+  .ltable .col-sol, .ltable .col-where, .ltable .col-how { display: none; }
+}

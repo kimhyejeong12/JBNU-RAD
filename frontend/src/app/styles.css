@@ -1,0 +1,19 @@
+/* 지금 화면의 CSS 를 영역별로 나눈 것 — 순서가 곧 우선순위라 바꾸지 않습니다. responsive 는 마지막. */
+@import "../shared/styles/base.css";
+@import "./layout/topbar.css";
+@import "./layout/sidebar.css";
+@import "./queue/queue.css";
+@import "../shared/styles/layout.css";
+@import "../shared/styles/components.css";
+@import "../shared/styles/panel.css";
+@import "../shared/styles/forms.css";
+@import "../shared/ui/charts/charts.css";
+@import "../features/stats/stats.css";
+@import "../features/logs/logs.css";
+@import "../features/nodes/nodes.css";
+@import "../features/ask/ask.css";
+@import "../features/review/review.css";
+@import "../features/requests/requests.css";
+@import "./overlays/overlays.css";
+@import "../features/auth/auth.css";
+@import "../shared/styles/responsive.css";

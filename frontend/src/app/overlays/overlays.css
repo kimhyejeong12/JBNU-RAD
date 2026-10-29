@@ -1,0 +1,25 @@
+/* 기준 문서 보기 */
+.modal-back { position: fixed; inset: 0; background: rgba(17,17,17,.4); display: none; z-index: 40; align-items: center; justify-content: center; padding: 16px; }
+.modal-back.show { display: flex; }
+.modal { width: min(820px, 100%); max-height: 86vh; overflow: auto; background: var(--bg); border-radius: 12px; padding: 20px 22px; }
+.modal h3 { margin: 0 0 12px; font-size: 16px; display: flex; align-items: center; }
+.modal h3 button { margin-left: auto; border: none; background: none; font-size: 20px; color: var(--ink-dim); }
+.modal .doc { margin-bottom: 16px; }
+.modal .doc h4 { margin: 0 0 6px; font-size: 13px; }
+.modal pre { margin: 0; white-space: pre-wrap; font: inherit; font-size: 13px; background: var(--bg-soft); border-radius: 8px; padding: 12px 14px; }
+/* 툴팁 */
+.tip {
+  position: fixed; z-index: 60; max-width: 270px; pointer-events: none;
+  background: var(--ink); color: #fff; border-radius: 8px; padding: 8px 11px;
+  font-size: 12px; line-height: 1.5; box-shadow: 0 8px 24px rgba(0,0,0,.18);
+  word-break: keep-all; overflow-wrap: anywhere;
+  opacity: 0; transform: translateY(3px); transition: opacity .12s ease, transform .12s ease;
+}
+.tip.show { opacity: 1; transform: none; }
+.tip[data-pos="right"] { transform: translateX(-3px); }
+.tip[data-pos="right"].show { transform: none; }
+.tip b { display: block; font-size: 12.5px; font-weight: 700; }
+.tip span { display: block; color: #CFCFCF; margin-top: 2px; }
+.tip b + span { margin-top: 3px; }
+[data-tip] { cursor: help; }
+button[data-tip], .row [data-tip] { cursor: pointer; }

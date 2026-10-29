@@ -1,0 +1,6 @@
+.nstate { font-size: 12px; font-weight: 700; white-space: nowrap; }
+.nstate.on { color: var(--ok); } .nstate.stale { color: var(--sub); } .nstate.off, .nstate.wait { color: var(--ink-dim); }
+.node-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.key-box { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.key-box input { width: 100%; font: 12.5px ui-monospace, monospace; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.key-box .node-actions { margin-top: 8px; }
