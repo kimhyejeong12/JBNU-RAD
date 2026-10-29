@@ -1,7 +1,6 @@
-import { SUSPECT_COLOR } from "./constants";
+import { SUSPECT_COLOR, trendMark, verdictsText } from "./lib";
 import { SafetyBand } from "./SafetyBand";
 import { Tile } from "./Tile";
-import { trendMark, verdictsText } from "./lib";
 import type { StatSelection } from "@/app/ui/uiReducer";
 import { useStartJob } from "@/shared/api/jobs";
 import type { Jobs, SuspectLevel, UserStats } from "@/shared/api/types";

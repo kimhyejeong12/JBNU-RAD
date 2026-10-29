@@ -1,7 +1,6 @@
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
-import { queryClient } from "@/app/queryClient";
-import { jobsQuery, nodeQuery, requestsQuery, statsQuery, userStatsQuery } from "./queries";
+import { queryClient, jobsQuery, nodeQuery, requestsQuery, statsQuery, userStatsQuery } from "./queries";
 
 // 앱과 같은 기본값(staleTime Infinity · 재시도 없음)으로 빈 캐시를 만듭니다.
 const client = () => new QueryClient({ defaultOptions: queryClient.getDefaultOptions() });

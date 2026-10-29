@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { useJobs, useResults } from "./data";
-import { footerWarnings } from "./footerWarnings";
+import { footerWarnings } from "./warnings";
 import { RESULT_VIEWS } from "./views";
 import { useUi } from "./ui/UiContext";
 import { stamp } from "@/shared/lib/format";

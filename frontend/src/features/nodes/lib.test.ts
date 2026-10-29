@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { NodeRow } from "@/shared/api/types";
-import { nodeState } from "./nodeState";
+import { nodeState } from "./lib";
 
 const node = (p: Partial<NodeRow>): NodeRow => ({
   name: "sim-01", host: "sim-01", ip: "10.0.0.1", enabled: true, key_issued: true, stale: false, interval_min: 30,

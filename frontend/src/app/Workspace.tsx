@@ -1,5 +1,5 @@
 import { useUi } from "./ui/UiContext";
-import { Seg } from "./Seg";
+import { Seg } from "./Sidebar";
 import { MainTabs } from "./MainTabs";
 import { QueueTab } from "./queue/QueueTab";
 import { RightPanel } from "./RightPanel";

@@ -2,7 +2,7 @@ import { criteriaText, serverCriteriaText } from "./lib";
 import { useClauses } from "@/app/data";
 import type { AskItem, AskKind, LogFacts, ServerFacts } from "@/shared/api/types";
 import { Icon } from "@/shared/ui/Icon";
-import { Section } from "@/shared/ui/Section";
+import { Section } from "@/shared/ui/parts";
 
 interface Props { m: AskItem; i: number; pressed: (n: number) => boolean; onToggle: (n: number) => void }
 

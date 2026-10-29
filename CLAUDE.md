@@ -78,9 +78,9 @@ JBNU-RAD/
 │   └── dev_nodes.py            노드 수집 시험 — 시험 환경의 노드 키 꺼내기(`key`) · 흉내 노드(`sim`, make dev-sim)
 ├── frontend/                 React 화면 소스 (김혜정) — 10/29에 static/index.html 한 파일을 기능 · 모양 그대로 옮겼다 (리디자인은 다음). TypeScript · Vite · TanStack Query · Vitest. 빌드 결과를 sentinelai/web/static/ 에 커밋하므로 서버에는 Node 가 없어도 된다
 │   └── src/
-│       ├── app/                  껍데기 — App(로그인 게이트) · AppShell · TopBar · Sidebar · Workspace · RightPanel · Footer, ui/(UiContext · uiReducer · PanelHead · PanelMsg · SourceChips · usePanelAction), queue/(검토 현황 공통 — useQueue · select · QueueTable …), data.ts(역할별 데이터 훅) · views.ts(메뉴 · 탭 · 역할)
-│       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · levels …) · ui/(Icon · LevelDot · KvTable · Section · History · charts/) · styles/(옛 CSS 를 영역별로 나눈 것, 클래스 이름 그대로)
-│       └── features/             메뉴별 — auth · requests(결재함 · 신청서) · review(정책 · 서버 점검 · 로그 감시 패널) · nodes · logs · ask(정책 · 서버 · 로그 질의, 예시 질문은 config.ts) · stats · catalog · accounts. 서로 import 하지 않고 shared 와 app/{me,data,ui,views,queue} 만 쓴다
+│       ├── app/                  껍데기 — App(로그인 게이트) · AppShell · TopBar · Sidebar · Workspace · RightPanel · Footer, ui/(UiContext(UI 상태 · usePanelAction) · uiReducer · panel(PanelHead · PanelMsg · PanelFoot) · SourceChips), queue/(검토 현황 공통 — useQueue · select · QueueTable …), data.ts(역할별 데이터 훅) · views.ts(메뉴 · 탭 · 역할)
+│       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels …) · ui/(Icon · parts(LevelDot · Section · KvTable · Periods · History) · ModuleTables · charts/) · styles/(옛 CSS 를 영역별로 나눈 것, 클래스 이름 그대로)
+│       └── features/             메뉴별 — auth · requests(결재함 · 신청서) · review(정책 · 서버 점검 · 로그 감시 패널) · nodes · logs · ask(정책 · 서버 · 로그 질의, 예시 질문은 config.ts) · stats · catalog · accounts. 서로 import 하지 않고 shared 와 app/{me,data,ui,views,queue} 만 쓴다. 기능의 순수 함수 · 상수는 lib.ts 하나에, 한 파일만 쓰는 작은 부품은 그 파일 안에 둔다
 ├── .dev/                     로컬 시험 환경의 두 DB · 벡터 DB · node.conf (git 제외)
 ├── .milvus/                  벡터 DB 파일 (Milvus Lite, git 제외)
 ├── .env · .env.example       설정. .env는 git 제외, make install이 예시에서 만든다

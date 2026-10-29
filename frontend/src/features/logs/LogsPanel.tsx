@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
-import { PERIOD_LABEL } from "./constants";
+import { PERIOD_LABEL } from "./lib";
 import { useLogsPage } from "./useLogsPage";
 import { useUi } from "@/app/ui/UiContext";
-import { PanelHead } from "@/app/ui/PanelHead";
+import { PanelHead } from "@/app/ui/panel";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
-import { KvTable } from "@/shared/ui/KvTable";
-import { Section } from "@/shared/ui/Section";
+import { KvTable, Section } from "@/shared/ui/parts";
 
 // 패널: 고른 줄이 있으면 그 로그의 원본, 없으면 지금 조건의 집계. 숫자는 모두 서버가 센 값입니다.
 export function LogsPanel() {

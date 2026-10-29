@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { nodeState } from "./nodeState";
+import { nodeState } from "./lib";
 import { useJobs } from "@/app/data";
 import { useUi } from "@/app/ui/UiContext";
 import { useStartJob } from "@/shared/api/jobs";
@@ -7,7 +7,7 @@ import { nodesQuery } from "@/shared/api/queries";
 import { stamp } from "@/shared/lib/format";
 import { activateProps } from "@/shared/lib/hooks";
 import { Icon } from "@/shared/ui/Icon";
-import { LevelDot } from "@/shared/ui/LevelDot";
+import { LevelDot } from "@/shared/ui/parts";
 
 // 수집 노드 — 서버마다 도는 node/sentinel_node 가 보낸 수집. 새 수집은 서버가 주기적으로 점검해 검토 현황에 올립니다.
 // 탭에 들어올 때마다 마운트되어 목록을 다시 받습니다.

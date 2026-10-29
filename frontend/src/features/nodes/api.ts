@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useUi } from "@/app/ui/UiContext";
-import { usePanelAction } from "@/app/ui/usePanelAction";
+import { usePanelAction, useUi } from "@/app/ui/UiContext";
 import { send } from "@/shared/api/http";
 
 // 노드 등록 — 키를 발급하고 그 노드를 고릅니다.

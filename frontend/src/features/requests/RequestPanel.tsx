@@ -1,20 +1,17 @@
 import { useState, type ReactNode } from "react";
 import { useRequestAction, type RequestAct } from "./api";
-import { approvalSteps } from "./history";
+import { approvalSteps } from "./lib";
 import { useMe } from "@/app/me";
-import { PanelHead } from "@/app/ui/PanelHead";
-import { PanelMsg } from "@/app/ui/PanelMsg";
+import { PanelHead, PanelMsg } from "@/app/ui/panel";
 import { SourceChips } from "@/app/ui/SourceChips";
 import { useUi } from "@/app/ui/UiContext";
 import type { QueueItem } from "@/app/queue/types";
 import type { RequestRow, Role } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { LEVEL_ICON } from "@/shared/lib/levels";
+import { LEVEL_ICON } from "@/shared/lib/labels";
 import { STAGE_LABEL, STEP, period, requester } from "@/shared/lib/request";
-import { History } from "@/shared/ui/History";
+import { History, KvTable, Section } from "@/shared/ui/parts";
 import { Icon } from "@/shared/ui/Icon";
-import { KvTable } from "@/shared/ui/KvTable";
-import { Section } from "@/shared/ui/Section";
 
 type RequestItem = Extract<QueueItem, { type: "req" | "mine" }>;
 interface Draft { comment: string; reason: string }

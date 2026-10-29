@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { EMPTY_RESULTS } from "@/shared/api/queries";
 import type { EventFinding, Results, ServerFinding } from "@/shared/api/types";
-import { eventItems, policyItems, serverItems } from "./items";
+import { eventItems, policyItems, serverItems } from "./lib";
 
 const decision = { action: "approve", decider_name: "운영자", decided_at: "2026-10-29T04:00:00+09:00", comment: null, ai_level: "위험" };
 const event = (p: Partial<EventFinding>): EventFinding =>

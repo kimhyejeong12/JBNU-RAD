@@ -1,13 +1,12 @@
 import { useRef } from "react";
-import { LOG_FILTERS, PERIOD_LABEL } from "./constants";
-import { logAttrs, pageCount } from "./lib";
+import { LOG_FILTERS, PERIOD_LABEL, logAttrs, pageCount } from "./lib";
 import { useLogsPage } from "./useLogsPage";
 import { useUi } from "@/app/ui/UiContext";
 import type { UiState } from "@/app/ui/uiReducer";
 import type { LogPeriod, LogsPage } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { activateProps } from "@/shared/lib/hooks";
-import { Periods } from "@/shared/ui/Periods";
+import { Periods } from "@/shared/ui/parts";
 
 const PERIODS = Object.entries(PERIOD_LABEL) as [LogPeriod, string][];
 type LogCond = UiState["logs"];

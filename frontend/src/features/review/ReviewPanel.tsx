@@ -1,20 +1,17 @@
 import { useState } from "react";
-import { DECISIONS, DECISION_SET } from "./constants";
+import { DECISIONS, DECISION_SET } from "./lib";
 import { useDecide, type ReviewItem } from "./api";
 import { DecisionLog } from "./DecisionLog";
 import { useResults } from "@/app/data";
 import { useUi } from "@/app/ui/UiContext";
-import { PanelHead } from "@/app/ui/PanelHead";
-import { PanelMsg } from "@/app/ui/PanelMsg";
+import { PanelHead, PanelMsg } from "@/app/ui/panel";
 import { SourceChips } from "@/app/ui/SourceChips";
 import type { EventFinding, PolicyIssue, PolicyRow, ServerFinding } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { LEVEL_ICON } from "@/shared/lib/levels";
+import { LEVEL_ICON } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/Icon";
-import { KvTable } from "@/shared/ui/KvTable";
-import { LevelDot } from "@/shared/ui/LevelDot";
+import { KvTable, LevelDot, Section } from "@/shared/ui/parts";
 import { ModuleState } from "@/shared/ui/ModuleTables";
-import { Section } from "@/shared/ui/Section";
 
 // 정책 문제 · 서버 점검 · 로그 감시 판정의 근거와 운영자 결정.
 export function ReviewPanel({ it }: { it: ReviewItem }) {

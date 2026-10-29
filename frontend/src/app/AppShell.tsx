@@ -8,7 +8,6 @@ import { useQueue } from "./queue/useQueue";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { Workspace } from "./Workspace";
-import { LoadError } from "./LoadError";
 import { DocsModal } from "./DocsModal";
 import { TooltipLayer } from "./TooltipLayer";
 import type { Me } from "@/shared/api/types";
@@ -74,5 +73,14 @@ function Shell() {
       <DocsModal open={docsOpen} onClose={() => setDocsOpen(false)} />
       <TooltipLayer />
     </UiContext.Provider>
+  );
+}
+
+// 화면 데이터를 못 받으면 작업 공간 자리에 이유를 띄웁니다.
+export function LoadError({ message }: { message: string }) {
+  return (
+    <div className="workspace">
+      <div className="card empty" style={{ gridColumn: "1 / -1" }}>서버에서 화면 데이터를 받지 못했습니다: {message}</div>
+    </div>
   );
 }

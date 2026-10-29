@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { accessOptions, type AccessOptions } from "./accessOptions";
+import { accessOptions, type AccessOptions } from "./lib";
 import { useCreateRequest } from "./api";
 import { useCatalog, useMine } from "@/app/data";
 import { isActive } from "@/shared/lib/request";

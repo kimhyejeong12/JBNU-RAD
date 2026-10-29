@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { queryClient } from "./queryClient";
-import { AppShell } from "./AppShell";
-import { LoadError } from "./LoadError";
+import { queryClient, meQuery } from "@/shared/api/queries";
+import { AppShell, LoadError } from "./AppShell";
 import { AuthContext, useAuth, type GateMode } from "@/features/auth/AuthContext";
 import { Gate } from "@/features/auth/Gate";
 import { onUnauthorized } from "@/shared/api/http";
-import { meQuery } from "@/shared/api/queries";
 
 export default function App() {
   const [gate, setGate] = useState<GateMode>(null);

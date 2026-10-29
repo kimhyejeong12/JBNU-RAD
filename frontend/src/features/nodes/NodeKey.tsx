@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { NodeDetail, NodeRow } from "@/shared/api/types";
-import { Section } from "@/shared/ui/Section";
+import { Section } from "@/shared/ui/parts";
 
 // 내부망 서비스라 노드 키를 언제든 다시 보여줍니다. 해시만 남은 예전 키는 다시 발급해야 보입니다.
 export function NodeKey({ n, d }: { n: NodeRow; d?: NodeDetail }) {

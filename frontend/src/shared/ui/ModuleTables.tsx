@@ -1,6 +1,5 @@
 import { Fragment } from "react";
-import { KvTable } from "./KvTable";
-import { Section } from "./Section";
+import { KvTable, Section } from "./parts";
 import type { Snapshot } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { MODULE_LABEL } from "@/shared/lib/labels";

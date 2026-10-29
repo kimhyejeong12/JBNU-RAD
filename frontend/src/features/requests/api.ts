@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useUi } from "@/app/ui/UiContext";
-import { usePanelAction } from "@/app/ui/usePanelAction";
+import { usePanelAction, useUi } from "@/app/ui/UiContext";
 import { send } from "@/shared/api/http";
 
 export type RequestAct = "approve" | "reject" | "revoke" | "withdraw" | "rejudge";

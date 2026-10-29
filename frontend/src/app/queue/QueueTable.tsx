@@ -3,11 +3,10 @@ import { useJobs } from "@/app/data";
 import { TYPE_LABEL, VIEWS } from "@/app/views";
 import { useUi } from "@/app/ui/UiContext";
 import { useQueue } from "./useQueue";
-import { inView, visible } from "./select";
-import { emptyText } from "./emptyText";
+import { inView, visible, emptyText } from "./select";
 import type { QueueItem } from "./types";
-import { DECISIONS } from "@/features/review/constants";
-import { LEVEL_ICON } from "@/shared/lib/levels";
+import { DECISIONS } from "@/features/review/lib";
+import { LEVEL_ICON } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/Icon";
 
 // 검토 현황 목록 — 행과 머리줄은 늘 자식 6개입니다 (좁은 화면이 3 · 4 · 6번째 칸을 위치로 숨깁니다).

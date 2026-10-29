@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { useUi } from "./ui/UiContext";
 import { useQueue } from "./queue/useQueue";
-import { EmptyQueuePanel } from "./queue/EmptyPanel";
 import { RequestPanel } from "@/features/requests/RequestPanel";
 import { ReviewPanel } from "@/features/review/ReviewPanel";
 import { NodesPanel } from "@/features/nodes/NodesPanel";
@@ -10,6 +9,8 @@ import { AskPanel } from "@/features/ask/AskPanel";
 import { StatsPanel } from "@/features/stats/StatsPanel";
 import { UserPanel } from "@/features/accounts/UserPanel";
 import { AccessPanel } from "@/features/catalog/AccessPanel";
+import type { View } from "./views";
+import { PanelHead } from "./ui/panel";
 
 // 오른쪽 패널 — 메뉴 · 탭마다 내용이 다릅니다. 작은 화면에서는 서랍으로 뜹니다.
 export function RightPanel() {
@@ -32,5 +33,20 @@ export function RightPanel() {
     <aside className={ui.drawerOpen ? "card panel open" : "card panel"} id="panel">
       {body}
     </aside>
+  );
+}
+
+// 빈 패널도 메뉴를 따릅니다. 일반 사용자에게는 AI 문구를 보이지 않습니다.
+function EmptyQueuePanel({ view }: { view: View | null }) {
+  const [title, text] = view === "mine"
+    ? ["내 신청", <>신청하거나 목록에서 신청을 고르면<br />결재 상태와 기록이 표시됩니다.</>]
+    : view === "requests"
+      ? ["권한 신청 검토", <>목록에서 신청을 선택하면<br />신청 내용 · AI 판정 · 결재 기록이 표시됩니다.</>]
+      : ["AI 판단 근거", <>목록에서 항목을 선택하면<br />AI 판단 근거와 권고가 표시됩니다.</>];
+  return (
+    <>
+      <PanelHead title={title} />
+      <div className="panel-body"><div className="empty">{text}</div></div>
+    </>
   );
 }

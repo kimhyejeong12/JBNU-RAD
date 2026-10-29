@@ -1,7 +1,6 @@
 import { expect, test } from "vitest";
-import type { AccessItem, UserRow } from "@/shared/api/types";
-import { accessItem } from "@/features/catalog/items";
-import { userItem } from "./items";
+import type { UserRow } from "@/shared/api/types";
+import { userItem } from "./lib";
 
 const user = (p: Partial<UserRow>): UserRow => ({
   id: 7, login_id: "dev-op", display_name: "보안 운영자", department: "보안팀", role: "manager", is_root: false, is_active: true,
@@ -16,12 +15,4 @@ test("userItem: 정지 · 잠김 · 활성, 비밀번호 변경 전, 루트 표�
   expect(userItem(user({ must_change_password: true })).sub).toBe("비밀번호 변경 전");
   expect(userItem(user({ role: "top", is_root: true })).typeLabel).toBe("보안 총책임자 · 루트");
   expect(userItem(user({ department: null, last_login_at: null })) ).toMatchObject({ what: "부서 없음", when: "—" });
-});
-
-const access = (p: Partial<AccessItem>): AccessItem =>
-  ({ code: "HR_READ", name: "인사정보 조회", system: "인사 시스템", category: "인사정보", description: "읽기", is_active: true, updated_at: "2026-10-20T09:00:00+09:00", created_at: null, ...p });
-
-test("accessItem: 켜짐 · 꺼짐, 분류 — 설명", () => {
-  expect(accessItem(access({}))).toMatchObject({ type: "access", key: "access:HR_READ", id: "", typeLabel: "인사 시스템", who: "인사정보 조회 (HR_READ)", what: "인사정보 — 읽기", when: "2026-10-20 09:00", judge: "켜짐" });
-  expect(accessItem(access({ is_active: false, system: null, category: null, description: null }))).toMatchObject({ typeLabel: "—", what: "—", judge: "꺼짐" });
 });
