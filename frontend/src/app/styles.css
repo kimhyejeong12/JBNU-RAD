@@ -8,8 +8,6 @@
 @source not "../**/*.test.ts";
 
 @import "../shared/styles/base.css" layer(components);
-@import "./layout/topbar.css" layer(components);
-@import "./layout/sidebar.css" layer(components);
 @import "./queue/queue.css" layer(components);
 @import "../shared/styles/layout.css" layer(components);
 @import "../shared/styles/components.css" layer(components);
@@ -22,7 +20,6 @@
 @import "../features/ask/ask.css" layer(components);
 @import "../features/review/review.css" layer(components);
 @import "../features/requests/requests.css" layer(components);
-@import "./overlays/overlays.css" layer(components);
 @import "../features/auth/auth.css" layer(components);
 @import "../shared/styles/responsive.css" layer(components);
 
@@ -113,5 +110,52 @@
 @layer base {
   [hidden]:where(:not([hidden="until-found"])) {
     display: none !important;
+  }
+
+  /* 화면 틀 — body 가 그리드(상단 바 · 사이드바 · 작업 공간)라 React 뿌리(#root)는 투명하게 둡니다.
+     메뉴가 하나뿐인 일반 사용자는 사이드바 칸이 없고(data-solo), 좁은 화면은 세로로 쌓고 서랍이 열리면 뒤를 스크롤하지 않습니다(data-drawer-open). */
+  body {
+    height: 100vh;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 56px minmax(0, 1fr);
+    grid-template-columns: 60px minmax(0, 1fr);
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  body[data-solo] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #root {
+    display: contents;
+  }
+  @media (max-width: 1150px) {
+    body {
+      height: auto;
+      overflow: auto;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto;
+    }
+    body[data-solo] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    body[data-drawer-open] {
+      overflow: hidden;
+    }
+  }
+}
+
+/* 툴팁이 있는 요소의 커서 — 화면 전체에 걸려서 여기 둡니다. 옛 CSS 와 같은 층이라 버튼 · 목록 행의 커서가 지금처럼 이깁니다. */
+@layer components {
+  [data-tip] {
+    cursor: help;
+  }
+  button[data-tip],
+  .row [data-tip] {
+    cursor: pointer;
   }
 }

@@ -22,9 +22,7 @@
 .queue-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px 12px; flex-wrap: wrap; }
 .queue-head h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
 /* 넓은 화면에서는 좌측 사이드바가 같은 필터를 맡으므로, 사이드바가 사라지는 작은 화면에서만 보입니다 */
-.seg { display: none; padding: 3px; background: var(--bg-soft); border-radius: 8px; }
-.seg button { border: none; background: none; padding: 5px 12px; border-radius: 6px; font-size: 12.5px; color: var(--ink-dim); font-weight: 600; }
-.seg button[aria-selected="true"] { background: var(--bg); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
 .qtable { border-top: 1px solid var(--line); }
 .tr {
   display: grid; align-items: center; gap: 12px;
@@ -49,4 +47,4 @@
 .chev { color: #BBB; }
 .queue-head .run { margin-left: auto; }
 .queue-head .run + .run { margin-left: 0; }
-.run[hidden], .stats[hidden], .req-form[hidden], .select[hidden], .nav[hidden], .seg[hidden] { display: none; }
+.run[hidden], .stats[hidden], .req-form[hidden], .select[hidden] { display: none; }

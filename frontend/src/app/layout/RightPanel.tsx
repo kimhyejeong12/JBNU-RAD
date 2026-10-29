@@ -11,6 +11,8 @@ import { UserPanel } from "@/features/accounts/UserPanel";
 import { AccessPanel } from "@/features/catalog/AccessPanel";
 import type { View } from "@/app/session/views";
 import { PanelHead } from "@/app/ui/panel/Panel";
+import { cn } from "@/shared/lib/cn";
+import { card, empty, panelBody } from "@/shared/ui/base/styles";
 
 // 오른쪽 패널 — 메뉴 · 탭마다 내용이 다릅니다. 작은 화면에서는 서랍으로 뜹니다.
 export function RightPanel() {
@@ -29,12 +31,20 @@ export function RightPanel() {
   else if (ui.view === "access") body = <AccessPanel key={it?.type === "access" ? it.key : "new"} a={it?.type === "access" ? it.raw : null} />;
   else if (it && (it.type === "policy" || it.type === "server" || it.type === "event")) body = <ReviewPanel key={it.key} it={it} />;
   else body = <EmptyQueuePanel view={ui.view} />;
+  // 질의 탭은 근거 칩을 누르기 전에는 패널을 두지 않습니다 (Workspace 와 같은 조건).
+  const hidden = ui.mainTab === "ask" && !ui.askSource;
   return (
-    <aside className={ui.drawerOpen ? "card panel open" : "card panel"} id="panel">
+    <aside id="panel" className={cn(card, PANEL, ui.drawerOpen ? DRAWER_OPEN : DRAWER_SHUT, hidden && "hidden")}>
       {body}
     </aside>
   );
 }
+
+// 넓은 화면은 오른쪽 칸, 좁은 화면은 오른쪽에서 밀려 나오는 서랍 — 폰에서도 바깥을 눌러 닫을 48px 를 남깁니다.
+// 밀려 나오는 움직임은 transform 전환이라 Tailwind 의 translate(별도 속성) 대신 transform 값을 그대로 씁니다.
+const PANEL = "flex min-h-0 flex-col overflow-hidden narrow:fixed narrow:inset-y-0 narrow:right-0 narrow:z-50 narrow:w-[min(430px,calc(100vw_-_48px))] narrow:rounded-none narrow:border-0 narrow:shadow-[-12px_0_32px_rgba(0,0,0,.16)]";
+const DRAWER_SHUT = "narrow:invisible narrow:[transform:translateX(100%)] narrow:[transition:transform_.2s_ease,visibility_0s_linear_.2s]";
+const DRAWER_OPEN = "narrow:visible narrow:[transform:none] narrow:[transition:transform_.2s_ease]";
 
 // 빈 패널도 메뉴를 따릅니다. 일반 사용자에게는 AI 문구를 보이지 않습니다.
 function EmptyQueuePanel({ view }: { view: View | null }) {
@@ -46,7 +56,7 @@ function EmptyQueuePanel({ view }: { view: View | null }) {
   return (
     <>
       <PanelHead title={title} />
-      <div className="panel-body"><div className="empty">{text}</div></div>
+      <div className={panelBody}><div className={empty}>{text}</div></div>
     </>
   );
 }

@@ -4,6 +4,8 @@ import { MainTabs } from "./MainTabs";
 import { QueueTab } from "@/app/queue/QueueTab";
 import { RightPanel } from "./RightPanel";
 import { Footer } from "./Footer";
+import { workspace } from "./styles";
+import { cn } from "@/shared/lib/cn";
 
 import { NodesTab } from "@/features/nodes/NodesTab";
 import { LogsTab } from "@/features/logs/LogsTab";
@@ -13,19 +15,20 @@ import { StatsTab } from "@/features/stats/StatsTab";
 // 검토 현황은 늘 그려 두고 hidden 으로 숨깁니다. 노드 · 로그 · 질의 · 통계 탭은 들어올 때 마운트해 그때 데이터를 받습니다 (옛 화면의 loadNodes 등).
 export function Workspace() {
   const { ui } = useUi();
-  // 정책 질의 탭은 질의를 넓게 쓰고, 근거 칩을 눌렀을 때만 오른쪽에 인용 조항 패널을 엽니다.
-  const cite = ui.mainTab === "ask" && !!ui.askSource;
+  // 질의 탭은 질의를 넓게 쓰고, 근거 칩을 눌렀을 때만 오른쪽에 인용 조항 패널을 엽니다 (좁은 화면에서도 한 칸 minmax).
+  const wideAsk = ui.mainTab === "ask" && !ui.askSource;
   const stat = ui.mainTab === "stats" || ui.mainTab === "ustats";
+  // data-tab 은 패널 닫기 버튼이 질의 탭에서 보이게 하는 데 씁니다.
   return (
-    <div className={cite ? "workspace cite" : "workspace"} data-tab={ui.mainTab}>
-      <div className="main-col">
+    <div className={cn(workspace, wideAsk && "grid-cols-[minmax(0,1fr)] narrow:grid-cols-[minmax(0,1fr)]")} data-tab={ui.mainTab}>
+      <div className="flex min-h-0 flex-col gap-[14px] overflow-auto narrow:overflow-visible [&>*]:shrink-0">
         <Seg />
         <MainTabs />
         <QueueTab />
-        {ui.mainTab === "nodes" ? <NodesTab /> : <section className="card nodes" id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes" hidden />}
-        {stat ? <StatsTab /> : <div className="stats-view" id="view-stats" role="tabpanel" aria-labelledby="tab-stats" hidden />}
-        {ui.mainTab === "logs" ? <LogsTab /> : <section className="card logs" id="view-logs" role="tabpanel" aria-labelledby="tab-logs" hidden />}
-        {ui.mainTab === "ask" ? <AskTab /> : <section className="card ask" id="view-ask" role="tabpanel" aria-labelledby="tab-ask" hidden />}
+        {ui.mainTab === "nodes" ? <NodesTab /> : <section id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes" hidden />}
+        {stat ? <StatsTab /> : <div id="view-stats" role="tabpanel" aria-labelledby="tab-stats" hidden />}
+        {ui.mainTab === "logs" ? <LogsTab /> : <section id="view-logs" role="tabpanel" aria-labelledby="tab-logs" hidden />}
+        {ui.mainTab === "ask" ? <AskTab /> : <section id="view-ask" role="tabpanel" aria-labelledby="tab-ask" hidden />}
         <Footer />
       </div>
       <RightPanel />

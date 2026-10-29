@@ -2,6 +2,9 @@ import type { Level } from "@/shared/api/types";
 
 // 여러 화면이 같이 쓰는 모양 — 값은 옛 CSS 그대로입니다. 쓰는 곳에서 덮어쓸 때는 cn() 으로 합칩니다.
 
+export const card = "rounded-xl border border-line bg-surface";
+export const empty = "px-[18px] py-9 text-center text-ink-dim";
+export const panelBody = "flex-1 overflow-auto px-[18px] py-4";
 export const box = "rounded-lg bg-canvas px-[13px] py-[11px] text-[13.5px]";
 export const note = "m-0 mt-1.5 text-[11.5px] text-ink-dim";
 

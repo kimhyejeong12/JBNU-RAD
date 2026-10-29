@@ -13,18 +13,5 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
-body {
-  height: 100vh; overflow: hidden;
-  display: grid;
-  grid-template-rows: 56px minmax(0, 1fr);
-  grid-template-columns: 60px minmax(0, 1fr);
-  background: var(--bg-soft);
-  color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
-               "Malgun Gothic", sans-serif;
-  font-size: 14px; line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-}
 button { font: inherit; color: inherit; cursor: pointer; }
 
-#root { display: contents; }   /* body 가 그리드라 React 의 뿌리 요소는 투명하게 둡니다 */

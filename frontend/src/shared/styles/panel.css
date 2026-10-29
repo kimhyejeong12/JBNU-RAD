@@ -1,7 +1,5 @@
 /* ── 우측 패널 ─────────────────────────── */
-.panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 
-.drawer-back { display: none; }
 .rerun {
   margin-left: auto; display: flex; align-items: center; gap: 6px;
   padding: 6px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg);

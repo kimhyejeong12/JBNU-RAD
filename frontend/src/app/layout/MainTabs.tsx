@@ -18,9 +18,11 @@ export function MainTabs() {
   const tabs = ui.view ? VIEWS[ui.view].tabs : [];
   // 탭이 하나뿐이면 탭 줄 대신 대기열 제목으로 지금 메뉴를 알립니다.
   return (
-    <nav className="main-tabs" role="tablist" aria-label="보기 전환" hidden={tabs.length < 2}>
+    <nav className="flex gap-1 border-b border-line" role="tablist" aria-label="보기 전환" hidden={tabs.length < 2}>
       {TABS.map((t) => (
-        <button key={t.tab} className="main-tab" role="tab" id={`tab-${t.tab}`} aria-selected={ui.mainTab === t.tab} aria-controls={t.panel}
+        // 아래 테두리 2px 가 탭 줄의 선과 겹치게 1px 내립니다. 고른 탭은 검은 글자 · 검은 밑줄.
+        <button key={t.tab} role="tab"
+          className="-mb-px inline-flex items-center gap-[7px] border-0 border-b-2 border-transparent bg-transparent px-[14px] py-[9px] text-[14px] font-bold text-ink-dim hover:text-ink aria-selected:border-b-ink aria-selected:text-ink" id={`tab-${t.tab}`} aria-selected={ui.mainTab === t.tab} aria-controls={t.panel}
           hidden={!tabs.includes(t.tab)} onClick={() => setMainTab(t.tab)}>
           <Icon name={t.icon} small />
           {t.tab === "ask" ? <span id="tab-ask-label">{ASK[askMode(ui.view)].label}</span> : t.label}
