@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useUi } from "@/app/ui/state/UiContext";
 import { cn } from "@/shared/lib/cn";
-import { formMsg, formMsgOk, note } from "@/shared/ui/base/styles";
+import { formMsg, formMsgOk, note, panelFoot } from "@/shared/ui/base/styles";
 
 // 패널 제목 줄 — 닫기 버튼은 작은 화면의 서랍과 질의 탭의 인용 패널에서만 보입니다.
 // 다른 버튼(children)은 닫기 앞에 두고, 그때 닫기는 그 버튼 바로 옆에 붙습니다.
@@ -29,5 +29,5 @@ export function PanelMsg() {
 // 패널 아래 칸 — 동작 결과가 있으면 그것을, 없으면 안내 한 줄.
 export function PanelFoot({ note: text }: { note: ReactNode }) {
   const { ui } = useUi();
-  return <div className="border-t border-line bg-surface px-[18px] pt-[14px] pb-4">{ui.panelMsg ? <PanelMsg /> : <p className={note}>{text}</p>}</div>;
+  return <div className={panelFoot}>{ui.panelMsg ? <PanelMsg /> : <p className={note}>{text}</p>}</div>;
 }
