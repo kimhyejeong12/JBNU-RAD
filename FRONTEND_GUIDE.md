@@ -271,6 +271,8 @@
 - 클래스 이름을 조각으로 만들지 않음 (`bg-${tone}` ✗ → 값마다 전체 문자열을 둔 맵). Tailwind가 소스 글자에서 클래스를 찾기 때문. `cn.test.ts`가 막음
 - 반응형은 큰 화면 기준: `narrow:`(1150px 이하) · `phone:`(760px 이하)만. `narrow`는 JS의 `NARROW`와 같은 쿼리
 - hover와 고른 상태가 겹치면 React에서 하나만 줌 (변형 순서에 기대지 않음)
+- `hover:`는 옛 `:hover` 그대로 터치 기기에서도 걸림 (Tailwind 기본은 `@media (hover: hover)` 안에서만, `app/styles.css`의 `@custom-variant hover`)
+- 간격(`p-*` · `gap-*` · `h-*` · `size-*` …) 단위는 px (`--spacing: 4px`). 브라우저 기본 글자 크기를 키워도 여백은 옛 화면처럼 그대로
 
 ```sh
 make install          # 처음 한 번 (Python venv · .env)
@@ -296,6 +298,7 @@ make front-check      # 깨끗이 설치해 빌드한 결과가 커밋된 것과
 - 값 정리: 글자 크기 · 간격이 옛 px 그대로 (`text-[12.5px]` · `px-[18px]` 등). 토큰 단위로 맞춤
 - shadcn/ui 부품: 바탕(`components.json` · `cn()` · 색 변수)만 깔아 둠
 - `app/styles.css`에서 브라우저 기본값으로 되돌린 줄(placeholder · 날짜 칸 · 글상자 크기 조절 등)을 preflight 값으로 바꿀지
+- 간격 단위: px 고정(`--spacing: 4px`)을 rem으로 돌릴지 (shadcn/ui는 rem 전제). `hover:`를 Tailwind 기본(마우스 기기에서만)으로 돌릴지
 - 좁은 화면에서 [표로 보기]를 펼치면 화면이 가로로 넓어짐 (옛 화면부터. 작업 공간 칸이 `1fr`이라 표 폭만큼 늘어남) — §11의 "가로 스크롤 없음"에 어긋남
 - 라우터: 지금은 URL 상태가 없음. `StaticFiles`가 깊은 경로 새로고침을 404로 내므로 붙이면 해시 라우팅
 - 검토 현황 목록(`useQueue`)을 아홉 곳에서 각자 계산함. 같은 캐시라 느리지 않지만 context 하나로 올리면 없어짐
