@@ -34,6 +34,8 @@
   --color-bar-line-hover: #888888;
   --color-bar-hover: #262626;
   --color-tip-dim: #CFCFCF;
+  /* 간격(p · m · gap · h · size …)의 단위는 px — 옛 CSS 처럼 브라우저 기본 글자 크기를 키워도 여백은 그대로 (리디자인에서 rem 으로 바꿀지 정함). */
+  --spacing: 4px;
   --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }
 
@@ -41,6 +43,8 @@
    phone 을 뒤에 둬야 둘 다 걸리는 폭에서 phone 이 이깁니다. */
 @custom-variant narrow (@media (max-width: 1150px));
 @custom-variant phone (@media (max-width: 760px));
+/* hover 는 옛 :hover 그대로 터치 기기에서도 (Tailwind 기본은 @media (hover: hover) 안에서만). */
+@custom-variant hover (&:hover);
 
 /* shadcn/ui 색 변수 — 2단계에서 넣을 부품이 씁니다. 값은 지금 색에 맞춰 둡니다. */
 :root {
@@ -96,7 +100,10 @@
     cursor: pointer;
   }
   /* preflight 가 바꾸는 브라우저 기본 동작 중 화면 · 손맛에 드러나는 것은 기본값으로 되돌립니다 (리디자인에서 다시 정함).
-     안내 글자(placeholder) 색 · 흐림, 쓸 수 없는 칸의 흐림, 날짜 칸 안쪽 여백, 글상자 크기 조절 방향, 탭 강조(iOS), 초점 · 잘못된 값 표시(Firefox). */
+     고르기 칸 묶음 이름의 굵기, 안내 글자(placeholder) 색 · 흐림, 쓸 수 없는 칸의 흐림, 날짜 칸 안쪽 여백, 글상자 크기 조절 방향, 탭 강조(iOS), 초점 · 잘못된 값 표시(Firefox). */
+  optgroup {
+    font-weight: revert;
+  }
   ::placeholder {
     color: revert;
     opacity: revert;
