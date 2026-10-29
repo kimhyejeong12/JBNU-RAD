@@ -1,3 +1,3 @@
 /* 검토 현황 목록은 Tailwind 로 옮겼습니다. 남은 두 규칙은 아직 옛 클래스를 쓰는 화면 몫입니다 (안전 점수의 이름 줄 · 신청서 · 로그 조회 고르기 칸). */
 .who { min-width: 0; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.req-form[hidden], .select[hidden] { display: none; }
+.select[hidden] { display: none; }
