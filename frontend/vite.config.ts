@@ -9,7 +9,7 @@ export default defineConfig({
   resolve: { alias: { "@": "/src" } },
   server: { port: 5173, strictPort: true, proxy: { "/api": API } },
   preview: { proxy: { "/api": API } },
-  // 빌드 결과는 서버가 그대로 서빙하는 sentinelai/web/static/ 에 둡니다 (root 밖이라 emptyOutDir 를 적어야 비웁니다). 옛 index.html 은 ui-legacy 태그에 남습니다.
+  // 빌드 결과는 서버가 그대로 서빙하는 sentinelai/web/static/ 에 둡니다 (root 밖이라 emptyOutDir 를 적어야 비웁니다). 옛 index.html 은 커밋 08b7d0f 바로 앞에 남아 있습니다.
   build: { outDir: "../sentinelai/web/static", emptyOutDir: true, sourcemap: false },
   test: { environment: "node", include: ["src/**/*.test.ts"] },
 });

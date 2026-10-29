@@ -148,7 +148,7 @@ ExecStartPre=+/usr/bin/nvidia-smi
 
 ## 화면 React 이식 (10/29)
 
-- 옛 `index.html` 한 파일(2,751줄)을 `frontend/`(TypeScript · Vite · TanStack Query · Vitest)로 기능 · 모양 그대로 옮겼음. 옛 파일은 git 태그 `ui-legacy`. 리디자인은 다음 단계
+- 옛 `index.html` 한 파일(2,751줄)을 `frontend/`(TypeScript · Vite · TanStack Query · Vitest)로 기능 · 모양 그대로 옮겼음. 옛 파일은 화면을 바꾼 커밋 `08b7d0f`의 바로 앞 (`git show 08b7d0f^:sentinelai/web/static/index.html`). 리디자인은 다음 단계
 - **빌드 결과를 커밋하는 이유**: 팀 서버에 Node가 없고 외부망도 막힐 수 있어 서버에서 빌드할 수 없음. `make web`은 커밋된 파일을 그대로 서빙. `make front-check`가 깨끗이 설치해 빌드한 결과와 커밋된 것을 견줌
 - **옮기며 정한 것**
   - 기능(메뉴)별 폴더 (FSD 아님 — 메뉴 하나가 폴더 하나라 찾기 쉬움)
