@@ -68,7 +68,7 @@ function AlertPop({ ref, open, risks, onPick }: { ref: Ref<HTMLDivElement>; open
   return (
     <div id="alert-pop" ref={ref}
       className={cn("absolute top-[50px] right-4 z-30 w-[330px] rounded-[10px] border border-line bg-surface p-[14px] text-ink shadow-[0_12px_32px_rgba(0,0,0,.14)]", open ? "block" : "hidden")}>
-      <h4 className="m-0 mb-2 text-[13px]">위험 알림 {risks.length ? `— 미결 ${risks.length}건` : "— 미결 없음"}</h4>
+      <h4 className="m-0 mb-2 text-[13px] font-bold">위험 알림 {risks.length ? `— 미결 ${risks.length}건` : "— 미결 없음"}</h4>
       {risks.length
         ? risks.map((it) => (
           <div className="cursor-pointer border-t border-line px-0 py-1.5 text-[12.5px] hover:text-risk" key={it.key} onClick={() => onPick(it.key)}>

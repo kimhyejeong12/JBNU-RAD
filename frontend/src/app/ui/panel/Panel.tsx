@@ -23,7 +23,7 @@ export function PanelHead({ title, children }: { title: ReactNode; children?: Re
 export function PanelMsg() {
   const { ui } = useUi();
   if (!ui.panelMsg) return null;
-  return <p className={ui.panelMsg.startsWith("✓") ? formMsgOk : formMsg}>{ui.panelMsg}</p>;
+  return <p className={cn(ui.panelMsg.startsWith("✓") ? formMsgOk : formMsg, "my-[1em]")}>{ui.panelMsg}</p>;
 }
 
 // 패널 아래 칸 — 동작 결과가 있으면 그것을, 없으면 안내 한 줄.

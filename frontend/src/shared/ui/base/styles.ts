@@ -24,12 +24,14 @@ export const cardHead = "flex flex-wrap items-center gap-[10px] px-[18px] pt-4 p
 export const cardTitle = "m-0 text-[15.5px] font-bold";
 export const cardCount = "ml-auto text-[12.5px] text-ink-dim tabular-nums";
 
-// 고르기 칸 — 글꼴은 둘레 글자를 이어받고 크기만 13px (font 축약형은 크기 유틸리티와 순서가 엇갈릴 수 있어 나눠 씁니다).
-export const select = "h-8 rounded-lg border border-line bg-surface px-2 text-[13px] [font-family:inherit] [font-weight:inherit] [line-height:inherit]";
+// 고르기 칸 — 글꼴은 둘레 글자를 이어받고 크기만 13px (font 축약형은 크기 유틸리티와 순서가 엇갈릴 수 있어 나눠 씁니다). 글자는 브라우저 입력 칸 기본색(검정).
+export const select = "h-8 rounded-lg border border-line bg-surface px-2 text-[13px] text-black [font-family:inherit] [font-weight:inherit] [line-height:inherit]";
 // 입력 양식 — 두 칸(좁은 화면은 한 칸). 입력 칸은 둘레 글꼴을 이어받고 13.5px.
 export const formGrid = "grid grid-cols-[1fr_1fr] gap-x-[14px] gap-y-[10px] px-[18px] pt-1 pb-4 narrow:grid-cols-[1fr]";
 export const field = "flex flex-col gap-1 text-[12.5px] font-semibold text-ink-dim";
 export const input = "w-full rounded-lg border border-line bg-surface px-2.5 py-2 text-[13.5px] font-normal text-ink outline-none [font-family:inherit] [line-height:inherit] focus:border-ink disabled:bg-canvas disabled:text-ink-dim";
+// 체크 상자 — 입력 칸 모양에 브라우저 기본 바깥 여백(3px 3px 3px 4px).
+export const checkbox = `${input} my-[3px] mr-[3px] ml-1`;
 export const formActions = "flex items-center justify-end gap-2";
 export const panelActions = "mt-2 flex gap-2";
 export const actionButton = "h-9 rounded-lg border border-line bg-surface px-4 font-bold";

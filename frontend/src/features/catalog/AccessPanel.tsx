@@ -8,7 +8,7 @@ import type { AccessItem } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { isActive } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
-import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+import { actionButton, checkbox, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 
 // 두 칸을 다 쓰는 칸 · 체크 칸(글자 옆에 상자) · 버튼 줄.
 const WIDE_FIELD = cn(field, "col-span-full");
@@ -69,7 +69,7 @@ function EditAccess({ a }: { a: AccessItem }) {
         <div className={meta}>{a.is_active ? "켜짐 — 일반 사용자가 신청할 수 있습니다" : "꺼짐 — 새로 신청할 수 없습니다"} · 신청 {used.length}건 · 유효 {active}건 · 등록 {stamp(a.created_at)}</div>
         <form key={formKey} className={cn(formGrid, "px-0 pt-3 pb-0")} id="access-edit" onSubmit={onSubmit}>
           <Fields v={a} />
-          <label className={CHECK_FIELD}><input className={input} type="checkbox" name="is_active" defaultChecked={a.is_active} />켜짐 (끄면 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로)</label>
+          <label className={CHECK_FIELD}><input className={checkbox} type="checkbox" name="is_active" defaultChecked={a.is_active} />켜짐 (끄면 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로)</label>
           <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
         </form>
       </div>

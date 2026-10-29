@@ -40,7 +40,7 @@ function LoginForm() {
       <label className={field}>아이디<input className={input} name="login_id" autoComplete="username" required autoFocus /></label>
       <label className={field}>비밀번호<input className={input} ref={password} name="password" type="password" autoComplete="current-password" required /></label>
       <button type="submit" className={cn(primaryButton, "h-10 rounded-lg border-none font-bold")}>로그인</button>
-      <p className={formMsg} id="login-msg">{msg}</p>
+      <p className={cn(formMsg, "my-[1em]")} id="login-msg">{msg}</p>
     </form>
   );
 }
@@ -68,7 +68,7 @@ function PasswordForm({ forced }: { forced: boolean }) {
 
   return (
     <form className={CARD} id="pw-form" onSubmit={onSubmit}>
-      <h3 id="pw-title" className="m-0 text-[17px]">{forced ? "처음 로그인했습니다" : "비밀번호 변경"}</h3>
+      <h3 id="pw-title" className="m-0 text-[17px] font-bold">{forced ? "처음 로그인했습니다" : "비밀번호 변경"}</h3>
       <p className={note} id="pw-note">
         {forced ? "계속하려면 비밀번호를 바꾸세요. 루트가 준 임시 비밀번호는 더 쓸 수 없습니다." : "바꾸면 다른 곳에 로그인된 세션은 끊깁니다."}
       </p>

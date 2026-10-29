@@ -66,7 +66,7 @@ export function Sparkline({ points, width, height, stroke, round, style, ariaLab
   points: [number, number][]; width: number; height: number; stroke: string; round?: boolean; style?: CSSProperties; ariaLabel?: string;
 }) {
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={style} aria-hidden={ariaLabel ? undefined : true} aria-label={ariaLabel}>
+    <svg className="inline align-baseline" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={style} aria-hidden={ariaLabel ? undefined : true} aria-label={ariaLabel}>
       <polyline fill="none" stroke={stroke} strokeWidth={2} strokeLinejoin="round" strokeLinecap={round ? "round" : undefined} vectorEffect="non-scaling-stroke"
         points={points.map(([x, y]) => `${x},${y}`).join(" ")} />
     </svg>

@@ -30,7 +30,7 @@ export function NodeKey({ n, d }: { n: NodeRow; d?: NodeDetail }) {
       <div className="rounded-lg border border-line p-3">
         {/* font 축약형이 굵기 · 줄 높이도 normal 로 되돌리던 것과 같게 */}
         <input id="issued-key" ref={input} readOnly value={d.key} aria-label="노드 키"
-          className="w-full rounded-md border border-line bg-surface px-2 py-[7px] text-[12.5px] font-normal [font-family:ui-monospace,monospace] [line-height:normal]" />
+          className="w-full rounded-md border border-line bg-surface px-2 py-[7px] text-[12.5px] font-normal text-black [font-family:ui-monospace,monospace] [line-height:normal]" />
         <p className={note}>점검할 서버에서:</p>
         <div className={boxPre}>{cmd}</div>
         <div className={cn(nodeActions, "mt-2")}>

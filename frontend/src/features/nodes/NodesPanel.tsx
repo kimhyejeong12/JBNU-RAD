@@ -98,7 +98,7 @@ function NodePanel({ n }: { n: NodeRow }) {
         </Section>
         <NodeKey n={n} d={detail.data} />
         {detail.data ? <NodeRecords d={detail.data} />
-          : detail.isError ? <p className={formMsg}>{detail.error.message}</p>
+          : detail.isError ? <p className={cn(formMsg, "my-[1em]")}>{detail.error.message}</p>
             : <div className={empty}>불러오는 중…</div>}
       </div>
     </>

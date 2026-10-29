@@ -24,7 +24,7 @@ const ICONS: Record<string, ReactNode> = {
   key: <><circle cx="7.5" cy="15.5" r="4.5" /><path d="m10.7 12.3 9.3-9.3M17 6l3 3M15 8l2 2" /></>,
 };
 
-const BASE = "size-[18px] flex-none fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]";
+const BASE = "inline size-[18px] flex-none align-baseline fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]";
 
 export function Icon({ name, small, className }: { name: string; small?: boolean; className?: string }) {
   return (

@@ -1,13 +1,11 @@
-/* 화면 CSS 의 시작점 — Tailwind 와, 옮기는 중인 옛 CSS 를 함께 둡니다.
-   옛 CSS 는 components 층에 넣어 Tailwind 유틸리티(utilities 층)가 늘 이깁니다. 옛 파일끼리는 지금 순서가 곧 우선순위라 바꾸지 않습니다 (responsive 가 마지막).
-   기본 스타일 초기화(preflight)는 옛 CSS 를 다 옮긴 뒤에 켭니다. */
+/* 화면 CSS 의 시작점 — Tailwind(기본 스타일 초기화 preflight · 유틸리티)와 색 토큰 · 화면 틀. 모양은 모두 컴포넌트의 클래스에 둡니다. */
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css" layer(utilities);
 /* 시험 파일의 글자는 화면 클래스가 아니라 훑지 않습니다. */
 @source not "../**/*.test.ts";
 
-@import "../shared/styles/base.css" layer(components);
 
 /* 색 토큰 — 값은 지금 화면 그대로. static 이라 쓰지 않은 토큰도 CSS 변수로 나와 인라인 스타일(차트 선 색 등)에서 쓸 수 있습니다. */
 @theme static {
@@ -92,10 +90,54 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* display 유틸리티를 준 요소도 hidden 속성이면 숨깁니다 (preflight 를 켜기 전까지 대신 맡습니다). */
 @layer base {
-  [hidden]:where(:not([hidden="until-found"])) {
-    display: none !important;
+  /* 버튼은 손가락 커서 (preflight 는 기본 커서로 둡니다). */
+  button {
+    cursor: pointer;
+  }
+  /* preflight 가 바꾸는 브라우저 기본 동작 중 화면 · 손맛에 드러나는 것은 기본값으로 되돌립니다 (리디자인에서 다시 정함).
+     안내 글자(placeholder) 색 · 흐림, 쓸 수 없는 칸의 흐림, 날짜 칸 안쪽 여백, 글상자 크기 조절 방향, 탭 강조(iOS), 초점 · 잘못된 값 표시(Firefox). */
+  ::placeholder {
+    color: revert;
+    opacity: revert;
+  }
+  button,
+  input,
+  select,
+  optgroup,
+  textarea {
+    opacity: revert;
+  }
+  ::-webkit-date-and-time-value {
+    min-height: revert;
+    text-align: revert;
+  }
+  ::-webkit-datetime-edit {
+    display: revert;
+  }
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: revert;
+  }
+  ::-webkit-datetime-edit,
+  ::-webkit-datetime-edit-year-field,
+  ::-webkit-datetime-edit-month-field,
+  ::-webkit-datetime-edit-day-field {
+    padding-block: revert;
+  }
+  ::-webkit-calendar-picker-indicator {
+    line-height: revert;
+  }
+  textarea {
+    resize: revert;
+  }
+  html {
+    -webkit-tap-highlight-color: revert;
+  }
+  :-moz-focusring {
+    outline: revert;
+  }
+  :-moz-ui-invalid {
+    box-shadow: revert;
   }
 
   /* 화면 틀 — body 가 그리드(상단 바 · 사이드바 · 작업 공간)라 React 뿌리(#root)는 투명하게 둡니다.

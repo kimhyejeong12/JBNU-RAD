@@ -8,7 +8,7 @@ import type { Role, UserRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { ROLE_LABEL } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
-import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+import { actionButton, checkbox, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 
 // 두 칸을 다 쓰는 칸 · 체크 칸(글자 옆에 상자) · 버튼 줄.
 const WIDE_FIELD = cn(field, "col-span-full");
@@ -88,7 +88,7 @@ function EditUser({ u }: { u: UserRow }) {
               <label className={field}>부서<input className={input} name="department" defaultValue={u.department ?? ""} maxLength={100} /></label>
               <label className={field}>역할<RoleSelect value={u.role} disabled={fixed} /></label>
               <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="보안 솔루션 로그의 UserID" /></label>
-              <label className={CHECK_FIELD}><input className={input} type="checkbox" name="is_active" defaultChecked={u.is_active} disabled={fixed} />활성 (끄면 정지 · 세션 끊김)</label>
+              <label className={CHECK_FIELD}><input className={checkbox} type="checkbox" name="is_active" defaultChecked={u.is_active} disabled={fixed} />활성 (끄면 정지 · 세션 끊김)</label>
               <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
             </form>
             <form key={`reset:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-reset" onSubmit={onReset}>
