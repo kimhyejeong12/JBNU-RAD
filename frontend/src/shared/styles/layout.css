@@ -5,7 +5,6 @@
 
 /* 메인 탭 — 분석 대기열 · 통계 대시보드 · 권한 질의 */
 
-.view-queue { display: flex; flex-direction: column; gap: 14px; }
 /* display 를 지정한 요소는 hidden 속성만으로 숨겨지지 않아 직접 끕니다. */
-.view-queue[hidden], .ask[hidden], .logs[hidden], .nodes[hidden], .stats-view[hidden] { display: none; }
+.ask[hidden], .logs[hidden], .nodes[hidden], .stats-view[hidden] { display: none; }
 

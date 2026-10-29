@@ -149,13 +149,12 @@
   }
 }
 
-/* 툴팁이 있는 요소의 커서 — 화면 전체에 걸려서 여기 둡니다. 옛 CSS 와 같은 층이라 버튼 · 목록 행의 커서가 지금처럼 이깁니다. */
+/* 툴팁이 있는 요소의 커서 — 화면 전체에 걸려서 여기 둡니다. 옛 CSS 와 같은 층이라 버튼의 커서가 지금처럼 이깁니다 (목록 행 안은 그 칸에 cursor-pointer). */
 @layer components {
   [data-tip] {
     cursor: help;
   }
-  button[data-tip],
-  .row [data-tip] {
+  button[data-tip] {
     cursor: pointer;
   }
 }

@@ -6,6 +6,11 @@ export const card = "rounded-xl border border-line bg-surface";
 export const empty = "px-[18px] py-9 text-center text-ink-dim";
 export const panelBody = "flex-1 overflow-auto px-[18px] py-4";
 export const box = "rounded-lg bg-canvas px-[13px] py-[11px] text-[13.5px]";
+
+// 고르기 칸 — 글꼴은 둘레 글자를 이어받고 크기만 13px (font 축약형은 크기 유틸리티와 순서가 엇갈릴 수 있어 나눠 씁니다).
+export const select = "h-8 rounded-lg border border-line bg-surface px-2 text-[13px] [font-family:inherit] [font-weight:inherit] [line-height:inherit]";
+// 제목 줄의 작은 버튼 — 오른쪽으로 밀리고, 작업이 도는 동안(disabled) 회색.
+export const toolButton = "ml-auto flex items-center gap-1.5 rounded-[7px] border border-line bg-surface px-[11px] py-1.5 text-[12.5px] font-semibold hover:border-ink-dim disabled:cursor-progress disabled:bg-canvas disabled:text-ink-dim";
 export const note = "m-0 mt-1.5 text-[11.5px] text-ink-dim";
 
 export const formMsg = "mr-auto text-[12.5px] text-risk";
