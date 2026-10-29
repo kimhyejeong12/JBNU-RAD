@@ -1,19 +1,117 @@
-/* 지금 화면의 CSS 를 영역별로 나눈 것 — 순서가 곧 우선순위라 바꾸지 않습니다. responsive 는 마지막. */
-@import "../shared/styles/base.css";
-@import "./layout/topbar.css";
-@import "./layout/sidebar.css";
-@import "./queue/queue.css";
-@import "../shared/styles/layout.css";
-@import "../shared/styles/components.css";
-@import "../shared/styles/panel.css";
-@import "../shared/styles/forms.css";
-@import "../shared/ui/charts/charts.css";
-@import "../features/stats/stats.css";
-@import "../features/logs/logs.css";
-@import "../features/nodes/nodes.css";
-@import "../features/ask/ask.css";
-@import "../features/review/review.css";
-@import "../features/requests/requests.css";
-@import "./overlays/overlays.css";
-@import "../features/auth/auth.css";
-@import "../shared/styles/responsive.css";
+/* 화면 CSS 의 시작점 — Tailwind 와, 옮기는 중인 옛 CSS 를 함께 둡니다.
+   옛 CSS 는 components 층에 넣어 Tailwind 유틸리티(utilities 층)가 늘 이깁니다. 옛 파일끼리는 지금 순서가 곧 우선순위라 바꾸지 않습니다 (responsive 가 마지막).
+   기본 스타일 초기화(preflight)는 옛 CSS 를 다 옮긴 뒤에 켭니다. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+/* 시험 파일의 글자는 화면 클래스가 아니라 훑지 않습니다. */
+@source not "../**/*.test.ts";
+
+@import "../shared/styles/base.css" layer(components);
+@import "./layout/topbar.css" layer(components);
+@import "./layout/sidebar.css" layer(components);
+@import "./queue/queue.css" layer(components);
+@import "../shared/styles/layout.css" layer(components);
+@import "../shared/styles/components.css" layer(components);
+@import "../shared/styles/panel.css" layer(components);
+@import "../shared/styles/forms.css" layer(components);
+@import "../shared/ui/charts/charts.css" layer(components);
+@import "../features/stats/stats.css" layer(components);
+@import "../features/logs/logs.css" layer(components);
+@import "../features/nodes/nodes.css" layer(components);
+@import "../features/ask/ask.css" layer(components);
+@import "../features/review/review.css" layer(components);
+@import "../features/requests/requests.css" layer(components);
+@import "./overlays/overlays.css" layer(components);
+@import "../features/auth/auth.css" layer(components);
+@import "../shared/styles/responsive.css" layer(components);
+
+/* 색 토큰 — 값은 지금 화면 그대로. static 이라 쓰지 않은 토큰도 CSS 변수로 나와 인라인 스타일(차트 선 색 등)에서 쓸 수 있습니다. */
+@theme static {
+  --color-ink: #111111;
+  --color-ink-dim: #666666;
+  --color-ink-soft: #333333;
+  --color-ink-faint: #999999;
+  --color-ink-ghost: #BBBBBB;
+  --color-surface: #FFFFFF;
+  --color-canvas: #F5F5F6;
+  --color-row-hover: #FAFAFB;
+  --color-line: #E4E4E7;
+  --color-risk: #EA002C;
+  --color-warn: #FF7A00;
+  --color-ok: #2E7D5B;
+  --color-risk-tint: #FFF4F6;
+  --color-warn-tint: #FFF6EE;
+  --color-ok-tint: #EFF7F3;
+  --color-ok-line: #9CCDB5;
+  --color-warn-line: #FFC999;
+  --color-warn-ink: #B85600;
+  --color-idle: #B5B5BA;
+  --color-mark-etc: #D4D4D8;
+  --color-bar-ink: #DDDDDD;
+  --color-bar-line: #3A3A3A;
+  --color-bar-line-hover: #888888;
+  --color-bar-hover: #262626;
+  --color-tip-dim: #CFCFCF;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+/* 반응형 — 큰 화면 기준이라 max-width 그대로. narrow 는 JS 의 NARROW(app/ui/state/UiContext.ts)와 같은 쿼리입니다.
+   phone 을 뒤에 둬야 둘 다 걸리는 폭에서 phone 이 이깁니다. */
+@custom-variant narrow (@media (max-width: 1150px));
+@custom-variant phone (@media (max-width: 760px));
+
+/* shadcn/ui 색 변수 — 2단계에서 넣을 부품이 씁니다. 값은 지금 색에 맞춰 둡니다. */
+:root {
+  --background: #F5F5F6;
+  --foreground: #111111;
+  --card: #FFFFFF;
+  --card-foreground: #111111;
+  --popover: #FFFFFF;
+  --popover-foreground: #111111;
+  --primary: #111111;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F5F5F6;
+  --secondary-foreground: #111111;
+  --muted: #F5F5F6;
+  --muted-foreground: #666666;
+  --accent: #F5F5F6;
+  --accent-foreground: #111111;
+  --destructive: #EA002C;
+  --border: #E4E4E7;
+  --input: #E4E4E7;
+  --ring: #111111;
+  --radius: 8px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* display 유틸리티를 준 요소도 hidden 속성이면 숨깁니다 (preflight 를 켜기 전까지 대신 맡습니다). */
+@layer base {
+  [hidden]:where(:not([hidden="until-found"])) {
+    display: none !important;
+  }
+}

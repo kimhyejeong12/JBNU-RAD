@@ -10,5 +10,5 @@ body.solo .sidebar { display: none; }
   border: none; border-radius: 9px; background: none; color: var(--ink-dim);
 }
 .nav:hover { background: var(--bg-soft); color: var(--ink); }
-.nav[aria-current="true"] { background: var(--risk-tint); color: var(--accent); }
+.nav[aria-current="true"] { background: var(--risk-tint); color: var(--brand); }
 .nav-views { display: flex; flex-direction: column; gap: 6px; }

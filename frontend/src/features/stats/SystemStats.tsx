@@ -38,7 +38,7 @@ export function SystemHead({ d, onSelect }: Props) {
         </Tile>
         <Tile label="위협 로그 빈도" big={days ? `하루 ${Math.round((threat / days) * 10) / 10}건` : "—"} note={peak ? `가장 많은 날 ${peak.day} ${peak["주의"] + peak["위험"]}건` : "주의 · 위험 로그 없음"}>
           {spark.length > 1 ? (
-            <Sparkline width={spark.length * 4} height={24} stroke="var(--accent)" round style={{ width: "100%", height: 24, marginTop: 4 }}
+            <Sparkline width={spark.length * 4} height={24} stroke="var(--brand)" round style={{ width: "100%", height: 24, marginTop: 4 }}
               points={spark.map((x, n) => [n * 4 + 2, 22 - ((x["위험"] + x["주의"]) / sparkMax) * 20])} />
           ) : null}
         </Tile>
@@ -78,7 +78,7 @@ function ThreatLogs({ d }: Props) {
         <>
           <div className="chart">
             <div className="cols" role="img" aria-label="날짜별 로그 건수와 주의 · 위험 로그">
-              {[1, 0.5].map((f) => <span key={f} className="grid" style={{ bottom: `${f * 100}%` }}><span>{Math.round(dayMax * f)}</span></span>)}
+              {[1, 0.5].map((f) => <span key={f} className="gridline" style={{ bottom: `${f * 100}%` }}><span>{Math.round(dayMax * f)}</span></span>)}
               {keys.map((k) => {
                 const x = byDay[k];
                 const other = Math.max(0, x.total - x["위험"] - x["주의"]);

@@ -8,7 +8,7 @@
 }
 .decide .approve { color: var(--ok); border-color: #9CCDB5; background: var(--ok-tint); }
 .decide .cond { color: #B85600; border-color: #FFC999; background: var(--warn-tint); }
-.decide .reject { color: #fff; border-color: var(--accent); background: var(--accent); }
+.decide .reject { color: #fff; border-color: var(--brand); background: var(--brand); }
 .decide button:hover { filter: brightness(0.97); }
 .decide button[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 1px; }
 .decision-state { font-size: 12px; margin-top: 8px; color: var(--ink-dim); display: flex; gap: 8px; align-items: center; }

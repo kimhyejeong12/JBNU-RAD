@@ -5,19 +5,19 @@
   padding: 0 20px; background: var(--ink); color: #fff;
 }
 .logo { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 17px; letter-spacing: -0.3px; }
-.logo svg { width: 24px; height: 24px; stroke: var(--accent); stroke-width: 2.2; }
+.logo svg { width: 24px; height: 24px; stroke: var(--brand); stroke-width: 2.2; }
 .top-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 /* 엔진 경고 — CI 컬러는 흰 바탕에서만 쓰므로 검은 바 위에 흰 알약으로 띄웁니다 */
 .engine-warn {
   display: flex; align-items: center; padding: 5px 11px; border-radius: 7px;
-  background: #fff; color: var(--accent); font-size: 12.5px; font-weight: 700; white-space: nowrap;
+  background: #fff; color: var(--brand); font-size: 12.5px; font-weight: 700; white-space: nowrap;
 }
 .engine-warn[hidden] { display: none; }
 .bell { position: relative; background: none; border: none; color: #fff; padding: 6px; margin-left: 6px; border-radius: 7px; }
 .bell:hover { background: #262626; }
 .bell .count {
   position: absolute; top: 1px; right: 0; min-width: 16px; height: 16px; padding: 0 4px;
-  border-radius: 99px; background: var(--accent); font-size: 10.5px; font-weight: 700;
+  border-radius: 99px; background: var(--brand); font-size: 10.5px; font-weight: 700;
   display: none; align-items: center; justify-content: center;
 }
 .bell .count.show { display: flex; }
@@ -30,7 +30,7 @@
 .alert-pop h4 { margin: 0 0 8px; font-size: 13px; }
 .alert-pop .none { margin: 0; font-size: 12.5px; color: var(--ink-dim); }
 .alert-pop .risk-item { font-size: 12.5px; padding: 6px 0; border-top: 1px solid var(--line); cursor: pointer; }
-.alert-pop .risk-item:hover { color: var(--accent); }
+.alert-pop .risk-item:hover { color: var(--brand); }
 /* 로그인한 사람 · 로그아웃 — 검은 바 위라 흰 글자 */
 .whoami { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #DDD; }
 .whoami[hidden] { display: none; }

@@ -125,7 +125,7 @@ function ScoreTrend({ p }: { p: Suspect }) {
   if (t.length < 2) return <p className="note">예측이 한 번뿐이라 흐름이 아직 없습니다.</p>;
   return (
     <>
-      <Sparkline width={(t.length - 1) * 20} height={40} stroke="var(--accent)" style={{ width: "100%", height: 40 }} ariaLabel="의심 점수 흐름"
+      <Sparkline width={(t.length - 1) * 20} height={40} stroke="var(--brand)" style={{ width: "100%", height: 40 }} ariaLabel="의심 점수 흐름"
         points={t.map((x, n) => [n * 20, 38 - (x.score / 100) * 36])} />
       <p className="note">{t.map((x) => x.score).join(" → ")} ({stamp(t[0].at)} ~ {stamp(t[t.length - 1].at)})</p>
     </>

@@ -13,7 +13,7 @@
 .safety:empty { display: none; }
 .safety .score { display: flex; flex-direction: column; gap: 2px; }
 .safety .score .big { font-size: 34px; font-weight: 800; letter-spacing: -1px; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.safety .score .big.정상 { color: var(--ok); } .safety .score .big.주의 { color: var(--sub); } .safety .score .big.위험 { color: var(--accent); }
+.safety .score .big.정상 { color: var(--ok); } .safety .score .big.주의 { color: var(--sub); } .safety .score .big.위험 { color: var(--brand); }
 .safety .label { font-size: 12px; font-weight: 600; color: var(--ink-dim); }
 .safety .groups { display: grid; gap: 4px; font-size: 13px; min-width: 0; }
 .safety .groups div { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }

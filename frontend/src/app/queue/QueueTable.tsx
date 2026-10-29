@@ -20,7 +20,7 @@ export function QueueTable() {
   const rows = view ? visible(items, { view, stageFilter: ui.stageFilter, role: me.role, filter: ui.filter, query: ui.query }) : [];
   const anyInView = !!view && items.some((it) => inView(it, view, ui.stageFilter, me.role));
   return (
-    <div className="table">
+    <div className="qtable">
       <div className="tr thead" id="thead">{cols.map((c) => <span key={c}>{c}</span>)}<span /></div>
       <div id="rows">
         {rows.length

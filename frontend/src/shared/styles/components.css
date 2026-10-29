@@ -3,9 +3,9 @@
 .ldot.정상 { background: var(--ok); box-shadow: 0 0 0 3px rgba(46, 125, 91, .26); }
 .ldot.주의 { background: var(--sub); box-shadow: 0 0 0 3px rgba(255, 122, 0, .26); }
 .ldot.none { background: #B5B5BA; box-shadow: 0 0 0 3px rgba(181, 181, 186, .26); }
-.ldot.위험 { background: var(--accent); box-shadow: 0 0 0 3px rgba(234, 0, 44, .22); }
+.ldot.위험 { background: var(--brand); box-shadow: 0 0 0 3px rgba(234, 0, 44, .22); }
 .stat .label .ldot { margin-right: 0; }
-.lv-정상 { color: var(--ok); } .lv-주의 { color: var(--sub); } .lv-위험 { color: var(--accent); }
+.lv-정상 { color: var(--ok); } .lv-주의 { color: var(--sub); } .lv-위험 { color: var(--brand); }
 .empty { padding: 36px 18px; text-align: center; color: var(--ink-dim); }
 .num { font-variant-numeric: tabular-nums; }
 .logs-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px 10px; flex-wrap: wrap; }
@@ -58,4 +58,4 @@
 .history .step .when { color: var(--ink-dim); font-size: 11.5px; }
 .history .step .say { display: block; margin-top: 2px; color: #333; }
 .box.pre { white-space: pre-wrap; font-size: 12px; line-height: 1.6; }
-.warn { color: var(--accent); }
+.warn { color: var(--brand); }
