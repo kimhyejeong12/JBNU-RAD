@@ -96,8 +96,15 @@
 }
 
 @layer base {
-  /* 버튼은 손가락 커서 (preflight 는 기본 커서로 둡니다). */
+  /* 커서 — 버튼은 손가락(preflight 는 기본 커서로 둡니다), 툴팁이 있는 요소는 물음표, 툴팁이 있는 버튼은 다시 손가락.
+     선택자 구체성으로 정해지고, 요소에 준 클래스(cursor-pointer 등)가 늘 이깁니다. */
   button {
+    cursor: pointer;
+  }
+  [data-tip] {
+    cursor: help;
+  }
+  button[data-tip] {
     cursor: pointer;
   }
   /* preflight 가 바꾸는 브라우저 기본 동작 중 화면 · 손맛에 드러나는 것은 기본값으로 되돌립니다 (리디자인에서 다시 정함).
@@ -182,15 +189,5 @@
     body[data-drawer-open] {
       overflow: hidden;
     }
-  }
-}
-
-/* 툴팁이 있는 요소의 커서 — 화면 전체에 걸려서 여기 둡니다. 옛 CSS 와 같은 층이라 버튼의 커서가 지금처럼 이깁니다 (목록 행 안은 그 칸에 cursor-pointer). */
-@layer components {
-  [data-tip] {
-    cursor: help;
-  }
-  button[data-tip] {
-    cursor: pointer;
   }
 }
