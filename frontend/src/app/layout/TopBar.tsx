@@ -7,7 +7,7 @@ import { useQueue } from "@/app/queue/useQueue";
 import { openRisks } from "@/app/queue/select";
 import { useAuth } from "@/features/auth/AuthContext";
 import { logout } from "@/features/auth/api";
-import { accountLabel } from "@/shared/lib/format";
+import { ROLE_LABEL } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/base/Icon";
 import { LevelDot } from "@/shared/ui/base/parts";
 import type { QueueItem } from "@/app/queue/types";
@@ -44,7 +44,7 @@ export function TopBar() {
           <LevelDot level="위험" />AI 엔진 점검 필요
         </span>
         <div className="flex items-center gap-1.5 text-[12.5px] text-bar-ink" id="who">
-          <span id="who-name" className="narrow:hidden">{accountLabel(me)}</span>
+          <span id="who-name" className="narrow:hidden">{me.display_name} · {ROLE_LABEL[me.role]}{me.is_root ? " (루트)" : ""}</span>
           <button className={TOP_BTN} id="btn-password" onClick={() => auth.showPassword(false)}>비밀번호 변경</button>
           <button className={TOP_BTN} id="btn-logout" onClick={() => void logout()}>로그아웃</button>
         </div>

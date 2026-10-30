@@ -21,7 +21,7 @@ from sentinelai.engine import Engine  # noqa: E402
 
 DEV = ROOT / ".dev"
 PASSWORD = "dev-pass-1234"
-ACCOUNTS = [("dev-op", "보안 운영자", "manager"), ("dev-user", "일반 사용자", "user")]
+ACCOUNTS = [("dev-op", "시험 운영자", "manager"), ("dev-user", "시험 사용자", "user")]
 PORT = os.environ.get("DEV_PORT", "8001")
 # 일반 사용자가 고를 시험용 권한 목록 — 기준 문서의 조항(3.2 인사 · 3.3 급여 · 4.3 관리자 · 6.2 PAM)에 걸리게 골랐습니다.
 CATALOG = [
