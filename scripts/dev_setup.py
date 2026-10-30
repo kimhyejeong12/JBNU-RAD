@@ -21,7 +21,8 @@ from sentinelai.engine import Engine  # noqa: E402
 
 DEV = ROOT / ".dev"
 PASSWORD = "dev-pass-1234"
-ACCOUNTS = [("dev-op", "시험 운영자", "manager"), ("dev-user", "시험 사용자", "user")]
+# 시험 계정 이름은 실제 사람 이름처럼 둡니다 (화면의 이름 자리를 알아보게, 합성 로그의 사용자 이름과 겹치지 않게).
+ACCOUNTS = [("dev-op", "양현성", "manager"), ("dev-user", "김혜정", "user")]
 PORT = os.environ.get("DEV_PORT", "8001")
 # 일반 사용자가 고를 시험용 권한 목록 — 기준 문서의 조항(3.2 인사 · 3.3 급여 · 4.3 관리자 · 6.2 PAM)에 걸리게 골랐습니다.
 CATALOG = [
@@ -45,7 +46,7 @@ def main() -> int:
     engine = Engine()
     db = engine.main_db
 
-    root = auth.create_root(db, "dev-root", PASSWORD, "시험 총책임자", "보안팀")
+    root = auth.create_root(db, "dev-root", PASSWORD, "서준원", "보안팀")
     for login, name, role in ACCOUNTS:
         auth.create_user(db, root, login, PASSWORD, name, "보안팀", role)
     # 시험 계정은 첫 로그인 비밀번호 변경을 건너뜁니다.
