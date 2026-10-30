@@ -28,6 +28,7 @@ export interface Health {
 export interface Regulation {
   name: string;
   content: string;
+  updated_at?: string;   // 파일을 고친 시각
 }
 
 export type Stage = "manager" | "top" | "approved" | "rejected" | "withdrawn" | "revoked";

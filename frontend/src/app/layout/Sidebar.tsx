@@ -49,7 +49,8 @@ export function Sidebar({ wide, onToggle, onDocs }: { wide: boolean; onToggle: (
       </div>
       {/* 아래쪽 — 기준 문서 · 메뉴 접기/펼치기 */}
       <div className={cn("mt-auto flex flex-col gap-1.5", !wide && "items-center")}>
-        {me.role !== "user" && item("docs", "book", "기준 문서", { id: "nav-docs", tip: "기준 문서 원문", onClick: onDocs })}
+        {/* 기준 문서 메뉴가 있는 보안 총책임자는 관리 구역에서 열고, 보안 운영자는 이 버튼으로 원문 창을 엽니다. */}
+        {me.role !== "user" && !views.includes("docs") && item("docs", "book", "기준 문서", { id: "nav-docs", tip: "기준 문서 원문", onClick: onDocs })}
         {item("toggle", "chev", wide ? "메뉴 접기" : "메뉴 펼치기", { id: "nav-toggle", iconClass: cn(wide && "rotate-180"), onClick: onToggle })}
       </div>
     </nav>

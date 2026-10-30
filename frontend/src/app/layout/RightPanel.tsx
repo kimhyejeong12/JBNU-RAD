@@ -9,6 +9,7 @@ import { AskPanel } from "@/features/ask/AskPanel";
 import { StatsPanel } from "@/features/stats/StatsPanel";
 import { UserPanel } from "@/features/accounts/UserPanel";
 import { AccessPanel } from "@/features/catalog/AccessPanel";
+import { DocPanel } from "@/features/regulations/DocPanel";
 import type { View } from "@/app/session/views";
 import { PanelHead } from "@/app/ui/panel/Panel";
 import { cn } from "@/shared/lib/cn";
@@ -24,10 +25,11 @@ export function RightPanel() {
   else if (ui.mainTab === "logs") body = <LogsPanel />;
   else if (ui.mainTab === "nodes") body = <NodesPanel />;
   else if (ui.mainTab === "stats" || ui.mainTab === "ustats") body = <StatsPanel />;
-  // 계정 · 권한 목록 메뉴에서 선택이 없으면 새로 만드는 폼입니다.
+  // 계정 · 권한 목록 · 기준 문서 메뉴에서 선택이 없으면 새로 만드는 · 올리는 폼입니다.
   else if (ui.view === "users" && (!it || it.type !== "user")) body = <UserPanel key="new" u={null} />;
   else if (it && (it.type === "req" || it.type === "mine")) body = <RequestPanel key={it.key} it={it} />;
   else if (it && it.type === "user") body = <UserPanel key={it.key} u={it.raw} />;
+  else if (ui.view === "docs") body = <DocPanel key={it?.type === "doc" ? it.key : "new"} d={it?.type === "doc" ? it.raw : null} />;
   else if (ui.view === "access") body = <AccessPanel key={it?.type === "access" ? it.key : "new"} a={it?.type === "access" ? it.raw : null} />;
   else if (it && (it.type === "policy" || it.type === "server" || it.type === "event")) body = <ReviewPanel key={it.key} it={it} />;
   else body = <EmptyQueuePanel view={ui.view} />;

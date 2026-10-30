@@ -21,8 +21,8 @@ export function visible(items: QueueItem[], o: VisibleOptions): QueueItem[] {
     if (!inView(it, o.view, o.stageFilter, o.role)) return false;
     if (o.filter !== "전체" && it.level !== o.filter) return false;
     if (!q) return true;
-    const raw = it.raw as { reason?: string | null; recommendation?: string | null; policy_ids?: string[] };
-    const hay = [it.id, it.who, it.what, it.judge, raw.reason, raw.recommendation, ...(raw.policy_ids || [])].join(" ").toLowerCase();
+    const raw = it.raw as { reason?: string | null; recommendation?: string | null; policy_ids?: string[]; content?: string };
+    const hay = [it.id, it.who, it.what, it.judge, raw.reason, raw.recommendation, raw.content, ...(raw.policy_ids || [])].join(" ").toLowerCase();
     return hay.includes(q);
   });
 }
@@ -56,6 +56,7 @@ export function emptyText(view: View, stageFilter: StageFilter, jobs: Jobs | nul
     mine: "아직 신청한 권한이 없습니다. 위 신청서를 채워 신청하세요.",
     users: "계정이 없습니다.",
     access: "등록한 권한이 없습니다. [권한 등록]으로 넣으세요.",
+    docs: "기준 문서가 없습니다.",
   };
   return byView[view] ?? "";
 }

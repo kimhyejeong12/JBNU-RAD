@@ -1,8 +1,8 @@
 import type { Role } from "@/shared/api/types";
 
 export type MainTab = "queue" | "nodes" | "logs" | "ask" | "stats" | "ustats";
-export type View = "requests" | "policies" | "stats" | "qa" | "events" | "mine" | "users" | "access";
-export type ItemType = "req" | "server" | "mine" | "user" | "access" | "policy" | "event";
+export type View = "requests" | "policies" | "stats" | "qa" | "events" | "mine" | "users" | "access" | "docs";
+export type ItemType = "req" | "server" | "mine" | "user" | "access" | "policy" | "event" | "doc";
 
 // 사이드바 구역 — 결재 · 보안 운영 · 관리(보안 총책임자만).
 export type NavGroup = "결재" | "보안 운영" | "관리";
@@ -36,18 +36,20 @@ export const VIEWS: Record<View, ViewMeta> = {
            tabs: ["queue"], cols: ["역할", "이름 (아이디)", "부서", "마지막 로그인", "상태"], search: "이름 · 아이디 · 부서로 검색" },
   access: { group: "관리", title: "권한 목록", label: "권한 목록", icon: "key", tip: "권한 목록",
             tabs: ["queue"], cols: ["시스템", "권한 (코드)", "분류 · 설명", "고친 시각", "상태"], search: "권한 이름 · 코드 · 시스템으로 검색" },
+  docs: { group: "관리", title: "기준 문서", label: "기준 문서", icon: "book", tip: "기준 문서",
+          tabs: ["queue"], cols: ["분류", "문서", "파일", "고친 시각", "조항"], search: "문서 이름 · 내용으로 검색" },
 };
 
-// 보안 총책임자는 보안 운영자와 같은 메뉴에 권한 목록 · 계정 관리를 더합니다.
+// 보안 총책임자는 보안 운영자와 같은 메뉴에 권한 목록 · 계정 관리 · 기준 문서를 더합니다.
 export const ROLE_VIEWS: Record<Role, View[]> = {
   user: ["mine"],
   manager: ["requests", "policies", "events", "stats", "qa"],
-  top: ["requests", "policies", "events", "stats", "qa", "access", "users"],
+  top: ["requests", "policies", "events", "stats", "qa", "access", "users", "docs"],
 };
 export const RESULT_VIEWS: ReadonlySet<View> = new Set<View>(["policies", "events"]);
 export const LEVEL_VIEWS: ReadonlySet<View> = new Set<View>(["requests", "policies", "events"]);
-export const TYPE_VIEW: Record<ItemType, View> = { req: "requests", server: "policies", mine: "mine", user: "users", access: "access", policy: "policies", event: "events" };
-export const TYPE_LABEL: Record<ItemType, string> = { req: "권한 신청", server: "서버 점검", mine: "내 신청", user: "계정", access: "권한", policy: "정책 관리", event: "로그 감시" };
+export const TYPE_VIEW: Record<ItemType, View> = { req: "requests", server: "policies", mine: "mine", user: "users", access: "access", policy: "policies", event: "events", doc: "docs" };
+export const TYPE_LABEL: Record<ItemType, string> = { req: "권한 신청", server: "서버 점검", mine: "내 신청", user: "계정", access: "권한", policy: "정책 관리", event: "로그 감시", doc: "기준 문서" };
 
 export interface DataNeeds { operator: boolean; requests: boolean; mine: boolean; users: boolean; catalog: boolean; results: boolean }
 

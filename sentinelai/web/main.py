@@ -13,7 +13,6 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request  # noqa: E40
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, StringConstraints  # noqa: E402
 
-from sentinelai import ROOT  # noqa: E402
 from sentinelai.db import decisions, results as results_db  # noqa: E402
 from sentinelai.engine import KINDS, MANUAL, Engine  # noqa: E402
 
@@ -21,8 +20,8 @@ from . import view  # noqa: E402
 from .api_permissions import Approver, role  # noqa: E402
 from .api_permissions import router as permissions_router  # noqa: E402
 from .api_nodes import router as nodes_router  # noqa: E402
+from .api_regulations import router as regulations_router  # noqa: E402
 
-DOCS_DIR = ROOT / "docs"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 @asynccontextmanager
@@ -47,6 +46,7 @@ app = FastAPI(
 )
 app.include_router(permissions_router)
 app.include_router(nodes_router)
+app.include_router(regulations_router)
 
 # 정책 관리 · 로그 감시 화면은 보안 운영자 · 보안 총책임자만 씁니다. 화면은 같은 출처에서만 열므로 CORS 를 열지 않습니다.
 analyst = [Depends(role("manager", "top"))]
@@ -86,15 +86,6 @@ def start_job(kind: str, request: Request) -> dict[str, Any]:
     if not _engine(request).jobs.start(kind):
         raise HTTPException(status_code=409, detail="다른 작업이 돌고 있습니다. 끝난 뒤 다시 시도하세요.")
     return jobs(request)
-
-
-@app.get("/api/regulations", dependencies=analyst)
-def regulations() -> list[dict[str, str]]:
-    """기준 문서 원문 (근거 조항 전문 표시용)."""
-    return [
-        {"name": p.name, "content": p.read_text(encoding="utf-8")}
-        for p in sorted(DOCS_DIR.glob("*.md"))
-    ]
 
 
 class AskRequest(BaseModel):

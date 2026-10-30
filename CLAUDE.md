@@ -81,6 +81,7 @@ JBNU-RAD/
 │   └── web/                    웹 계층 (김혜정) — Engine 기능을 부르고 결과를 보여줌. 판정 로직 · 큐 없음
 │       ├── main.py               FastAPI — API + 화면 서빙. 시작 때 Engine 생성 · start()(작업 큐), 끌 때 stop()(큐 · 벡터 DB 잠금 해제)
 │       ├── api_nodes.py          수집 노드 API — 수집 받기(키만) · 등록 · 키 발급 · 목록 · 끄기 (/api/nodes)
+│       ├── api_regulations.py    기준 문서 API — 보기 · 올리기(보안 총책임자, 감사 기록). 엔진의 공개 기능(index)만 씀 (/api/regulations)
 │       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 줌
 │       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
 │       └── static/               화면 빌드 결과 — frontend/ 에서 `make front-build` 로 만들어 커밋. 서버는 그대로 서빙
@@ -94,7 +95,7 @@ JBNU-RAD/
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
 │       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
 │       └── features/             메뉴별 — auth · requests · review · nodes · logs · ask(예시 질문은 config.ts) · stats · catalog · accounts. 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
-├── docs/                     판정 근거 기준 문서 — 수정 금지 (make index 가 RAG에 적재)
+├── docs/                     판정 근거 기준 문서(.md · .txt) — 보안 총책임자가 화면에서 올림(10/30, 지우기 없음), 코드 작업으로는 고치지 않음 (make index 가 RAG에 적재)
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
 ├── data/                     검토 대상 · 두 DB 파일 (위치는 .env, DB 파일은 git 제외)
@@ -227,7 +228,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `GET /api/stats?period=week\|month\|quarter\|all` | 보안 통계 (기본 한 달, 모델 없이 셈, `results.threat_stats`) — `logs`(기간 안 로그 수 · 날짜별, 비율의 분모) · `events`(주의 · 위험 판정에 묶인 로그 줄 · 날짜별) · `servers`(노드별 등급 · 위험 · 주의 항목, 모듈별 위협 항목, 걸린 조항 — 노드마다 기간 안 마지막 점검) · `safety`(시스템 안전 점수, 아래) |
 | `GET /api/user-stats?period=` | 사용자 위협 — `suspects`(사람마다 마지막 의심 점수 · 등급 · 이유 · 확인할 점 · 행동 신호 · 흐름 · 지금 가진 권한 `held`, 계정 미연결은 null, 기간과 무관) · `safety`(사용자 안전 점수) · `events.users`(사용자별 위협 로그 줄 · 판정 수 · 로그 사용자 ID) · `requests`(신청 수 · AI 등급별 · AI와 결재가 엇갈린 수) |
 | `GET /api/health` | 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` (보안 운영자 이상) |
-| `GET /api/regulations` | `docs/` 원문 (근거 조항 전문 표시용) |
+| `GET /api/regulations` · `POST /api/regulations` | `docs/` 원문 · 고친 시각(보안 운영자 이상) · 올리기(보안 총책임자). 올리기는 `{name, content}`(.md · .txt, 1MB, 같은 이름 400 — 덮어쓰지 않음) → 바뀐 파일만 적재. 다른 작업이 돌면 409, AI 엔진(임베딩)에 닿지 않으면 503 |
 | `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 (보안 총책임자). `PATCH`로 로그 사용자 ID(`log_id`, 계정마다 하나, 겹치면 400). 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿈 |
 | `GET /api/access-catalog` · `POST /api/access-catalog` · `PATCH /api/access-catalog/{코드}` | 권한 목록 — 보기(일반 사용자 · 보안 운영자는 켜진 것만) · 등록 · 고치기 · 끄기(보안 총책임자, 감사 기록) |
 | `POST /api/requests` · `GET /api/requests[?stage=&mine=]` | 신청(일반 사용자, 본문 `access_code` — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400, 현재 보유 권한은 서버가 채움) · 목록(일반 사용자는 자기 것만). 응답에 `ai_verdict` · `judging` |
@@ -248,7 +249,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 |---|---|
 | 일반 사용자 | 메뉴 · 오른쪽 패널 없이 내 신청 화면 하나 (반려 사유는 줄을 눌러 펼침, 철회는 목록 줄에서). AI 흔적 없음 |
 | 보안 운영자 | 권한 신청(1차 결재함) · 정책 관리 · 로그 감시 · 통계 · 정책 질의 |
-| 보안 총책임자 | 위 + 최종 결재함 · 권한 목록 · 계정 관리 |
+| 보안 총책임자 | 위 + 최종 결재함 · 권한 목록 · 계정 관리 · 기준 문서 |
 
 ---
 
@@ -291,11 +292,11 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 
 ## 4. 규칙
 
-- ❌ `sentinelai/engine/` · `docs/` 수정. 프롬프트(`sentinelai/engine/prompt.py`)도 엔진 담당자와 상의 없이 안 바꿈
+- ❌ `sentinelai/engine/` 수정 · `docs/`를 코드 작업으로 고치기 (기준 문서는 보안 총책임자가 화면에서 올림, 10/30). 프롬프트(`sentinelai/engine/prompt.py`)도 엔진 담당자와 상의 없이 안 바꿈
 - ❌ 엔진 기능 재구현 · 엔진 타입을 대체하는 웹 전용 스키마
 - ❌ 서버 주소 · 모델명 하드코딩 — 전부 `Settings`
 - ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제). 화면은 React + Vite, 빌드 결과를 커밋 (서버에 Node 불필요). 화면 소스를 고치면 `make front-build` 결과를 같은 커밋에. 스타일은 Tailwind v4 유틸리티 (`FRONTEND_GUIDE.md` §9). shadcn/ui 부품 등 새 의존성은 리디자인 때 정함
-- ❌ 파일 업로드 (문서 데이터 읽기 · §8 6에서 다시 정함)
+- ❌ 기준 문서(.md · .txt, 보안 총책임자) 말고는 파일 업로드 (pptx · pdf 등 문서 데이터 읽기는 §8 6에서 정함)
 - ❌ 정책 자동 수정 · 권한 자동 승인 — 결정은 사람이 함
 - ❌ 엔진 출력을 손으로 고치기 · 근거 없는 목업 데이터 · 사전 계산 답을 실시간처럼 보이는 연출 (10/8에 모두 걷어냈음)
 - ❌ 여러 모듈을 한꺼번에 바꾸기 — 하나씩 바꾸고 확인. 막히면 우회하지 말고 사용자에게 보고

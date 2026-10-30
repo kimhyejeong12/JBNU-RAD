@@ -41,6 +41,7 @@ export function QueueHead() {
       </button>
       <button className={cn(toolButton, "ml-0")} id="add-user" hidden={ui.view !== "users"} onClick={deselect}><Icon name="plus" small />새 계정</button>
       <button className={cn(toolButton, "ml-0")} id="add-access" hidden={ui.view !== "access"} onClick={deselect}><Icon name="plus" small />권한 등록</button>
+      <button className={cn(toolButton, "ml-0")} id="add-doc" hidden={ui.view !== "docs"} onClick={deselect}><Icon name="plus" small />문서 업로드</button>
     </div>
   );
 }

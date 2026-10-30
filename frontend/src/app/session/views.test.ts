@@ -15,7 +15,7 @@ test("보안 총책임자는 전부 받는다 (내 신청만 빼고)", () => {
 
 test("사이드바 구역 — 역할 메뉴 순서대로 묶고, 메뉴가 없는 구역은 뺀다", () => {
   expect(navGroups(ROLE_VIEWS.manager)).toEqual([["결재", ["requests"]], ["보안 운영", ["policies", "events", "stats", "qa"]]]);
-  expect(navGroups(ROLE_VIEWS.top)).toEqual([["결재", ["requests"]], ["보안 운영", ["policies", "events", "stats", "qa"]], ["관리", ["access", "users"]]]);
+  expect(navGroups(ROLE_VIEWS.top)).toEqual([["결재", ["requests"]], ["보안 운영", ["policies", "events", "stats", "qa"]], ["관리", ["access", "users", "docs"]]]);
 });
 
 test("사이드바 처음 모양 — 1440px 이상은 펼치고, 그보다 좁으면 접는다", () => {
