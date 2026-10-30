@@ -4,8 +4,12 @@ export type MainTab = "queue" | "nodes" | "logs" | "ask" | "stats" | "ustats";
 export type View = "requests" | "policies" | "stats" | "qa" | "events" | "mine" | "users" | "access";
 export type ItemType = "req" | "server" | "mine" | "user" | "access" | "policy" | "event";
 
+// 사이드바 구역 — 결재 · 보안 운영 · 관리(보안 총책임자만).
+export type NavGroup = "결재" | "보안 운영" | "관리";
+
 interface ViewMeta {
   title?: string;
+  group?: NavGroup;
   label: string;
   icon: string;
   tip: string;
@@ -16,21 +20,21 @@ interface ViewMeta {
 
 // 메뉴마다 쓰는 탭 · 목록 칸만 둡니다. 정책 질의 · 로그 질의는 그 메뉴의 기능이라 정책 관리 · 로그 감시에만 있습니다.
 export const VIEWS: Record<View, ViewMeta> = {
-  requests: { label: "권한 신청", icon: "lock", tip: "권한 신청",
+  requests: { group: "결재", label: "권한 신청", icon: "lock", tip: "권한 신청",
               tabs: ["queue"], cols: ["번호", "신청자", "신청 권한", "신청 시각", "AI 판정"], search: "신청 번호 · 신청자 · 권한으로 검색" },
-  policies: { title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리",
+  policies: { group: "보안 운영", title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리",
               tabs: ["queue", "nodes", "ask"], cols: ["분류", "대상", "상세 내용", "시간", "AI 판정"], search: "정책 ID · 서버 · 내용으로 검색" },
-  stats: { title: "통계", label: "통계", icon: "activity", tip: "통계",
+  stats: { group: "보안 운영", title: "통계", label: "통계", icon: "activity", tip: "통계",
            tabs: ["stats", "ustats"], cols: [], search: "" },
-  qa: { title: "정책 질의", label: "정책 질의", icon: "chat", tip: "정책 질의",
+  qa: { group: "보안 운영", title: "정책 질의", label: "정책 질의", icon: "chat", tip: "정책 질의",
         tabs: ["ask"], cols: [], search: "" },
-  events: { title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시",
+  events: { group: "보안 운영", title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시",
             tabs: ["queue", "logs", "ask"], cols: ["분류", "대상 사용자", "상세 내용", "시간", "AI 판정"], search: "사용자 · 내용으로 검색" },
   mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청",
           tabs: ["queue"], cols: ["번호", "신청 권한", "사유", "신청 시각", "상태"], search: "신청 번호 · 권한으로 검색" },
-  users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리",
+  users: { group: "관리", title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리",
            tabs: ["queue"], cols: ["역할", "이름 (아이디)", "부서", "마지막 로그인", "상태"], search: "이름 · 아이디 · 부서로 검색" },
-  access: { title: "권한 목록", label: "권한 목록", icon: "key", tip: "권한 목록",
+  access: { group: "관리", title: "권한 목록", label: "권한 목록", icon: "key", tip: "권한 목록",
             tabs: ["queue"], cols: ["시스템", "권한 (코드)", "분류 · 설명", "고친 시각", "상태"], search: "권한 이름 · 코드 · 시스템으로 검색" },
 };
 
@@ -60,3 +64,19 @@ export function dataNeeds(role: Role): DataNeeds {
     results: views.some((v) => RESULT_VIEWS.has(v)),
   };
 }
+
+// 사이드바 — 역할 메뉴를 구역별로 묶습니다 (메뉴 순서 그대로, 구역 없는 메뉴는 빼고).
+export function navGroups(views: View[]): [NavGroup, View[]][] {
+  const out: [NavGroup, View[]][] = [];
+  for (const v of views) {
+    const g = VIEWS[v].group;
+    if (!g) continue;
+    const last = out.find(([name]) => name === g);
+    if (last) last[1].push(v);
+    else out.push([g, [v]]);
+  }
+  return out;
+}
+
+// 사이드바를 처음에 펼칠지 — 1440px 이상이면 펼쳐도 목록(최소 760px) · 오른쪽 패널(430px)이 들어갑니다.
+export const defaultNavWide = (width: number): boolean => width >= 1440;

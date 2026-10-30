@@ -173,6 +173,10 @@
   body[data-solo] {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* 사이드바를 펼치면 첫 칸이 메뉴 이름까지 들어가는 184px. */
+  body[data-nav-wide] {
+    grid-template-columns: 184px minmax(0, 1fr);
+  }
   #root {
     display: contents;
   }
@@ -185,6 +189,9 @@
     }
     body[data-solo] {
       grid-template-columns: minmax(0, 1fr);
+    }
+    body[data-nav-wide] {
+      grid-template-columns: 1fr;
     }
     body[data-drawer-open] {
       overflow: hidden;
