@@ -14,7 +14,7 @@ import { PanelHead } from "@/app/ui/panel/Panel";
 import { cn } from "@/shared/lib/cn";
 import { card, empty, panelBody } from "@/shared/ui/base/styles";
 
-// 오른쪽 패널 — 메뉴 · 탭마다 내용이 다릅니다. 작은 화면에서는 서랍으로 뜹니다.
+// 오른쪽 패널 — 메뉴 · 탭마다 내용이 다릅니다. 작은 화면에서는 서랍으로 뜹니다. 일반 사용자에게는 없습니다 (Workspace).
 export function RightPanel() {
   const { ui } = useUi();
   const items = useQueue();
@@ -46,13 +46,11 @@ const PANEL = "flex min-h-0 flex-col overflow-hidden narrow:fixed narrow:inset-y
 const DRAWER_SHUT = "narrow:invisible narrow:transform-[translateX(100%)] narrow:[transition:transform_.2s_ease,visibility_0s_linear_.2s]";
 const DRAWER_OPEN = "narrow:visible narrow:transform-none narrow:[transition:transform_.2s_ease]";
 
-// 빈 패널도 메뉴를 따릅니다. 일반 사용자에게는 AI 문구를 보이지 않습니다.
+// 빈 패널도 메뉴를 따릅니다 (일반 사용자에게는 패널이 없습니다).
 function EmptyQueuePanel({ view }: { view: View | null }) {
-  const [title, text] = view === "mine"
-    ? ["내 신청", <>신청하거나 목록에서 신청을 고르면<br />결재 상태와 기록이 표시됩니다.</>]
-    : view === "requests"
-      ? ["권한 신청 검토", <>목록에서 신청을 선택하면<br />신청 내용 · AI 판정 · 결재 기록이 표시됩니다.</>]
-      : ["AI 판단 근거", <>목록에서 항목을 선택하면<br />AI 판단 근거와 권고가 표시됩니다.</>];
+  const [title, text] = view === "requests"
+    ? ["권한 신청 검토", <>목록에서 신청을 선택하면<br />신청 내용 · AI 판정 · 결재 기록이 표시됩니다.</>]
+    : ["AI 판단 근거", <>목록에서 항목을 선택하면<br />AI 판단 근거와 권고가 표시됩니다.</>];
   return (
     <>
       <PanelHead title={title} />

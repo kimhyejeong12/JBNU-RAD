@@ -6,6 +6,7 @@ import { useQueue } from "./useQueue";
 import { inView, visible, emptyText } from "./select";
 import type { QueueItem } from "./types";
 import { DECISIONS } from "@/features/review/lib";
+import { WithdrawButton } from "@/features/requests/RequestForm";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
@@ -30,32 +31,39 @@ export function QueueTable() {
       </div>
       <div id="rows">
         {rows.length
-          ? rows.map((it) => <Row key={it.key} it={it} current={it.key === ui.selected} onSelect={() => select(it.key)} />)
+          ? rows.map((it) => <Row key={it.key} it={it} current={it.key === ui.selected} onSelect={it.type === "mine" ? undefined : () => select(it.key)} />)
           : view && <div className={empty}>{emptyText(view, ui.stageFilter, jobs, anyInView)}</div>}
       </div>
     </div>
   );
 }
 
-function Row({ it, current, onSelect }: { it: QueueItem; current: boolean; onSelect: () => void }) {
+// 줄 — 누르면 오른쪽 패널에 내용을 엽니다. 일반 사용자의 내 신청은 패널이 없어 누르지 않는 줄입니다 (onSelect 없음).
+const ROW = "min-h-14 w-full border-0 border-b border-l-[3px] border-b-line border-l-transparent bg-surface py-2 pr-4.5 pl-3.75 text-left";
+function Row({ it, current, onSelect }: { it: QueueItem; current: boolean; onSelect?: () => void }) {
   const d = it.decision;
   const sub = d ? `${d.decider_name} · ${DECISIONS[d.action]}` : it.sub;
-  return (
-    // 고른 행은 hover 보다 고른 색이 이깁니다. 왼쪽 3px 띠는 고른 행에서만 빨간색.
-    <button aria-current={current} onClick={onSelect}
-      className={cn(GRID, "min-h-14 w-full border-0 border-b border-l-[3px] border-b-line border-l-transparent bg-surface py-2 pr-4.5 pl-3.75 text-left",
-        current ? "border-l-risk bg-risk-tint" : "hover:bg-row-hover")}>
+  const cells = (
+    <>
       <span className="text-[12.5px] text-ink-dim">{it.typeLabel || TYPE_LABEL[it.type]}<small className="block text-[11px] text-ink-faint tabular-nums">{it.id}</small></span>
       <span className="line-clamp-2 min-w-0 font-semibold leading-[1.35]">{it.who}</span>
-      <span className="cursor-pointer truncate text-ink-soft narrow:hidden" data-tip={it.what}>{it.what}</span>
+      <span className={cn("truncate text-ink-soft narrow:hidden", onSelect && "cursor-pointer")} data-tip={it.what}>{it.what}</span>
       <span className="text-[12.5px] text-ink-dim tabular-nums narrow:hidden">{it.when}</span>
       <span className="flex flex-col gap-px text-[13px] font-semibold">
         {it.level
           ? <span className={cn("flex items-center gap-1.25", levelText[it.level])}><Icon name={LEVEL_ICON[it.level]} small />{it.level}</span>
           : <span className="flex items-center gap-1.25">{it.judge}</span>}
         {sub && <span className="text-[11px] font-medium text-ink-dim">{sub}</span>}
+        {it.type === "mine" && <WithdrawButton r={it.raw} />}
       </span>
-      <span className="text-ink-ghost narrow:hidden"><Icon name="chev" small /></span>
+      <span className="text-ink-ghost narrow:hidden">{onSelect && <Icon name="chev" small />}</span>
+    </>
+  );
+  if (!onSelect) return <div className={cn(GRID, ROW)}>{cells}</div>;
+  return (
+    // 고른 행은 hover 보다 고른 색이 이깁니다. 왼쪽 3px 띠는 고른 행에서만 빨간색.
+    <button aria-current={current} onClick={onSelect} className={cn(GRID, ROW, current ? "border-l-risk bg-risk-tint" : "hover:bg-row-hover")}>
+      {cells}
     </button>
   );
 }

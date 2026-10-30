@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { accessOptions, type AccessOptions } from "./lib";
-import { useCreateRequest } from "./api";
+import { accessOptions, canWithdraw, type AccessOptions } from "./lib";
+import { useCreateRequest, useRequestAction } from "./api";
 import { useCatalog, useMine } from "@/app/session/data";
+import type { RequestRow } from "@/shared/api/types";
 import { isActive } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
 import { actionButton, card, field, formActions, formGrid, formMsg, formMsgOk, input, note, primaryButton } from "@/shared/ui/base/styles";
@@ -59,6 +60,20 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
         </div>
       </form>
     </section>
+  );
+}
+
+// 내 신청 목록 줄의 [철회] — 1차 결재 전에만 보입니다. 결과 문구는 목록 제목 줄에 뜹니다.
+export function WithdrawButton({ r }: { r: RequestRow }) {
+  const action = useRequestAction();
+  if (!canWithdraw(r)) return null;
+  const withdraw = () => {
+    if (confirm(`${r.request_no} 신청을 철회합니다.`)) action.mutate({ no: r.request_no, act: "withdraw" });
+  };
+  return (
+    <button type="button" className="self-start border-none bg-transparent p-0 text-[11px] font-medium text-ink-dim underline hover:text-ink disabled:cursor-progress" disabled={action.isPending} onClick={withdraw}>
+      철회
+    </button>
   );
 }
 

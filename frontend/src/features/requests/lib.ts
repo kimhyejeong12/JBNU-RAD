@@ -26,6 +26,9 @@ export const mineItem = (r: RequestRow): QueueItem => ({
   judge: STAGE_LABEL[r.stage], raw: r,
 });
 
+// 신청자는 1차 결재 전에만 철회합니다 (서버도 같은 조건으로 막습니다).
+export const canWithdraw = (r: RequestRow): boolean => r.stage === "manager";
+
 export interface AccessOptions {
   groups: [system: string, items: AccessItem[]][];
   reason: Record<string, string>;   // 고를 수 없는 권한의 이유 (보유 중 · 결재 중)
@@ -55,12 +58,12 @@ export function accessOptions(catalog: AccessItem[], mine: RequestRow[], prev: s
   };
 }
 
-// 결재 기록 — 1차 · 최종 결재와 회수를 순서대로. 신청자에게는 그때 AI 판정을 보이지 않습니다.
-export function approvalSteps(r: RequestRow, applicant: boolean): HistoryStep[] {
+// 결재 기록 (결재자 패널) — 1차 · 최종 결재와 회수를 순서대로, 결재 때의 AI 판정과 함께.
+export function approvalSteps(r: RequestRow): HistoryStep[] {
   const steps: HistoryStep[] = (r.approvals ?? []).map((a) => ({
     title: `${a.step === "manager" ? "1차" : "최종"} ${a.action === "approve" ? "승인" : "반려"}`,
     who: person(a.approver_name, a.approver_department),
-    when: `${stamp(a.decided_at)}${!applicant && a.ai_level ? ` · 그때 AI 판정 ${a.ai_level}` : ""}`,
+    when: `${stamp(a.decided_at)}${a.ai_level ? ` · 그때 AI 판정 ${a.ai_level}` : ""}`,
     say: a.comment,
   }));
   if (r.revocation) {

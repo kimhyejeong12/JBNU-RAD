@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { RequestRow, AccessItem } from "@/shared/api/types";
-import { mineItem, requestItem, accessOptions, approvalSteps } from "./lib";
+import { mineItem, requestItem, accessOptions, approvalSteps, canWithdraw } from "./lib";
 
 const row = (p: Partial<RequestRow>): RequestRow => ({
   request_no: "REQ-2026-0001", requester_name: "김민수", requester_department: "인사팀", requested_access: "인사정보 조회",
@@ -22,6 +22,11 @@ test("requestItem: 상태 글자 — 기간이 끝난 승인은 따로", () => {
   expect(requestItem(row({ stage: "manager" })).sub).toBe("1차 결재 대기");
   expect(requestItem(row({ stage: "approved", period_end: "2000-01-01" })).sub).toBe("승인 · 기간 끝");
   expect(requestItem(row({ stage: "approved", period_end: null })).sub).toBe("승인");
+});
+
+test("철회는 1차 결재를 기다리는 신청만 — 그 뒤에는 결재가 진행됐거나 끝났음", () => {
+  expect(canWithdraw(row({ stage: "manager" }))).toBe(true);
+  for (const stage of ["top", "approved", "rejected", "withdrawn", "revoked"] as const) expect(canWithdraw(row({ stage }))).toBe(false);
 });
 
 test("mineItem: 일반 사용자의 내 신청 — 번호는 분류 칸에, AI 칸 없음", () => {
@@ -64,20 +69,16 @@ test("켜진 권한이 없으면 비었다고 알린다", () => {
 const approval = { step: "manager", action: "approve", approver_name: "박운영", approver_department: "보안팀", decided_at: "2026-10-29T03:49:00+09:00", ai_level: "주의", comment: "확인했습니다" } as const;
 
 test("결재 기록 — 단계 · 결정 · 이름 (부서) · 시각 · 그때 AI 판정 · 의견", () => {
-  expect(approvalSteps(row({ approvals: [approval] }), false)).toEqual([
+  expect(approvalSteps(row({ approvals: [approval] }))).toEqual([
     { title: "1차 승인", who: "박운영 (보안팀)", when: "2026-10-29 03:49 · 그때 AI 판정 주의", say: "확인했습니다" },
   ]);
-});
-
-test("신청자에게는 그때 AI 판정을 보이지 않는다", () => {
-  expect(approvalSteps(row({ approvals: [approval] }), true)[0].when).toBe("2026-10-29 03:49");
 });
 
 test("최종 반려와 회수는 기록 끝에 붙는다", () => {
   const steps = approvalSteps(row({
     approvals: [approval, { ...approval, step: "top", action: "reject", approver_department: null, comment: null }],
     revocation: { revoker_name: "최책임", revoker_department: null, revoked_at: "2026-10-30T09:00:00+09:00", reason: "퇴사" },
-  }), false);
+  }));
   expect(steps.map((s) => s.title)).toEqual(["1차 승인", "최종 반려", "회수"]);
   expect(steps[1].who).toBe("박운영");
   expect(steps[2]).toEqual({ title: "회수", who: "최책임", when: "2026-10-30 09:00", say: "퇴사" });

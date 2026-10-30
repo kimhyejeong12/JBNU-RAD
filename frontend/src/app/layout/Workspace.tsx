@@ -1,3 +1,4 @@
+import { useMe } from "@/app/session/me";
 import { useUi } from "@/app/ui/state/UiContext";
 import { Seg } from "./Sidebar";
 import { MainTabs } from "./MainTabs";
@@ -17,12 +18,15 @@ export const workspace = "grid min-h-0 grid-cols-[minmax(0,1fr)_430px] gap-4.5 p
 
 // 검토 현황은 늘 그려 두고 hidden 으로 숨깁니다. 노드 · 로그 · 질의 · 통계 탭은 들어올 때 마운트해 그때 데이터를 받습니다 (옛 화면의 loadNodes 등).
 export function Workspace() {
+  const me = useMe();
   const { ui } = useUi();
+  // 일반 사용자는 오른쪽 패널이 없습니다 — 내 신청의 내용 · 상태는 목록에 다 있고, 철회도 목록 줄에서 합니다.
+  const noPanel = me.role === "user";
   // 질의 탭은 질의를 넓게 쓰고, 근거 칩을 눌렀을 때만 오른쪽에 인용 조항 패널을 엽니다 (좁은 화면에서도 한 칸 minmax).
   const wideAsk = ui.mainTab === "ask" && !ui.askSource;
   const stat = ui.mainTab === "stats" || ui.mainTab === "ustats";
   return (
-    <div className={cn(workspace, wideAsk && "grid-cols-[minmax(0,1fr)] narrow:grid-cols-[minmax(0,1fr)]")}>
+    <div className={cn(workspace, wideAsk && "grid-cols-[minmax(0,1fr)] narrow:grid-cols-[minmax(0,1fr)]", noPanel && "grid-cols-[minmax(0,1fr)]")}>
       <div className="flex min-h-0 flex-col gap-3.5 overflow-auto narrow:overflow-visible *:shrink-0">
         <Seg />
         <MainTabs />
@@ -33,7 +37,7 @@ export function Workspace() {
         {ui.mainTab === "ask" ? <AskTab /> : <section id="view-ask" role="tabpanel" aria-labelledby="tab-ask" hidden />}
         <Footer />
       </div>
-      <RightPanel />
+      {!noPanel && <RightPanel />}
     </div>
   );
 }

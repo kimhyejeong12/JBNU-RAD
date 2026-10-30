@@ -20,7 +20,7 @@ import {
 type RequestItem = Extract<QueueItem, { type: "req" | "mine" }>;
 interface Draft { comment: string; reason: string }
 
-// 권한 신청 패널 — 결재자에게는 AI 판정과 결재 · 회수, 신청자에게는 상태와 철회.
+// 권한 신청 패널 (결재자) — 신청 내용 · AI 판정 · 결재 기록, 아래 칸에서 결재 · 회수. 신청자에게는 패널이 없습니다 (철회는 내 신청 목록 줄에서).
 // key 를 항목 key 로만 두어 폴링으로 다시 그려도 입력 중인 의견이 남습니다.
 export function RequestPanel({ it }: { it: RequestItem }) {
   const me = useMe();
@@ -29,8 +29,7 @@ export function RequestPanel({ it }: { it: RequestItem }) {
   const [draft, setDraft] = useState<Draft>({ comment: "", reason: "" });
   const r = it.raw;
   const no = r.request_no;
-  const applicant = me.role === "user";
-  const rejudge = !applicant && !r.judging && r.stage === "manager";
+  const rejudge = !r.judging && r.stage === "manager";
 
   const act = (a: RequestAct) => {
     if (a === "reject" && !confirm(`${no} 신청을 반려합니다. 반려하면 신청자는 새로 신청해야 합니다.`)) return;
@@ -41,7 +40,6 @@ export function RequestPanel({ it }: { it: RequestItem }) {
       }
       if (!confirm(`${no} 권한을 회수합니다.`)) return;
     }
-    if (a === "withdraw" && !confirm(`${no} 신청을 철회합니다.`)) return;
     action.mutate({ no, act: a, ...draft }, { onSuccess: () => setDraft({ comment: "", reason: "" }) });
   };
 
@@ -54,23 +52,21 @@ export function RequestPanel({ it }: { it: RequestItem }) {
     ["신청 시각", stamp(r.submitted_at)],
     ["상태", STAGE_LABEL[r.stage]],
   ];
-  const steps = approvalSteps(r, applicant);
+  const steps = approvalSteps(r);
 
   return (
     <>
-      <PanelHead title={applicant ? "내 신청" : "권한 신청 검토"}>
+      <PanelHead title="권한 신청 검토">
         {rejudge && <button className={toolButton} onClick={() => act("rejudge")}><Icon name="activity" small />다시 판정</button>}
       </PanelHead>
       <div className={panelBody}>
         <p className={subject}>{r.requested_access}</p>
-        {!applicant && (
-          <div className={cn(recLine, it.level && levelText[it.level])}>
-            {it.level && <Icon name={LEVEL_ICON[it.level]} className="size-5" />}{it.judge}
-          </div>
-        )}
+        <div className={cn(recLine, it.level && levelText[it.level])}>
+          {it.level && <Icon name={LEVEL_ICON[it.level]} className="size-5" />}{it.judge}
+        </div>
         <div className={meta}>{no} · {STAGE_LABEL[r.stage]}</div>
         <Section icon="file" title="신청 내용"><KvTable rows={rows} /></Section>
-        {!applicant && <AiVerdict it={it} />}
+        <AiVerdict it={it} />
         <Section icon="list" title="결재 기록">
           {steps.length ? <History steps={steps} /> : <p className={note}>아직 결재가 없습니다.</p>}
         </Section>
@@ -99,10 +95,9 @@ function AiVerdict({ it }: { it: RequestItem }) {
   );
 }
 
-// 아래 칸 — 내 단계면 결재, 유효 권한이면 회수, 신청자는 1차 결재 전 철회, 그 밖에는 상태만.
+// 아래 칸 — 내 단계면 결재, 유효 권한이면 회수, 그 밖에는 상태만.
 function RequestFoot({ r, role, draft, onDraft, act }: { r: RequestRow; role: Role; draft: Draft; onDraft: (d: Draft) => void; act: (a: RequestAct) => void }) {
-  const applicant = role === "user";
-  if (!applicant && r.stage === STEP[role]) {
+  if (r.stage === STEP[role]) {
     return (
       <>
         <h4 className={panelFootTitle}>{role === "manager" ? "1차 결재" : "최종 결재"}</h4>
@@ -115,7 +110,7 @@ function RequestFoot({ r, role, draft, onDraft, act }: { r: RequestRow; role: Ro
       </>
     );
   }
-  if (!applicant && r.stage === "approved") {
+  if (r.stage === "approved") {
     return (
       <>
         <h4 className={panelFootTitle}>권한 회수</h4>
@@ -124,20 +119,11 @@ function RequestFoot({ r, role, draft, onDraft, act }: { r: RequestRow; role: Ro
       </>
     );
   }
-  if (applicant && r.stage === "manager") {
-    return (
-      <>
-        <h4 className={panelFootTitle}>신청 철회</h4><p className={note}>1차 결재 전에만 철회할 수 있습니다. 반려 · 철회 뒤에는 새로 신청합니다.</p>
-        <div className={panelActions}><button className={cn(actionButton, "flex-1")} onClick={() => act("withdraw")}>철회</button></div>
-      </>
-    );
-  }
   return (
     <>
       <h4 className={panelFootTitle}>{STAGE_LABEL[r.stage]}</h4>
       <p className={note}>
-        {applicant ? "결재가 끝나거나 진행 중인 신청입니다."
-          : r.stage === "manager" || r.stage === "top" ? `${STAGE_LABEL[r.stage]} — 내 결재 단계가 아닙니다.` : "더 할 결재가 없습니다."}
+        {r.stage === "manager" || r.stage === "top" ? `${STAGE_LABEL[r.stage]} — 내 결재 단계가 아닙니다.` : "더 할 결재가 없습니다."}
       </p>
     </>
   );

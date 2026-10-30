@@ -6,7 +6,7 @@ import type { StageFilter } from "@/app/ui/state/uiReducer";
 import { runButton, useStartJob } from "@/shared/api/jobs";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
-import { select, toolButton } from "@/shared/ui/base/styles";
+import { formMsg, formMsgOk, select, toolButton } from "@/shared/ui/base/styles";
 
 // 대기열 제목 줄 — 검색 · 결재 단계 거르기 · 실행 버튼. 세 버튼은 빼지 않고 hidden 으로 숨기고,
 // 첫 버튼만 오른쪽으로 밀고 뒤의 둘은 왼쪽 여백 없이 붙입니다 (숨은 버튼도 자리를 세던 옛 규칙과 같게).
@@ -24,6 +24,8 @@ export function QueueHead() {
   return (
     <div className="flex flex-wrap items-center gap-3 px-4.5 pt-4 pb-3">
       <h3 id="queue-title" className="m-0 text-[15.5px] font-bold">{title}</h3>
+      {/* 일반 사용자는 패널이 없어 철회 결과를 여기에 띄웁니다. */}
+      {ui.view === "mine" && ui.panelMsg && <span className={cn(ui.panelMsg.startsWith("✓") ? formMsgOk : formMsg, "mr-0")}>{ui.panelMsg}</span>}
       <label className="ml-auto flex h-8 max-w-[320px] flex-[1_1_220px] items-center gap-2 rounded-lg border border-line bg-surface px-2.75 text-[13px] text-ink-dim focus-within:border-ink">
         <Icon name="search" small />
         <input id="q" type="search" className="flex-1 border-none bg-transparent px-0.5 py-px text-ink outline-none font-[inherit] [font-size:inherit] [font-weight:inherit] leading-[inherit]" placeholder={meta?.search ?? ""} autoComplete="off" value={ui.query} onChange={(e) => setQuery(e.target.value)} />
