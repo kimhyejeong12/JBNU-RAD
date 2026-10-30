@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { RequestRow, AccessItem } from "@/shared/api/types";
-import { mineItem, requestItem, accessOptions, approvalSteps, canWithdraw } from "./lib";
+import { mineItem, requestItem, accessOptions, approvalSteps, canWithdraw, rejectNote, myNotices, unreadCount } from "./lib";
 
 const row = (p: Partial<RequestRow>): RequestRow => ({
   request_no: "REQ-2026-0001", requester_name: "김민수", requester_department: "인사팀", requested_access: "인사정보 조회",
@@ -82,4 +82,36 @@ test("최종 반려와 회수는 기록 끝에 붙는다", () => {
   expect(steps.map((s) => s.title)).toEqual(["1차 승인", "최종 반려", "회수"]);
   expect(steps[1].who).toBe("박운영");
   expect(steps[2]).toEqual({ title: "회수", who: "최책임", when: "2026-10-30 09:00", say: "퇴사" });
+});
+
+test("반려 의견 — 반려한 단계 · 결재자 · 의견, 의견이 없으면 그렇게 적음", () => {
+  const finalReject = { ...approval, step: "top", action: "reject", comment: "인사팀장 승인이 필요합니다" } as const;
+  expect(rejectNote(row({ stage: "rejected", approvals: [approval, finalReject] }))).toBe("최종 반려 · 박운영 (보안팀) — 인사팀장 승인이 필요합니다");
+  expect(rejectNote(row({ stage: "rejected", approvals: [{ ...approval, action: "reject", comment: null }] }))).toBe("1차 반려 · 박운영 (보안팀) — 의견 없음");
+  expect(rejectNote(row({ stage: "approved", approvals: [approval] }))).toBeUndefined();
+});
+
+test("내 신청 줄 — 반려된 신청에만 반려 의견을 단다", () => {
+  const rejected = row({ stage: "rejected", approvals: [{ ...approval, action: "reject", comment: "사유 부족" }] });
+  expect(mineItem(rejected).note).toBe("1차 반려 · 박운영 (보안팀) — 사유 부족");
+  expect(mineItem(row({ stage: "manager" })).note).toBeUndefined();
+});
+
+const rejectedR1 = () => row({ request_no: "R1", requested_access: "CRM 조회", stage: "rejected",
+  approvals: [{ ...approval, action: "reject", decided_at: "2026-10-30T10:07:00+09:00" }] });
+const revokedR2 = () => row({ request_no: "R2", requested_access: "급여 조회", stage: "revoked",
+  approvals: [{ ...approval, decided_at: "2026-10-29T09:00:00+09:00" }, { ...approval, step: "top", decided_at: "2026-10-29T10:00:00+09:00" }],
+  revocation: { revoker_name: "최책임", revoker_department: null, revoked_at: "2026-10-30T09:00:00+09:00", reason: "퇴사" } });
+
+test("결재 알림 — 내 신청의 결재 · 회수를 최근 순으로", () => {
+  expect(myNotices([revokedR2(), rejectedR1()]).map((n) => `${n.no} ${n.title}`)).toEqual(["R1 1차 반려", "R2 회수", "R2 최종 승인", "R2 1차 승인"]);
+  expect(myNotices([rejectedR1()])[0]).toMatchObject({ key: "mine:R1", access: "CRM 조회", at: "2026-10-30T10:07:00+09:00" });
+  expect(myNotices([row({ stage: "manager" })])).toEqual([]);
+});
+
+test("안 읽은 알림 — 마지막으로 연 뒤의 것만, 연 적이 없으면 최근 7일", () => {
+  const ns = myNotices([revokedR2(), rejectedR1()]);
+  expect(unreadCount(ns, "2026-10-30T00:00:00+09:00", Date.parse("2026-10-30T12:00:00+09:00"))).toBe(2);
+  expect(unreadCount(ns, "2026-10-30T10:07:00+09:00", Date.parse("2026-10-30T12:00:00+09:00"))).toBe(0);
+  expect(unreadCount(ns, null, Date.parse("2026-11-05T12:00:00+09:00"))).toBe(2);
 });

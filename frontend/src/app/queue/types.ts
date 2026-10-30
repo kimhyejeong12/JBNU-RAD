@@ -13,6 +13,7 @@ interface Base {
   when: string;
   judge: string;
   sub?: string;
+  note?: string;         // 줄 아래에 붙는 한 줄 (내 신청의 반려 의견)
 }
 
 export type QueueItem =

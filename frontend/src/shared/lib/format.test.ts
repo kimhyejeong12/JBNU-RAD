@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { niceMax, pct, person, stamp } from "./format";
+import { accountLabel, niceMax, pct, person, stamp } from "./format";
 
 test("stamp: 한국 시간 분 단위, 없으면 빈 문자열", () => {
   expect(stamp("2026-10-29T03:49:00+09:00")).toBe("2026-10-29 03:49");
@@ -23,4 +23,11 @@ test("person: 이름 뒤에 부서를 괄호로, 부서가 없으면 이름만",
   expect(person("김민수", "보안팀")).toBe("김민수 (보안팀)");
   expect(person("김민수", null)).toBe("김민수");
   expect(person("김민수", "")).toBe("김민수");
+});
+
+test("상단 이름 — 이름 · 역할, 이름이 역할과 같으면 한 번만, 루트는 뒤에 표시", () => {
+  expect(accountLabel({ display_name: "직원 1", role: "user", is_root: false })).toBe("직원 1 · 일반 사용자");
+  expect(accountLabel({ display_name: "일반 사용자", role: "user", is_root: false })).toBe("일반 사용자");
+  expect(accountLabel({ display_name: "보안 총책임자", role: "top", is_root: true })).toBe("보안 총책임자 (루트)");
+  expect(accountLabel({ display_name: "최책임", role: "top", is_root: true })).toBe("최책임 · 보안 총책임자 (루트)");
 });

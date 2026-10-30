@@ -7,7 +7,9 @@ import { useQueue } from "@/app/queue/useQueue";
 import { openRisks } from "@/app/queue/select";
 import { useAuth } from "@/features/auth/AuthContext";
 import { logout } from "@/features/auth/api";
-import { ROLE_LABEL } from "@/shared/lib/labels";
+import { useMyNotices } from "@/features/requests/useMyNotices";
+import type { Notice } from "@/features/requests/lib";
+import { accountLabel, stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/base/Icon";
 import { LevelDot } from "@/shared/ui/base/parts";
 import type { QueueItem } from "@/app/queue/types";
@@ -16,10 +18,15 @@ import { cn } from "@/shared/lib/cn";
 export function TopBar() {
   const me = useMe();
   const auth = useAuth();
-  const { select } = useUi();
+  const { ui, select, toggleChip } = useUi();
   const health = useHealth();
   const risks = openRisks(useQueue(), me.role);
+  // 일반 사용자의 종은 내 신청의 결재 결과 알림, 다른 역할은 결정을 기다리는 위험 건.
+  const applicant = me.role === "user";
+  const notices = useMyNotices();
+  const count = applicant ? notices.unread : risks.length;
   const [popOpen, setPopOpen] = useState(false);
+  const [fresh, setFresh] = useState(0);   // 연 순간의 안 읽은 수 — 목록 앞쪽 그만큼을 새 알림으로 표시
   const pop = useRef<HTMLDivElement>(null);
 
   // 정상일 때는 아무것도 띄우지 않고, 문제가 있을 때만 경고 1개를 띄웁니다. 일반 사용자에게는 AI 가 보이지 않으므로 엔진 경고도 없습니다.
@@ -44,18 +51,36 @@ export function TopBar() {
           <LevelDot level="위험" />AI 엔진 점검 필요
         </span>
         <div className="flex items-center gap-1.5 text-[12.5px] text-bar-ink" id="who">
-          <span id="who-name" className="narrow:hidden">{me.display_name} · {ROLE_LABEL[me.role]}{me.is_root ? " (루트)" : ""}</span>
+          <span id="who-name" className="narrow:hidden">{accountLabel(me)}</span>
           <button className={TOP_BTN} id="btn-password" onClick={() => auth.showPassword(false)}>비밀번호 변경</button>
           <button className={TOP_BTN} id="btn-logout" onClick={() => void logout()}>로그아웃</button>
         </div>
-        <button className="relative ml-1.5 rounded-[7px] border-none bg-transparent p-1.5 text-white hover:bg-bar-hover" id="bell" hidden={me.role === "user"} aria-label="위험 알림"
-          data-tip={risks.length ? `위험 알림 — 미결 ${risks.length}건|눌러서 목록을 봅니다` : "위험 알림|미결 위험이 없습니다"}
-          onClick={(e) => { e.stopPropagation(); setPopOpen((o) => !o); }}>
+        <button className="relative ml-1.5 rounded-[7px] border-none bg-transparent p-1.5 text-white hover:bg-bar-hover" id="bell" aria-label={applicant ? "결재 알림" : "위험 알림"}
+          data-tip={applicant
+            ? (count ? `결재 알림 — 새 결과 ${count}건|눌러서 봅니다` : "결재 알림|새 결재 결과가 없습니다")
+            : (count ? `위험 알림 — 미결 ${count}건|눌러서 목록을 봅니다` : "위험 알림|미결 위험이 없습니다")}
+          onClick={(e) => {
+            e.stopPropagation();
+            // 일반 사용자는 종을 열면 읽은 것으로 칩니다.
+            if (applicant && !popOpen) {
+              setFresh(notices.unread);
+              notices.markSeen();
+            }
+            setPopOpen((o) => !o);
+          }}>
           <Icon name="bell" />
-          <span id="bell-count" className={cn("absolute top-px right-0 h-4 min-w-4 items-center justify-center rounded-[99px] bg-risk px-1 text-[10.5px] font-bold", risks.length ? "flex" : "hidden")}>{risks.length}</span>
+          <span id="bell-count" className={cn("absolute top-px right-0 h-4 min-w-4 items-center justify-center rounded-[99px] bg-risk px-1 text-[10.5px] font-bold", count ? "flex" : "hidden")}>{count}</span>
         </button>
       </div>
-      <AlertPop ref={pop} open={popOpen} risks={risks} onPick={(key) => { setPopOpen(false); select(key); }} />
+      {applicant
+        ? <NoticePop ref={pop} open={popOpen} notices={notices.notices} fresh={fresh} onPick={(n) => {
+          setPopOpen(false);
+          // 반려된 신청이면 그 줄의 반려 사유를 펼치고, 그 줄로 갑니다.
+          const k = `note:${n.key}`;
+          if (n.title.endsWith("반려") && !ui.expanded.has(k)) toggleChip(k);
+          document.getElementById(`row-${n.key}`)?.scrollIntoView({ block: "center" });
+        }} />
+        : <AlertPop ref={pop} open={popOpen} risks={risks} onPick={(key) => { setPopOpen(false); select(key); }} />}
     </header>
   );
 }
@@ -63,11 +88,30 @@ export function TopBar() {
 // 검은 바 위의 작은 버튼 — 흰 글자, hover 때 테두리가 밝아집니다.
 const TOP_BTN = "rounded-[7px] border border-bar-line bg-transparent px-2.5 py-1 text-[12px] text-bar-ink hover:border-bar-line-hover hover:text-white";
 
+// 일반 사용자의 결재 알림 — 최근 10건. 연 순간 안 읽었던 것은 굵게.
+function NoticePop({ ref, open, notices, fresh, onPick }: { ref: Ref<HTMLDivElement>; open: boolean; notices: Notice[]; fresh: number; onPick: (n: Notice) => void }) {
+  return (
+    <div id="alert-pop" ref={ref} className={cn(POP, open ? "block" : "hidden")}>
+      <h4 className="m-0 mb-2 text-[13px] font-bold">결재 알림 {fresh ? `— 새 결과 ${fresh}건` : ""}</h4>
+      {notices.length
+        ? notices.slice(0, 10).map((n, i) => (
+          <div className="cursor-pointer border-t border-line px-0 py-1.5 text-[12.5px] hover:text-risk" key={`${n.no}:${n.title}:${n.at}`} onClick={() => onPick(n)}>
+            <span className={cn(i < fresh && "font-bold")}>{n.access} — {n.title}</span>
+            <span className="block text-[11px] text-ink-dim tabular-nums">{n.no} · {stamp(n.at)}</span>
+          </div>
+        ))
+        : <p className="m-0 text-[12.5px] text-ink-dim">아직 결재 결과가 없습니다.</p>}
+    </div>
+  );
+}
+
+const POP = "absolute top-12.5 right-4 z-30 w-82.5 rounded-[10px] border border-line bg-surface p-3.5 text-ink shadow-[0_12px_32px_rgba(0,0,0,.14)]";
+
 // 종을 누르면 뜨는 위험 알림 목록 — 미결 위험 건을 누르면 그 항목으로 갑니다.
 function AlertPop({ ref, open, risks, onPick }: { ref: Ref<HTMLDivElement>; open: boolean; risks: QueueItem[]; onPick: (key: string) => void }) {
   return (
     <div id="alert-pop" ref={ref}
-      className={cn("absolute top-12.5 right-4 z-30 w-82.5 rounded-[10px] border border-line bg-surface p-3.5 text-ink shadow-[0_12px_32px_rgba(0,0,0,.14)]", open ? "block" : "hidden")}>
+      className={cn(POP, open ? "block" : "hidden")}>
       <h4 className="m-0 mb-2 text-[13px] font-bold">위험 알림 {risks.length ? `— 미결 ${risks.length}건` : "— 미결 없음"}</h4>
       {risks.length
         ? risks.map((it) => (

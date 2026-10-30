@@ -17,7 +17,7 @@ const GRID = "grid grid-cols-[84px_minmax(200px,1.4fr)_minmax(160px,1.3fr)_92px_
 const NARROW_HIDE = new Set([2, 3, 5]);
 export function QueueTable() {
   const me = useMe();
-  const { ui, select } = useUi();
+  const { ui, select, toggleChip } = useUi();
   const items = useQueue();
   const jobs = useJobs();
   const view = ui.view;
@@ -31,16 +31,22 @@ export function QueueTable() {
       </div>
       <div id="rows">
         {rows.length
-          ? rows.map((it) => <Row key={it.key} it={it} current={it.key === ui.selected} onSelect={it.type === "mine" ? undefined : () => select(it.key)} />)
+          ? rows.map((it) => {
+            // 내 신청은 패널이 없어 고르지 않고, 반려 사유가 있는 줄만 눌러서 펼칩니다 (종 알림에서도 펼침).
+            const noteKey = `note:${it.key}`;
+            const onSelect = it.type !== "mine" ? () => select(it.key) : it.note ? () => toggleChip(noteKey) : undefined;
+            return <Row key={it.key} it={it} current={it.type !== "mine" && it.key === ui.selected} open={ui.expanded.has(noteKey)} onSelect={onSelect} />;
+          })
           : view && <div className={empty}>{emptyText(view, ui.stageFilter, jobs, anyInView)}</div>}
       </div>
     </div>
   );
 }
 
-// 줄 — 누르면 오른쪽 패널에 내용을 엽니다. 일반 사용자의 내 신청은 패널이 없어 누르지 않는 줄입니다 (onSelect 없음).
+// 줄 — 누르면 오른쪽 패널에 내용을 엽니다. 일반 사용자의 내 신청은 패널이 없어, 반려 사유가 있는 줄만 펼치고 나머지는 누르지 않습니다.
 const ROW = "min-h-14 w-full border-0 border-b border-l-[3px] border-b-line border-l-transparent bg-surface py-2 pr-4.5 pl-3.75 text-left";
-function Row({ it, current, onSelect }: { it: QueueItem; current: boolean; onSelect?: () => void }) {
+function Row({ it, current, open, onSelect }: { it: QueueItem; current: boolean; open: boolean; onSelect?: () => void }) {
+  const accordion = !!it.note;
   const d = it.decision;
   const sub = d ? `${d.decider_name} · ${DECISIONS[d.action]}` : it.sub;
   const cells = (
@@ -56,13 +62,17 @@ function Row({ it, current, onSelect }: { it: QueueItem; current: boolean; onSel
         {sub && <span className="text-[11px] font-medium text-ink-dim">{sub}</span>}
         {it.type === "mine" && <WithdrawButton r={it.raw} />}
       </span>
-      <span className="text-ink-ghost narrow:hidden">{onSelect && <Icon name="chev" small />}</span>
+      <span className="text-ink-ghost narrow:hidden">{onSelect && <Icon name="chev" small className={cn(accordion && open && "rotate-90")} />}</span>
+      {/* 펼친 반려 사유 — 신청 권한 칸부터 끝까지 */}
+      {accordion && open && <p className="col-start-2 -col-end-1 m-0 rounded-lg bg-canvas px-3 py-2 text-[12.5px] whitespace-pre-line text-ink-soft wrap-anywhere">{it.note}</p>}
     </>
   );
-  if (!onSelect) return <div className={cn(GRID, ROW)}>{cells}</div>;
+  const id = it.type === "mine" ? `row-${it.key}` : undefined;   // 종 알림이 이 줄로 옵니다
+  if (!onSelect) return <div id={id} className={cn(GRID, ROW)}>{cells}</div>;
   return (
     // 고른 행은 hover 보다 고른 색이 이깁니다. 왼쪽 3px 띠는 고른 행에서만 빨간색.
-    <button aria-current={current} onClick={onSelect} className={cn(GRID, ROW, current ? "border-l-risk bg-risk-tint" : "hover:bg-row-hover")}>
+    <button id={id} aria-current={accordion ? undefined : current} aria-expanded={accordion ? open : undefined} onClick={onSelect}
+      className={cn(GRID, ROW, current ? "border-l-risk bg-risk-tint" : "hover:bg-row-hover")}>
       {cells}
     </button>
   );
