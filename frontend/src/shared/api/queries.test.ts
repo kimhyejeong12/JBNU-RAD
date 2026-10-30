@@ -35,9 +35,3 @@ test("작업 · 결재함 폴링은 탭이 숨어 있어도 돈다", () => {
   expect(jobsQuery().refetchIntervalInBackground).toBe(true);
   expect(requestsQuery(false).refetchIntervalInBackground).toBe(true);
 });
-
-test("내 신청은 결재 결과를 받으려고 1분마다, 판정 중인 신청이 있으면 3초마다 다시 받는다", () => {
-  const every = requestsQuery(true).refetchInterval as (q: { state: { data?: { judging?: boolean }[] } }) => number | false;
-  expect(every({ state: { data: [{}] } })).toBe(60000);
-  expect(every({ state: { data: [{ judging: true }] } })).toBe(3000);
-});

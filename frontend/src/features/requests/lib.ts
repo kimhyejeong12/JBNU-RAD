@@ -79,25 +79,3 @@ export function approvalSteps(r: RequestRow): HistoryStep[] {
   }
   return steps;
 }
-
-// 일반 사용자의 결재 알림 — 내 신청에 생긴 결재 · 회수를 최근 순으로.
-export interface Notice { key: string; no: string; access: string; title: string; at: string }
-export function myNotices(rows: RequestRow[]): Notice[] {
-  const out: Notice[] = [];
-  for (const r of rows) {
-    const base = { key: `mine:${r.request_no}`, no: r.request_no, access: r.requested_access };
-    for (const a of r.approvals ?? []) out.push({ ...base, title: `${a.step === "manager" ? "1차" : "최종"} ${a.action === "approve" ? "승인" : "반려"}`, at: a.decided_at });
-    if (r.revocation) out.push({ ...base, title: "회수", at: r.revocation.revoked_at });
-  }
-  return out.sort((x, y) => Date.parse(y.at) - Date.parse(x.at));
-}
-
-// 안 읽은 알림 수 — 종을 마지막으로 연 뒤의 것. 연 적이 없으면 최근 7일 것만 셉니다.
-export function unreadCount(notices: Notice[], seenAt: string | null, now: number = Date.now()): number {
-  const since = seenAt ? Date.parse(seenAt) : now - 7 * 86400000;
-  return notices.filter((n) => Date.parse(n.at) > since).length;
-}
-
-// 종을 연 시각 — 지금과 가장 늦은 알림 중 늦은 쪽 (서버 시계가 조금 앞서도 방금 본 알림이 다시 새것이 되지 않게).
-export const seenStamp = (notices: Notice[], now: number = Date.now()): string =>
-  new Date(Math.max(now, ...notices.map((n) => Date.parse(n.at)))).toISOString();

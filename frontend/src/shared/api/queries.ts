@@ -27,8 +27,7 @@ export const regulationsQuery = () => queryOptions({ queryKey: ["regulations"], 
 export const requestsQuery = (mine: boolean) => queryOptions({
   queryKey: mine ? ["requests", "mine"] : ["requests"],
   queryFn: () => getJSON<RequestRow[]>(mine ? "/api/requests?mine=true" : "/api/requests"),
-  // 판정 중인 신청이 있으면 3초마다. 내 신청은 결재 결과를 알림으로 받으려고 그 밖에도 1분마다.
-  refetchInterval: (q) => (q.state.data?.some((r) => r.judging) ? 3000 : mine ? 60000 : false),
+  refetchInterval: mine ? false : (q) => (q.state.data?.some((r) => r.judging) ? 3000 : false),
   refetchIntervalInBackground: true,
 });
 

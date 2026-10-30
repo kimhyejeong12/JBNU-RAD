@@ -32,7 +32,7 @@ export function QueueTable() {
       <div id="rows">
         {rows.length
           ? rows.map((it) => {
-            // 내 신청은 패널이 없어 고르지 않고, 반려 사유가 있는 줄만 눌러서 펼칩니다 (종 알림에서도 펼침).
+            // 내 신청은 패널이 없어 고르지 않고, 반려 사유가 있는 줄만 눌러서 펼칩니다.
             const noteKey = `note:${it.key}`;
             const onSelect = it.type !== "mine" ? () => select(it.key) : it.note ? () => toggleChip(noteKey) : undefined;
             return <Row key={it.key} it={it} current={it.type !== "mine" && it.key === ui.selected} open={ui.expanded.has(noteKey)} onSelect={onSelect} />;
@@ -67,11 +67,10 @@ function Row({ it, current, open, onSelect }: { it: QueueItem; current: boolean;
       {accordion && open && <p className="col-start-2 -col-end-1 m-0 rounded-lg bg-canvas px-3 py-2 text-[12.5px] whitespace-pre-line text-ink-soft wrap-anywhere">{it.note}</p>}
     </>
   );
-  const id = it.type === "mine" ? `row-${it.key}` : undefined;   // 종 알림이 이 줄로 옵니다
-  if (!onSelect) return <div id={id} className={cn(GRID, ROW)}>{cells}</div>;
+  if (!onSelect) return <div className={cn(GRID, ROW)}>{cells}</div>;
   return (
     // 고른 행은 hover 보다 고른 색이 이깁니다. 왼쪽 3px 띠는 고른 행에서만 빨간색.
-    <button id={id} aria-current={accordion ? undefined : current} aria-expanded={accordion ? open : undefined} onClick={onSelect}
+    <button aria-current={accordion ? undefined : current} aria-expanded={accordion ? open : undefined} onClick={onSelect}
       className={cn(GRID, ROW, current ? "border-l-risk bg-risk-tint" : "hover:bg-row-hover")}>
       {cells}
     </button>
