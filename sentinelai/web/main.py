@@ -67,9 +67,23 @@ def results(request: Request, user: Approver) -> dict[str, Any]:
     rdb, mdb = request.app.state.results_db, request.app.state.main_db
     out = {**view.results(results_db.latest_policy_review(rdb), results_db.monitor_findings(rdb), results_db.latest_node_findings(rdb)),
            "decisions": {kind: decisions.current(mdb, kind) for kind in decisions.ACTIONS}}
+    log = {kind: decisions.history(mdb, kind) for kind in decisions.ACTIONS}
+    _carry(rdb, out, log)
     if user.role == "top":
-        out["decision_log"] = {kind: decisions.history(mdb, kind) for kind in decisions.ACTIONS}
+        out["decision_log"] = log
     return out
+
+
+def _carry(rdb: Any, out: dict[str, Any], log: dict[str, dict[str, list[dict]]]) -> None:
+    """다시 판정됐지만 결과가 그대로인 서버 점검 · 정책 문제에 지난 결정을 잇습니다 (view.carry_decisions). 화면은 carried_from 으로 "이어짐"을 표시합니다."""
+    current = {
+        "server": [(s["key"], view.server_signature(s["id"], s["level"], s["gaps"])) for s in out["servers"]],
+        "policy": [(i["key"], view.policy_signature(i["kind"], i["level"], i["policy_ids"])) for i in (out["policy_review"] or {}).get("issues", [])],
+    }
+    rows = results_db.findings_by_key(rdb, [k for kind in current for k in out["decisions"][kind]])
+    signatures = {k: sig for k, row in rows.items() if (sig := view.row_signature(k, row)) is not None}
+    for kind, items in current.items():
+        out["decisions"][kind].update(view.carry_decisions(items, out["decisions"][kind], signatures, set(log[kind])))
 
 
 @app.get("/api/jobs", dependencies=analyst)

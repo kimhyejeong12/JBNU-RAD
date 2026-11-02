@@ -61,6 +61,22 @@ def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
     return rid
 
 
+def findings_by_key(db: Database, keys: Any) -> dict[str, dict[str, Any]]:
+    """`policy_issues/{id}` · `node_findings/{id}` key → 그 판정 행. 운영자 결정을 다시 판정된 같은 결과로 이어받을지 볼 때 지난 판정 내용을 읽습니다."""
+    ids: dict[str, list[int]] = {"policy_issues": [], "node_findings": []}
+    for key in keys:
+        table, _, num = str(key).partition("/")
+        if table in ids and num.isdigit():
+            ids[table].append(int(num))
+    out: dict[str, dict[str, Any]] = {}
+    with db.connection() as conn:
+        for table, nums in ids.items():   # 표 이름은 위의 정해진 둘뿐
+            if nums:
+                rows = conn.execute(f"SELECT * FROM {table} WHERE id IN ({','.join('?' * len(nums))})", nums).fetchall()
+                out.update({f"{table}/{r['id']}": dict(r) for r in rows})
+    return out
+
+
 def latest_policy_review(db: Database) -> dict[str, Any] | None:
     """마지막 정책 관리 검토 — 정책 문제 목록과 서버 점검. 항목마다 운영자 결정이 가리킬 key 를 붙입니다."""
     with db.connection() as conn:

@@ -86,6 +86,7 @@ function DecisionFoot({ it }: { it: ReviewItem }) {
             <span className="min-w-0 flex-1">
               결정 <b className="text-ink">{DECISIONS[decision.action]}</b> · {`${decision.decider_department ?? ""} ${decision.decider_name}`.trim()} · {stamp(decision.decided_at)}
               {decision.ai_level ? ` (그때 AI 판정: ${decision.ai_level})` : ""}{decision.comment ? ` — ${decision.comment}` : ""}
+              {decision.carried_from ? " · 같은 결과의 지난 판정에서 이어짐" : ""}
             </span>
             <button id="undo" onClick={() => act("cancel")} className="shrink-0 self-start border-none bg-transparent p-0 text-[12px] whitespace-nowrap text-ink-dim underline">취소</button>
           </>

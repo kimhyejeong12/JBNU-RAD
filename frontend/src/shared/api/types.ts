@@ -182,6 +182,7 @@ export interface Decision {
   decided_at: string;
   comment: string | null;
   ai_level: string | null;
+  carried_from?: string;   // 다시 판정됐지만 결과가 그대로라 지난 판정의 결정을 이어받았으면 그 판정의 key (서버가 붙임)
 }
 
 export interface Results {

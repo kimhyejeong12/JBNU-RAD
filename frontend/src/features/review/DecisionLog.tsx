@@ -6,8 +6,10 @@ import { History, Section } from "@/shared/ui/base/parts";
 import { note } from "@/shared/ui/base/styles";
 
 // 보안 총책임자에게만 결정 기록 전부가 옵니다 (decision_log). 누가 어떤 판단을 했다가 취소했는지까지 읽습니다.
+// 결정을 이어받은 판정은 자기 기록이 없어, 이어받은 지난 판정의 기록을 보여줍니다.
 export function DecisionLog({ log, it }: { log: Record<string, Record<string, Decision[]>>; it: ReviewItem }) {
-  const rows = log[it.type]?.[it.itemKey!] ?? [];
+  const from = it.decision?.carried_from;
+  const rows = log[it.type]?.[it.itemKey!] ?? (from ? log[it.type]?.[from] : undefined) ?? [];
   const steps = rows.map((d) => ({
     title: d.action === "cancel" ? "결정 취소" : DECISIONS[d.action],
     who: person(d.decider_name, d.decider_department),
@@ -15,7 +17,7 @@ export function DecisionLog({ log, it }: { log: Record<string, Record<string, De
     say: d.comment,
   }));
   return (
-    <Section icon="list" title="결정 기록">
+    <Section icon="list" title={from ? "결정 기록 (이어받은 지난 판정)" : "결정 기록"}>
       {steps.length ? <History steps={steps} /> : <p className={note}>아직 결정이 없습니다.</p>}
     </Section>
   );

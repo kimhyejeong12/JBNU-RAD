@@ -43,7 +43,7 @@ export function QueueTable() {
 const ROW = "min-h-14 w-full border-0 border-b border-l-[3px] border-b-line border-l-transparent bg-surface py-2 pr-4.5 pl-3.75 text-left";
 function Row({ it, current, onSelect }: { it: QueueItem; current: boolean; onSelect: () => void }) {
   const d = it.decision;
-  const sub = d ? `${d.decider_name} · ${DECISIONS[d.action]}` : it.sub;
+  const sub = d ? `${d.decider_name} · ${DECISIONS[d.action]}${d.carried_from ? " (이어짐)" : ""}` : it.sub;
   const cells = (
     <>
       <span className="text-[12.5px] text-ink-dim">{it.typeLabel || TYPE_LABEL[it.type]}<small className="block text-[11px] text-ink-faint tabular-nums">{it.id}</small></span>
