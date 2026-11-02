@@ -7,7 +7,7 @@ import { cn } from "@/shared/lib/cn";
 import { levelText, note } from "@/shared/ui/base/styles";
 
 const SCORE = "flex flex-col gap-0.5";
-const BIG = "text-[34px] leading-[1.1] font-extrabold tracking-[-1px] tabular-nums";
+const BIG = "text-[34px] leading-[1.1] font-extrabold tracking-[-1px]";
 // 흐름 아래 처음 · 끝 점수는 양 끝에.
 const TREND_NOTE = cn(note, "mt-0.5 flex justify-between");
 

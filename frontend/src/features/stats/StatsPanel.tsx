@@ -25,7 +25,6 @@ export function StatsPanel() {
   const d = kind === "stats" ? sys.data : usr.data;
   if (!d || !sel) return <Body title={STAT_TITLES[kind]} subject="막대 · 줄을 고르세요"><p className={note}>막대를 누르면 자세한 내용이 나옵니다.</p></Body>;
   if (sel.kind === "node" && sys.data) return <NodePanel d={sys.data} node={sel.key} />;
-  if (sel.kind === "module" && sys.data) return <ModulePanel d={sys.data} module={sel.key} />;
   if (sel.kind === "suspect" && usr.data) return <SuspectPanel d={usr.data} suspectKey={sel.key} />;
   return <Body title={STAT_TITLES[kind]} subject="막대 · 줄을 고르세요"><p className={note}>막대를 누르면 자세한 내용이 나옵니다.</p></Body>;
 }
@@ -55,17 +54,6 @@ function NodePanel({ d, node }: { d: Stats; node: string }) {
         </Section>
       )}
       <div className="mt-4.5"><button className={toolButton} id="stat-go" onClick={() => gotoNode(n.node)}><Icon name="server" small />노드 탭에서 보기</button></div>
-    </Body>
-  );
-}
-
-function ModulePanel({ d, module }: { d: Stats; module: string }) {
-  const m = d.servers.modules.find((x) => x.module === module);
-  if (!m) return <Body title="보안 통계" subject="기간 안에 없는 모듈입니다" />;
-  return (
-    <Body title="노드 위협 데이터" subject={m.module}>
-      <KvTable rows={[["위험", `${m["위험"]}건`], ["주의", `${m["주의"]}건`], ["걸린 서버", m.nodes.join(", ")]]} />
-      <Section icon="warn" title="항목 — 노드 · 지금 값"><div className={boxPre}>{m.items.join("\n")}</div></Section>
     </Body>
   );
 }

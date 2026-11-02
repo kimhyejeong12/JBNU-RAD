@@ -5,10 +5,9 @@ import { mergeDays, periodDays, statCard, statChart, statSafety, statSub, statTi
 import type { StatSelection } from "@/app/ui/state/uiReducer";
 import type { Stats } from "@/shared/api/types";
 import { niceMax, pct } from "@/shared/lib/format";
-import { HBars } from "@/shared/ui/charts/HBars";
-import { DataTable, Legend, Meter, Sparkline, ViewSwitch } from "@/shared/ui/charts/parts";
+import { DataTable, Legend, ViewSwitch } from "@/shared/ui/charts/parts";
 import { cn } from "@/shared/lib/cn";
-import { cardCount, cardHead, cardTitle, mark, markTone, type MarkKey } from "@/shared/ui/base/styles";
+import { cardHead, cardTitle, mark, markTone, type MarkKey } from "@/shared/ui/base/styles";
 
 interface Props { d: Stats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
 
@@ -16,12 +15,12 @@ interface Props { d: Stats; selected: StatSelection | null; onSelect: (kind: str
 const MK = "last:rounded-t-sm group-hover:brightness-[1.12] group-focus:brightness-[1.12]";
 // 날짜 글자는 그 자리 가운데 정렬 — 처음 글자는 왼쪽 끝, 마지막 글자는 오른쪽 끝에 맞춥니다.
 const TICK = "absolute top-1 -translate-x-1/2 whitespace-nowrap first:translate-x-0 last:-translate-x-full";
-const CHART_TITLE = "m-0 px-4.5 pt-2.5 pb-0.5 text-[13px] font-bold";
 
 const threatOf = (d: Stats) => ({ threat: d.events.lines["주의"] + d.events.lines["위험"], logs: d.logs.count });
 const gapsOf = (d: Stats) => d.servers.nodes.reduce((a, n) => ({ "위험": a["위험"] + n.threats["위험"], "주의": a["주의"] + n.threats["주의"] }), { "위험": 0, "주의": 0 });
 
-// 보안 통계의 머리 — 시스템 안전 점수와 타일 넷.
+// 보안 통계의 머리 — 지금의 시스템 안전 점수와 기간 안 타일 둘. 숫자는 한 곳에만 둡니다 (11/2 — 타일 넷이 아래 카드 · 다른 타일과 겹쳤음).
+// 위협 로그는 건수를 앞에 둡니다. 비율은 주의 판정 묶음의 줄을 모두 세어 크게 나오므로 작은 글씨로만 씁니다.
 export function SystemHead({ d, onSelect }: Props) {
   const L = d.events.lines;
   const { threat, logs } = threatOf(d);
@@ -30,39 +29,24 @@ export function SystemHead({ d, onSelect }: Props) {
   const gaps = gapsOf(d);
   const items = d.safety?.items ?? [];
   const nodeGroup = (f: (i: (typeof items)[number]) => boolean) => items.filter(f).map((i) => ({ key: i.node, label: i.node }));
-  const { keys, byDay } = mergeDays(d.logs.days, d.events.days);
-  const spark = keys.map((k) => byDay[k]);
-  const sparkMax = Math.max(1, ...spark.map((y) => y["위험"] + y["주의"]));
-  const peak = d.events.days.reduce<Stats["events"]["days"][number] | null>((a, x) => (x["주의"] + x["위험"] > (a ? a["주의"] + a["위험"] : 0) ? x : a), null);
   return (
     <>
       <div className={statSafety} id="stat-safety">
-        <SafetyBand label="시스템 안전 점수" safety={d.safety} onSelect={onSelect} groups={[
+        <SafetyBand label="시스템 안전 점수 · 지금" safety={d.safety} onSelect={onSelect} groups={[
           ["위험", nodeGroup((i) => i.level === "위험"), "node", "위험"], ["주의", nodeGroup((i) => i.level === "주의"), "node", "주의"],
           ["끊김", nodeGroup((i) => i.stale), "node", "none"], ["판정 없음", nodeGroup((i) => !i.level), "node", "none"]]} />
       </div>
       <div className={statTiles} id="stat-tiles">
-        <Tile label="위협 로그 비율" big={logs == null ? "—" : pct(threat, logs)} note={logs == null ? "로그를 읽지 못했습니다" : `${threat} / ${logs}건 · 위험 ${L["위험"]} · 주의 ${L["주의"]}`}>
-          {logs ? <Meter segs={[["위험", L["위험"]], ["주의", L["주의"]]]} total={logs} /> : null}
-        </Tile>
-        <Tile label="위협 로그 빈도" big={days ? `하루 ${Math.round((threat / days) * 10) / 10}건` : "—"} note={peak ? `가장 많은 날 ${peak.day} ${peak["주의"] + peak["위험"]}건` : "주의 · 위험 로그 없음"}>
-          {spark.length > 1 ? (
-            <Sparkline width={spark.length * 4} height={24} stroke="var(--color-risk)" round style={{ width: "100%", height: 24, marginTop: 4 }}
-              points={spark.map((x, n) => [n * 4 + 2, 22 - ((x["위험"] + x["주의"]) / sparkMax) * 20])} />
-          ) : null}
-        </Tile>
-        <Tile label="위험 판정 로그" big={`${L["위험"]}건`} note={`위험 판정에 묶인 로그 · 주의 ${L["주의"]}건`}>
-          {logs ? <Meter segs={[["위험", L["위험"]]]} total={logs} /> : null}
-        </Tile>
-        <Tile label="노드 위협 항목" big={`${gaps["위험"] + gaps["주의"]}건`} note={`위험 ${gaps["위험"]} · 주의 ${gaps["주의"]} · 위험 항목이 있는 서버 ${sv.nodes.filter((n) => n.threats["위험"]).length} / ${sv.nodes.length}대`}>
-          {gaps["위험"] + gaps["주의"] ? <Meter segs={[["위험", gaps["위험"]], ["주의", gaps["주의"]]]} total={gaps["위험"] + gaps["주의"]} /> : null}
-        </Tile>
+        <Tile label="위협 로그" big={logs == null ? "—" : `${threat}건`}
+          note={logs == null ? "로그를 읽지 못했습니다" : [`위험 ${L["위험"]} · 주의 ${L["주의"]}`, days ? `하루 ${Math.round((threat / days) * 10) / 10}건` : "", `전체 로그 ${logs}건의 ${pct(threat, logs)}`].filter(Boolean).join(" · ")} />
+        <Tile label="노드 위협 항목" big={`${gaps["위험"] + gaps["주의"]}건`}
+          note={`위험 ${gaps["위험"]} · 주의 ${gaps["주의"]} · 위험 항목이 있는 서버 ${sv.nodes.filter((n) => n.threats["위험"]).length} / ${sv.nodes.length}대`} />
       </div>
     </>
   );
 }
 
-// 위협 로그(날짜별 세로 막대)와 노드 위협 데이터(모듈별 · 노드별 가로 막대).
+// 위협 로그(날짜별 세로 막대)와 노드별 위협 항목(표).
 export function SystemSections(p: Props) {
   return (
     <>
@@ -72,10 +56,9 @@ export function SystemSections(p: Props) {
   );
 }
 
-// 날짜별 세로 막대 — 높이 = 그날 로그 건수(빈도), 색 조각 = 위험 · 주의 · 그 외 로그(비율).
+// 날짜별 세로 막대 — 높이 = 그날 로그 건수(빈도), 색 조각 = 위험 · 주의 · 그 외 로그(비율). 시간 흐름이라 차트로 보고, [표]는 정확한 값을 볼 때.
 function ThreatLogs({ d }: Props) {
   const [table, setTable] = useState(false);
-  const { threat, logs } = threatOf(d);
   const { keys, byDay } = mergeDays(d.logs.days, d.events.days);
   const dayMax = niceMax(Math.max(1, ...keys.map((k) => Math.max(byDay[k].total, byDay[k]["위험"] + byDay[k]["주의"]))));
   // 날짜 글자는 그 막대 칸 가운데에 둡니다 (처음 · 가운데 · 끝).
@@ -83,8 +66,8 @@ function ThreatLogs({ d }: Props) {
   const ticks = [...new Set([0, Math.floor(keys.length / 2), keys.length - 1])];
   return (
     <section className={statCard} id="stat-events">
-      <div className={cardHead}><h3 className={cardTitle}>위협 로그 — 비율 · 빈도</h3><span className={cardCount}>위협 로그 {threat} / {logs ?? "—"}건</span>
-        <ViewSwitch id="stat-events-view" table={table} onChange={setTable} /></div>
+      <div className={cardHead}><h3 className={cardTitle}>위협 로그 — 날짜별</h3>
+        <span className="ml-auto"><ViewSwitch id="stat-events-view" table={table} onChange={setTable} /></span></div>
       {!keys.length ? <p className={statSub}>이 기간에 로그가 없습니다.</p> : table ? (
         <DataTable scroll head={["날짜", "로그", "위험", "주의", "비율"]} empty="" numCols={[1, 2, 3, 4]}
           rows={keys.map((k) => ({ key: k, cells: [k, byDay[k].total, byDay[k]["위험"], byDay[k]["주의"], pct(byDay[k]["위험"] + byDay[k]["주의"], byDay[k].total)] }))} />
@@ -117,49 +100,22 @@ function ThreatLogs({ d }: Props) {
   );
 }
 
-// 모듈별 · 노드별 위협 항목 가로 막대 — 누르면 패널이 열립니다.
+// 노드별 위협 항목 — 노드마다 한 줄 (11/2, 모듈별 · 노드별 가로 막대 둘 대신). 값이 1~3이라 막대 길이에 뜻이 적고,
+// 모듈별은 같은 항목을 다시 나눈 것이라 "걸린 모듈" 칸으로 둡니다. 마지막 등급과 항목 수는 칸을 나눕니다 —
+// "2건 · 정상"처럼 붙이면 어긋나 보였습니다 (모델이 전체 등급과 항목 등급을 따로 냄). 줄을 누르면 패널(등급 변화 · 걸린 조항 · 노드 탭).
 function NodeThreats({ d, selected, onSelect }: Props) {
-  const [table, setTable] = useState(false);
   const sv = d.servers;
-  const gaps = gapsOf(d);
-  const sel = (kind: string) => (selected?.kind === kind ? selected.key : null);
+  const modulesOf = (node: string) => sv.modules.filter((m) => m.nodes.includes(node)).map((m) => m.module).join(", ") || "—";
   return (
     <section className={statCard} id="stat-servers">
-      <div className={cardHead}><h3 className={cardTitle}>노드 위협 데이터</h3><span className={cardCount}>서버 {sv.nodes.length} · 위협 항목 {gaps["위험"] + gaps["주의"]}</span>
-        <ViewSwitch id="stat-servers-view" table={table} onChange={setTable} /></div>
-      {sv.modules.length ? (
-        <>
-          <p className={CHART_TITLE}>모듈별 위협 항목</p>
-          {table ? (
-            <DataTable head={["모듈", "위험", "주의", "걸린 서버"]} empty="" numCols={[1, 2]}
-              rows={sv.modules.map((m) => ({
-                key: m.module, current: sel("module") === m.module, onSelect: () => onSelect("module", m.module),
-                cells: [m.module, m["위험"], m["주의"], m.nodes.join(", ")],
-              }))} />
-          ) : <div className={statChart}>
-            <HBars selectedKey={sel("module")} onSelect={(key) => onSelect("module", key)}
-              rows={sv.modules.map((m) => ({ key: m.module, label: m.module, segs: [["위험", m["위험"]], ["주의", m["주의"]]], extra: `걸린 서버 ${m.nodes.join(", ")}` }))}
-              value={(r) => { const m = sv.modules.find((x) => x.module === r.key)!; return `${m["위험"] + m["주의"]}건 · 서버 ${m.nodes.length}`; }} />
-          </div>}
-        </>
-      ) : <p className={statSub}>이 기간 서버 점검에서 찾은 위협 항목이 없습니다.</p>}
-      {sv.nodes.length > 0 && (
-        <>
-          <p className={CHART_TITLE}>노드별 위협 항목</p>
-          {table ? (
-            <DataTable head={["노드", "마지막 등급", "위험", "주의", "등급 흐름", "설정이 바뀐 수집"]} empty=""
-              rows={sv.nodes.map((n) => ({
-                key: n.node, current: sel("node") === n.node, onSelect: () => onSelect("node", n.node),
-                cells: [n.node, n.level || "판정 없음", <span key="r" className="tabular-nums">{n.threats["위험"]}</span>, <span key="w" className="tabular-nums">{n.threats["주의"]}</span>, n.grades.map((g) => g.level).join(" → "), <span key="c" className="tabular-nums">{n.changed} / {n.collected}</span>],
-              }))} />
-          ) : <><div className={statChart}>
-            <HBars selectedKey={sel("node")} onSelect={(key) => onSelect("node", key)} max={Math.max(1, ...sv.nodes.map((n) => n.threats["위험"] + n.threats["주의"]))}
-              rows={sv.nodes.map((n) => ({ key: n.node, label: n.node, segs: [["위험", n.threats["위험"]], ["주의", n.threats["주의"]]], extra: `마지막 등급 ${n.level || "판정 없음"} · 설정이 바뀐 수집 ${n.changed} / ${n.collected}` }))}
-              value={(r) => { const n = sv.nodes.find((x) => x.node === r.key)!; return `${n.threats["위험"] + n.threats["주의"]}건 · ${n.level || "판정 없음"}`; }} />
-          </div>
-          <Legend items={[["위험", "위험"], ["주의", "주의"]]} /></>}
-        </>
-      )}
+      <div className={cardHead}><h3 className={cardTitle}>노드별 위협 항목</h3></div>
+      {sv.nodes.length ? (
+        <DataTable head={["노드", "마지막 등급", "위험 항목", "주의 항목", "걸린 모듈", "설정이 바뀐 수집"]} empty="" numCols={[2, 3]}
+          rows={sv.nodes.map((n) => ({
+            key: n.node, current: selected?.kind === "node" && selected.key === n.node, onSelect: () => onSelect("node", n.node),
+            cells: [n.node, n.level || "판정 없음", n.threats["위험"], n.threats["주의"], modulesOf(n.node), <span key="c" className="tabular-nums">{n.changed} / {n.collected}</span>],
+          }))} />
+      ) : <p className={statSub}>이 기간 서버 점검 결과가 없습니다.</p>}
     </section>
   );
 }
