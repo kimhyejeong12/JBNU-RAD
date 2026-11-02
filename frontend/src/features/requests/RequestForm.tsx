@@ -14,6 +14,7 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
   const mine = useMine();
   const create = useCreateRequest();
   const [code, setCode] = useState("");
+  const [reason, setReason] = useState("");
   const [msg, setMsg] = useState({ text: "", ok: false });
 
   const o = accessOptions(catalog, mine, code);
@@ -25,6 +26,7 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
       onSuccess: (made) => {
         form.reset();
         setCode("");
+        setReason("");
         setMsg({ text: `${made.request_no} 신청했습니다. 보안 운영자의 1차 결재를 기다립니다.`, ok: true });
       },
       onError: (err) => setMsg({ text: err.message, ok: false }),
@@ -39,12 +41,15 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
           <span>신청할 권한 <b className="text-risk">*</b></span>
           <AccessPicker o={o} onPick={setCode} />
         </div>
-        <label className={cn(field, "col-span-full")}>신청 사유<textarea className={input} name="reason" rows={2} maxLength={2000} placeholder="업무상 왜 필요한지" /></label>
+        {/* 사유는 필수 — 업무상 필요한지는 결재자가 사유를 보고 판단합니다 (AI 판정은 사유를 보지 않음). */}
+        <label className={cn(field, "col-span-full")}><span>신청 사유 <b className="text-risk">*</b></span>
+          <textarea className={input} name="reason" rows={2} maxLength={2000} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="예: 급여 정산 담당으로 급여 테이블 조회가 필요합니다" />
+        </label>
         <label className={field}>사용 시작일<input className={input} type="date" name="period_start" /></label>
         <label className={field}>사용 종료일<input className={input} type="date" name="period_end" /></label>
         <div className={cn(formActions, "col-span-full")}>
           <span className={msg.ok ? formMsgOk : formMsg} id="req-form-msg">{msg.text}</span>
-          <button type="submit" className={cn(actionButton, primaryButton)} disabled={!o.value || create.isPending}>신청</button>
+          <button type="submit" className={cn(actionButton, primaryButton)} disabled={!o.value || !reason.trim() || create.isPending}>신청</button>
         </div>
       </form>
     </section>

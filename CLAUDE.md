@@ -231,7 +231,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `GET /api/regulations` · `POST /api/regulations` · `PUT /api/regulations/{이름}` | `docs/` 원문 · 고친 시각(보안 운영자 이상) · 올리기 · 고치기(보안 총책임자). 올리기는 `{name, content}`(.md · .txt, 1MB, 같은 이름 400 — 덮어쓰지 않음) → 바뀐 파일만 적재. 고치기는 `{content, reason}`(없는 문서 404, 같은 내용 400) → 그 문서만 다시 적재, 고치기 전 원문 · 사유는 감사 기록(`regulation_edit`)에. 다른 작업이 돌면 끝나기를 기다렸다가 적재(10분 넘으면 409), AI 엔진(임베딩)에 닿지 않으면 바로 503 |
 | `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 (보안 총책임자). `PATCH`로 로그 사용자 ID(`log_id`, 계정마다 하나, 겹치면 400). 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿈 |
 | `GET /api/access-catalog` · `POST /api/access-catalog` · `PATCH /api/access-catalog/{코드}` | 권한 목록 — 보기(일반 사용자 · 보안 운영자는 켜진 것만) · 등록 · 고치기 · 끄기(보안 총책임자, 감사 기록) |
-| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` | 신청(일반 사용자, 본문 `access_code` — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400, 현재 보유 권한은 서버가 채움) · 목록(일반 사용자는 자기 것만). 응답에 `ai_verdict` · `judging` |
+| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` | 신청(일반 사용자, 본문 `access_code` · `reason`(필수, 비면 400) — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400, 현재 보유 권한은 서버가 채움) · 목록(일반 사용자는 자기 것만). 응답에 `ai_verdict` · `judging` |
 | `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(보안 운영자 = 1차, 보안 총책임자 = 최종) · 회수 · 다시 판정 |
 | `GET /internal/status` | **서버 자신(127.0.0.1)만** — 작업 큐 · 자동 실행 예약 · 권한 신청 판정 대기열. 로그인 없음, 밖에서 오거나 전달 헤더(`X-Forwarded-For` 등)가 붙으면 404. `curl -s localhost:8000/internal/status` |
 

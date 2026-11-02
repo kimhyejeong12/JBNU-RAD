@@ -220,6 +220,9 @@ class NewRequest(BaseModel):
 
 @router.post("/requests", status_code=201)
 def submit(body: NewRequest, request: Request, user: Annotated[User, Depends(role("user"))]) -> dict[str, Any]:
+    # 업무상 필요한지는 AI 가 아니라 결재자가 사유를 보고 판단하므로(AI 판정은 부서 · 권한 · 보유 권한만 봄) 비면 받지 않습니다.
+    if not body.reason:
+        raise HTTPException(status_code=400, detail="신청 사유를 적으세요 — 결재자가 업무상 필요한지 판단하는 근거입니다")
     try:
         req = permissions.submit(request.app.state.main_db, user, **body.model_dump())
     except Denied as exc:
