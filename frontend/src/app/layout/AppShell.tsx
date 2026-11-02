@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { MeContext, useMe, useViews } from "@/app/session/me";
 import { restorable } from "@/app/session/views";
 import { readPage, savePage } from "@/app/session/lastPage";
@@ -10,7 +10,6 @@ import { useQueue } from "@/app/queue/useQueue";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { Workspace, workspace } from "./Workspace";
-import { DocsModal } from "@/app/overlays/DocsModal";
 import { TooltipLayer } from "@/app/overlays/TooltipLayer";
 import type { Me } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
@@ -35,7 +34,6 @@ function Shell() {
   const { ui, dispatch, navigate } = store;
   const boot = useBoot();
   useJobsWatcher(useNeeds().results);
-  const [docsOpen, setDocsOpen] = useState(false);
   const narrow = useMediaQuery(NARROW);
   const [navWide, toggleNav] = useNavWide();
 
@@ -51,7 +49,6 @@ function Shell() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      setDocsOpen(false);
       dispatch({ type: "CLOSE_PANEL" });
     };
     document.addEventListener("keydown", onKey);
@@ -76,11 +73,10 @@ function Shell() {
   return (
     <UiContext.Provider value={store}>
       <TopBar />
-      <Sidebar wide={navWide} onToggle={toggleNav} onDocs={() => setDocsOpen(true)} />
+      <Sidebar wide={navWide} onToggle={toggleNav} />
       {boot.error ? <LoadError message={boot.error} /> : <Workspace />}
       <div id="drawer-back" onClick={store.closePanel}
         className={cn("hidden", ui.drawerOpen && "narrow:fixed narrow:inset-0 narrow:z-45 narrow:block narrow:bg-[rgba(17,17,17,.4)]")} />
-      <DocsModal open={docsOpen} onClose={() => setDocsOpen(false)} />
       <TooltipLayer />
     </UiContext.Provider>
   );

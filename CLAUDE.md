@@ -89,7 +89,7 @@ JBNU-RAD/
 │   └── src/
 │       ├── app/                  껍데기 — App(로그인 게이트) · styles.css(CSS는 이 파일 하나 — Tailwind · 색 토큰 · 화면 틀)
 │       │   ├── layout/             화면 틀 — AppShell · TopBar · Sidebar · Workspace · MainTabs · RightPanel · Footer · 큰 화면 확대(pageScale)
-│       │   ├── overlays/           기준 문서 창 · 툴팁
+│       │   ├── overlays/           툴팁
 │       │   ├── session/            로그인한 사람(me) · 역할별 메뉴(views) · 역할별 데이터 훅(data) · 부팅(useBoot) · 새로고침 뒤 마지막 화면(lastPage)
 │       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · SourceChips) · confirm/(확인 창 — ask · ConfirmLayer)
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
@@ -248,7 +248,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | 역할 | 메뉴 |
 |---|---|
 | 일반 사용자 | 메뉴 · 오른쪽 패널 없이 내 신청 화면 하나 — 신청서 위 · 목록 아래 (반려 사유 · 철회는 목록 줄의 상태 칸에서). AI 흔적 없음 |
-| 보안 운영자 | 권한 신청(1차 결재함) · 정책 관리 · 로그 감시 · 통계 · 정책 질의 |
+| 보안 운영자 | 권한 신청(1차 결재함) · 정책 관리 · 로그 감시 · 통계 · 정책 질의 · 기준 문서(읽기만) |
 | 보안 총책임자 | 위 + 최종 결재함 · 관리(권한 목록 · 계정 관리 · 기준 문서) |
 
 ---

@@ -13,7 +13,7 @@ export function useQueue(): QueueItem[] {
   // 권한 목록은 보안 총책임자에게만 목록 항목입니다 (일반 사용자는 신청서의 고르기 칸으로만 봅니다).
   const views = useViews();
   const hasAccess = views.includes("access");
-  // 기준 문서도 보안 총책임자에게만 목록 항목입니다 (보안 운영자는 사이드바 아래 버튼으로 원문 창을 엽니다).
+  // 기준 문서는 보안 총책임자 · 보안 운영자 모두 목록 항목입니다 (보안 운영자는 읽기만).
   const hasDocs = views.includes("docs");
   const requests = useRequests();
   const users = useUsers();

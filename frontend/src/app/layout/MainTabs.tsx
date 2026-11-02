@@ -26,9 +26,10 @@ const STAGES: [StageFilter, string, string][] = [["pending", "결재 대기", "l
 export function MainTabs() {
   const { ui, setMainTab, navigate, setStageFilter } = useUi();
   const views = useViews();
-  const counts = stageCounts(useQueue(), useMe().role);
+  const role = useMe().role;
+  const counts = stageCounts(useQueue(), role);
   // 관리의 탭은 메뉴(권한 목록 · 계정 관리 · 기준 문서)를 오갑니다. 탭마다 목록 · 패널은 그 메뉴 그대로입니다.
-  if (isAdminView(ui.view)) {
+  if (isAdminView(ui.view) && role === "top") {   // 관리 탭은 보안 총책임자만 (보안 운영자의 기준 문서는 탭 없음)
     return (
       <nav className={BAR} role="tablist" aria-label="관리">
         {views.filter(isAdminView).map((v) => (

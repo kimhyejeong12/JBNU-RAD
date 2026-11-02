@@ -41,10 +41,10 @@ export const VIEWS: Record<View, ViewMeta> = {
           tabs: ["queue"], cols: ["분류", "문서", "파일", "고친 시각", "조항"], search: "문서 이름 · 내용으로 검색" },
 };
 
-// 보안 총책임자는 보안 운영자와 같은 메뉴에 권한 목록 · 계정 관리 · 기준 문서를 더합니다.
+// 보안 총책임자는 보안 운영자와 같은 메뉴에 권한 목록 · 계정 관리를 더합니다. 기준 문서는 둘 다 — 보안 운영자는 읽기만(올리기 · 고치기 없음).
 export const ROLE_VIEWS: Record<Role, View[]> = {
   user: ["mine"],
-  manager: ["requests", "policies", "events", "stats", "qa"],
+  manager: ["requests", "policies", "events", "stats", "qa", "docs"],
   top: ["requests", "policies", "events", "stats", "qa", "access", "users", "docs"],
 };
 // 관리 — 매일 처리하는 일이 아니라 시스템 설정이라 사이드바에는 [관리] 하나로 두고, 들어가면 탭 줄로 셋을 오갑니다.

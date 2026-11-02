@@ -14,7 +14,7 @@ const navTone = (current: boolean) => (current ? "bg-risk-tint text-risk" : "hov
 
 // 넓은 화면의 메뉴 — 펼치면 구역 제목 · 메뉴 이름 · 건수, 접으면 아이콘 막대(이름 · 건수는 툴팁). 메뉴가 하나뿐이면(일반 사용자) 그리지 않습니다.
 // 툴팁이 곧바로 뜨는 구역입니다 (data-tip-instant).
-export function Sidebar({ wide, onToggle, onDocs }: { wide: boolean; onToggle: () => void; onDocs: () => void }) {
+export function Sidebar({ wide, onToggle }: { wide: boolean; onToggle: () => void }) {
   const me = useMe();
   const { ui, navigate, openAdmin } = useUi();
   const views = useViews();
@@ -49,12 +49,12 @@ export function Sidebar({ wide, onToggle, onDocs }: { wide: boolean; onToggle: (
       </div>
       {/* 아래쪽 — 관리 · 기준 문서 · 메뉴 접기/펼치기 */}
       <div className={cn("mt-auto flex flex-col gap-1.5", !wide && "items-center")}>
-        {/* 관리는 건수를 달지 않습니다 — 등록된 개수라 결재처럼 처리할 일이 아닙니다. */}
-        {views.some(isAdminView) && item("admin", "gear", "관리", {
+        {/* 관리(보안 총책임자)는 건수를 달지 않습니다 — 등록된 개수라 결재처럼 처리할 일이 아닙니다. */}
+        {me.role === "top" && item("admin", "gear", "관리", {
           id: "nav-admin", view: "admin", current: isAdminView(ui.view), tip: "관리|권한 목록 · 계정 관리 · 기준 문서", onClick: openAdmin,
         })}
-        {/* 기준 문서 메뉴가 있는 보안 총책임자는 관리에서 열고, 보안 운영자는 이 버튼으로 원문 창을 엽니다. */}
-        {me.role !== "user" && !views.includes("docs") && item("docs", "book", "기준 문서", { id: "nav-docs", tip: "기준 문서 원문", onClick: onDocs })}
+        {/* 보안 운영자는 관리 메뉴 없이 이 버튼으로 기준 문서 목록 · 원문을 엽니다 (읽기만). 보안 총책임자는 관리의 탭에서. */}
+        {me.role === "manager" && item("docs", "book", "기준 문서", { id: "nav-docs", view: "docs", current: ui.view === "docs", tip: "기준 문서", onClick: () => navigate("docs") })}
         {item("toggle", "chev", wide ? "메뉴 접기" : "메뉴 펼치기", { id: "nav-toggle", iconClass: cn(wide && "rotate-180"), onClick: onToggle })}
       </div>
     </nav>
@@ -63,17 +63,19 @@ export function Sidebar({ wide, onToggle, onDocs }: { wide: boolean; onToggle: (
 
 // 사이드바가 없는 좁은 화면의 메뉴. 메뉴가 탭보다 위이므로 어느 탭에서든 보이게 탭 줄 위에 둡니다.
 export function Seg() {
+  const me = useMe();
   const { ui, navigate, openAdmin } = useUi();
   const views = useViews();
   const counts = useViewCounts();
+  const top = me.role === "top";   // 관리 메뉴는 보안 총책임자만 (보안 운영자의 기준 문서는 그냥 메뉴 하나)
   return (
     <div className="hidden self-start rounded-lg bg-canvas p-0.75 narrow:flex" role="tablist" id="seg" aria-label="메뉴" hidden={views.length < 2}>
-      {views.filter((v) => !isAdminView(v)).map((v) => (
+      {views.filter((v) => !(top && isAdminView(v))).map((v) => (
         <button key={v} role="tab" aria-selected={ui.view === v} onClick={() => navigate(v)} className={SEG}>
           {VIEWS[v].label}{" "}<span data-count={v}>{counts[v] ?? ""}</span>
         </button>
       ))}
-      {views.some(isAdminView) && <button role="tab" aria-selected={isAdminView(ui.view)} onClick={openAdmin} className={SEG}>관리</button>}
+      {top && <button role="tab" aria-selected={isAdminView(ui.view)} onClick={openAdmin} className={SEG}>관리</button>}
     </div>
   );
 }

@@ -1,21 +1,33 @@
 import { useState, type FormEvent } from "react";
 import { PanelFoot, PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
 import { useJobs, useRegulations } from "@/app/session/data";
+import { useMe } from "@/app/session/me";
 import { busyJob } from "@/shared/api/jobs";
 import type { Regulation } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
 import { Section } from "@/shared/ui/base/parts";
-import { actionButton, field, formActions, input, meta, note, panelActions, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+import { actionButton, empty, field, formActions, input, meta, note, panelActions, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useUploadRegulation } from "./api";
 import { docItem, editProblem, uploadProblem } from "./lib";
 import { ask } from "@/app/ui/confirm/ask";
 
-// 기준 문서 패널 (보안 총책임자) — 선택 없음 = 문서 올리기, 고르면 원문 · [수정]. 지우기는 없습니다.
+// 기준 문서 패널 — 보안 총책임자는 선택 없음 = 문서 올리기, 고르면 원문 · [수정]. 보안 운영자는 읽기만(원문, 올리기 · 고치기 없음). 지우기는 없습니다.
 // 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둡니다.
 export function DocPanel({ d }: { d: Regulation | null }) {
-  return d ? <DocView key={d.name} d={d} /> : <UploadDoc />;
+  const top = useMe().role === "top";
+  if (!d) return top ? <UploadDoc /> : <PickDoc />;
+  return <DocView key={d.name} d={d} canEdit={top} />;
+}
+
+function PickDoc() {
+  return (
+    <>
+      <PanelHead title="기준 문서" />
+      <div className={panelBody}><div className={empty}>왼쪽 목록에서 문서를 고르면 원문을 봅니다.</div></div>
+    </>
+  );
 }
 
 function UploadDoc() {
@@ -52,7 +64,7 @@ function UploadDoc() {
   );
 }
 
-function DocView({ d }: { d: Regulation }) {
+function DocView({ d, canEdit }: { d: Regulation; canEdit: boolean }) {
   const it = docItem(d);
   const [editing, setEditing] = useState(false);
   return (
@@ -63,7 +75,7 @@ function DocView({ d }: { d: Regulation }) {
         <div className={meta}>{d.name}{d.updated_at ? ` · 고친 시각 ${stamp(d.updated_at)}` : ""} · 조항 {it.judge}</div>
         {editing ? <EditDoc d={d} onClose={() => setEditing(false)} /> : (
           <>
-            <div className={panelActions}><button type="button" className={actionButton} onClick={() => setEditing(true)}>수정</button></div>
+            {canEdit && <div className={panelActions}><button type="button" className={actionButton} onClick={() => setEditing(true)}>수정</button></div>}
             <Section icon="book" title="원문">
               <pre className="m-0 whitespace-pre-wrap rounded-lg bg-canvas px-3.5 py-3 text-[13px] font-[inherit]">{d.content.trim()}</pre>
             </Section>
