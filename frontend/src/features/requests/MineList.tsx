@@ -9,8 +9,9 @@ import { cn } from "@/shared/lib/cn";
 import { Periods } from "@/shared/ui/base/parts";
 import { card, empty, formMsg, formMsgOk, linkButton } from "@/shared/ui/base/styles";
 
-// 머리줄과 줄이 같은 칸 — 신청 권한 · 번호 · 신청일 · 상태 · [철회 · 사유 보기]. 칸이 넘치는 휴대폰 폭(640px 미만)에서만 번호 · 신청일을 숨깁니다 (1150px 미만에서도 공간이 남아서).
-const GRID = "grid grid-cols-[minmax(0,1fr)_150px_64px_150px_96px] items-center gap-x-4 px-4.5 max-sm:grid-cols-[minmax(0,1fr)_120px_80px]";
+// 머리줄과 줄이 같은 칸 — 신청 권한 · 번호 · 신청일 · 상태 · [철회 · 사유 보기].
+// 휴대폰 폭(640px 미만)은 칸을 숨기지 않고 두 줄로 접습니다 — 윗줄 권한 · 상태, 아랫줄 번호 · 신청일 · 버튼 (일반 사용자는 패널이 없어 숨기면 볼 곳이 없음).
+const GRID = "grid grid-cols-[minmax(0,1fr)_150px_64px_150px_96px] items-center gap-x-4 px-4.5 max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:gap-y-0.5";
 
 // 보기 — 세 묶음과 전체 (결재함 탭 [결재 대기 · 유효 권한 · 전체]와 같은 순서).
 type MineView = MineGroup | "all";
@@ -45,7 +46,7 @@ export function MineList() {
       </div>
       <div className="border-t border-line">
         <div className={cn(GRID, "h-9.5 border-b border-line text-[12px] font-semibold text-ink-dim")}>
-          <span>신청 권한</span><span className="max-sm:hidden">번호</span><span className="max-sm:hidden">신청일</span><span>상태</span><span />
+          <span>신청 권한</span><span className="max-sm:hidden">번호</span><span className="max-sm:hidden">신청일</span><span>상태</span><span className="max-sm:hidden" />
         </div>
         {rows.length
           ? rows.map((r) => <MineRow key={r.request_no} r={r} on={on} open={ui.expanded.has(`note:${r.request_no}`)} onNote={() => toggleChip(`note:${r.request_no}`)} />)
@@ -60,15 +61,15 @@ function MineRow({ r, on, open, onNote }: { r: RequestRow; on: string; open: boo
   const note = rejectNote(r);
   return (
     <div className={cn(GRID, "border-b border-line py-2.5 last:border-b-0")}>
-      <span className="truncate text-[13.5px] font-semibold">{r.requested_access}</span>
-      <span className="text-[12px] text-ink-dim tabular-nums max-sm:hidden">{r.request_no}</span>
+      <span className="truncate text-[13.5px] font-semibold max-sm:row-start-1">{r.requested_access}</span>
+      <span className="text-[12px] text-ink-dim tabular-nums max-sm:col-start-1 max-sm:row-start-2">{r.request_no}<span className="sm:hidden"> · {shortDate(r.submitted_at.slice(0, 10), on)}</span></span>
       <span className="text-[12px] text-ink-dim tabular-nums max-sm:hidden">{shortDate(r.submitted_at.slice(0, 10), on)}</span>
-      <span className="text-[12.5px] font-semibold">{mineStatus(r, on)}</span>
-      <span className="flex justify-end gap-3">
+      <span className="text-[12.5px] font-semibold max-sm:col-start-2 max-sm:row-start-1 max-sm:text-right">{mineStatus(r, on)}</span>
+      <span className="flex justify-end gap-3 max-sm:col-start-2 max-sm:row-start-2">
         <WithdrawButton r={r} />
         {note && <button type="button" className={linkButton} aria-expanded={open} onClick={onNote}>{open ? "사유 접기" : "사유 보기"}</button>}
       </span>
-      {note && open && <p className="col-span-full m-0 mt-1.5 rounded-lg bg-canvas px-3 py-2 text-[12.5px] whitespace-pre-line text-ink-soft wrap-anywhere">{note}</p>}
+      {note && open && <p className="col-span-full m-0 mt-1.5 max-sm:row-start-3 rounded-lg bg-canvas px-3 py-2 text-[12.5px] whitespace-pre-line text-ink-soft wrap-anywhere">{note}</p>}
     </div>
   );
 }
