@@ -73,8 +73,8 @@ export function LogsTab() {
   );
 }
 
-// 거르기 — 사용자는 검색 칸 하나(치면 후보가 뜸, 사람이 늘어도 한 줄). 솔루션 · 행위는 고를 값이 둘 이상일 때만 버튼 줄로 늘어놓고 건수를 붙입니다
-// (값이 하나뿐이면 고를 게 없어 숨김). 값은 응답의 options, 건수는 facts 에서.
+// 거르기 — 사용자는 검색 칸 하나(치면 후보가 뜸, 사람이 늘어도 한 줄). 솔루션 · 행위는 버튼 줄로 늘어놓고 건수를 붙입니다.
+// 값이 하나뿐이거나 없어도 무엇으로 거를 수 있는지 보이게 늘 둡니다. 값은 응답의 options, 건수는 facts 에서.
 function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChange: (patch: Partial<LogCond>) => void }) {
   const users = filterChoices(d?.options.users ?? [], cond.user, undefined).map((c) => c.value);
   return (
@@ -82,7 +82,6 @@ function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChan
       <PickInput key={cond.user} id="log-user" label="사용자" values={users} value={cond.user} onPick={(v) => onChange({ user: v })} />
       {LOG_FILTERS.map(([k, id, label, opt, fact]) => {
         const choices = filterChoices(d?.options[opt] ?? [], cond[k], d?.facts?.[fact]);
-        if (choices.length < 2 && !cond[k]) return null;
         return (
           <div key={k} className="flex items-center gap-2">
             <span className="text-[12px] font-semibold text-ink-dim">{label}</span>
