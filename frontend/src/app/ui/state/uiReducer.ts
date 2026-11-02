@@ -3,6 +3,9 @@ import { VIEWS, isAdminView, type MainTab, type SavedPage, type View } from "@/a
 
 // 화면(UI) 상태 — 서버 데이터는 TanStack Query 에 있고, 여기에는 어느 메뉴 · 탭 · 항목을 보고 있는지만 둡니다.
 
+// 관리 메뉴의 등록 창 — [+ 새 계정] · [권한 등록] · [문서 업로드]를 누르면 고른 항목 자리에 이 값을 둡니다 (안 고른 상태는 다른 메뉴처럼 안내만).
+export const NEW_ITEM = "new";
+
 export type StageFilter = "pending" | "active" | "all";
 export type StatKind = "stats" | "ustats";
 export type LevelFilter = "전체" | Level;

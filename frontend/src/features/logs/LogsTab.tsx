@@ -31,7 +31,9 @@ export function LogsTab() {
     change({ page });
     section.current?.scrollIntoView({ block: "start" });
   };
+  // 고른 줄을 다시 누르면 선택을 풉니다 (패널은 집계로).
   const pick = (n: number) => {
+    if (n === L.selected) return setLogs({ selected: null });
     setLogs({ selected: n });
     openDrawer();
   };

@@ -9,6 +9,9 @@ import { useMediaQuery } from "@/shared/lib/hooks";
 
 export const NARROW = "(max-width: 1150px)";
 
+// 완료(✓) 안내가 저절로 사라지기까지 — 오류 안내는 고칠 때까지 봐야 해서 다음 동작까지 남깁니다.
+export const DONE_MSG_MS = 4000;
+
 export interface UiStore {
   ui: UiState;
   dispatch: Dispatch<UiAction>;

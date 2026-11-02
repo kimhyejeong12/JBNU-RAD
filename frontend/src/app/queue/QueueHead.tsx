@@ -3,7 +3,7 @@ import { useMe } from "@/app/session/me";
 import { useJobs } from "@/app/session/data";
 import { LEVEL_VIEWS, VIEWS } from "@/app/session/views";
 import { useUi } from "@/app/ui/state/UiContext";
-import type { LevelFilter } from "@/app/ui/state/uiReducer";
+import { NEW_ITEM, type LevelFilter } from "@/app/ui/state/uiReducer";
 import { runButton, useStartJob } from "@/shared/api/jobs";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
@@ -21,7 +21,7 @@ const Count = ({ n }: { n: number }) => <span className="ml-1.5 tabular-nums tex
 
 export function QueueHead() {
   const me = useMe();
-  const { ui, setQuery, setFilter, deselect } = useUi();
+  const { ui, setQuery, setFilter, select } = useUi();
   const jobs = useJobs();
   const items = useQueue();
   const start = useStartJob();
@@ -46,9 +46,9 @@ export function QueueHead() {
         <button className={cn(toolButton, "ml-0")} id="run" hidden={run.hidden} disabled={run.disabled} onClick={() => start.mutate("policies")}>
           <Icon name="activity" small /><span id="run-txt">{run.text}</span>
         </button>
-        <button className={cn(toolButton, "ml-0")} id="add-user" hidden={ui.view !== "users"} onClick={deselect}><Icon name="plus" small />새 계정</button>
-        <button className={cn(toolButton, "ml-0")} id="add-access" hidden={ui.view !== "access"} onClick={deselect}><Icon name="plus" small />권한 등록</button>
-        <button className={cn(toolButton, "ml-0")} id="add-doc" hidden={ui.view !== "docs" || me.role !== "top"} onClick={deselect}><Icon name="plus" small />문서 업로드</button>
+        <button className={cn(toolButton, "ml-0")} id="add-user" hidden={ui.view !== "users"} onClick={() => select(NEW_ITEM)}><Icon name="plus" small />새 계정</button>
+        <button className={cn(toolButton, "ml-0")} id="add-access" hidden={ui.view !== "access"} onClick={() => select(NEW_ITEM)}><Icon name="plus" small />권한 등록</button>
+        <button className={cn(toolButton, "ml-0")} id="add-doc" hidden={ui.view !== "docs" || me.role !== "top"} onClick={() => select(NEW_ITEM)}><Icon name="plus" small />문서 업로드</button>
       </div>
       {byLevel && (
         <div className="flex flex-wrap items-center gap-2">

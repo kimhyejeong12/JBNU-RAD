@@ -1,6 +1,6 @@
 import { useMe } from "@/app/session/me";
 import { useJobs } from "@/app/session/data";
-import { TYPE_LABEL, VIEWS, isAdminView } from "@/app/session/views";
+import { TYPE_LABEL, VIEWS } from "@/app/session/views";
 import { useUi } from "@/app/ui/state/UiContext";
 import { useQueue } from "./useQueue";
 import { inView, visible, emptyText } from "./select";
@@ -23,8 +23,8 @@ export function QueueTable() {
   const cols = view ? VIEWS[view].cols : [];
   const rows = view ? visible(items, { view, stageFilter: ui.stageFilter, role: me.role, filter: ui.filter, query: ui.query }) : [];
   const anyInView = !!view && items.some((it) => inView(it, view, ui.stageFilter, me.role));
-  // 고른 줄을 다시 누르면 선택을 풉니다 (패널은 안내만). 관리 메뉴는 선택 없음이 곧 등록 창이라 풀지 않습니다.
-  const onRow = (key: string) => (key === ui.selected && view && !isAdminView(view) ? dispatch({ type: "DESELECT" }) : select(key));
+  // 고른 줄을 다시 누르면 선택을 풉니다 (패널은 안내만, 관리 메뉴도 같음 — 등록 창은 [+ …] 버튼으로만 엶).
+  const onRow = (key: string) => (key === ui.selected ? dispatch({ type: "DESELECT" }) : select(key));
   return (
     <div className="border-t border-line">
       <div id="thead" className={cn(GRID, "h-9.5 border-b border-line text-[12px] font-semibold text-ink-dim")}>

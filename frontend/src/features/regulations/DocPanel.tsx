@@ -7,27 +7,17 @@ import type { Regulation } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
 import { Section } from "@/shared/ui/base/parts";
-import { actionButton, empty, field, formActions, input, meta, note, panelActions, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+import { actionButton, field, formActions, input, meta, note, panelActions, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useUploadRegulation } from "./api";
 import { docItem, editProblem, uploadProblem } from "./lib";
 import { ask } from "@/app/ui/confirm/ask";
 
-// 기준 문서 패널 — 보안 총책임자는 선택 없음 = 문서 올리기, 고르면 원문 · [수정]. 보안 운영자는 읽기만(원문, 올리기 · 고치기 없음). 지우기는 없습니다.
-// 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둡니다.
+// 기준 문서 패널 — 고르면 원문(보안 총책임자는 [수정]도), d 가 없으면 [문서 업로드]로 연 올리기 창(보안 총책임자만). 지우기는 없습니다.
+// 보안 운영자는 읽기만. 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둡니다.
 export function DocPanel({ d }: { d: Regulation | null }) {
   const top = useMe().role === "top";
-  if (!d) return top ? <UploadDoc /> : <PickDoc />;
-  return <DocView key={d.name} d={d} canEdit={top} />;
-}
-
-function PickDoc() {
-  return (
-    <>
-      <PanelHead title="기준 문서" />
-      <div className={panelBody}><div className={empty}>왼쪽 목록에서 문서를 고르면 원문을 봅니다.</div></div>
-    </>
-  );
+  return d ? <DocView key={d.name} d={d} canEdit={top} /> : <UploadDoc />;
 }
 
 function UploadDoc() {

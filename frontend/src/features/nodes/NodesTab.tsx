@@ -14,7 +14,9 @@ import { card, cardCount, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd
 // 수집 노드 — 서버마다 도는 node/sentinel_node 가 보낸 수집. 새 수집은 서버가 주기적으로 점검해 검토 현황에 올립니다.
 // 탭에 들어올 때마다 마운트되어 목록을 다시 받습니다.
 export function NodesTab() {
-  const { ui, pickNode, addNode } = useUi();
+  const { ui, pickNode, addNode, dispatch } = useUi();
+  // 고른 노드를 다시 누르면 선택을 풉니다 (패널은 상태 집계로).
+  const onPick = (name: string) => (name === ui.nodes.selected ? dispatch({ type: "PICK_NODE", name: null }) : pickNode(name));
   const nodes = useQuery(nodesQuery());
   const jobs = useJobs();
   const start = useStartJob();
@@ -43,7 +45,7 @@ export function NodesTab() {
                   : list.map((n) => {
                     const [cls, label, tip] = nodeState(n);
                     return (
-                      <tr key={n.name} data-node={n.name} aria-current={n.name === ui.nodes.selected} className={lrowTone(n.name === ui.nodes.selected)} {...activateProps(() => pickNode(n.name))}>
+                      <tr key={n.name} data-node={n.name} aria-current={n.name === ui.nodes.selected} className={lrowTone(n.name === ui.nodes.selected)} {...activateProps(() => onPick(n.name))}>
                         <td className={cn(ltd, "whitespace-nowrap")}>{n.name}</td>
                         <td className={ltd}>{n.host}{n.ip && n.ip !== n.host ? ` (${n.ip})` : ""}</td>
                         <td className={ltd}><span className={cn(nodeStateText, nodeStateTone[cls])} data-tip={`${label}|${tip}`}>{label}</span></td>

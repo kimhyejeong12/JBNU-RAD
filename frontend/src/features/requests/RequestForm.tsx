@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { accessOptions, type AccessOptions } from "./lib";
 import { useCreateRequest } from "./api";
+import { DONE_MSG_MS } from "@/app/ui/state/UiContext";
 import { useCatalog, useMine } from "@/app/session/data";
 import type { AccessItem } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
@@ -18,6 +19,12 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
   const [msg, setMsg] = useState({ text: "", ok: false });
 
   const o = accessOptions(catalog, mine, code);
+  // "신청했습니다" 안내는 잠깐 보이고 저절로 지웁니다 (오류 안내는 다음 신청까지 남김).
+  useEffect(() => {
+    if (!msg.ok) return;
+    const t = setTimeout(() => setMsg({ text: "", ok: false }), DONE_MSG_MS);
+    return () => clearTimeout(t);
+  }, [msg]);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

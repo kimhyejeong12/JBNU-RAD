@@ -17,7 +17,10 @@ export function StatsTab() {
   const q = kind === "stats" ? sys : usr;
   const d = q.data;
   const range = q.isFetching ? "세는 중…" : q.isError ? q.error.message : d ? (d.since ? `${stamp(d.since)} 부터` : "처음부터") : "";
+  // 고른 막대 · 줄을 다시 누르면 선택을 풉니다.
   const select = (kind: string, key: string) => {
+    const s = ui.stats.selected;
+    if (s && s.kind === kind && s.key === key) return setStats({ selected: null });
     setStats({ selected: { kind, key } });
     openDrawer();
   };
