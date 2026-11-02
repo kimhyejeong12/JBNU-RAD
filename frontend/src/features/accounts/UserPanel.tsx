@@ -16,10 +16,17 @@ import { Switch } from "@/shared/ui/base/parts";
 const WIDE_FIELD = cn(field, "col-span-full");
 const WIDE_ACTIONS = cn(formActions, "col-span-full");
 
+// 역할 고르기 — 세 역할을 버튼으로 늘어놓습니다 (고르기 칸은 눌러 봐야 무엇이 있는지 보여서). 폼이 이름(role)으로 읽는 라디오는 글자로만 숨깁니다.
+const ROLES: Role[] = ["user", "manager", "top"];
 const RoleSelect = ({ value, disabled }: { value: Role; disabled?: boolean }) => (
-  <select className={input} name="role" defaultValue={value} disabled={disabled}>
-    {(Object.entries(ROLE_LABEL) as [Role, string][]).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
-  </select>
+  <div className="flex flex-wrap gap-0.5 self-start rounded-lg bg-canvas p-0.75" role="radiogroup" aria-label="역할">
+    {ROLES.map((k) => (
+      <label key={k} className={cn("rounded-md px-2.75 py-1.25 text-[12.5px] font-semibold text-ink-dim has-checked:bg-surface has-checked:text-ink has-checked:shadow-[0_1px_2px_rgba(0,0,0,.08)] has-focus-visible:outline-2 has-focus-visible:outline-ink",
+        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:text-ink")}>
+        <input className="sr-only" type="radio" name="role" value={k} defaultChecked={k === value} disabled={disabled} />{ROLE_LABEL[k]}
+      </label>
+    ))}
+  </div>
 );
 
 // 계정 관리 패널 (보안 총책임자) — 선택 없음 = 새 계정. 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿉니다.
@@ -40,7 +47,7 @@ function NewUser() {
         <label className={field}>아이디<input className={input} name="login_id" required maxLength={100} autoComplete="off" /></label>
         <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
         <label className={field}>부서<input className={input} name="department" maxLength={100} /></label>
-        <label className={field}>역할<RoleSelect value="user" /></label>
+        <div className={WIDE_FIELD}>역할<RoleSelect value="user" /></div>
         <label className={WIDE_FIELD}>임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input className={input} name="password" type="password" required autoComplete="new-password" /></label>
         <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>계정 만들기</button></div>
       </form>
@@ -93,7 +100,7 @@ function EditUser({ u }: { u: UserRow }) {
             <form key={`edit:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-edit" onKeyDown={noEnterSubmit} onSubmit={onEdit}>
               <label className={field}>이름<input className={input} name="display_name" defaultValue={u.display_name} maxLength={100} /></label>
               <label className={field}>부서<input className={input} name="department" defaultValue={u.department ?? ""} maxLength={100} /></label>
-              <label className={field}>역할<RoleSelect value={u.role} disabled={fixed} /></label>
+              <div className={WIDE_FIELD}>역할<RoleSelect value={u.role} disabled={fixed} /></div>
               <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="보안 솔루션 로그의 UserID" /></label>
               <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
             </form>
