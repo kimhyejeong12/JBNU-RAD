@@ -24,23 +24,24 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
   const r = it.raw;
   // 10/14부터 서버 점검은 다른 곳마다 지금 · 기준 · 바꿀 것을 따로 받습니다. 그 전 결과(recommendation 이 있음)는 예전 칸으로 보입니다.
   const gapped = it.type === "server" && !it.raw.failed && !it.raw.recommendation;
+  const title = it.type === "policy" ? `${it.who} · ${it.raw.kind}` : it.raw.title;
 
   return (
     <>
       <PanelHead title="AI 판단 근거" />
       <div className={panelBody}>
-        <p className={subject}>{it.type === "policy" ? `${it.who} · ${it.raw.kind}` : it.raw.title}</p>
+        <p className={subject}>{title}</p>
         <div className={cn(recLine, it.level && levelText[it.level])}><Icon name={(it.level && LEVEL_ICON[it.level]) || "warn"} className="size-5" />{it.level}</div>
-        <div className={meta}>{it.id}</div>
+        {/* 번호가 제목과 같으면(서버 점검의 노드 이름) 두 번 쓰지 않습니다. */}
+        {it.id && it.id !== title && it.id !== it.who && <div className={meta}>{it.id}</div>}
 
         {/* 결론(판단 · 권고 · 근거)을 먼저, 판정에 쓴 원자료(로그 · 모듈 상태 · 정책 원본)는 그 아래 — 원자료가 길어 결론이 밀려나지 않게. */}
         {gapped && it.type === "server" ? <GapSections itemKey={it.key} f={it.raw} /> : (
           <>
             <Section icon="activity" title="판단 이유"><div className={box}>{r.reason}</div></Section>
             <Section icon="ok" title="권고 조치"><div className={box}>{r.recommendation}</div></Section>
-            <Section icon="db" title="근거 조항">
-              {it.type !== "policy" ? <SourceChips itemKey={it.key} sources={r.sources} /> : <p className={note}>근거는 판단 이유에 함께 적혀 있습니다.</p>}
-            </Section>
+            {/* 정책 문제는 근거 조항이 판단 이유 글에 함께 있어 따로 두지 않습니다. */}
+            {it.type !== "policy" && <Section icon="db" title="근거 조항"><SourceChips itemKey={it.key} sources={r.sources} /></Section>}
           </>
         )}
 
@@ -101,7 +102,13 @@ function ServerSections({ f }: { f: ServerFinding }) {
   return (
     <>
       {state.length > 0 && <Section icon="server" title="서버 현황"><KvTable rows={state} /></Section>}
-      {snap?.modules && <><ModuleChanges snap={snap} /><ModuleFold snap={snap} /></>}
+      {/* 달라진 설정이 없으면 구역 제목 없이 한 줄만. */}
+      {snap?.modules && (
+        <>
+          {snap.changes?.length ? <ModuleChanges snap={snap} /> : <p className={cn(note, "mt-3.5")}>직전 수집과 달라진 설정 없음</p>}
+          <ModuleFold snap={snap} />
+        </>
+      )}
       <Section icon="file" title="이 서버에 걸린 정책"><div className={boxPre}>{f.detail?.matched}</div></Section>
     </>
   );
