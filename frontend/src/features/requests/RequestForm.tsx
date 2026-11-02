@@ -41,12 +41,13 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
           <span>신청할 권한 <b className="text-risk">*</b></span>
           <AccessPicker o={o} onPick={setCode} />
         </div>
-        {/* 사유 · 사용 기간 · [신청]을 한 줄에 — 날짜 칸은 날짜 하나 들어갈 폭이면 되어 반 줄씩 쓰던 것을 줄였습니다 (좁으면 줄바꿈). */}
+        {/* 사유 → 사용 기간 · [신청]을 위에서 아래로, 왼쪽 끝을 따라 둡니다 — 한 줄로 늘어놓으면 넓은 화면에서 버튼까지 마우스를 오른쪽 끝으로 옮겨야 해서.
+            사유 칸은 문장 하나 쓰기 좋은 폭(720px)까지, 날짜 칸은 날짜 하나 들어갈 폭. */}
+        {/* 사유는 필수 — 업무상 필요한지는 결재자가 사유를 보고 판단합니다 (AI 판정은 사유를 보지 않음). */}
+        <label className={cn(field, "col-span-full max-w-180")}><span>신청 사유 <b className="text-risk">*</b></span>
+          <input className={input} name="reason" maxLength={2000} autoComplete="off" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="예: 급여 정산 담당으로 급여 테이블 조회가 필요합니다" />
+        </label>
         <div className="col-span-full flex flex-wrap items-end gap-3">
-          {/* 사유는 필수 — 업무상 필요한지는 결재자가 사유를 보고 판단합니다 (AI 판정은 사유를 보지 않음). */}
-          <label className={cn(field, "min-w-60 flex-1")}><span>신청 사유 <b className="text-risk">*</b></span>
-            <input className={input} name="reason" maxLength={2000} autoComplete="off" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="예: 급여 정산 담당으로 급여 테이블 조회가 필요합니다" />
-          </label>
           <label className={cn(field, "w-40")}>사용 시작일<input className={input} type="date" name="period_start" /></label>
           <label className={cn(field, "w-40")}>사용 종료일<input className={input} type="date" name="period_end" /></label>
           <button type="submit" className={cn(actionButton, primaryButton)} disabled={!o.value || !reason.trim() || create.isPending}>신청</button>
