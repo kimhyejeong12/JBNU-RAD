@@ -69,24 +69,38 @@ function EditUser({ u }: { u: UserRow }) {
       : self ? "자기 계정의 역할을 바꾸거나 정지할 수 없습니다."
         : "계정은 지우지 않고 정지합니다 (결재 기록이 가리킵니다).";
 
-  function onEdit(e: FormEvent<HTMLFormElement>) {
+  async function onEdit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const patch: Record<string, unknown> = { display_name: f.get("display_name"), department: f.get("department"), log_id: f.get("log_id") };
-    if (!fixed) patch.role = f.get("role");
+    if (!fixed) {
+      const role = f.get("role") as Role;
+      // 역할이 바뀔 때만 묻습니다 — 저장하면 권한이 바로 오르내려서. 이름 · 부서만 고칠 때는 묻지 않습니다.
+      if (role !== u.role && !(await ask({
+        title: "역할 바꾸기", confirm: "바꾸기", danger: true,
+        message: `${u.display_name} (${u.login_id})의 역할을 바꿉니다: ${ROLE_LABEL[u.role]} → ${ROLE_LABEL[role]}. 저장하면 바로 그 역할의 메뉴와 권한이 적용됩니다.`,
+      }))) return;
+      patch.role = role;
+    }
     action.mutate({ id: u.id, patch });
   }
-  // 활성 · 정지는 저장과 따로 바로 적용합니다. 바꾸기 전에 한 번 묻습니다.
+  // 활성 · 정지는 저장과 따로 바로 적용합니다. 정지할 때만 묻습니다 — 로그인이 막히고 세션이 끊겨서. 활성은 해가 없어 묻지 않습니다.
   async function onToggle(on: boolean) {
-    const who = `${u.display_name} (${u.login_id}) 계정을`;
-    const ok = await ask(on
-      ? { title: "계정 활성", confirm: "활성으로", message: `${who} 다시 활성으로 바꿉니다. 로그인할 수 있게 됩니다.` }
-      : { title: "계정 정지", confirm: "정지", danger: true, message: `${who} 정지합니다. 로그인이 막히고, 지금 로그인한 세션도 바로 끊깁니다.` });
-    if (ok) action.mutate({ id: u.id, patch: { is_active: on }, done: on ? "✓ 활성으로 바꿨습니다" : "✓ 정지했습니다" });
+    if (!on && !(await ask({
+      title: "계정 정지", confirm: "정지", danger: true,
+      message: `${u.display_name} (${u.login_id}) 계정을 정지합니다. 로그인이 막히고, 지금 로그인한 세션도 바로 끊깁니다.`,
+    }))) return;
+    action.mutate({ id: u.id, patch: { is_active: on }, done: on ? "✓ 활성으로 바꿨습니다" : "✓ 정지했습니다" });
   }
-  function onReset(e: FormEvent<HTMLFormElement>) {
+  // 비밀번호 초기화 — 다른 사람의 비밀번호가 바로 바뀌어 한 번 묻습니다.
+  async function onReset(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    action.mutate({ id: u.id, temporary_password: String(new FormData(e.currentTarget).get("temporary_password")) });
+    const temporary_password = String(new FormData(e.currentTarget).get("temporary_password"));
+    if (!(await ask({
+      title: "비밀번호 초기화", confirm: "초기화", danger: true,
+      message: `${u.display_name} (${u.login_id})의 비밀번호를 지금 적은 임시 비밀번호로 바꿉니다. 그 사람은 다음 로그인 때 비밀번호를 새로 정해야 합니다.`,
+    }))) return;
+    action.mutate({ id: u.id, temporary_password });
   }
 
   return (

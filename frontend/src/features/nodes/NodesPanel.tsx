@@ -73,11 +73,14 @@ function NodePanel({ n }: { n: NodeRow }) {
   const action = useNodeAction();
   const [cls, label, tip] = nodeState(n);
 
+  // 감시가 멈추는 끄기 · 수집이 끊기는 키 다시 발급만 묻습니다 (켜기 · 처음 키 발급은 해가 없어 묻지 않음).
   const act = async (a: NodeAct) => {
-    if (a === "key" && !(await ask({
-      title: "키 다시 발급", confirm: "다시 발급", danger: true,
-      message: `${n.name} 의 키를 새로 발급합니다. 지금 키는 바로 못 쓰게 되어, 그 서버의 node.conf 를 새 키로 바꿔야 다시 보냅니다.`,
-    }))) return;
+    const q = a === "off"
+      ? { title: "노드 끄기", confirm: "끄기", danger: true, message: `${n.name} 노드를 끕니다. 이 서버가 보내는 수집을 받지 않고 주기 점검에서도 빠져, 이 서버의 감시가 멈춥니다.` }
+      : a === "key" && n.key_issued
+        ? { title: "키 다시 발급", confirm: "다시 발급", danger: true, message: `${n.name} 의 키를 새로 발급합니다. 지금 키는 바로 못 쓰게 되어, 그 서버의 node.conf 를 새 키로 바꿔야 다시 보냅니다.` }
+        : null;
+    if (q && !(await ask(q))) return;
     action.mutate({ name: n.name, action: a });
   };
 

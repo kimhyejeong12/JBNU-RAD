@@ -62,13 +62,13 @@ function EditAccess({ a }: { a: AccessItem }) {
     const f = new FormData(e.currentTarget);
     update.mutate({ code: a.code, patch: { name: f.get("name"), system: f.get("system"), category: f.get("category"), description: f.get("description") } });
   }
-  // 켜고 끄기는 저장과 따로 바로 적용합니다. 바꾸기 전에 한 번 묻습니다.
+  // 켜고 끄기는 저장과 따로 바로 적용합니다. 끌 때만 묻습니다 — 새 신청이 바로 막혀서. 켜기는 해가 없고 되돌리기 쉬워 묻지 않습니다.
   async function onToggle(on: boolean) {
-    const what = `${a.name} (${a.code}) 권한을`;
-    const ok = await ask(on
-      ? { title: "권한 켜기", confirm: "켜기", message: `${what} 켭니다. 일반 사용자가 다시 신청할 수 있습니다.` }
-      : { title: "권한 끄기", confirm: "끄기", danger: true, message: `${what} 끕니다. 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로입니다.` });
-    if (ok) update.mutate({ code: a.code, patch: { is_active: on }, done: on ? "✓ 켰습니다" : "✓ 껐습니다" });
+    if (!on && !(await ask({
+      title: "권한 끄기", confirm: "끄기", danger: true,
+      message: `${a.name} (${a.code}) 권한을 끕니다. 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로입니다.`,
+    }))) return;
+    update.mutate({ code: a.code, patch: { is_active: on }, done: on ? "✓ 켰습니다" : "✓ 껐습니다" });
   }
 
   return (
