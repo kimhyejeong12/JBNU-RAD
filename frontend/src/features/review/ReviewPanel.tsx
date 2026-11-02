@@ -14,7 +14,7 @@ import { KvTable, LevelDot, Section } from "@/shared/ui/base/parts";
 import { ModuleChanges, ModuleTables } from "@/shared/ui/server/ModuleTables";
 import { cn } from "@/shared/lib/cn";
 import {
-  box, boxPre, input, kvTable, kvTd, kvTh, levelText, meta, note, panelBody, panelFoot, panelFootTitle, recLine, subject, toolButton,
+  box, boxPre, input, kvTable, kvTd, kvTh, levelText, note, panelBody, panelFoot, panelFootTitle, recLine, subject, toolButton,
 } from "@/shared/ui/base/styles";
 
 // 정책 문제 · 서버 점검 · 로그 감시 판정의 근거와 운영자 결정.
@@ -32,8 +32,6 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
       <div className={panelBody}>
         <p className={subject}>{title}</p>
         <div className={cn(recLine, it.level && levelText[it.level])}><Icon name={(it.level && LEVEL_ICON[it.level]) || "warn"} className="size-5" />{it.level}</div>
-        {/* 번호가 제목과 같으면(서버 점검의 노드 이름) 두 번 쓰지 않습니다. */}
-        {it.id && it.id !== title && it.id !== it.who && <div className={meta}>{it.id}</div>}
 
         {/* 결론(판단 · 권고 · 근거)을 먼저, 판정에 쓴 원자료(로그 · 모듈 상태 · 정책 원본)는 그 아래 — 원자료가 길어 결론이 밀려나지 않게. */}
         {gapped && it.type === "server" ? <GapSections itemKey={it.key} f={it.raw} /> : (
