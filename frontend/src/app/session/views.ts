@@ -47,7 +47,7 @@ export const ROLE_VIEWS: Record<Role, View[]> = {
   top: ["requests", "policies", "events", "stats", "qa", "access", "users", "docs"],
 };
 // 관리 — 매일 처리하는 일이 아니라 시스템 설정이라 사이드바에는 [관리] 하나로 두고, 들어가면 탭 줄로 셋을 오갑니다.
-export const ADMIN_VIEWS: readonly View[] = ["access", "users", "docs"];
+const ADMIN_VIEWS: readonly View[] = ["access", "users", "docs"];
 export const isAdminView = (v: View | null): boolean => v !== null && ADMIN_VIEWS.includes(v);
 export const RESULT_VIEWS: ReadonlySet<View> = new Set<View>(["policies", "events"]);
 export const LEVEL_VIEWS: ReadonlySet<View> = new Set<View>(["requests", "policies", "events"]);
