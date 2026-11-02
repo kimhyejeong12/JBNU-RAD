@@ -4,7 +4,7 @@ import { VIEWS, isAdminView, navGroups } from "@/app/session/views";
 import { useUi } from "@/app/ui/state/UiContext";
 import { Icon } from "@/shared/ui/base/Icon";
 import { useQueue } from "@/app/queue/useQueue";
-import { viewCounts } from "@/app/queue/select";
+import { todoCounts } from "@/app/queue/select";
 import { cn } from "@/shared/lib/cn";
 
 // 접은 메뉴 버튼(아이콘만) · 펼친 메뉴 줄(아이콘 + 이름 + 건수) — 지금 메뉴는 빨간 바탕, 나머지는 hover 때 회색 바탕.
@@ -42,7 +42,7 @@ export function Sidebar({ wide, onToggle }: { wide: boolean; onToggle: () => voi
               : i > 0 && <span className="mx-auto my-1 h-px w-6 bg-line" aria-hidden="true" />}
             {list.map((v) => item(v, VIEWS[v].icon, VIEWS[v].label, {
               view: v, current: ui.view === v, count: counts[v], onClick: () => navigate(v),
-              tip: v in counts ? `${VIEWS[v].tip} ${counts[v]}건` : VIEWS[v].tip,
+              tip: counts[v] ? `${VIEWS[v].tip}|처리할 일 ${counts[v]}건` : VIEWS[v].tip,
             }))}
           </Fragment>
         ))}
@@ -72,7 +72,7 @@ export function Seg() {
     <div className="hidden self-start rounded-lg bg-canvas p-0.75 narrow:flex" role="tablist" id="seg" aria-label="메뉴" hidden={views.length < 2}>
       {views.filter((v) => !(top && isAdminView(v))).map((v) => (
         <button key={v} role="tab" aria-selected={ui.view === v} onClick={() => navigate(v)} className={SEG}>
-          {VIEWS[v].label}{" "}<span data-count={v}>{counts[v] ?? ""}</span>
+          {VIEWS[v].label}{" "}<span data-count={v}>{counts[v] || ""}</span>
         </button>
       ))}
       {top && <button role="tab" aria-selected={isAdminView(ui.view)} onClick={openAdmin} className={SEG}>관리</button>}
@@ -82,9 +82,7 @@ export function Seg() {
 
 const SEG = "rounded-md border-none bg-transparent px-3 py-1.25 text-[12.5px] font-semibold text-ink-dim aria-selected:bg-surface aria-selected:text-ink aria-selected:shadow-[0_1px_2px_rgba(0,0,0,.08)]";
 
-// 메뉴별 건수 — 사이드바와 좁은 화면의 세그먼트가 같이 씁니다.
+// 메뉴별 할 일 수 — 사이드바와 좁은 화면의 세그먼트가 같이 씁니다 (기준은 select.ts todoCounts).
 function useViewCounts(): Record<string, number> {
-  const me = useMe();
-  const { ui } = useUi();
-  return viewCounts(useQueue(), useViews(), ui.stageFilter, me.role);
+  return todoCounts(useQueue(), useViews(), useMe().role);
 }

@@ -34,11 +34,20 @@ export function openRisks(items: QueueItem[], role: Role): QueueItem[] {
     it.type === "req" ? it.raw.stage === STEP[role] : (it.type === "policy" || it.type === "server" || it.type === "event") && !it.decision));
 }
 
-// 메뉴별 건수 — 질의 메뉴처럼 목록이 없는 메뉴는 건수를 달지 않습니다.
-export function viewCounts(items: readonly QueueItem[], views: View[], stageFilter: StageFilter, role: Role): Record<string, number> {
+// 사이드바 숫자 = 그 메뉴에서 내가 처리할 일 — 고른 탭 · 거르기와 상관없이 늘 같은 기준 (메일의 안 읽은 수처럼).
+// 권한 신청은 내 단계에서 결재를 기다리는 신청, 정책 관리 · 로그 감시는 아직 결정하지 않은 주의 · 위험(1차 판정은 결정할 수 없어 뺌).
+// 통계 · 질의 · 기준 문서 · 관리는 할 일이 아니라 숫자를 달지 않습니다. 0이면 사이드바가 숫자를 숨깁니다.
+const TODO: Partial<Record<View, (it: QueueItem, role: Role) => boolean>> = {
+  requests: (it, role) => it.type === "req" && it.raw.stage === STEP[role],
+  policies: (it) => (it.type === "policy" || it.type === "server") && (it.level === "주의" || it.level === "위험") && !it.decision,
+  events: (it) => it.type === "event" && (it.level === "주의" || it.level === "위험") && !it.decision && it.raw.stage !== "fast",
+};
+
+export function todoCounts(items: readonly QueueItem[], views: View[], role: Role): Record<string, number> {
   const n: Record<string, number> = {};
   for (const v of views) {
-    if (VIEWS[v].tabs.includes("queue")) n[v] = items.filter((it) => inView(it, v, stageFilter, role)).length;
+    const todo = TODO[v];
+    if (todo) n[v] = items.filter((it) => todo(it, role)).length;
   }
   return n;
 }

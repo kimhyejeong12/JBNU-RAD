@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { QueueItem } from "./types";
-import { firstKeyInView, inView, levelCounts, openRisks, stageCounts, viewCounts, visible, emptyText } from "./select";
+import { firstKeyInView, inView, levelCounts, openRisks, stageCounts, todoCounts, visible, emptyText } from "./select";
 import type { Jobs } from "@/shared/api/types";
 
 const item = (p: Record<string, unknown>): QueueItem =>
@@ -45,9 +45,11 @@ test("openRisks: 내가 결재할 위험 신청 + 결정하지 않은 위험 판
   expect(openRisks(items, "user")).toEqual([]);
 });
 
-test("viewCounts: 메뉴별 건수, 입력은 바꾸지 않는다", () => {
-  const frozen = Object.freeze([...items]);
-  expect(viewCounts(frozen, ["requests", "policies", "events", "qa"], "all", "manager")).toEqual({ requests: 2, policies: 2, events: 1 });
+test("todoCounts: 사이드바 숫자는 할 일 — 내 단계 결재 대기 · 결정 안 한 주의 이상(1차 판정 제외), 탭과 상관없이, 입력은 바꾸지 않는다", () => {
+  const evtFast = item({ type: "event", key: "event:f", level: "위험", raw: { stage: "fast" } });
+  const frozen = Object.freeze([...items, evtFast]);
+  expect(todoCounts(frozen, ["requests", "policies", "events", "qa", "docs"], "manager")).toEqual({ requests: 1, policies: 1, events: 1 });
+  expect(todoCounts(frozen, ["requests", "policies", "events"], "top").requests).toBe(0);
 });
 
 test("firstKeyInView", () => {
