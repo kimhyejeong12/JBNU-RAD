@@ -71,3 +71,21 @@ export function History({ steps }: { steps: HistoryStep[] }) {
     </div>
   );
 }
+
+// 켜기 · 끄기 — 누르면 바로 적용합니다(저장 버튼과 따로). 보이는 값은 서버 값이라, 확인 창에서 취소하면 그대로 남습니다.
+// 켜면 검은 바탕(빨강은 위험 표시에만 씁니다). 이름은 지금 상태, 아래 흐린 글자는 바꾸면 어떻게 되는지.
+export function Switch({ checked, disabled, label, hint, onChange, className }: {
+  checked: boolean; disabled?: boolean; label: string; hint: string; onChange: (next: boolean) => void; className?: string;
+}) {
+  return (
+    <label className={cn("flex items-start gap-2.5 text-[13px]", disabled ? "cursor-not-allowed" : "cursor-pointer", className)}>
+      <input className="peer sr-only" type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <span aria-hidden="true"
+        className="relative mt-px h-5 w-9 shrink-0 rounded-full bg-line transition-colors after:absolute after:top-0.5 after:left-0.5 after:size-4 after:rounded-full after:bg-surface after:shadow-[0_1px_2px_rgba(0,0,0,.2)] after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-4 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink peer-disabled:opacity-40" />
+      <span className="flex flex-col gap-0.5 text-ink peer-disabled:text-ink-dim">
+        <span className="font-semibold">{label}</span>
+        <span className="text-[12px] text-ink-dim">{hint}</span>
+      </span>
+    </label>
+  );
+}

@@ -8,11 +8,11 @@ import type { Role, UserRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { ROLE_LABEL } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
-import { actionButton, checkbox, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+import { Switch } from "@/shared/ui/base/parts";
 
-// 두 칸을 다 쓰는 칸 · 체크 칸(글자 옆에 상자) · 버튼 줄.
+// 두 칸을 다 쓰는 칸 · 버튼 줄.
 const WIDE_FIELD = cn(field, "col-span-full");
-const CHECK_FIELD = cn(field, "col-span-full flex-row items-center gap-2 text-ink");
 const WIDE_ACTIONS = cn(formActions, "col-span-full");
 
 const RoleSelect = ({ value, disabled }: { value: Role; disabled?: boolean }) => (
@@ -64,11 +64,15 @@ function EditUser({ u }: { u: UserRow }) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const patch: Record<string, unknown> = { display_name: f.get("display_name"), department: f.get("department"), log_id: f.get("log_id") };
-    if (!fixed) {
-      patch.role = f.get("role");
-      patch.is_active = f.get("is_active") === "on";
-    }
+    if (!fixed) patch.role = f.get("role");
     action.mutate({ id: u.id, patch });
+  }
+  // 활성 · 정지는 저장과 따로 바로 적용합니다. 바꾸기 전에 한 번 묻습니다.
+  function onToggle(on: boolean) {
+    const who = `${u.display_name} (${u.login_id}) 계정을`;
+    const ask = on ? `${who} 다시 활성으로 바꿉니다. 로그인할 수 있게 됩니다. 계속할까요?`
+      : `${who} 정지합니다. 로그인이 막히고, 지금 로그인한 세션도 바로 끊깁니다. 계속할까요?`;
+    if (confirm(ask)) action.mutate({ id: u.id, patch: { is_active: on }, done: on ? "✓ 활성으로 바꿨습니다" : "✓ 정지했습니다" });
   }
   function onReset(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -83,12 +87,13 @@ function EditUser({ u }: { u: UserRow }) {
         <div className={meta}>{ROLE_LABEL[u.role]}{u.is_root ? " · 루트" : ""} · 만든 날 {stamp(u.created_at)}{u.last_login_at ? ` · 마지막 로그인 ${stamp(u.last_login_at)}` : ""}</div>
         {!locked && (
           <>
+            <Switch className="mt-3.5" checked={u.is_active} disabled={fixed || action.isPending} onChange={onToggle}
+              label={u.is_active ? "활성" : "정지"} hint={u.is_active ? "로그인할 수 있습니다. 끄면 정지 · 세션 끊김" : "로그인할 수 없습니다. 켜면 다시 로그인할 수 있습니다"} />
             <form key={`edit:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-edit" onSubmit={onEdit}>
               <label className={field}>이름<input className={input} name="display_name" defaultValue={u.display_name} maxLength={100} /></label>
               <label className={field}>부서<input className={input} name="department" defaultValue={u.department ?? ""} maxLength={100} /></label>
               <label className={field}>역할<RoleSelect value={u.role} disabled={fixed} /></label>
               <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="보안 솔루션 로그의 UserID" /></label>
-              <label className={CHECK_FIELD}><input className={checkbox} type="checkbox" name="is_active" defaultChecked={u.is_active} disabled={fixed} />활성 (끄면 정지 · 세션 끊김)</label>
               <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
             </form>
             <form key={`reset:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-reset" onSubmit={onReset}>

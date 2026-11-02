@@ -8,11 +8,11 @@ import type { AccessItem } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { isActive } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
-import { actionButton, checkbox, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+import { Switch } from "@/shared/ui/base/parts";
 
-// 두 칸을 다 쓰는 칸 · 체크 칸(글자 옆에 상자) · 버튼 줄.
+// 두 칸을 다 쓰는 칸 · 버튼 줄.
 const WIDE_FIELD = cn(field, "col-span-full");
-const CHECK_FIELD = cn(field, "col-span-full flex-row items-center gap-2 text-ink");
 const WIDE_ACTIONS = cn(formActions, "col-span-full");
 
 const Fields = ({ v }: { v?: AccessItem }) => (
@@ -58,7 +58,14 @@ function EditAccess({ a }: { a: AccessItem }) {
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    update.mutate({ code: a.code, patch: { name: f.get("name"), system: f.get("system"), category: f.get("category"), description: f.get("description"), is_active: f.get("is_active") === "on" } });
+    update.mutate({ code: a.code, patch: { name: f.get("name"), system: f.get("system"), category: f.get("category"), description: f.get("description") } });
+  }
+  // 켜고 끄기는 저장과 따로 바로 적용합니다. 바꾸기 전에 한 번 묻습니다.
+  function onToggle(on: boolean) {
+    const what = `${a.name} (${a.code}) 권한을`;
+    const ask = on ? `${what} 켭니다. 일반 사용자가 다시 신청할 수 있습니다. 계속할까요?`
+      : `${what} 끕니다. 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로입니다. 계속할까요?`;
+    if (confirm(ask)) update.mutate({ code: a.code, patch: { is_active: on }, done: on ? "✓ 켰습니다" : "✓ 껐습니다" });
   }
 
   return (
@@ -66,10 +73,12 @@ function EditAccess({ a }: { a: AccessItem }) {
       <PanelHead title="권한" />
       <div className={panelBody}>
         <p className={subject}>{a.name} ({a.code})</p>
-        <div className={meta}>{a.is_active ? "켜짐 — 일반 사용자가 신청할 수 있습니다" : "꺼짐 — 새로 신청할 수 없습니다"} · 신청 {used.length}건 · 유효 {active}건 · 등록 {stamp(a.created_at)}</div>
+        <div className={meta}>신청 {used.length}건 · 유효 {active}건 · 등록 {stamp(a.created_at)}</div>
+        <Switch className="mt-3.5" checked={a.is_active} disabled={update.isPending} onChange={onToggle}
+          label={a.is_active ? "켜짐" : "꺼짐"}
+          hint={a.is_active ? "일반 사용자가 신청할 수 있습니다. 끄면 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로" : "새로 신청할 수 없습니다. 켜면 다시 신청할 수 있습니다"} />
         <form key={formKey} className={cn(formGrid, "px-0 pt-3 pb-0")} id="access-edit" onSubmit={onSubmit}>
           <Fields v={a} />
-          <label className={CHECK_FIELD}><input className={checkbox} type="checkbox" name="is_active" defaultChecked={a.is_active} />켜짐 (끄면 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로)</label>
           <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
         </form>
       </div>

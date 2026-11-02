@@ -30,8 +30,6 @@ export const select = "h-8 rounded-lg border border-line bg-surface px-2 text-[1
 export const formGrid = "grid grid-cols-[1fr_1fr] gap-x-3.5 gap-y-2.5 px-4.5 pt-1 pb-4 narrow:grid-cols-[1fr]";
 export const field = "flex flex-col gap-1 text-[12.5px] font-semibold text-ink-dim";
 export const input = "w-full rounded-lg border border-line bg-surface px-2.5 py-2 text-[13.5px] font-normal text-ink outline-none font-[inherit] leading-[inherit] focus:border-ink disabled:bg-canvas disabled:text-ink-dim";
-// 체크 상자 — 입력 칸 모양에 브라우저 기본 바깥 여백(3px 3px 3px 4px).
-export const checkbox = `${input} my-0.75 mr-0.75 ml-1`;
 export const formActions = "flex items-center justify-end gap-2";
 export const panelActions = "mt-2 flex gap-2";
 export const actionButton = "h-9 rounded-lg border border-line bg-surface px-4 font-bold";
