@@ -110,11 +110,15 @@ function NodeThreats({ d, selected, onSelect }: Props) {
     <section className={statCard} id="stat-servers">
       <div className={cardHead}><h3 className={cardTitle}>노드별 위협 항목</h3></div>
       {sv.nodes.length ? (
-        <DataTable head={["노드", "마지막 등급", "위험 항목", "주의 항목", "걸린 모듈", "설정이 바뀐 수집"]} empty="" numCols={[2, 3]}
+        <>
+          {/* 패널은 고를 때만 열려, 누를 수 있다는 것을 여기서 알립니다 (줄은 마우스를 올려야 손 모양이 뜸). */}
+          <p className={statSub}>줄을 누르면 오른쪽에 등급 변화 · 걸린 조항이 열립니다.</p>
+          <DataTable head={["노드", "마지막 등급", "위험 항목", "주의 항목", "걸린 모듈", "설정이 바뀐 수집"]} empty="" numCols={[2, 3]}
           rows={sv.nodes.map((n) => ({
             key: n.node, current: selected?.kind === "node" && selected.key === n.node, onSelect: () => onSelect("node", n.node),
             cells: [n.node, n.level || "판정 없음", n.threats["위험"], n.threats["주의"], modulesOf(n.node), <span key="c" className="tabular-nums">{n.changed} / {n.collected}</span>],
           }))} />
+        </>
       ) : <p className={statSub}>이 기간 서버 점검 결과가 없습니다.</p>}
     </section>
   );

@@ -56,7 +56,7 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
           <Icon name="activity" small />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
         </button>
       </div>
-      <p className={statSub}>앞으로 보안 위협이 될 가능성(0~100, 높음 70 이상 · 보통 40~69 · 낮음 40 미만)입니다. 먼저 살펴볼 사람을 고르는 예측이고, 결정은 사람이 합니다.</p>
+      <p className={statSub}>앞으로 보안 위협이 될 가능성(0~100, 높음 70 이상 · 보통 40~69 · 낮음 40 미만)으로, 먼저 살펴볼 사람을 고르는 예측입니다. 줄을 누르면 오른쪽에 예측 이유 · 확인할 점 · 가진 권한이 열립니다.</p>
       {sus.length ? (
         <DataTable head={["사용자", "의심 점수", "로그 감시 판정", "눈에 띄는 신호", "계정"]} empty=""
           rows={sus.map((p) => ({
