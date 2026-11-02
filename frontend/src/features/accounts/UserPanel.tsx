@@ -8,6 +8,8 @@ import type { Role, UserRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { ROLE_LABEL } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
+import { useUi } from "@/app/ui/state/UiContext";
+import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 import { Switch } from "@/shared/ui/base/parts";
@@ -37,14 +39,17 @@ export function UserPanel({ u }: { u: UserRow | null }) {
 
 function NewUser() {
   const create = useCreateUser();
+  const { setPanelMsg } = useUi();
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const problem = formProblem(e.currentTarget);
+    if (problem) return setPanelMsg(problem);
     create.mutate(Object.fromEntries(new FormData(e.currentTarget)));
   }
   return (
     <>
       <PanelHead title="새 계정" />
-      <form className={cn(panelBody, formGrid, "px-4.5 py-4")} id="user-form" onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+      <form className={cn(panelBody, formGrid, "px-4.5 py-4")} id="user-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <label className={field}>아이디<input className={input} name="login_id" required maxLength={100} autoComplete="off" /></label>
         <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
         <label className={field}>부서<input className={input} name="department" maxLength={100} /></label>
@@ -58,6 +63,7 @@ function NewUser() {
 
 function EditUser({ u }: { u: UserRow }) {
   const me = useMe();
+  const { setPanelMsg } = useUi();
   const action = useUserAction();
   // 저장 뒤 서버 값으로 다시 그리고 초기화 칸을 비웁니다 (폼은 uncontrolled).
   const formKey = `${u.id}:${useQuery(usersQuery()).dataUpdatedAt}`;
@@ -95,6 +101,8 @@ function EditUser({ u }: { u: UserRow }) {
   // 비밀번호 초기화 — 다른 사람의 비밀번호가 바로 바뀌어 한 번 묻습니다.
   async function onReset(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const problem = formProblem(e.currentTarget);
+    if (problem) return setPanelMsg(problem);
     const temporary_password = String(new FormData(e.currentTarget).get("temporary_password"));
     if (!(await ask({
       title: "비밀번호 초기화", confirm: "초기화", danger: true,
@@ -120,7 +128,7 @@ function EditUser({ u }: { u: UserRow }) {
               <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="보안 솔루션 로그의 UserID" /></label>
               <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
             </form>
-            <form key={`reset:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-reset" onKeyDown={noEnterSubmit} onSubmit={onReset}>
+            <form key={`reset:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-reset" noValidate onKeyDown={noEnterSubmit} onSubmit={onReset}>
               <label className={WIDE_FIELD}>비밀번호 초기화 — 임시 비밀번호<input className={input} name="temporary_password" type="password" required autoComplete="new-password" /></label>
               <div className={WIDE_ACTIONS}><button type="submit" className={actionButton}>초기화</button></div>
             </form>

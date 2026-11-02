@@ -3,6 +3,7 @@ import { type GateMode, useAuth } from "./AuthContext";
 import { login, changePassword } from "./api";
 import { errorText } from "@/shared/api/http";
 import { cn } from "@/shared/lib/cn";
+import { formProblem } from "@/shared/lib/form";
 import { Icon } from "@/shared/ui/base/Icon";
 import { actionButton, field, formActions, formMsg, input, note, primaryButton } from "@/shared/ui/base/styles";
 import { forgetPages } from "@/app/session/lastPage";
@@ -25,6 +26,8 @@ function LoginForm() {
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMsg("");
+    const problem = formProblem(e.currentTarget);
+    if (problem) return setMsg(problem);
     const f = new FormData(e.currentTarget);
     try {
       await login(String(f.get("login_id")), String(f.get("password")));
@@ -37,7 +40,7 @@ function LoginForm() {
   }
 
   return (
-    <form className={CARD} id="login-form" autoComplete="on" onSubmit={onSubmit}>
+    <form className={CARD} id="login-form" autoComplete="on" noValidate onSubmit={onSubmit}>
       <div className="flex items-center gap-2.25 text-[20px] font-extrabold"><Icon name="shield" className="size-6.5 stroke-risk stroke-[2.2]" />SentinelAI</div>
       <label className={field}>아이디<input className={input} name="login_id" autoComplete="username" required autoFocus /></label>
       <label className={field}>비밀번호<input className={input} ref={password} name="password" type="password" autoComplete="current-password" required /></label>
@@ -54,6 +57,8 @@ function PasswordForm({ forced }: { forced: boolean }) {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const problem = formProblem(e.currentTarget);
+    if (problem) return setMsg(problem);
     const f = new FormData(e.currentTarget);
     const next = String(f.get("new"));
     if (next !== String(f.get("confirm"))) {
@@ -69,7 +74,7 @@ function PasswordForm({ forced }: { forced: boolean }) {
   }
 
   return (
-    <form className={CARD} id="pw-form" onSubmit={onSubmit}>
+    <form className={CARD} id="pw-form" noValidate onSubmit={onSubmit}>
       <h3 id="pw-title" className="m-0 text-[17px] font-bold">{forced ? "처음 로그인했습니다" : "비밀번호 변경"}</h3>
       <p className={note} id="pw-note">
         {forced ? "계속하려면 비밀번호를 바꾸세요. 루트가 준 임시 비밀번호는 더 쓸 수 없습니다." : "바꾸면 다른 곳에 로그인된 세션은 끊깁니다."}

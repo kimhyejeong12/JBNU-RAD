@@ -22,6 +22,15 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
+    // 버튼을 꺼 두지 않고, 누르면 빠진 것을 알리고 그 칸으로 커서를 옮깁니다.
+    if (!o.value) {
+      form.querySelector<HTMLButtonElement>('[role="radio"]:not(:disabled)')?.focus();
+      return setMsg({ text: "신청할 권한을 고르세요", ok: false });
+    }
+    if (!reason.trim()) {
+      form.querySelector<HTMLInputElement>('input[name="reason"]')?.focus();
+      return setMsg({ text: "신청 사유를 입력하세요", ok: false });
+    }
     create.mutate(Object.fromEntries(new FormData(form)), {
       onSuccess: (made) => {
         form.reset();
@@ -36,7 +45,7 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
   return (
     <section className={card} id="req-form" hidden={hidden}>
       <h3 className="m-0 px-4.5 pt-4 pb-2 text-[15.5px] font-bold">권한 신청</h3>
-      <form id="new-request" className={formGrid} onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+      <form id="new-request" className={formGrid} noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <div className={cn(field, "col-span-full")}>
           <span>신청할 권한 <b className="text-risk">*</b></span>
           <AccessPicker o={o} onPick={setCode} />
@@ -50,7 +59,7 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
         <div className="col-span-full flex flex-wrap items-end gap-3">
           <label className={cn(field, "w-40")}>사용 시작일<input className={input} type="date" name="period_start" /></label>
           <label className={cn(field, "w-40")}>사용 종료일<input className={input} type="date" name="period_end" /></label>
-          <button type="submit" className={cn(actionButton, primaryButton)} disabled={!o.value || !reason.trim() || create.isPending}>신청</button>
+          <button type="submit" className={cn(actionButton, primaryButton)} disabled={create.isPending}>신청</button>
         </div>
         {msg.text && <p className={cn(msg.ok ? formMsgOk : formMsg, "col-span-full m-0")} id="req-form-msg">{msg.text}</p>}
       </form>

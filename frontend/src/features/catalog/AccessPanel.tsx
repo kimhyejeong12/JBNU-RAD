@@ -8,6 +8,8 @@ import type { AccessItem } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { isActive } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
+import { useUi } from "@/app/ui/state/UiContext";
+import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 import { Switch } from "@/shared/ui/base/parts";
@@ -33,15 +35,18 @@ export function AccessPanel({ a }: { a: AccessItem | null }) {
 
 function NewAccess() {
   const create = useCreateAccess();
+  const { setPanelMsg } = useUi();
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const problem = formProblem(e.currentTarget);
+    if (problem) return setPanelMsg(problem);
     create.mutate(Object.fromEntries(new FormData(e.currentTarget)));
   }
   return (
     <>
       <PanelHead title="권한 등록" />
-      <form className={cn(panelBody, formGrid, "px-4.5 py-4")} id="access-form" onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
-        <label className={field}>코드 (바꿀 수 없음)<input className={input} name="code" required maxLength={64} pattern="[A-Za-z0-9_.\-]+" autoComplete="off" placeholder="예: HR_SALARY_READ" /></label>
+      <form className={cn(panelBody, formGrid, "px-4.5 py-4")} id="access-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+        <label className={field}>코드 (바꿀 수 없음)<input className={input} name="code" required maxLength={64} pattern="[A-Za-z0-9_.\-]+" title="영문 · 숫자 · _ . - 만" autoComplete="off" placeholder="예: HR_SALARY_READ" /></label>
         <Fields />
         <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>등록</button></div>
       </form>
@@ -51,6 +56,7 @@ function NewAccess() {
 
 function EditAccess({ a }: { a: AccessItem }) {
   const update = useUpdateAccess();
+  const { setPanelMsg } = useUi();
   const requests = useRequests();
   // 저장 뒤 서버 값으로 다시 그립니다 (폼은 uncontrolled).
   const formKey = `${a.code}:${useQuery(catalogQuery()).dataUpdatedAt}`;
@@ -59,6 +65,8 @@ function EditAccess({ a }: { a: AccessItem }) {
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const problem = formProblem(e.currentTarget);
+    if (problem) return setPanelMsg(problem);
     const f = new FormData(e.currentTarget);
     update.mutate({ code: a.code, patch: { name: f.get("name"), system: f.get("system"), category: f.get("category"), description: f.get("description") } });
   }
@@ -80,7 +88,7 @@ function EditAccess({ a }: { a: AccessItem }) {
         <Switch className="mt-3.5" checked={a.is_active} disabled={update.isPending} onChange={onToggle}
           label={a.is_active ? "켜짐" : "꺼짐"}
           hint={a.is_active ? "일반 사용자가 신청할 수 있습니다. 끄면 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로" : "새로 신청할 수 없습니다. 켜면 다시 신청할 수 있습니다"} />
-        <form key={formKey} className={cn(formGrid, "px-0 pt-3 pb-0")} id="access-edit" onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+        <form key={formKey} className={cn(formGrid, "px-0 pt-3 pb-0")} id="access-edit" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
           <Fields v={a} />
           <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
         </form>

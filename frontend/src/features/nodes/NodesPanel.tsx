@@ -14,6 +14,7 @@ import { Icon } from "@/shared/ui/base/Icon";
 import { KvTable, LevelDot, Section } from "@/shared/ui/base/parts";
 import { ModuleTables } from "@/shared/ui/server/ModuleTables";
 import { cn } from "@/shared/lib/cn";
+import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import {
   actionButton, box, empty, field, formActions, formGrid, formMsg, input, meta, note, panelBody, primaryButton, recLine, subject, toolButton,
@@ -33,16 +34,19 @@ export function NodesPanel() {
 
 function AddNodePanel() {
   const create = useCreateNode();
+  const { setPanelMsg } = useUi();
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const problem = formProblem(e.currentTarget);
+    if (problem) return setPanelMsg(problem);
     create.mutate(String(new FormData(e.currentTarget).get("name") ?? "").trim());
   }
   return (
     <>
       <PanelHead title="노드 등록" />
       <div className={panelBody}>
-        <form id="node-form" className={formGrid} onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
-          <label className={cn(field, "col-span-full")}><span>노드 이름 <b className="text-risk">*</b></span><input className={input} id="node-name" name="name" required maxLength={64} pattern="[A-Za-z0-9._\-]+" placeholder="예: cust-db01" autoFocus /></label>
+        <form id="node-form" className={formGrid} noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+          <label className={cn(field, "col-span-full")}><span>노드 이름 <b className="text-risk">*</b></span><input className={input} id="node-name" name="name" required maxLength={64} pattern="[A-Za-z0-9._\-]+" title="영문 · 숫자 · . _ - 만" placeholder="예: cust-db01" autoFocus /></label>
           <div className={cn(formActions, "col-span-full")}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>등록하고 키 발급</button></div>
         </form>
         <p className={note}>서버 하나에 노드 하나. 이름은 영문 · 숫자 · . _ - 로 짓습니다.</p>

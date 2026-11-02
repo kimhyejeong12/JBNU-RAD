@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type FormEvent } from "react";
+import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { ASK } from "./config";
 import { Evidence } from "./Evidence";
 import { askMode, askWaitLabel } from "./lib";
@@ -6,7 +6,7 @@ import { useAsk } from "./useAsk";
 import { useUi } from "@/app/ui/state/UiContext";
 import { useNow } from "@/shared/lib/hooks";
 import { cn } from "@/shared/lib/cn";
-import { box, card, empty } from "@/shared/ui/base/styles";
+import { box, card, empty, note } from "@/shared/ui/base/styles";
 
 // 답 상자는 줄바꿈을 지킵니다. 기다리는 동안은 회색, 실패는 주의 색.
 const ANSWER = cn(box, "whitespace-pre-wrap");
@@ -25,6 +25,7 @@ export function AskTab() {
   const now = useNow(1000, busy);
   const log = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
+  const [hint, setHint] = useState("");   // 빈 질문을 보내려 하면 안내
 
   // 새 질의가 붙거나 답이 오면 맨 아래로
   useLayoutEffect(() => {
@@ -42,7 +43,12 @@ export function AskTab() {
   function submit(e: FormEvent) {
     e.preventDefault();
     const el = input.current;
-    if (el && ask(el.value)) el.value = "";
+    if (!el) return;
+    if (!el.value.trim()) {
+      el.focus();
+      return setHint("질문을 입력하세요");
+    }
+    if (ask(el.value)) el.value = "";
   }
 
   return (
@@ -66,9 +72,10 @@ export function AskTab() {
           {cfg.examples.map((q) => <button type="button" key={q} className={EXAMPLE} disabled={busy} onClick={() => ask(q)}>{q}</button>)}
         </div>
         <form className="flex gap-2" id="ask-form" onSubmit={submit}>
-          <input id="ask-input" className="h-10 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-0 text-[14px] text-ink outline-none font-[inherit] [font-weight:inherit] leading-[inherit] focus:border-ink" ref={input} type="text" maxLength={500} autoComplete="off" aria-label="질문" placeholder={cfg.placeholder} autoFocus />
+          <input id="ask-input" className="h-10 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-0 text-[14px] text-ink outline-none font-[inherit] [font-weight:inherit] leading-[inherit] focus:border-ink" ref={input} type="text" maxLength={500} autoComplete="off" aria-label="질문" placeholder={cfg.placeholder} autoFocus onInput={() => setHint("")} />
           <button type="submit" className="h-10 flex-none rounded-lg border-0 bg-ink px-5 py-0 font-bold text-white disabled:cursor-progress disabled:bg-canvas disabled:text-ink-dim" id="ask-send" disabled={busy}>질의</button>
         </form>
+        {hint && <p className={cn(note, "m-0 text-risk")}>{hint}</p>}
       </div>
     </section>
   );
