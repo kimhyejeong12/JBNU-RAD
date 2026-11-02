@@ -1,20 +1,18 @@
-import { useState } from "react";
-import { SUSPECT_COLOR, statCard, statChart, statSafety, statSub, statTiles, trendMark, verdictsText } from "./lib";
+import { SUSPECT_COLOR, statCard, statSafety, statSub, statTiles, trendMark, verdictsText } from "./lib";
 import { SafetyBand } from "./SafetyBand";
 import { Tile } from "./Tile";
 import type { StatSelection } from "@/app/ui/state/uiReducer";
 import { useStartJob } from "@/shared/api/jobs";
-import type { Jobs, SuspectLevel, UserStats } from "@/shared/api/types";
+import type { Jobs, Suspect, SuspectLevel, UserStats } from "@/shared/api/types";
 import { pct, stamp } from "@/shared/lib/format";
-import { HBars } from "@/shared/ui/charts/HBars";
-import { DataTable, Legend, Meter, ViewSwitch } from "@/shared/ui/charts/parts";
+import { DataTable, Meter } from "@/shared/ui/charts/parts";
 import { Icon } from "@/shared/ui/base/Icon";
-import { cardCount, cardHead, cardTitle, toolButton } from "@/shared/ui/base/styles";
+import { cardCount, cardHead, cardTitle, markTone, toolButton } from "@/shared/ui/base/styles";
 import { cn } from "@/shared/lib/cn";
 
 interface Props { d: UserStats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
 
-// 사용자 위협의 머리 — 사용자 안전 점수와 타일 넷. 사람마다 로그 감시 판정 수는 의심 점수 막대에 함께 둡니다.
+// 사용자 위협의 머리 — 지금의 사용자 안전 점수와 기간 안 타일 셋. "위협 예측 높음" 타일은 안전 점수 옆 이름 묶음과 같아 뺐습니다 (11/2).
 export function UserHead({ d, onSelect }: Props) {
   const ev = d.events;
   const rq = d.requests;
@@ -26,12 +24,11 @@ export function UserHead({ d, onSelect }: Props) {
   return (
     <>
       <div className={statSafety} id="stat-safety">
-        <SafetyBand label="사용자 안전 점수" safety={d.safety} onSelect={onSelect}
+        <SafetyBand label="사용자 안전 점수 · 지금" safety={d.safety} onSelect={onSelect}
           groups={[["의심 높음", susGroup("높음"), "suspect", "위험"], ["의심 보통", susGroup("보통"), "suspect", "주의"]]} />
       </div>
       <div className={statTiles} id="stat-tiles">
-        <Tile label="위협 사용자" big={`${ev.users.length}명`} note={`주의 · 위험 판정을 받은 사용자 · 위험 ${ev.users.filter((u) => u["위험"]).length}명`} />
-        <Tile label="위협 예측 높음" big={`${sus.filter((p) => p.level === "높음").length}명`} note={`의심 점수 70 이상 · 보통 ${sus.filter((p) => p.level === "보통").length}명 · 반복 위협 ${repeat}명`} />
+        <Tile label="위협 사용자" big={`${ev.users.length}명`} note={`주의 · 위험 판정을 받은 사람 · 위험 ${ev.users.filter((u) => u["위험"]).length}명 · 두 번 이상 ${repeat}명`} />
         <Tile label="신청 중 위험 비율" big={pct(ai["위험"] || 0, judged)} note={`위험 ${ai["위험"] || 0} · 주의 ${ai["주의"] || 0} / 판정 ${judged}건`}>
           {judged ? <Meter segs={[["위험", ai["위험"] || 0], ["주의", ai["주의"] || 0], ["정상", ai["정상"] || 0]]} total={judged} /> : null}
         </Tile>
@@ -41,10 +38,10 @@ export function UserHead({ d, onSelect }: Props) {
   );
 }
 
-// 위협 예측 — 행동 신호 · 판정 · 신청 기록으로 판정 모델이 낸 의심 점수 (높은 순, 막대 색은 의심 등급).
+// 위협 예측 — 행동 신호 · 판정 · 신청 기록으로 판정 모델이 낸 의심 점수 (높은 순). 먼저 볼 사람을 고르는 순위 목록이라 표 하나로 둡니다
+// (11/2 — 막대 ⇄ 표였을 때는 판단에 쓰는 신호 · 판정 칸이 [표]를 눌러야 보였음). 의심 점수는 기간과 무관한 마지막 예측입니다.
 export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jobs | null }) {
   const start = useStartJob();
-  const [table, setTable] = useState(false);
   const sus = d.suspects || [];
   const running = jobs?.running === "suspects";
   const latest = sus.map((p) => p.created_at).sort().pop();
@@ -57,30 +54,25 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
         <button className={toolButton} id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
           <Icon name="activity" small />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
         </button>
-        <ViewSwitch id="stat-suspects-view" table={table} onChange={setTable} />
       </div>
-      <p className={statSub}>앞으로 보안 위협이 될 가능성(0~100)입니다. 먼저 살펴볼 사람을 고르는 예측이고, 결정은 사람이 합니다.</p>
-      {!sus.length ? <p className={statSub}>아직 예측이 없습니다. [지금 예측]을 누르세요.</p> : table ? (
-        <DataTable head={["사용자", "계정", "의심 점수", "로그 감시 판정", "눈에 띄는 신호", "예측 시각"]} empty=""
+      <p className={statSub}>앞으로 보안 위협이 될 가능성(0~100, 높음 70 이상 · 보통 40~69 · 낮음 40 미만)입니다. 먼저 살펴볼 사람을 고르는 예측이고, 결정은 사람이 합니다.</p>
+      {sus.length ? (
+        <DataTable head={["사용자", "의심 점수", "로그 감시 판정", "눈에 띄는 신호", "계정"]} empty=""
           rows={sus.map((p) => ({
             key: p.key, current: selected?.kind === "suspect" && selected.key === p.key, onSelect: () => onSelect("suspect", p.key),
-            cells: [p.subject, p.login_id || "계정 미연결", p.failed ? "예측 실패" : <span key="s"><span className="tabular-nums">{p.score}</span> {p.level}</span>,
-              verdictsText(p) || "—", (p.signals.highlights || []).join(" · ") || "—", <span key="t" className="whitespace-nowrap tabular-nums">{stamp(p.created_at)}</span>],
+            cells: [p.subject, p.failed ? "예측 실패" : <ScoreCell key="s" p={p} />, verdictsText(p) || "—", (p.signals.highlights || []).join(" · ") || "—", p.login_id || "계정 미연결"],
           }))} />
-      ) : (
-        <>
-          <div className={statChart}>
-            <HBars max={100} selectedKey={selected?.kind === "suspect" ? selected.key : null} onSelect={(key) => onSelect("suspect", key)}
-              rows={sus.filter((p) => !p.failed).map((p) => ({
-                key: p.key, label: p.subject, segs: [[SUSPECT_COLOR[p.level], p.score]],
-                extra: [...(p.signals.highlights || []).slice(0, 2), p.login_id ? "" : "계정 미연결"].filter(Boolean).join(" · ") || "눈에 띄는 신호 없음",
-              }))}
-              value={(r) => { const p = sus.find((x) => x.key === r.key)!; return [`${p.score}점 · ${p.level}${trendMark(p.trend)}`, verdictsText(p)].filter(Boolean).join(" · "); }} />
-          </div>
-          <Legend items={[["위험", "높음 (70 이상)"], ["주의", "보통 (40~69)"], ["정상", "낮음 (40 미만)"]]} />
-          {sus.some((p) => p.failed) && <p className={statSub}>예측하지 못한 사람: {sus.filter((p) => p.failed).map((p) => p.subject).join(", ")}</p>}
-        </>
-      )}
+      ) : <p className={statSub}>아직 예측이 없습니다. [지금 예측]을 누르세요.</p>}
     </section>
+  );
+}
+
+// 의심 점수 칸 — 작은 막대(0~100, 색은 의심 등급) · 점수 · 등급, 직전보다 10점 넘게 바뀌면 ▲ · ▼.
+function ScoreCell({ p }: { p: Suspect }) {
+  return (
+    <span className="flex items-center gap-2 whitespace-nowrap">
+      <span className="h-1.5 w-14 shrink-0 overflow-hidden rounded-sm bg-canvas"><span className={cn("block h-full", markTone[SUSPECT_COLOR[p.level]])} style={{ width: `${p.score}%` }} /></span>
+      <span><b className="tabular-nums">{p.score}</b> {p.level}{trendMark(p.trend)}</span>
+    </span>
   );
 }

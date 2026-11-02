@@ -23,10 +23,10 @@ export function StatsPanel() {
   const { kind, sys, usr } = useStatsData();
   const sel = ui.stats.selected;
   const d = kind === "stats" ? sys.data : usr.data;
-  if (!d || !sel) return <Body title={STAT_TITLES[kind]} subject="막대 · 줄을 고르세요"><p className={note}>막대를 누르면 자세한 내용이 나옵니다.</p></Body>;
+  if (!d || !sel) return <Body title={STAT_TITLES[kind]} subject="표의 줄 · 이름을 고르세요"><p className={note}>표의 줄이나 안전 점수 옆 이름을 누르면 자세한 내용이 나옵니다.</p></Body>;
   if (sel.kind === "node" && sys.data) return <NodePanel d={sys.data} node={sel.key} />;
   if (sel.kind === "suspect" && usr.data) return <SuspectPanel d={usr.data} suspectKey={sel.key} />;
-  return <Body title={STAT_TITLES[kind]} subject="막대 · 줄을 고르세요"><p className={note}>막대를 누르면 자세한 내용이 나옵니다.</p></Body>;
+  return <Body title={STAT_TITLES[kind]} subject="표의 줄 · 이름을 고르세요"><p className={note}>표의 줄이나 안전 점수 옆 이름을 누르면 자세한 내용이 나옵니다.</p></Body>;
 }
 
 function Body({ title, subject, children }: { title: string; subject: string; children?: ReactNode }) {
