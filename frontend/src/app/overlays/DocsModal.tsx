@@ -8,7 +8,7 @@ export function DocsModal({ open, onClose }: { open: boolean; onClose: () => voi
   return (
     <div id="docs-modal" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className={cn("fixed inset-0 z-40 items-center justify-center bg-[rgba(17,17,17,.4)] p-4", open ? "flex" : "hidden")}>
-      <div className="max-h-[86vh] w-[min(820px,100%)] overflow-auto rounded-xl bg-surface px-5.5 py-5" role="dialog" aria-label="기준 문서 원문">
+      <div className="max-h-[calc(var(--page-h,100vh)*0.86)] w-[min(820px,100%)] overflow-auto rounded-xl bg-surface px-5.5 py-5" role="dialog" aria-label="기준 문서 원문">
         <h3 className="m-0 mb-3 flex items-center text-[16px] font-bold">
           기준 문서 원문 <button id="docs-close" aria-label="닫기" onClick={onClose} className="ml-auto border-none bg-transparent px-1.5 py-px text-[20px] text-ink-dim">×</button>
         </h3>

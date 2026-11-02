@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { placeTip } from "@/shared/lib/tooltip";
+import { pageScale } from "@/app/layout/pageScale";
 
 // 툴팁 — data-tip="제목|설명". 다시 그려져도 동작하도록 document 에 위임하고, 내용은 textContent 로만 넣습니다.
 // 마지막 자식으로 두어 opacity · transform 이 걸린 조상 밑에 들어가지 않게 합니다.
@@ -25,9 +26,12 @@ export function TooltipLayer() {
       desc.style.cssText = body ? "" : "color:#fff;margin:0";
       delete tip.dataset.show;
       const pos = el.dataset.tipPos === "right" ? "right" : "bottom";
-      const { left, top } = placeTip(el.getBoundingClientRect(), pos, tip.offsetWidth, tip.offsetHeight, innerWidth, innerHeight);
-      tip.style.left = `${left}px`;
-      tip.style.top = `${top}px`;
+      // 자리는 화면 좌표(확대된 크기)로 잡고, 확대된 화면 안에 놓으므로 배율로 나눠 넣습니다.
+      const z = pageScale();
+      const size = tip.getBoundingClientRect();
+      const { left, top } = placeTip(el.getBoundingClientRect(), pos, size.width, size.height, innerWidth, innerHeight);
+      tip.style.left = `${left / z}px`;
+      tip.style.top = `${top / z}px`;
       tip.dataset.pos = pos;
       requestAnimationFrame(() => { tip.dataset.show = ""; });
     };

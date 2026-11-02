@@ -158,7 +158,8 @@
   /* 화면 틀 — body 가 그리드(상단 바 · 사이드바 · 작업 공간)라 React 뿌리(#root)는 투명하게 둡니다.
      메뉴가 하나뿐인 일반 사용자는 사이드바 칸이 없고(data-solo), 좁은 화면은 세로로 쌓고 서랍이 열리면 뒤를 스크롤하지 않습니다(data-drawer-open). */
   body {
-    height: 100vh;
+    /* 큰 화면 확대(app/layout/pageScale.ts) 때는 화면 높이 ÷ 배율 — vh 는 확대와 함께 커져 넘쳐서. */
+    height: var(--page-h, 100vh);
     overflow: hidden;
     display: grid;
     grid-template-rows: 56px minmax(0, 1fr);
