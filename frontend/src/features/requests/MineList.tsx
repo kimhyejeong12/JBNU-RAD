@@ -9,6 +9,9 @@ import { cn } from "@/shared/lib/cn";
 import { Periods } from "@/shared/ui/base/parts";
 import { card, empty, formMsg, formMsgOk, linkButton } from "@/shared/ui/base/styles";
 
+// 머리줄과 줄이 같은 칸 — 신청 권한 · 번호 · 신청일 · 상태 · [철회 · 사유 보기]. 좁은 화면은 번호 · 신청일을 숨깁니다 (운영자 목록과 같게).
+const GRID = "grid grid-cols-[minmax(0,1fr)_150px_64px_150px_96px] items-center gap-x-4 px-4.5 narrow:grid-cols-[minmax(0,1fr)_120px_80px]";
+
 // 보기 — 세 묶음과 전체 (결재함 탭 [결재 대기 · 유효 권한 · 전체]와 같은 순서).
 type MineView = MineGroup | "all";
 const GROUPS: [MineView, string][] = [["pending", "결재 중"], ["active", "사용 중"], ["done", "끝난 것"], ["all", "전체"]];
@@ -20,7 +23,7 @@ const EMPTY: Record<MineView, string> = {
 };
 
 // 내 신청 현황 (일반 사용자) — 결재 중 · 사용 중 · 끝난 것으로 나눠 처음에는 결재 중만 보여줍니다 (지난 기록이 섞이면 지금 볼 것이 묻혀서).
-// 줄은 한 줄로 — 권한 이름 · 신청 번호와 날짜 · 상태 · [철회] · [사유 보기] (칸 폭을 맞춰 줄끼리 줄을 맞춤, 좁으면 줄바꿈). 사유는 본인이 쓴 글이라 뺐습니다.
+// 머리줄 아래 줄마다 한 줄 — 신청 권한 · 번호 · 신청일 · 상태 · [철회] · [사유 보기]. 사유는 본인이 쓴 글이라 뺐습니다.
 export function MineList() {
   const mine = useMine();
   const { ui, toggleChip } = useUi();
@@ -41,6 +44,9 @@ export function MineList() {
         </div>
       </div>
       <div className="border-t border-line">
+        <div className={cn(GRID, "h-9.5 border-b border-line text-[12px] font-semibold text-ink-dim")}>
+          <span>신청 권한</span><span className="narrow:hidden">번호</span><span className="narrow:hidden">신청일</span><span>상태</span><span />
+        </div>
         {rows.length
           ? rows.map((r) => <MineRow key={r.request_no} r={r} on={on} open={ui.expanded.has(`note:${r.request_no}`)} onNote={() => toggleChip(`note:${r.request_no}`)} />)
           : <div className={empty}>{EMPTY[group]}</div>}
@@ -53,17 +59,16 @@ export function MineList() {
 function MineRow({ r, on, open, onNote }: { r: RequestRow; on: string; open: boolean; onNote: () => void }) {
   const note = rejectNote(r);
   return (
-    <div className="border-b border-line px-4.5 py-2.5 last:border-b-0">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="min-w-40 flex-1 truncate text-[13.5px] font-semibold">{r.requested_access}</span>
-        <span className="w-44 shrink-0 text-[12px] text-ink-dim tabular-nums">{r.request_no} · {shortDate(r.submitted_at.slice(0, 10), on)}</span>
-        <span className="w-36 shrink-0 text-[12.5px] font-semibold">{mineStatus(r, on)}</span>
-        <span className="flex w-24 shrink-0 justify-end gap-3">
-          <WithdrawButton r={r} />
-          {note && <button type="button" className={linkButton} aria-expanded={open} onClick={onNote}>{open ? "사유 접기" : "사유 보기"}</button>}
-        </span>
-      </div>
-      {note && open && <p className="m-0 mt-1 rounded-lg bg-canvas px-3 py-2 text-[12.5px] whitespace-pre-line text-ink-soft wrap-anywhere">{note}</p>}
+    <div className={cn(GRID, "border-b border-line py-2.5 last:border-b-0")}>
+      <span className="truncate text-[13.5px] font-semibold">{r.requested_access}</span>
+      <span className="text-[12px] text-ink-dim tabular-nums narrow:hidden">{r.request_no}</span>
+      <span className="text-[12px] text-ink-dim tabular-nums narrow:hidden">{shortDate(r.submitted_at.slice(0, 10), on)}</span>
+      <span className="text-[12.5px] font-semibold">{mineStatus(r, on)}</span>
+      <span className="flex justify-end gap-3">
+        <WithdrawButton r={r} />
+        {note && <button type="button" className={linkButton} aria-expanded={open} onClick={onNote}>{open ? "사유 접기" : "사유 보기"}</button>}
+      </span>
+      {note && open && <p className="col-span-full m-0 mt-1.5 rounded-lg bg-canvas px-3 py-2 text-[12.5px] whitespace-pre-line text-ink-soft wrap-anywhere">{note}</p>}
     </div>
   );
 }
