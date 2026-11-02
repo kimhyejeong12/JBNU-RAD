@@ -8,8 +8,8 @@ import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
 import { formMsg, formMsgOk, searchBox, searchInput, select, toolButton } from "@/shared/ui/base/styles";
 
-// 대기열 제목 줄 — 검색 · 결재 단계 거르기 · 실행 버튼. 세 버튼은 빼지 않고 hidden 으로 숨기고,
-// 첫 버튼만 오른쪽으로 밀고 뒤의 둘은 왼쪽 여백 없이 붙입니다 (숨은 버튼도 자리를 세던 옛 규칙과 같게).
+// 대기열 제목 줄 — 검색 · 결재 단계 거르기 · 실행 버튼. 버튼은 빼지 않고 hidden 으로 숨깁니다.
+// 검색 칸이 오른쪽으로 밀고 거르기 · 버튼은 그 옆에 붙입니다 (버튼도 밀면 남는 자리를 나눠 검색 칸이 가운데로 뜹니다).
 export function QueueHead() {
   const me = useMe();
   const { ui, setQuery, setStageFilter, deselect } = useUi();
@@ -36,7 +36,7 @@ export function QueueHead() {
         <option value="active">유효 권한</option>
         <option value="all">전체</option>
       </select>
-      <button className={toolButton} id="run" hidden={run.hidden} disabled={run.disabled} onClick={() => start.mutate("policies")}>
+      <button className={cn(toolButton, "ml-0")} id="run" hidden={run.hidden} disabled={run.disabled} onClick={() => start.mutate("policies")}>
         <Icon name="activity" small /><span id="run-txt">{run.text}</span>
       </button>
       <button className={cn(toolButton, "ml-0")} id="add-user" hidden={ui.view !== "users"} onClick={deselect}><Icon name="plus" small />새 계정</button>
