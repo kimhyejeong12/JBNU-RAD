@@ -3,7 +3,7 @@ import { useMe } from "@/app/session/me";
 import { useJobs } from "@/app/session/data";
 import { LEVEL_VIEWS, VIEWS } from "@/app/session/views";
 import { useUi } from "@/app/ui/state/UiContext";
-import type { LevelFilter, StageFilter } from "@/app/ui/state/uiReducer";
+import type { LevelFilter } from "@/app/ui/state/uiReducer";
 import { runButton, useStartJob } from "@/shared/api/jobs";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
@@ -12,21 +12,18 @@ import { LevelDot, Periods } from "@/shared/ui/base/parts";
 import { LEVEL_TIP } from "@/shared/lib/labels";
 import type { Level } from "@/shared/api/types";
 import { useQueue } from "./useQueue";
-import { levelCounts, stageCounts } from "./select";
+import { levelCounts } from "./select";
 
-const STAGES: [StageFilter, string][] = [["pending", "결재 대기"], ["active", "유효 권한"], ["all", "전체"]];
-
-// 대기열 머리 — 첫 줄은 제목 · 검색 · 실행 버튼, 둘째 줄은 거르기 버튼(결재 단계 · 등급). 버튼은 빼지 않고 hidden 으로 숨깁니다.
+// 대기열 머리 — 첫 줄은 제목 · 검색 · 실행 버튼, 둘째 줄은 등급 거르기 버튼(권한 신청의 결재 단계는 위 탭 줄에). 버튼은 빼지 않고 hidden 으로 숨깁니다.
 // 검색 칸이 오른쪽으로 밀고 버튼은 그 옆에 붙입니다 (버튼도 밀면 남는 자리를 나눠 검색 칸이 가운데로 뜹니다).
-// 등급 거르기는 예전 요약 카드(큰 숫자 카드 3장)를 대신합니다 — 카드는 누르면 거른다는 게 안 읽혀서, 결재 단계와 같은 버튼 모양에 건수를 붙였습니다.
+// 등급 거르기는 예전 요약 카드(큰 숫자 카드 3장)를 대신합니다 — 카드는 누르면 거른다는 게 안 읽혀서, 누르는 버튼 모양에 건수를 붙였습니다.
 const Count = ({ n }: { n: number }) => <span className="ml-1.5 tabular-nums text-ink-faint">{n}</span>;
 
 export function QueueHead() {
   const me = useMe();
-  const { ui, setQuery, setStageFilter, setFilter, deselect } = useUi();
+  const { ui, setQuery, setFilter, deselect } = useUi();
   const jobs = useJobs();
   const items = useQueue();
-  const counts = stageCounts(items, me.role);
   const start = useStartJob();
   const meta = ui.view ? VIEWS[ui.view] : null;
   const title = ui.view === "requests"
@@ -57,11 +54,6 @@ export function QueueHead() {
       </div>
       {byLevel && (
         <div className="flex flex-wrap items-center gap-2">
-          {/* 결재함 거르기 — 세 보기를 늘 보이게 두고 건수를 붙입니다 (고르기 칸은 눌러 봐야 다른 보기와 건수를 알 수 있었습니다). */}
-          {view === "requests" && (
-            <Periods<StageFilter> id="stage-filter" label="결재 단계" value={ui.stageFilter} onChange={setStageFilter}
-              labels={STAGES.map(([k, name]) => [k, <>{name}<Count n={counts[k]} /></>])} />
-          )}
           {/* 등급 거르기 — 권고 문구(승인 · 추가 검토 · 반려 권고)는 등급 이름의 툴팁에 둡니다. */}
           <Periods<LevelFilter> id="level-filter" label="AI 판정 등급" value={ui.filter} onChange={setFilter}
             labels={[["전체", <>전체<Count n={byLevel["전체"]} /></>], ...levels.map((l): [LevelFilter, ReactNode] => [l, <span key={l} data-tip={LEVEL_TIP[l]}><LevelDot level={l} />{l}<Count n={byLevel[l]} /></span>])]} />
