@@ -9,11 +9,14 @@ import { cn } from "@/shared/lib/cn";
 import { Periods } from "@/shared/ui/base/parts";
 import { card, empty, formMsg, formMsgOk, linkButton } from "@/shared/ui/base/styles";
 
-const GROUPS: [MineGroup, string][] = [["pending", "결재 중"], ["active", "사용 중"], ["done", "끝난 것"]];
-const EMPTY: Record<MineGroup, string> = {
+// 보기 — 세 묶음과 전체 (결재함 탭 [결재 대기 · 유효 권한 · 전체]와 같은 순서).
+type MineView = MineGroup | "all";
+const GROUPS: [MineView, string][] = [["pending", "결재 중"], ["active", "사용 중"], ["done", "끝난 것"], ["all", "전체"]];
+const EMPTY: Record<MineView, string> = {
   pending: "결재 중인 신청이 없습니다.",
   active: "지금 쓰는 권한이 없습니다.",
   done: "끝난 신청이 없습니다.",
+  all: "아직 신청한 권한이 없습니다.",
 };
 
 // 내 신청 현황 (일반 사용자) — 결재 중 · 사용 중 · 끝난 것으로 나눠 처음에는 결재 중만 보여줍니다 (지난 기록이 섞이면 지금 볼 것이 묻혀서).
@@ -21,11 +24,11 @@ const EMPTY: Record<MineGroup, string> = {
 export function MineList() {
   const mine = useMine();
   const { ui, toggleChip } = useUi();
-  const [group, setGroup] = useState<MineGroup>("pending");
+  const [group, setGroup] = useState<MineView>("pending");
   const on = today();
-  const counts: Record<MineGroup, number> = { pending: 0, active: 0, done: 0 };
+  const counts: Record<MineView, number> = { pending: 0, active: 0, done: 0, all: mine.length };
   for (const r of mine) counts[mineGroup(r, on)] += 1;
-  const rows = mine.filter((r) => mineGroup(r, on) === group);
+  const rows = group === "all" ? mine : mine.filter((r) => mineGroup(r, on) === group);
   return (
     <section className={cn(card, "flex min-h-80 flex-col")}>
       <div className="flex flex-wrap items-center gap-3 px-4.5 pt-4 pb-3">
@@ -33,7 +36,7 @@ export function MineList() {
         {/* 패널이 없어 철회 결과를 여기에 띄웁니다. */}
         {ui.panelMsg && <span className={ui.panelMsg.startsWith("✓") ? formMsgOk : formMsg}>{ui.panelMsg}</span>}
         <div className="ml-auto">
-          <Periods<MineGroup> id="mine-group" label="내 신청" value={group} onChange={setGroup}
+          <Periods<MineView> id="mine-group" label="내 신청" value={group} onChange={setGroup}
             labels={GROUPS.map(([k, name]) => [k, <>{name}<span className="ml-1.5 tabular-nums text-ink-faint">{counts[k]}</span></>])} />
         </div>
       </div>
