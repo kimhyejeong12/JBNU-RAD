@@ -49,7 +49,8 @@ function NewUser() {
   return (
     <>
       <PanelHead title="새 계정" />
-      <form className={cn(panelBody, formGrid, "px-4.5 py-4")} id="user-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+      {/* 패널 높이를 채우는 격자라 줄이 남는 높이를 나눠 벌어지지 않게 위에서부터 붙여 쌓습니다(content-start). */}
+      <form className={cn(panelBody, formGrid, "content-start px-4.5 py-4")} id="user-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <label className={field}>아이디<input className={input} name="login_id" required maxLength={100} autoComplete="off" /></label>
         <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
         <label className={field}>부서<input className={input} name="department" maxLength={100} /></label>

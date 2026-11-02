@@ -45,7 +45,8 @@ function NewAccess() {
   return (
     <>
       <PanelHead title="권한 등록" />
-      <form className={cn(panelBody, formGrid, "px-4.5 py-4")} id="access-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+      {/* 패널 높이를 채우는 격자라 줄이 남는 높이를 나눠 벌어지지 않게 위에서부터 붙여 쌓습니다(content-start). */}
+      <form className={cn(panelBody, formGrid, "content-start px-4.5 py-4")} id="access-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <label className={field}>코드 (바꿀 수 없음)<input className={input} name="code" required maxLength={64} pattern="[A-Za-z0-9_.\-]+" title="영문 · 숫자 · _ . - 만" autoComplete="off" placeholder="예: HR_SALARY_READ" /></label>
         <Fields />
         <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>등록</button></div>
