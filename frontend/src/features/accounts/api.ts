@@ -19,10 +19,13 @@ export function useCreateUser() {
 }
 
 // 이름 · 부서 · 역할 · 로그 사용자 ID 고치기 · 활성/정지 (done = 완료 문구), 비밀번호 초기화.
+// 자기 계정의 이름 · 부서를 고치면 위쪽 바(내 정보, ["me"])도 다시 받습니다 — 목록(["users"])만 다시 받으면 새로고침 전까지 옛 이름이 남아서.
 export function useUserAction() {
+  const qc = useQueryClient();
   return usePanelAction(async ({ id, patch, temporary_password, done = "✓ 저장했습니다" }: { id: number; patch?: Record<string, unknown>; temporary_password?: string; done?: string }) => {
     if (patch) {
       await send(`/api/users/${id}`, patch, "PATCH");
+      await qc.invalidateQueries({ queryKey: ["me"] });
       return done;
     }
     await send(`/api/users/${id}/reset-password`, { temporary_password });
