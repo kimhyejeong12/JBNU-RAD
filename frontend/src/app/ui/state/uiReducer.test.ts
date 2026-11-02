@@ -61,6 +61,7 @@ test("CLOSE_PANEL: 서랍을 닫고 탭별 선택을 푼다", () => {
     .toMatchObject({ drawerOpen: false, nodes: { selected: null, adding: false } });
   expect(uiReducer(at({ mainTab: "logs", logs: { ...initialUi.logs, selected: 3 } }), { type: "CLOSE_PANEL" }).logs.selected).toBeNull();
   expect(uiReducer(at({ mainTab: "ask", askSource: { i: 0, n: 0 } }), { type: "CLOSE_PANEL" }).askSource).toBeNull();
+  expect(uiReducer(at({ mainTab: "stats", stats: { ...initialUi.stats, selected: { kind: "node", key: "n1" } } }), { type: "CLOSE_PANEL" }).stats.selected).toBeNull();
   expect(uiReducer(at({ mainTab: "queue", selected: "req:1", drawerOpen: true }), { type: "CLOSE_PANEL" })).toMatchObject({ selected: "req:1", drawerOpen: false });
 });
 

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useUi } from "@/app/ui/state/UiContext";
+import { panelOnDemand } from "@/app/ui/state/uiReducer";
 import { cn } from "@/shared/lib/cn";
 import { formMsg, formMsgOk, note, panelFoot } from "@/shared/ui/base/styles";
 
@@ -12,7 +13,7 @@ export function PanelHead({ title, children }: { title: ReactNode; children?: Re
       <h3 className="m-0 text-[15.5px] font-bold">{title}</h3>
       {children}
       <button aria-label="닫기" onClick={closePanel}
-        className={cn("hidden border-none bg-transparent px-1 py-0 text-[22px] leading-none text-ink-dim hover:text-ink narrow:block", ui.mainTab === "ask" && "block", children ? "ml-1" : "ml-auto")}>
+        className={cn("hidden border-none bg-transparent px-1 py-0 text-[22px] leading-none text-ink-dim hover:text-ink narrow:block", panelOnDemand(ui.mainTab) && "block", children ? "ml-1" : "ml-auto")}>
         ×
       </button>
     </div>

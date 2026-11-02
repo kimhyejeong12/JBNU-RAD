@@ -1,5 +1,6 @@
 import { useMe } from "@/app/session/me";
 import { useUi } from "@/app/ui/state/UiContext";
+import { panelIdle } from "@/app/ui/state/uiReducer";
 import { Seg } from "./Sidebar";
 import { MainTabs } from "./MainTabs";
 import { QueueTab } from "@/app/queue/QueueTab";
@@ -22,11 +23,11 @@ export function Workspace() {
   const { ui } = useUi();
   // 일반 사용자는 오른쪽 패널이 없습니다 — 내 신청의 내용 · 상태는 목록에 다 있고, 철회도 목록 줄에서 합니다.
   const noPanel = me.role === "user";
-  // 질의 탭은 질의를 넓게 쓰고, 근거 칩을 눌렀을 때만 오른쪽에 인용 조항 패널을 엽니다 (좁은 화면에서도 한 칸 minmax).
-  const wideAsk = ui.mainTab === "ask" && !ui.askSource;
+  // 질의 · 통계 탭은 근거 칩 · 줄을 골랐을 때만 오른쪽 패널을 엽니다 (그 전에는 전체 폭, 좁은 화면에서도 한 칸 minmax).
+  const wide = panelIdle(ui);
   const stat = ui.mainTab === "stats" || ui.mainTab === "ustats";
   return (
-    <div className={cn(workspace, wideAsk && "grid-cols-[minmax(0,1fr)] narrow:grid-cols-[minmax(0,1fr)]", noPanel && "grid-cols-[minmax(0,1fr)]")}>
+    <div className={cn(workspace, wide && "grid-cols-[minmax(0,1fr)] narrow:grid-cols-[minmax(0,1fr)]", noPanel && "grid-cols-[minmax(0,1fr)]")}>
       <div className="flex min-h-0 flex-col gap-3.5 overflow-auto narrow:overflow-visible *:shrink-0">
         <Seg />
         <MainTabs />

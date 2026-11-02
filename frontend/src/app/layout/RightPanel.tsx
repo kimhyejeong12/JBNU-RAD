@@ -13,7 +13,7 @@ import { DocPanel } from "@/features/regulations/DocPanel";
 import type { View } from "@/app/session/views";
 import { PanelHead } from "@/app/ui/panel/Panel";
 import { cn } from "@/shared/lib/cn";
-import { NEW_ITEM } from "@/app/ui/state/uiReducer";
+import { NEW_ITEM, panelIdle } from "@/app/ui/state/uiReducer";
 import { useMe } from "@/app/session/me";
 import { card, empty, panelBody } from "@/shared/ui/base/styles";
 
@@ -37,8 +37,8 @@ export function RightPanel() {
   else if (it && it.type === "access") body = <AccessPanel key={it.key} a={it.raw} />;
   else if (it && (it.type === "policy" || it.type === "server" || it.type === "event")) body = <ReviewPanel key={it.key} it={it} />;
   else body = <EmptyQueuePanel view={ui.view} />;
-  // 질의 탭은 근거 칩을 누르기 전에는 패널을 두지 않습니다 (Workspace 와 같은 조건).
-  const hidden = ui.mainTab === "ask" && !ui.askSource;
+  // 질의 · 통계 탭은 근거 칩 · 줄을 고르기 전에는 패널을 두지 않습니다 (Workspace 와 같은 조건).
+  const hidden = panelIdle(ui);
   return (
     <aside id="panel" className={cn(card, PANEL, ui.drawerOpen ? DRAWER_OPEN : DRAWER_SHUT, hidden && "hidden")}>
       {body}

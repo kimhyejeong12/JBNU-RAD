@@ -59,7 +59,10 @@ export type UiAction =
   | { type: "SET_STATS"; patch: Partial<UiState["stats"]> }
   | { type: "SET_ASK_SOURCE"; src: AskSource | null };
 
-const isStatTab = (t: MainTab): t is StatKind => t === "stats" || t === "ustats";
+export const isStatTab = (t: MainTab): t is StatKind => t === "stats" || t === "ustats";
+// 질의 · 통계 탭은 근거 칩 · 줄을 골랐을 때만 패널을 엽니다 — 그 전에는 비어 있는 패널 대신 질의 · 표 · 차트가 전체 폭 (통계는 11/2).
+export const panelOnDemand = (tab: MainTab): boolean => tab === "ask" || isStatTab(tab);
+export const panelIdle = (s: UiState): boolean => panelOnDemand(s.mainTab) && !(s.mainTab === "ask" ? s.askSource : s.stats.selected);
 
 // 탭을 떠나면 열어 둔 인용 조항도 닫습니다. 통계 종류가 바뀌면 고른 막대를 풉니다.
 function withTab(s: UiState, tab: MainTab): UiState {
@@ -118,6 +121,7 @@ export function uiReducer(s: UiState, a: UiAction): UiState {
       if (s.mainTab === "nodes") return { ...t, nodes: { selected: null, adding: false } };
       if (s.mainTab === "logs") return { ...t, logs: { ...s.logs, selected: null } };
       if (s.mainTab === "ask") return { ...t, askSource: null };
+      if (isStatTab(s.mainTab)) return { ...t, stats: { ...s.stats, selected: null } };
       return t;
     }
     case "OPEN_LOGS":
