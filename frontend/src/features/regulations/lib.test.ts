@@ -9,7 +9,7 @@ const doc = {
 
 test("기준 문서 한 줄 — 제목은 첫 # 줄, 파일 이름, 고친 시각, 번호가 붙은 조항 수", () => {
   expect(docItem(doc)).toMatchObject({
-    type: "doc", key: "doc:접근권한_관리기준.md", typeLabel: "기준 문서",
+    type: "doc", key: "doc:접근권한_관리기준.md",
     who: "접근 권한 관리 기준", what: "접근권한_관리기준.md", when: "2026-10-29 11:57", judge: "3개",
   });
 });

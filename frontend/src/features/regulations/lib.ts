@@ -7,7 +7,7 @@ export function docItem(d: Regulation): QueueItem {
   const title = d.content.match(/^#\s+(.+)$/m)?.[1].trim() || d.name;
   const clauses = d.content.match(/^#{2,4}\s+\d+\.\d+/gm)?.length ?? 0;
   return {
-    type: "doc", key: `doc:${d.name}`, id: "", typeLabel: "기준 문서",
+    type: "doc", key: `doc:${d.name}`, id: "",
     who: title, what: d.name, when: stamp(d.updated_at), judge: clauses ? `${clauses}개` : "없음", raw: d,
   };
 }
