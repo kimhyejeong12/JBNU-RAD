@@ -299,6 +299,8 @@ export interface LogFacts {
   last?: string | null;
   attribute_totals: Record<string, number>;
   by_user: Record<string, number>;
+  by_solution?: Record<string, number>;
+  by_how?: Record<string, number>;
   by_day: Record<string, number>;
 }
 
