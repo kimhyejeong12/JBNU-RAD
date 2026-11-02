@@ -19,12 +19,25 @@ export function requestItem(r: RequestRow): QueueItem {
   };
 }
 
-// 일반 사용자의 내 신청 — AI 칸이 없고 번호를 분류 칸에 둡니다. 반려된 신청은 줄 아래에 반려 의견.
-export const mineItem = (r: RequestRow): QueueItem => ({
-  type: "mine", key: `mine:${r.request_no}`, id: "", typeLabel: r.request_no,
-  who: r.requested_access, what: r.reason || "—", when: stamp(r.submitted_at),
-  judge: STAGE_LABEL[r.stage], note: rejectNote(r), raw: r,
-});
+// 일반 사용자의 내 신청 묶음 — 결재 중(1차 · 최종 결재 대기) · 사용 중(승인됐고 기간이 남음) · 끝난 것(반려 · 철회 · 회수 · 기간 끝남).
+export type MineGroup = "pending" | "active" | "done";
+export function mineGroup(r: RequestRow, on: string = today()): MineGroup {
+  if (r.stage === "manager" || r.stage === "top") return "pending";
+  return isActive(r, on) ? "active" : "done";
+}
+
+// 내 신청 줄의 상태 글자 — 사용 중은 기간까지, 승인됐지만 기간이 끝났으면 만료, 나머지는 단계 이름.
+export function mineStatus(r: RequestRow, on: string = today()): string {
+  if (r.stage !== "approved") return STAGE_LABEL[r.stage];
+  if (!isActive(r, on)) return "만료";
+  return r.period_end ? `사용 중 · ${shortDate(r.period_end, on)}까지` : "사용 중";
+}
+
+// 짧은 날짜 — 올해면 월/일, 다른 해면 날짜 전체.
+export function shortDate(day: string, on: string = today()): string {
+  const [y, m, d] = day.split("-");
+  return y === on.slice(0, 4) ? `${Number(m)}/${Number(d)}` : day;
+}
 
 // 반려 의견 — 신청자가 다시 신청하려면 어느 단계에서 누가 왜 반려했는지 알아야 합니다.
 export function rejectNote(r: RequestRow): string | undefined {
@@ -66,9 +79,7 @@ export function accessOptions(catalog: AccessItem[], mine: RequestRow[], prev: s
 
 // 보유 중 배지 — 쓸 수 있는 기간을 붙입니다 (신청서에 따로 두던 현재 보유 권한 목록 대신). 올해면 월/일, 다른 해면 날짜 전체, 끝나는 날이 없으면 보유 중만.
 export function heldLabel(periodEnd: string | null, on: string = today()): string {
-  if (!periodEnd) return "보유 중";
-  const [y, m, d] = periodEnd.split("-");
-  return `보유 중 · ${y === on.slice(0, 4) ? `${Number(m)}/${Number(d)}` : periodEnd}까지`;
+  return periodEnd ? `보유 중 · ${shortDate(periodEnd, on)}까지` : "보유 중";
 }
 
 // 결재 기록 (결재자 패널) — 1차 · 최종 결재와 회수를 순서대로, 결재 때의 AI 판정과 함께.

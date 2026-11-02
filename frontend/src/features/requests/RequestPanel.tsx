@@ -17,7 +17,7 @@ import {
   actionButton, box, dangerButton, goodButton, input, levelText, meta, note, panelActions, panelBody, panelFoot, panelFootTitle, recLine, subject, toolButton,
 } from "@/shared/ui/base/styles";
 
-type RequestItem = Extract<QueueItem, { type: "req" | "mine" }>;
+type RequestItem = Extract<QueueItem, { type: "req" }>;
 interface Draft { comment: string; reason: string }
 
 // 권한 신청 패널 (결재자) — 신청 내용 · AI 판정 · 결재 기록, 아래 칸에서 결재 · 회수. 신청자에게는 패널이 없습니다 (철회는 내 신청 목록 줄에서).

@@ -3,6 +3,7 @@ import { useUi } from "@/app/ui/state/UiContext";
 import { QueueHead } from "./QueueHead";
 import { QueueTable } from "./QueueTable";
 import { RequestForm } from "@/features/requests/RequestForm";
+import { MineList } from "@/features/requests/MineList";
 import { cn } from "@/shared/lib/cn";
 import { card } from "@/shared/ui/base/styles";
 
@@ -21,7 +22,7 @@ export function QueueTab() {
     return (
       <div className="grid grid-cols-[minmax(0,11fr)_minmax(0,9fr)] items-start gap-3.5 narrow:grid-cols-[minmax(0,1fr)]" id="view-queue" role="tabpanel" aria-labelledby="tab-queue" hidden={ui.mainTab !== "queue"}>
         <div className="sticky top-0 narrow:static"><RequestForm hidden={ui.view !== "mine"} /></div>
-        {list}
+        <MineList />
       </div>
     );
   }

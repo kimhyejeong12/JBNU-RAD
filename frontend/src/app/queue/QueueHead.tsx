@@ -7,7 +7,7 @@ import type { LevelFilter } from "@/app/ui/state/uiReducer";
 import { runButton, useStartJob } from "@/shared/api/jobs";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
-import { formMsg, formMsgOk, searchBox, searchInput, toolButton } from "@/shared/ui/base/styles";
+import { searchBox, searchInput, toolButton } from "@/shared/ui/base/styles";
 import { LevelDot, Periods } from "@/shared/ui/base/parts";
 import { LEVEL_TIP } from "@/shared/lib/labels";
 import type { Level } from "@/shared/api/types";
@@ -39,8 +39,6 @@ export function QueueHead() {
     <div className="flex flex-col gap-2.5 px-4.5 pt-4 pb-3">
       <div className="flex flex-wrap items-center gap-3">
         <h3 id="queue-title" className="m-0 text-[15.5px] font-bold">{title}</h3>
-        {/* 일반 사용자는 패널이 없어 철회 결과를 여기에 띄웁니다. */}
-        {ui.view === "mine" && ui.panelMsg && <span className={cn(ui.panelMsg.startsWith("✓") ? formMsgOk : formMsg, "mr-0")}>{ui.panelMsg}</span>}
         <label className={cn(searchBox, "ml-auto max-w-[320px] flex-[1_1_220px]")}>
           <Icon name="search" small />
           <input id="q" type="search" className={searchInput} placeholder={meta?.search ?? ""} autoComplete="off" value={ui.query} onChange={(e) => setQuery(e.target.value)} />

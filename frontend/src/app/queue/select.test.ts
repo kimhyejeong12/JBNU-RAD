@@ -73,8 +73,7 @@ test("권한 신청은 결재 단계 거르기마다", () => {
   expect(emptyText("requests", "all", jobs, false)).toBe("신청이 없습니다.");
 });
 
-test("내 신청 · 계정 · 권한 목록", () => {
-  expect(emptyText("mine", "pending", jobs, false)).toBe("아직 신청한 권한이 없습니다. 위 신청서를 채워 신청하세요.");
+test("계정 · 권한 목록", () => {
   expect(emptyText("users", "pending", jobs, false)).toBe("계정이 없습니다.");
   expect(emptyText("access", "pending", jobs, false)).toBe("등록한 권한이 없습니다. [권한 등록]으로 넣으세요.");
 });

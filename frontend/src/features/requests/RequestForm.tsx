@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { accessOptions, canWithdraw, type AccessOptions } from "./lib";
-import { useCreateRequest, useRequestAction } from "./api";
+import { accessOptions, type AccessOptions } from "./lib";
+import { useCreateRequest } from "./api";
 import { useCatalog, useMine } from "@/app/session/data";
-import type { AccessItem, RequestRow } from "@/shared/api/types";
+import type { AccessItem } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { actionButton, card, field, formActions, formGrid, formMsg, formMsgOk, input, linkButton, note, primaryButton } from "@/shared/ui/base/styles";
+import { actionButton, card, field, formActions, formGrid, formMsg, formMsgOk, input, note, primaryButton } from "@/shared/ui/base/styles";
 
 // 일반 사용자의 권한 신청서 — 권한은 권한 목록의 켜진 권한을 카드로 펼쳐 놓고 하나를 고릅니다. 이미 가진 권한은 카드의 보유 중 배지(기간 포함)로 보여 주고,
 // 현재 보유 권한은 적지 않습니다 (서버가 신청 때 승인된 유효 신청에서 읽어 신청 행에 남깁니다).
@@ -53,20 +53,6 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
         </div>
       </form>
     </section>
-  );
-}
-
-// 내 신청 목록 줄의 [철회] — 1차 결재 전에만 보입니다. 결과 문구는 목록 제목 줄에 뜹니다.
-export function WithdrawButton({ r }: { r: RequestRow }) {
-  const action = useRequestAction();
-  if (!canWithdraw(r)) return null;
-  const withdraw = () => {
-    if (confirm(`${r.request_no} 신청을 철회합니다.`)) action.mutate({ no: r.request_no, act: "withdraw" });
-  };
-  return (
-    <button type="button" className={linkButton} disabled={action.isPending} onClick={withdraw}>
-      철회
-    </button>
   );
 }
 

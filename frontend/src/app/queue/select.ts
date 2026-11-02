@@ -67,7 +67,6 @@ export function emptyText(view: View, stageFilter: StageFilter, jobs: Jobs | nul
   if (RESULT_VIEWS.has(view)) return `아직 ${VIEWS[view].label} 결과가 없습니다. 오른쪽 위 [${runKindLabel(jobs, view)}]을 누르세요.`;
   const byView: Partial<Record<View, string>> = {
     requests: { pending: "지금 결재할 신청이 없습니다.", active: "지금 유효한 권한이 없습니다.", all: "신청이 없습니다." }[stageFilter],
-    mine: "아직 신청한 권한이 없습니다. 위 신청서를 채워 신청하세요.",
     users: "계정이 없습니다.",
     access: "등록한 권한이 없습니다. [권한 등록]으로 넣으세요.",
     docs: "기준 문서가 없습니다.",

@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { RequestRow, AccessItem } from "@/shared/api/types";
-import { mineItem, requestItem, accessOptions, approvalSteps, canWithdraw, heldLabel, rejectNote } from "./lib";
+import { requestItem, accessOptions, approvalSteps, canWithdraw, heldLabel, mineGroup, mineStatus, rejectNote, shortDate } from "./lib";
 
 const row = (p: Partial<RequestRow>): RequestRow => ({
   request_no: "REQ-2026-0001", requester_name: "김민수", requester_department: "인사팀", requested_access: "인사정보 조회",
@@ -29,12 +29,6 @@ test("철회는 1차 결재를 기다리는 신청만 — 그 뒤에는 결재�
   for (const stage of ["top", "approved", "rejected", "withdrawn", "revoked"] as const) expect(canWithdraw(row({ stage }))).toBe(false);
 });
 
-test("mineItem: 일반 사용자의 내 신청 — 번호는 분류 칸에, AI 칸 없음", () => {
-  const it = mineItem(row({ stage: "top" }));
-  expect(it).toMatchObject({ type: "mine", key: "mine:REQ-2026-0001", id: "", typeLabel: "REQ-2026-0001", who: "인사정보 조회", what: "—", judge: "최종 결재 대기" });
-  expect(it.level).toBeUndefined();
-  expect(mineItem(row({ reason: "업무" })).what).toBe("업무");
-});
 
 const access = (code: string, system: string | null, extra: Partial<AccessItem> = {}): AccessItem =>
   ({ code, name: `권한 ${code}`, system, category: null, description: null, is_active: true, updated_at: null, created_at: null, ...extra });
@@ -94,8 +88,8 @@ test("반려 의견 — 반려한 단계 · 결재자 · 의견, 의견이 없�
 
 test("내 신청 줄 — 반려된 신청에만 반려 의견을 단다", () => {
   const rejected = row({ stage: "rejected", approvals: [{ ...approval, action: "reject", comment: "사유 부족" }] });
-  expect(mineItem(rejected).note).toBe("1차 반려 · 박운영 (보안팀) — 사유 부족");
-  expect(mineItem(row({ stage: "manager" })).note).toBeUndefined();
+  expect(rejectNote(rejected)).toBe("1차 반려 · 박운영 (보안팀) — 사유 부족");
+  expect(rejectNote(row({ stage: "manager" }))).toBeUndefined();
 });
 
 test("보유 중 배지의 기간 — 올해면 월/일까지, 다른 해면 날짜 전체, 끝나는 날이 없으면 보유 중만", () => {
@@ -103,4 +97,27 @@ test("보유 중 배지의 기간 — 올해면 월/일까지, 다른 해면 날
   expect(heldLabel("2026-12-31", "2026-11-02")).toBe("보유 중 · 12/31까지");
   expect(heldLabel("2027-01-15", "2026-11-02")).toBe("보유 중 · 2027-01-15까지");
   expect(accessOptions([access("A-1", "A")], [mine("A-1", "approved", "2999-03-05")], "").reason["A-1"]).toBe("보유 중 · 2999-03-05까지");
+});
+
+test("내 신청 묶음 — 결재 중(1차 · 최종) · 사용 중(승인 · 기간 남음) · 끝난 것(반려 · 철회 · 회수 · 기간 끝남)", () => {
+  const on = "2026-11-02";
+  expect(mineGroup(row({ stage: "manager" }), on)).toBe("pending");
+  expect(mineGroup(row({ stage: "top" }), on)).toBe("pending");
+  expect(mineGroup(row({ stage: "approved", period_end: null }), on)).toBe("active");
+  expect(mineGroup(row({ stage: "approved", period_end: "2026-10-31" }), on)).toBe("done");
+  for (const stage of ["rejected", "withdrawn", "revoked"] as const) expect(mineGroup(row({ stage }), on)).toBe("done");
+});
+
+test("내 신청 상태 글자 — 사용 중은 기간까지, 기간이 끝난 승인은 만료, 나머지는 단계 이름", () => {
+  const on = "2026-11-02";
+  expect(mineStatus(row({ stage: "approved", period_end: "2026-12-31" }), on)).toBe("사용 중 · 12/31까지");
+  expect(mineStatus(row({ stage: "approved", period_end: null }), on)).toBe("사용 중");
+  expect(mineStatus(row({ stage: "approved", period_end: "2026-10-31" }), on)).toBe("만료");
+  expect(mineStatus(row({ stage: "manager" }), on)).toBe("1차 결재 대기");
+  expect(mineStatus(row({ stage: "rejected" }), on)).toBe("반려");
+});
+
+test("짧은 날짜 — 올해면 월/일, 다른 해면 날짜 전체", () => {
+  expect(shortDate("2026-12-31", "2026-11-02")).toBe("12/31");
+  expect(shortDate("2027-01-05", "2026-11-02")).toBe("2027-01-05");
 });
