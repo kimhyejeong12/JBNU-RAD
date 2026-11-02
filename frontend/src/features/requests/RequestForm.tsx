@@ -79,7 +79,7 @@ export function WithdrawButton({ r }: { r: RequestRow }) {
 }
 
 // 신청할 권한 고르기 — 카드를 시스템 순으로 한 격자에 가로로 이어 놓고 하나를 고릅니다 (시스템마다 줄을 나누면 카드가 적은 시스템도 한 줄을 차지해 길어집니다). 카드에는 이름 · 분류 · 설명을 두어 무엇을 하는 권한인지 보고 고르게 하고,
-// 보유 중 · 결재 중인 권한은 이유를 달고 막습니다. 고른 권한은 숨은 칸(access_code)으로 폼과 함께 보냅니다.
+// 보유 중 · 결재 중인 권한은 이유를 달고 막습니다. 고른 카드를 다시 누르면 풉니다. 고른 권한은 숨은 칸(access_code)으로 폼과 함께 보냅니다.
 function AccessPicker({ o, q, onQuery, onPick }: { o: AccessOptions; q: string; onQuery: (q: string) => void; onPick: (code: string) => void }) {
   if (o.empty) return <p className={cn(note, "font-normal")}>신청할 수 있는 권한이 없습니다. 보안 총책임자에게 등록을 요청하세요.</p>;
   const items = o.items.filter((a) => matchAccess(a, q));
@@ -93,7 +93,7 @@ function AccessPicker({ o, q, onQuery, onPick }: { o: AccessOptions; q: string; 
       </label>
       {items.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-2" role="radiogroup" aria-label="신청할 권한">
-          {items.map((a) => <AccessCard key={a.code} a={a} reason={o.reason[a.code]} picked={o.value === a.code} onPick={() => onPick(a.code)} />)}
+          {items.map((a) => <AccessCard key={a.code} a={a} reason={o.reason[a.code]} picked={o.value === a.code} onPick={() => onPick(o.value === a.code ? "" : a.code)} />)}
         </div>
       ) : <p className={note}>찾는 권한이 없습니다.</p>}
     </div>
