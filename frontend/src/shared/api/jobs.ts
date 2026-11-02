@@ -21,6 +21,12 @@ export function runButton(jobs: Jobs | null | undefined, view: string | null, pe
 export const runKindLabel = (jobs: Jobs | null | undefined, view: string): string =>
   `${(jobs && jobs.kinds[VIEW_KIND[view]]) || "분석"} 실행`;
 
+// 지금 도는 작업 이름 (빠른 로그 감시 포함) — 기준 문서 적재는 이 작업이 끝나기를 기다립니다. 쉬면 null.
+export function busyJob(jobs: Jobs | null | undefined): string | null {
+  const kind = jobs?.running || jobs?.fast?.running;
+  return kind ? jobs?.kinds[kind] || kind : null;
+}
+
 export const jobsInterval = (jobs: Jobs | null | undefined): 2000 | 30000 => (jobs?.running ? 2000 : 30000);
 
 // 빠른 로그 감시는 따로 돌아 running 에 나오지 않습니다. 끝난 시각이 바뀌면 결과를 다시 받습니다.

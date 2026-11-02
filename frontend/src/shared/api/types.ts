@@ -205,7 +205,7 @@ export interface Jobs {
   total?: number;
   kinds: Record<string, string>;
   last?: Record<string, { finished_at?: string | null; error?: string | null }>;
-  fast?: { every_min: number; next_at: string | null; last: Record<string, { finished_at?: string | null }> };
+  fast?: { every_min: number; next_at: string | null; last: Record<string, { finished_at?: string | null }>; running?: string | null };
 }
 
 export type AskKind = "policy" | "servers" | "logs";

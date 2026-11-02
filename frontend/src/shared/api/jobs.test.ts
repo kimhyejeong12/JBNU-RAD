@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { Jobs } from "./types";
-import { fastDone, jobsInterval, runButton, shouldRefresh } from "./jobs";
+import { busyJob, fastDone, jobsInterval, runButton, shouldRefresh } from "./jobs";
 
 const idle = (finished_at: string): Jobs =>
   ({ running: null, kinds: { policies: "정책 관리 검토" }, fast: { every_min: 5, next_at: "", last: { events_fast: { finished_at } } } }) as Jobs;
@@ -50,4 +50,12 @@ test("shouldRefresh: 두 폴링 사이에 끝난 작업(마지막 실행 시각�
 test("runButton: 시작 요청이 가는 동안은 막는다 (두 번 누르면 두 번째가 409)", () => {
   expect(runButton(idle("t"), "policies", true).disabled).toBe(true);
   expect(runButton(idle("t"), "policies", false).disabled).toBe(false);
+});
+
+test("busyJob: 도는 작업 이름 — 빠른 감시도 보고, 쉬면 null", () => {
+  const kinds = { suspects: "위협 예측", events_fast: "빠른 로그 감시" };
+  expect(busyJob({ running: "suspects", kinds })).toBe("위협 예측");
+  expect(busyJob({ running: null, kinds, fast: { every_min: 5, next_at: null, last: {}, running: "events_fast" } })).toBe("빠른 로그 감시");
+  expect(busyJob({ running: null, kinds })).toBeNull();
+  expect(busyJob(null)).toBeNull();
 });

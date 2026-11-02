@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { docItem, uploadProblem } from "./lib";
+import { docItem, editProblem, uploadProblem } from "./lib";
 
 const doc = {
   name: "접근권한_관리기준.md",
@@ -24,4 +24,13 @@ test("올릴 파일 확인 — .md · .txt 만, 1MB 까지, 같은 이름은 안
   expect(uploadProblem({ name: "절차서.pdf", size: 10 }, [])).toBe(".md · .txt 파일만 올릴 수 있습니다");
   expect(uploadProblem({ name: "큰문서.md", size: 1_000_001 }, [])).toBe("1MB 까지 올릴 수 있습니다");
   expect(uploadProblem({ name: "접근권한_관리기준.md", size: 10 }, ["접근권한_관리기준.md"])).toBe("같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요");
+});
+
+test("고치기 확인 — 바뀐 내용 · 사유 · 파일 이름을 똑같이 입력해야 고칠 수 있다", () => {
+  const ok = { content: doc.content + "\n### 4.2 수시 검토\n내용\n", reason: "수시 검토 조항 추가", typed: "접근권한_관리기준.md" };
+  expect(editProblem(doc, ok)).toBeNull();
+  expect(editProblem(doc, { ...ok, content: doc.content })).toBe("바뀐 내용이 없습니다");
+  expect(editProblem(doc, { ...ok, content: "  \n" })).toBe("빈 문서로 고칠 수 없습니다");
+  expect(editProblem(doc, { ...ok, reason: " " })).toBe("고치는 사유를 적으세요");
+  expect(editProblem(doc, { ...ok, typed: "접근권한" })).toBe("확인 칸에 파일 이름을 똑같이 입력하세요");
 });
