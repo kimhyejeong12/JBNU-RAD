@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { SUSPECT_COLOR, statCard, statChart, statSafety, statSub, statTiles, trendMark, verdictsText } from "./lib";
 import { SafetyBand } from "./SafetyBand";
 import { Tile } from "./Tile";
@@ -6,7 +7,7 @@ import { useStartJob } from "@/shared/api/jobs";
 import type { Jobs, SuspectLevel, UserStats } from "@/shared/api/types";
 import { pct, stamp } from "@/shared/lib/format";
 import { HBars } from "@/shared/ui/charts/HBars";
-import { DataTable, Legend, Meter, TableView } from "@/shared/ui/charts/parts";
+import { DataTable, Legend, Meter, ViewSwitch } from "@/shared/ui/charts/parts";
 import { Icon } from "@/shared/ui/base/Icon";
 import { cardCount, cardHead, cardTitle, toolButton } from "@/shared/ui/base/styles";
 import { cn } from "@/shared/lib/cn";
@@ -43,6 +44,7 @@ export function UserHead({ d, onSelect }: Props) {
 // 위협 예측 — 행동 신호 · 판정 · 신청 기록으로 판정 모델이 낸 의심 점수 (높은 순, 막대 색은 의심 등급).
 export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jobs | null }) {
   const start = useStartJob();
+  const [table, setTable] = useState(false);
   const sus = d.suspects || [];
   const running = jobs?.running === "suspects";
   const latest = sus.map((p) => p.created_at).sort().pop();
@@ -55,9 +57,17 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
         <button className={toolButton} id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
           <Icon name="activity" small />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
         </button>
+        <ViewSwitch id="stat-suspects-view" table={table} onChange={setTable} />
       </div>
       <p className={statSub}>앞으로 보안 위협이 될 가능성(0~100)입니다. 먼저 살펴볼 사람을 고르는 예측이고, 결정은 사람이 합니다.</p>
-      {sus.length ? (
+      {!sus.length ? <p className={statSub}>아직 예측이 없습니다. [지금 예측]을 누르세요.</p> : table ? (
+        <DataTable head={["사용자", "계정", "의심 점수", "로그 감시 판정", "눈에 띄는 신호", "예측 시각"]} empty=""
+          rows={sus.map((p) => ({
+            key: p.key, current: selected?.kind === "suspect" && selected.key === p.key, onSelect: () => onSelect("suspect", p.key),
+            cells: [p.subject, p.login_id || "계정 미연결", p.failed ? "예측 실패" : <span key="s"><span className="tabular-nums">{p.score}</span> {p.level}</span>,
+              verdictsText(p) || "—", (p.signals.highlights || []).join(" · ") || "—", <span key="t" className="whitespace-nowrap tabular-nums">{stamp(p.created_at)}</span>],
+          }))} />
+      ) : (
         <>
           <div className={statChart}>
             <HBars max={100} selectedKey={selected?.kind === "suspect" ? selected.key : null} onSelect={(key) => onSelect("suspect", key)}
@@ -70,15 +80,7 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
           <Legend items={[["위험", "높음 (70 이상)"], ["주의", "보통 (40~69)"], ["정상", "낮음 (40 미만)"]]} />
           {sus.some((p) => p.failed) && <p className={statSub}>예측하지 못한 사람: {sus.filter((p) => p.failed).map((p) => p.subject).join(", ")}</p>}
         </>
-      ) : <p className={statSub}>아직 예측이 없습니다. [지금 예측]을 누르세요.</p>}
-      <TableView>
-        <DataTable head={["사용자", "계정", "의심 점수", "로그 감시 판정", "눈에 띄는 신호", "예측 시각"]} empty=""
-          rows={sus.map((p) => ({
-            key: p.key, current: selected?.kind === "suspect" && selected.key === p.key, onSelect: () => onSelect("suspect", p.key),
-            cells: [p.subject, p.login_id || "계정 미연결", p.failed ? "예측 실패" : <span key="s"><span className="tabular-nums">{p.score}</span> {p.level}</span>,
-              verdictsText(p) || "—", (p.signals.highlights || []).join(" · ") || "—", <span key="t" className="whitespace-nowrap tabular-nums">{stamp(p.created_at)}</span>],
-          }))} />
-      </TableView>
+      )}
     </section>
   );
 }
