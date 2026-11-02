@@ -17,6 +17,7 @@ const PRESSED: Record<Level, string> = {
 };
 
 // 요약 카드 — 숫자는 지금 보고 있는 메뉴를 따라 아래 목록과 맞추고, 누르면 그 등급만 봅니다.
+// 누를 수 있다는 것을 툴팁에만 두면 모르고 지나가서, 카드 안에 "이것만 보기 · 전체 보기"를 씁니다.
 // 등급이 없는 메뉴(내 신청 · 계정)는 카드를 숨기고, 로그 감시는 주의 이상만 검토에 올라오므로 정상 카드를 두지 않습니다.
 export function SummaryCards() {
   const me = useMe();
@@ -31,7 +32,9 @@ export function SummaryCards() {
       {levels.map((l) => (
         <button key={l} aria-pressed={ui.filter === l} data-tip={LEVEL_TIP[l]} onClick={() => toggleFilter(l)}
           className={cn(card, "w-full px-4 py-3.5 text-left", ui.filter === l ? PRESSED[l] : "hover:border-ink-dim")}>
-          <span className="flex items-center gap-1.5 text-[12px] text-ink-dim"><LevelDot level={l} className="mr-0" />{l}</span>
+          <span className="flex items-center gap-1.5 text-[12px] text-ink-dim"><LevelDot level={l} className="mr-0" />{l}
+            <span className="ml-auto text-[11px] text-ink-faint">{ui.filter === l ? "전체 보기" : "이것만 보기"}</span>
+          </span>
           <span className={cn("block text-[26px] leading-tight font-extrabold tracking-[-0.8px] tabular-nums", levelText[l])}>{shown.filter((it) => it.level === l).length}</span>
         </button>
       ))}
