@@ -65,15 +65,17 @@ function DecisionFoot({ it }: { it: ReviewItem }) {
   const [comment, setComment] = useState("");
   const decision = it.decision;
   const act = (action: string) => decide.mutate({ it, action, comment }, { onSuccess: () => setComment("") });
+  const choices = Object.entries(DECISION_SET[it.type]);
   return (
     <div className={panelFoot}>
       <h4 className={panelFootTitle}>의사결정</h4>
       <textarea className={cn(input, "min-h-14 resize-y")} id="review-comment" maxLength={2000} placeholder="결정 의견 (선택)" value={comment} onChange={(e) => setComment(e.target.value)} />
-      <div className="mt-2 grid grid-cols-[repeat(3,1fr)] gap-2">
-        {Object.entries(DECISION_SET[it.type]).map(([a, color]) => (
+      {/* 버튼 수(정책 3 · 서버 점검 · 로그 감시 2)만큼 한 줄을 고르게 나눕니다 — 권한 신청의 [승인 · 반려]와 같은 모양. 허용 쪽이 왼쪽. */}
+      <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${choices.length}, minmax(0, 1fr))` }}>
+        {choices.map(([a, color]) => (
           // 지금 결정은 검은 테두리로 알립니다.
           <button key={a} aria-pressed={decision?.action === a} onClick={() => act(a)}
-            className={cn("h-10 rounded-lg border border-solid text-[13.5px] font-bold hover:brightness-[0.97] aria-pressed:outline-2 aria-pressed:outline-offset-1 aria-pressed:outline-ink", decisionTone[color])}>
+            className={cn("h-9 rounded-lg border border-solid text-[13.5px] font-bold hover:brightness-[0.97] aria-pressed:outline-2 aria-pressed:outline-offset-1 aria-pressed:outline-ink", decisionTone[color])}>
             {DECISIONS[a]}
           </button>
         ))}
@@ -81,11 +83,11 @@ function DecisionFoot({ it }: { it: ReviewItem }) {
       <div className="mt-2 flex items-center gap-2 text-[12px] text-ink-dim">
         {decision ? (
           <>
-            <span>
+            <span className="min-w-0 flex-1">
               결정 <b className="text-ink">{DECISIONS[decision.action]}</b> · {`${decision.decider_department ?? ""} ${decision.decider_name}`.trim()} · {stamp(decision.decided_at)}
               {decision.ai_level ? ` (그때 AI 판정: ${decision.ai_level})` : ""}{decision.comment ? ` — ${decision.comment}` : ""}
             </span>
-            <button id="undo" onClick={() => act("cancel")} className="border-none bg-transparent p-0 text-[12px] text-ink-dim underline">취소</button>
+            <button id="undo" onClick={() => act("cancel")} className="shrink-0 self-start border-none bg-transparent p-0 text-[12px] whitespace-nowrap text-ink-dim underline">취소</button>
           </>
         ) : <span>AI는 권고만 합니다. 최종 결정은 사람이 내립니다.</span>}
       </div>
