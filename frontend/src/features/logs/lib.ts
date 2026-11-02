@@ -2,14 +2,11 @@ import type { LogPeriod } from "@/shared/api/types";
 
 export const PERIOD_LABEL: Record<LogPeriod, string> = { day: "하루", week: "일주일", month: "한 달", quarter: "3개월", half: "6개월", year: "1년", all: "전체" };
 
-// [조건 이름, 칸 id, 이름, 응답 options 의 키, 집계(facts)의 키]
-export const LOG_FILTERS: [key: "user" | "solution" | "how", id: string, label: string, opt: "users" | "solutions" | "how", fact: "by_user" | "by_solution" | "by_how"][] = [
-  ["user", "log-user", "사용자", "users", "by_user"],
+// 버튼으로 거르는 칸 — [조건 이름, 칸 id, 이름, 응답 options 의 키, 집계(facts)의 키]. 사용자는 사람이 많아 검색 칸으로 따로 둡니다.
+export const LOG_FILTERS: [key: "solution" | "how", id: string, label: string, opt: "solutions" | "how", fact: "by_solution" | "by_how"][] = [
   ["solution", "log-solution", "솔루션", "solutions", "by_solution"],
   ["how", "log-how", "행위", "how", "by_how"],
 ];
-// 값이 이보다 많으면 버튼 대신 입력하면 후보가 뜨는 칸 (사용자가 많은 조직).
-export const MAX_FILTER_BUTTONS = 12;
 
 export interface FilterChoice { value: string; count?: number }
 

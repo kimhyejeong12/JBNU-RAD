@@ -1,5 +1,5 @@
 import { useRef, type ReactNode } from "react";
-import { LOG_FILTERS, MAX_FILTER_BUTTONS, PERIOD_LABEL, filterChoices, logAttrs, pageCount } from "./lib";
+import { LOG_FILTERS, PERIOD_LABEL, filterChoices, logAttrs, pageCount } from "./lib";
 import { useLogsPage } from "./useLogsPage";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { UiState } from "@/app/ui/state/uiReducer";
@@ -73,20 +73,21 @@ export function LogsTab() {
   );
 }
 
-// 거르기 — 값을 버튼 줄로 늘어놓고 건수를 붙입니다 (눌러 봐야 보이는 고르기 칸 대신). 값은 응답의 options, 건수는 facts 에서.
-// 값이 많으면(사용자 수백 명 등) 버튼 대신 입력하면 후보가 뜨는 칸으로 바꿉니다.
+// 거르기 — 사용자는 검색 칸 하나(치면 후보가 뜸, 사람이 늘어도 한 줄). 솔루션 · 행위는 고를 값이 둘 이상일 때만 버튼 줄로 늘어놓고 건수를 붙입니다
+// (값이 하나뿐이면 고를 게 없어 숨김). 값은 응답의 options, 건수는 facts 에서.
 function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChange: (patch: Partial<LogCond>) => void }) {
+  const users = filterChoices(d?.options.users ?? [], cond.user, undefined).map((c) => c.value);
   return (
-    <div className="flex flex-col gap-2 px-4.5 pb-3">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4.5 pb-3">
+      <PickInput key={cond.user} id="log-user" label="사용자" values={users} value={cond.user} onPick={(v) => onChange({ user: v })} />
       {LOG_FILTERS.map(([k, id, label, opt, fact]) => {
         const choices = filterChoices(d?.options[opt] ?? [], cond[k], d?.facts?.[fact]);
+        if (choices.length < 2 && !cond[k]) return null;
         return (
-          <div key={k} className="flex items-center gap-2.5">
-            <span className="w-11 shrink-0 text-[12px] font-semibold text-ink-dim">{label}</span>
-            {choices.length > MAX_FILTER_BUTTONS
-              ? <PickInput key={cond[k]} id={id} label={label} values={choices.map((c) => c.value)} value={cond[k]} onPick={(v) => onChange({ [k]: v })} />
-              : <Periods id={id} label={label} value={cond[k]} onChange={(v) => { if (v !== cond[k]) onChange({ [k]: v }); }}
-                labels={[["", "전체"], ...choices.map((c): [string, ReactNode] => [c.value, <>{c.value}{c.count != null && <span className="ml-1.5 tabular-nums text-ink-faint">{c.count}</span>}</>])]} />}
+          <div key={k} className="flex items-center gap-2">
+            <span className="text-[12px] font-semibold text-ink-dim">{label}</span>
+            <Periods id={id} label={label} value={cond[k]} onChange={(v) => { if (v !== cond[k]) onChange({ [k]: v }); }}
+              labels={[["", "전체"], ...choices.map((c): [string, ReactNode] => [c.value, <>{c.value}{c.count != null && <span className="ml-1.5 tabular-nums text-ink-faint">{c.count}</span>}</>])]} />
           </div>
         );
       })}
@@ -94,7 +95,7 @@ function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChan
   );
 }
 
-// 값이 많을 때 — 입력하면 후보가 뜨고, 목록에 있는 값과 똑같아지거나 비우면 거릅니다 (서버는 완전 일치로 거름).
+// 사용자 찾기 — 입력하면 후보가 뜨고, 목록에 있는 이름과 똑같아지거나 비우면 거릅니다 (서버는 완전 일치로 거름).
 function PickInput({ id, label, values, value, onPick }: { id: string; label: string; values: string[]; value: string; onPick: (v: string) => void }) {
   return (
     <label className={cn(searchBox, "w-full max-w-[320px]")}>
