@@ -5,7 +5,7 @@ import { useCatalog, useMine } from "@/app/session/data";
 import type { AccessItem } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { actionButton, card, field, formActions, formGrid, formMsg, formMsgOk, input, note, primaryButton } from "@/shared/ui/base/styles";
+import { actionButton, card, field, formGrid, formMsg, formMsgOk, input, note, primaryButton } from "@/shared/ui/base/styles";
 
 // 일반 사용자의 권한 신청서 — 권한은 권한 목록의 켜진 권한을 카드로 펼쳐 놓고 하나를 고릅니다. 이미 가진 권한은 카드의 보유 중 배지(기간 포함)로 보여 주고,
 // 현재 보유 권한은 적지 않습니다 (서버가 신청 때 승인된 유효 신청에서 읽어 신청 행에 남깁니다).
@@ -41,16 +41,17 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
           <span>신청할 권한 <b className="text-risk">*</b></span>
           <AccessPicker o={o} onPick={setCode} />
         </div>
-        {/* 사유는 필수 — 업무상 필요한지는 결재자가 사유를 보고 판단합니다 (AI 판정은 사유를 보지 않음). */}
-        <label className={cn(field, "col-span-full")}><span>신청 사유 <b className="text-risk">*</b></span>
-          <textarea className={input} name="reason" rows={2} maxLength={2000} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="예: 급여 정산 담당으로 급여 테이블 조회가 필요합니다" />
-        </label>
-        <label className={field}>사용 시작일<input className={input} type="date" name="period_start" /></label>
-        <label className={field}>사용 종료일<input className={input} type="date" name="period_end" /></label>
-        <div className={cn(formActions, "col-span-full")}>
-          <span className={msg.ok ? formMsgOk : formMsg} id="req-form-msg">{msg.text}</span>
+        {/* 사유 · 사용 기간 · [신청]을 한 줄에 — 날짜 칸은 날짜 하나 들어갈 폭이면 되어 반 줄씩 쓰던 것을 줄였습니다 (좁으면 줄바꿈). */}
+        <div className="col-span-full flex flex-wrap items-end gap-3">
+          {/* 사유는 필수 — 업무상 필요한지는 결재자가 사유를 보고 판단합니다 (AI 판정은 사유를 보지 않음). */}
+          <label className={cn(field, "min-w-60 flex-1")}><span>신청 사유 <b className="text-risk">*</b></span>
+            <input className={input} name="reason" maxLength={2000} autoComplete="off" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="예: 급여 정산 담당으로 급여 테이블 조회가 필요합니다" />
+          </label>
+          <label className={cn(field, "w-40")}>사용 시작일<input className={input} type="date" name="period_start" /></label>
+          <label className={cn(field, "w-40")}>사용 종료일<input className={input} type="date" name="period_end" /></label>
           <button type="submit" className={cn(actionButton, primaryButton)} disabled={!o.value || !reason.trim() || create.isPending}>신청</button>
         </div>
+        {msg.text && <p className={cn(msg.ok ? formMsgOk : formMsg, "col-span-full m-0")} id="req-form-msg">{msg.text}</p>}
       </form>
     </section>
   );

@@ -17,7 +17,7 @@ const EMPTY: Record<MineGroup, string> = {
 };
 
 // 내 신청 현황 (일반 사용자) — 결재 중 · 사용 중 · 끝난 것으로 나눠 처음에는 결재 중만 보여줍니다 (지난 기록이 섞이면 지금 볼 것이 묻혀서).
-// 줄은 두 줄로 간단히 — 위에 권한 이름 · 상태, 아래에 신청 번호 · 날짜와 [철회] · [사유 보기]. 사유는 본인이 쓴 글이라 뺐습니다.
+// 줄은 한 줄로 — 권한 이름 · 신청 번호와 날짜 · 상태 · [철회] · [사유 보기] (칸 폭을 맞춰 줄끼리 줄을 맞춤, 좁으면 줄바꿈). 사유는 본인이 쓴 글이라 뺐습니다.
 export function MineList() {
   const mine = useMine();
   const { ui, toggleChip } = useUi();
@@ -50,14 +50,12 @@ export function MineList() {
 function MineRow({ r, on, open, onNote }: { r: RequestRow; on: string; open: boolean; onNote: () => void }) {
   const note = rejectNote(r);
   return (
-    <div className="flex flex-col gap-0.5 border-b border-line px-4.5 py-2.5 last:border-b-0">
-      <div className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">{r.requested_access}</span>
-        <span className="shrink-0 text-[12.5px] font-semibold">{mineStatus(r, on)}</span>
-      </div>
-      <div className="flex items-center gap-3 text-[11.5px] text-ink-dim">
-        <span className="tabular-nums">{r.request_no} · {shortDate(r.submitted_at.slice(0, 10), on)}</span>
-        <span className="ml-auto flex gap-3">
+    <div className="border-b border-line px-4.5 py-2.5 last:border-b-0">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="min-w-40 flex-1 truncate text-[13.5px] font-semibold">{r.requested_access}</span>
+        <span className="w-44 shrink-0 text-[12px] text-ink-dim tabular-nums">{r.request_no} · {shortDate(r.submitted_at.slice(0, 10), on)}</span>
+        <span className="w-36 shrink-0 text-[12.5px] font-semibold">{mineStatus(r, on)}</span>
+        <span className="flex w-24 shrink-0 justify-end gap-3">
           <WithdrawButton r={r} />
           {note && <button type="button" className={linkButton} aria-expanded={open} onClick={onNote}>{open ? "사유 접기" : "사유 보기"}</button>}
         </span>
