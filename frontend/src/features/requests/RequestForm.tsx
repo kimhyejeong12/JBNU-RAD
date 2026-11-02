@@ -3,14 +3,13 @@ import { accessOptions, canWithdraw, matchAccess, type AccessOptions } from "./l
 import { useCreateRequest, useRequestAction } from "./api";
 import { useCatalog, useMine } from "@/app/session/data";
 import type { AccessItem, RequestRow } from "@/shared/api/types";
-import { isActive } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { Icon } from "@/shared/ui/base/Icon";
 import { actionButton, card, field, formActions, formGrid, formMsg, formMsgOk, input, note, primaryButton, searchBox, searchInput } from "@/shared/ui/base/styles";
 
-// 일반 사용자의 권한 신청서 — 권한은 권한 목록의 켜진 권한을 카드로 펼쳐 놓고 하나를 고르고, 현재 보유 권한은 적지 않고 보여주기만 합니다.
-// (서버도 신청 때 같은 조건으로 읽어 신청 행에 남깁니다.)
+// 일반 사용자의 권한 신청서 — 권한은 권한 목록의 켜진 권한을 카드로 펼쳐 놓고 하나를 고릅니다. 이미 가진 권한은 카드의 보유 중 배지(기간 포함)로 보여 주고,
+// 현재 보유 권한은 적지 않습니다 (서버가 신청 때 승인된 유효 신청에서 읽어 신청 행에 남깁니다).
 export function RequestForm({ hidden }: { hidden: boolean }) {
   const catalog = useCatalog();
   const mine = useMine();
@@ -20,7 +19,6 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
   const [msg, setMsg] = useState({ text: "", ok: false });
 
   const o = accessOptions(catalog, mine, code);
-  const held = mine.filter((r) => isActive(r));
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,14 +41,6 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
         <div className={cn(field, "col-span-full")}>
           <span>신청할 권한 <b className="text-risk">*</b></span>
           <AccessPicker o={o} q={q} onQuery={setQ} onPick={setCode} />
-        </div>
-        <div className="col-span-full grid gap-1.5">
-          <span className="text-[12.5px] font-semibold text-ink-dim">현재 보유 권한</span>
-          <div id="req-held">
-            {held.length
-              ? <ul className="mx-0 mt-1 mb-0 list-disc pl-4.5 text-[13px]">{held.map((r) => <li key={r.request_no}>{r.requested_access}{" "}<span className={cn(note, "mt-1")}>{r.period_end ? `${r.period_end}까지` : "기간 없음"}</span></li>)}</ul>
-              : <p className={cn(note, "mt-1")}>이 시스템에서 승인받은 유효 권한이 없습니다.</p>}
-          </div>
         </div>
         <label className={cn(field, "col-span-full")}>신청 사유<textarea className={input} name="reason" rows={2} maxLength={2000} placeholder="업무상 왜 필요한지" /></label>
         <label className={field}>사용 시작일<input className={input} type="date" name="period_start" /></label>

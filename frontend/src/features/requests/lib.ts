@@ -1,7 +1,7 @@
 import type { QueueItem } from "@/app/queue/types";
 import type { RequestRow, AccessItem } from "@/shared/api/types";
 import { stamp, person } from "@/shared/lib/format";
-import { STAGE_LABEL, isActive, requester } from "@/shared/lib/request";
+import { STAGE_LABEL, isActive, requester, today } from "@/shared/lib/request";
 import type { HistoryStep } from "@/shared/ui/base/parts";
 
 // 결재자가 보는 신청 — AI 판정이 없거나 실패한 신청도 깨지지 않게 글자로 적습니다.
@@ -39,21 +39,21 @@ export const canWithdraw = (r: RequestRow): boolean => r.stage === "manager";
 
 export interface AccessOptions {
   items: AccessItem[];              // 켜진 권한 — 시스템 순 (같은 시스템끼리 붙여 놓음, 시스템이 없으면 기타)
-  reason: Record<string, string>;   // 고를 수 없는 권한의 이유 (보유 중 · 결재 중)
+  reason: Record<string, string>;   // 고를 수 없는 권한의 이유 (보유 중 + 기간 · 결재 중)
   value: string;                    // 앞 선택이 막히지 않았으면 그대로
   empty: boolean;                   // 켜진 권한이 하나도 없음
 }
 
 // 신청서의 권한 카드 — 권한 목록의 켜진 권한을 시스템 순으로 늘어놓고, 보유 중 · 결재 중인 권한은 막습니다.
 export function accessOptions(catalog: AccessItem[], mine: RequestRow[], prev: string): AccessOptions {
-  const held = new Set(mine.filter((r) => isActive(r)).map((r) => r.access_code));
+  const held = new Map(mine.filter((r) => isActive(r)).map((r) => [r.access_code, r.period_end] as const));
   const pending = new Set(mine.filter((r) => r.stage === "manager" || r.stage === "top").map((r) => r.access_code));
   const active = catalog.filter((a) => a.is_active);
   const sys = (a: AccessItem) => a.system || "기타";
   const order = [...new Set(active.map(sys))];
   const reason: Record<string, string> = {};
   for (const a of active) {
-    if (held.has(a.code)) reason[a.code] = "보유 중";
+    if (held.has(a.code)) reason[a.code] = heldLabel(held.get(a.code) ?? null);
     else if (pending.has(a.code)) reason[a.code] = "결재 중";
   }
   return {
@@ -62,6 +62,13 @@ export function accessOptions(catalog: AccessItem[], mine: RequestRow[], prev: s
     value: prev && !held.has(prev) && !pending.has(prev) ? prev : "",
     empty: !active.length,
   };
+}
+
+// 보유 중 배지 — 쓸 수 있는 기간을 붙입니다 (신청서에 따로 두던 현재 보유 권한 목록 대신). 올해면 월/일, 다른 해면 날짜 전체, 끝나는 날이 없으면 보유 중만.
+export function heldLabel(periodEnd: string | null, on: string = today()): string {
+  if (!periodEnd) return "보유 중";
+  const [y, m, d] = periodEnd.split("-");
+  return `보유 중 · ${y === on.slice(0, 4) ? `${Number(m)}/${Number(d)}` : periodEnd}까지`;
 }
 
 // 신청서의 권한 찾기 — 이름 · 코드 · 시스템 · 분류 · 설명 중 하나에 들어 있으면 (대소문자 무시). 비우면 전부.

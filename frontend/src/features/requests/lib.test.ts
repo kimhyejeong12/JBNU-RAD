@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { RequestRow, AccessItem } from "@/shared/api/types";
-import { mineItem, requestItem, accessOptions, approvalSteps, canWithdraw, matchAccess, rejectNote } from "./lib";
+import { mineItem, requestItem, accessOptions, approvalSteps, canWithdraw, heldLabel, matchAccess, rejectNote } from "./lib";
 
 const row = (p: Partial<RequestRow>): RequestRow => ({
   request_no: "REQ-2026-0001", requester_name: "김민수", requester_department: "인사팀", requested_access: "인사정보 조회",
@@ -106,4 +106,11 @@ test("권한 찾기 — 이름 · 코드 · 시스템 · 분류 · 설명에서 
   expect(matchAccess(a, "인사 시스템")).toBe(true);
   expect(matchAccess(a, "금액")).toBe(true);
   expect(matchAccess(a, "방화벽")).toBe(false);
+});
+
+test("보유 중 배지의 기간 — 올해면 월/일까지, 다른 해면 날짜 전체, 끝나는 날이 없으면 보유 중만", () => {
+  expect(heldLabel(null, "2026-11-02")).toBe("보유 중");
+  expect(heldLabel("2026-12-31", "2026-11-02")).toBe("보유 중 · 12/31까지");
+  expect(heldLabel("2027-01-15", "2026-11-02")).toBe("보유 중 · 2027-01-15까지");
+  expect(accessOptions([access("A-1", "A")], [mine("A-1", "approved", "2999-03-05")], "").reason["A-1"]).toBe("보유 중 · 2999-03-05까지");
 });
