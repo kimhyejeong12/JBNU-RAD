@@ -46,9 +46,9 @@ test("SET_MAIN_TAB: 탭을 바꾸면 인용 조항을 닫고, 통계 종류가 �
   expect(u.stats).toEqual({ period: "week", kind: "ustats", selected: null });
 });
 
-test("TOGGLE_FILTER: 같은 등급을 다시 누르면 전체", () => {
-  expect(uiReducer(at({ filter: "전체" }), { type: "TOGGLE_FILTER", level: "위험" }).filter).toBe("위험");
-  expect(uiReducer(at({ filter: "위험" }), { type: "TOGGLE_FILTER", level: "위험" }).filter).toBe("전체");
+test("SET_FILTER: 등급 거르기 버튼에서 고른 값으로 (전체 포함)", () => {
+  expect(uiReducer(at({ filter: "전체" }), { type: "SET_FILTER", filter: "위험" }).filter).toBe("위험");
+  expect(uiReducer(at({ filter: "위험" }), { type: "SET_FILTER", filter: "전체" }).filter).toBe("전체");
 });
 
 test("SET_STAGE_FILTER: 값과 첫 항목", () => {

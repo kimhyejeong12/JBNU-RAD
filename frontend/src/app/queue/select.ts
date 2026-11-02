@@ -50,6 +50,13 @@ export const stageCounts = (items: readonly QueueItem[], role: Role): Record<Sta
   all: items.filter((it) => inView(it, "requests", "all", role)).length,
 });
 
+// 등급 거르기 버튼의 건수 — 지금 메뉴 · 결재 단계 범위에서 등급별과 전체 (예전 요약 카드의 숫자).
+export function levelCounts(items: readonly QueueItem[], view: View, stage: StageFilter, role: Role): Record<LevelFilter, number> {
+  const shown = items.filter((it) => inView(it, view, stage, role));
+  const n = (l: LevelFilter) => shown.filter((it) => it.level === l).length;
+  return { 전체: shown.length, 정상: n("정상"), 주의: n("주의"), 위험: n("위험") };
+}
+
 export const firstKeyInView = (items: QueueItem[], view: View, stageFilter: StageFilter, role: Role): string | null =>
   items.find((it) => inView(it, view, stageFilter, role))?.key ?? null;
 

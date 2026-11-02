@@ -1,11 +1,10 @@
 import { createContext, useContext, useMemo, useReducer, type Dispatch } from "react";
 import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
-import { initialUi, uiReducer, type AskSource, type StageFilter, type UiAction, type UiState } from "./uiReducer";
+import { initialUi, uiReducer, type AskSource, type LevelFilter, type StageFilter, type UiAction, type UiState } from "./uiReducer";
 import { ROLE_VIEWS, TYPE_VIEW, isAdminView, type MainTab, type View } from "@/app/session/views";
 import { firstKeyInView, inView } from "@/app/queue/select";
 import { useQueue } from "@/app/queue/useQueue";
 import { useMe } from "@/app/session/me";
-import type { Level } from "@/shared/api/types";
 import { useMediaQuery } from "@/shared/lib/hooks";
 
 export const NARROW = "(max-width: 1150px)";
@@ -22,7 +21,7 @@ export interface UiStore {
   closePanel(): void;
   openDrawer(): void;
   openLogs(cond: Partial<UiState["logs"]>): void;
-  toggleFilter(level: Level): void;
+  setFilter(filter: LevelFilter): void;
   setQuery(query: string): void;
   setStageFilter(value: StageFilter): void;
   setPanelMsg(msg: string): void;
@@ -89,7 +88,7 @@ export function useUiStore(): UiStore {
         qc.removeQueries({ queryKey: ["logs"] });
         dispatch({ type: "OPEN_LOGS", cond });
       },
-      toggleFilter: (level) => dispatch({ type: "TOGGLE_FILTER", level }),
+      setFilter: (filter) => dispatch({ type: "SET_FILTER", filter }),
       setQuery: (query) => dispatch({ type: "SET_QUERY", query }),
       setStageFilter: (value) => {
         if (ui.view) dispatch({ type: "SET_STAGE_FILTER", value, nextSelected: keepOrFirst(ui.view, value) });

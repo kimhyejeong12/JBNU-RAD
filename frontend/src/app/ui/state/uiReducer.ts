@@ -40,7 +40,7 @@ export type UiAction =
   | { type: "SELECT"; key: string; view: View }
   | { type: "SELECT_SILENT"; key: string | null }
   | { type: "DESELECT" }
-  | { type: "TOGGLE_FILTER"; level: Level }
+  | { type: "SET_FILTER"; filter: LevelFilter }
   | { type: "SET_QUERY"; query: string }
   | { type: "SET_STAGE_FILTER"; value: StageFilter; nextSelected: string | null }
   | { type: "SET_PANEL_MSG"; msg: string }
@@ -87,8 +87,8 @@ export function uiReducer(s: UiState, a: UiAction): UiState {
       return { ...s, selected: a.key };
     case "DESELECT":
       return { ...s, selected: null, panelMsg: "" };
-    case "TOGGLE_FILTER":
-      return { ...s, filter: s.filter === a.level ? "전체" : a.level };
+    case "SET_FILTER":
+      return { ...s, filter: a.filter };
     case "SET_QUERY":
       return { ...s, query: a.query };
     case "SET_STAGE_FILTER":
