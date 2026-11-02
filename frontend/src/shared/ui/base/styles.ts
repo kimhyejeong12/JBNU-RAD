@@ -31,6 +31,8 @@ export const input = "w-full rounded-lg border border-line bg-surface px-2.5 py-
 // 검색 칸 — 돋보기 아이콘 + 글자 칸. 칸은 둘레 글꼴을 이어받습니다.
 export const searchBox = "flex h-8 items-center gap-2 rounded-lg border border-line bg-surface px-2.75 text-[13px] text-ink-dim focus-within:border-ink";
 export const searchInput = "flex-1 border-none bg-transparent px-0.5 py-px text-ink outline-none font-[inherit] [font-size:inherit] [font-weight:inherit] leading-[inherit]";
+// 상태 칸 밑의 작은 글자 버튼 — 내 신청의 [철회] · [사유 보기].
+export const linkButton = "self-start border-none bg-transparent p-0 text-[11px] font-medium text-ink-dim underline hover:text-ink disabled:cursor-progress";
 export const formActions = "flex items-center justify-end gap-2";
 export const panelActions = "mt-2 flex gap-2";
 export const actionButton = "h-9 rounded-lg border border-line bg-surface px-4 font-bold";
