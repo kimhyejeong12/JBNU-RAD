@@ -12,7 +12,8 @@ import { Icon } from "@/shared/ui/base/Icon";
 import { empty, levelText } from "@/shared/ui/base/styles";
 
 // 검토 현황 목록 — 행과 머리줄은 같은 6칸 그리드입니다. 좁은 화면에서는 3 · 4 · 6번째 칸(상세 · 시각 · 화살표)을 숨깁니다.
-const GRID = "grid grid-cols-[84px_minmax(200px,1.4fr)_minmax(160px,1.3fr)_92px_112px_16px] items-center gap-3 px-4.5 narrow:grid-cols-[70px_minmax(0,1fr)_100px]";
+// 대상(이름 · 정책 ID · 노드)은 짧고 상세는 길어 1 : 2 로 나눕니다. 시각은 한 줄(날짜 · 시:분)에 들어가는 폭으로 둡니다.
+const GRID = "grid grid-cols-[84px_minmax(140px,1fr)_minmax(160px,2fr)_120px_112px_16px] items-center gap-3 px-4.5 narrow:grid-cols-[70px_minmax(0,1fr)_100px]";
 const NARROW_HIDE = new Set([2, 3, 5]);
 export function QueueTable() {
   const me = useMe();
@@ -49,7 +50,7 @@ function Row({ it, current, onSelect }: { it: QueueItem; current: boolean; onSel
       <span className="text-[12.5px] text-ink-dim">{it.typeLabel || TYPE_LABEL[it.type]}<small className="block text-[11px] text-ink-faint tabular-nums">{it.id}</small></span>
       <span className="line-clamp-2 min-w-0 font-semibold leading-[1.35]">{it.who}</span>
       <span className="cursor-pointer truncate text-ink-soft narrow:hidden" data-tip={it.what}>{it.what}</span>
-      <span className="text-[12.5px] text-ink-dim tabular-nums narrow:hidden">{it.when}</span>
+      <span className="text-[12.5px] whitespace-nowrap text-ink-dim tabular-nums narrow:hidden">{it.when}</span>
       <span className="flex flex-col gap-px text-[13px] font-semibold">
         {it.level
           ? <span className={cn("flex items-center gap-1.25", levelText[it.level])}><Icon name={LEVEL_ICON[it.level]} small />{it.level}</span>
