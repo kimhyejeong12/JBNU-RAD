@@ -6,12 +6,12 @@ import { useResults } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
 import { PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
 import { SourceChips } from "@/app/ui/panel/SourceChips";
-import type { EventFinding, PolicyIssue, PolicyRow, ServerFinding } from "@/shared/api/types";
+import type { EventFinding, PolicyIssue, PolicyRow, ServerFinding, Snapshot } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/base/Icon";
 import { KvTable, LevelDot, Section } from "@/shared/ui/base/parts";
-import { ModuleState } from "@/shared/ui/server/ModuleTables";
+import { ModuleChanges, ModuleTables } from "@/shared/ui/server/ModuleTables";
 import { cn } from "@/shared/lib/cn";
 import {
   box, boxPre, input, kvTable, kvTd, kvTh, levelText, meta, note, panelBody, panelFoot, panelFootTitle, recLine, subject, toolButton,
@@ -97,10 +97,11 @@ function DecisionFoot({ it }: { it: ReviewItem }) {
 
 function ServerSections({ f }: { f: ServerFinding }) {
   const state = Object.entries(f.detail?.state ?? {}).filter(([, v]) => v) as [string, string][];
+  const snap = f.detail?.snapshot;
   return (
     <>
       {state.length > 0 && <Section icon="server" title="서버 현황"><KvTable rows={state} /></Section>}
-      <ModuleState snap={f.detail?.snapshot} />
+      {snap?.modules && <><ModuleChanges snap={snap} /><ModuleFold snap={snap} /></>}
       <Section icon="file" title="이 서버에 걸린 정책"><div className={boxPre}>{f.detail?.matched}</div></Section>
     </>
   );
@@ -108,6 +109,17 @@ function ServerSections({ f }: { f: ServerFinding }) {
 
 // 판정한 로그 — 줄마다 같은 사람 · 솔루션은 머리에 한 번만 두고, 최근 5줄만 보입니다 (원문 전체는 로그 조회에서도 봄).
 const RECENT_LOGS = 5;
+// 모듈 상태 — 판정에 쓴 원자료이고 노드 탭 패널에도 같은 표가 있어 접어 둡니다.
+function ModuleFold({ snap }: { snap: Snapshot }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className={cn(toolButton, "mt-3.5 ml-0")} aria-expanded={open} onClick={() => setOpen(!open)}><Icon name="db" small />{open ? "모듈 상태 접기" : "모듈 상태 보기"}</button>
+      {open && <ModuleTables snap={snap} />}
+    </>
+  );
+}
+
 function EventSection({ f, onLogs }: { f: EventFinding; onLogs: () => void }) {
   const [all, setAll] = useState(false);
   const log = compactLog(f.detail?.events ?? "");

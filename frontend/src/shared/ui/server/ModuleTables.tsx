@@ -10,11 +10,17 @@ export function ModuleState({ snap }: { snap?: Snapshot | null }) {
   if (!snap?.modules) return null;
   return (
     <>
-      <Section icon="activity" title="직전 수집과 달라진 설정">
-        {snap.changes?.length ? <div className={boxPre}>{snap.changes.join("\n")}</div> : <p className={note}>직전 수집과 달라진 설정이 없습니다.</p>}
-      </Section>
+      <ModuleChanges snap={snap} />
       <ModuleTables snap={snap} />
     </>
+  );
+}
+
+export function ModuleChanges({ snap }: { snap: Snapshot }) {
+  return (
+    <Section icon="activity" title="직전 수집과 달라진 설정">
+      {snap.changes?.length ? <div className={boxPre}>{snap.changes.join("\n")}</div> : <p className={note}>직전 수집과 달라진 설정이 없습니다.</p>}
+    </Section>
   );
 }
 
