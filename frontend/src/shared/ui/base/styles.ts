@@ -30,6 +30,9 @@ export const select = "h-8 rounded-lg border border-line bg-surface px-2 text-[1
 export const formGrid = "grid grid-cols-[1fr_1fr] gap-x-3.5 gap-y-2.5 px-4.5 pt-1 pb-4 narrow:grid-cols-[1fr]";
 export const field = "flex flex-col gap-1 text-[12.5px] font-semibold text-ink-dim";
 export const input = "w-full rounded-lg border border-line bg-surface px-2.5 py-2 text-[13.5px] font-normal text-ink outline-none font-[inherit] leading-[inherit] focus:border-ink disabled:bg-canvas disabled:text-ink-dim";
+// 검색 칸 — 돋보기 아이콘 + 글자 칸. 칸은 둘레 글꼴을 이어받습니다.
+export const searchBox = "flex h-8 items-center gap-2 rounded-lg border border-line bg-surface px-2.75 text-[13px] text-ink-dim focus-within:border-ink";
+export const searchInput = "flex-1 border-none bg-transparent px-0.5 py-px text-ink outline-none font-[inherit] [font-size:inherit] [font-weight:inherit] leading-[inherit]";
 export const formActions = "flex items-center justify-end gap-2";
 export const panelActions = "mt-2 flex gap-2";
 export const actionButton = "h-9 rounded-lg border border-line bg-surface px-4 font-bold";

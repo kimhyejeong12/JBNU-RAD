@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { RequestRow, AccessItem } from "@/shared/api/types";
-import { mineItem, requestItem, accessOptions, approvalSteps, canWithdraw, rejectNote } from "./lib";
+import { mineItem, requestItem, accessOptions, approvalSteps, canWithdraw, matchAccess, rejectNote } from "./lib";
 
 const row = (p: Partial<RequestRow>): RequestRow => ({
   request_no: "REQ-2026-0001", requester_name: "김민수", requester_department: "인사팀", requested_access: "인사정보 조회",
@@ -44,10 +44,11 @@ const mine = (access_code: string, stage: RequestRow["stage"], period_end: strin
 const catalog = [access("A-1", "A"), access("A-2", "A"), access("B-1", "B"), access("OFF", "B", { is_active: false }), access("X-1", null)];
 const held = [mine("A-1", "approved"), mine("A-2", "manager"), mine("OLD", "approved", "2000-01-01")];
 
-test("시스템별로 묶고 꺼진 권한은 빼며, 시스템이 없으면 기타", () => {
+test("시스템 순으로 늘어놓고(같은 시스템끼리 붙임) 꺼진 권한은 빼며, 시스템이 없으면 기타로 맨 뒤", () => {
   const o = accessOptions(catalog, held, "");
-  expect(o.groups.map(([sys, items]) => [sys, items.map((a) => a.code)])).toEqual([["A", ["A-1", "A-2"]], ["B", ["B-1"]], ["기타", ["X-1"]]]);
+  expect(o.items.map((a) => a.code)).toEqual(["A-1", "A-2", "B-1", "X-1"]);
   expect(o.empty).toBe(false);
+  expect(accessOptions([access("A-1", "A"), access("B-1", "B"), access("A-2", "A")], [], "").items.map((a) => a.code)).toEqual(["A-1", "A-2", "B-1"]);
 });
 
 test("보유 중 · 결재 중인 권한은 막고 이유를 적는다", () => {
@@ -63,7 +64,7 @@ test("앞 선택은 막히지 않았을 때만 유지한다", () => {
 test("켜진 권한이 없으면 비었다고 알린다", () => {
   const o = accessOptions([access("OFF", "B", { is_active: false })], [], "");
   expect(o.empty).toBe(true);
-  expect(o.groups).toEqual([]);
+  expect(o.items).toEqual([]);
 });
 
 const approval = { step: "manager", action: "approve", approver_name: "박운영", approver_department: "보안팀", decided_at: "2026-10-29T03:49:00+09:00", ai_level: "주의", comment: "확인했습니다" } as const;
@@ -95,4 +96,14 @@ test("내 신청 줄 — 반려된 신청에만 반려 의견을 단다", () => 
   const rejected = row({ stage: "rejected", approvals: [{ ...approval, action: "reject", comment: "사유 부족" }] });
   expect(mineItem(rejected).note).toBe("1차 반려 · 박운영 (보안팀) — 사유 부족");
   expect(mineItem(row({ stage: "manager" })).note).toBeUndefined();
+});
+
+test("권한 찾기 — 이름 · 코드 · 시스템 · 분류 · 설명에서 대소문자 없이, 비우면 전부", () => {
+  const a = access("HR_SALARY_READ", "인사 시스템", { name: "급여 테이블 조회", category: "급여정보", description: "급여 금액 읽기" });
+  expect(matchAccess(a, "")).toBe(true);
+  expect(matchAccess(a, "급여")).toBe(true);
+  expect(matchAccess(a, "salary")).toBe(true);
+  expect(matchAccess(a, "인사 시스템")).toBe(true);
+  expect(matchAccess(a, "금액")).toBe(true);
+  expect(matchAccess(a, "방화벽")).toBe(false);
 });
