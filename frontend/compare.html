@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SentinelAI 계정 비교</title>
+<link rel="icon" href="data:,">
+<!-- 개발용 — `make front` 뒤 http://localhost:5173/compare.html. 칸마다 로그인은 vite.config.ts 가 따로 보관하고, 빌드에는 들어가지 않습니다 -->
+<style>
+  body { margin: 0; height: 100vh; overflow: hidden; display: grid; grid-template-rows: auto 1fr; background: #d9d9d4; font: 13px/1.4 system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif; color: #111; }
+  nav { display: flex; align-items: center; gap: 6px; padding: 6px 12px; }
+  nav b { margin-right: 6px; font-size: 12px; color: #555; }
+  nav .side { margin-left: auto; }
+  button { padding: 4px 11px; border: 1px solid #aaa; border-radius: 7px; background: #f4f4f1; font: inherit; color: inherit; cursor: pointer; }
+  button small { color: #777; }
+  button[aria-pressed="true"] { border-color: #111; background: #111; color: #fff; }
+  button[aria-pressed="true"] small { color: #bbb; }
+  main { display: grid; gap: 6px; min-height: 0; padding: 0 6px 6px; }
+  main.side { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* 제목을 숨기면 그리드 칸이 하나 빠져 iframe 이 기본 높이(150px)로 줄어서 flex 로 늘립니다. */
+  section { display: flex; flex-direction: column; min-height: 0; }
+  main:not(.side) section:not(.on) { display: none; }
+  section h2 { display: none; margin: 0; padding: 3px 4px; font-size: 12px; font-weight: 700; }
+  main.side section h2 { display: block; }
+  iframe { flex: 1; width: 100%; min-height: 0; border: 0; background: #fff; }
+</style>
+</head>
+<body>
+<nav id="nav"><b>개발용 계정 비교</b></nav>
+<main id="frames"></main>
+<script type="module">
+  // 칸 이름은 화면 주소(?as=)로 개발 서버에 넘어갑니다. 계정은 시험 환경(make dev-setup)의 것 — 칸마다 처음 한 번 로그인합니다.
+  const SLOTS = [
+    ["top", "보안 총책임자", "dev-root"],
+    ["op", "보안 운영자", "dev-op"],
+    ["user", "일반 사용자", "dev-user"],
+  ];
+  const KEY = "sentinelai-compare";
+  const nav = document.getElementById("nav");
+  const frames = document.getElementById("frames");
+  const buttons = new Map();
+
+  const ROLE = { top: "보안 총책임자", manager: "보안 운영자", user: "일반 사용자" };
+
+  for (const [slot, role, login] of SLOTS) {
+    const b = document.createElement("button");
+    b.onclick = () => show(slot);
+    nav.append(b);
+    buttons.set(slot, b);
+    // 칸을 바꿔도 세 화면을 지우지 않아 로그인 · 고른 메뉴가 그대로 남습니다.
+    const s = document.createElement("section");
+    s.dataset.slot = slot;
+    s.innerHTML = `<h2></h2><iframe src="/?as=${slot}" title="${role}"></iframe>`;
+    frames.append(s);
+    const title = s.querySelector("h2");
+    // 칸에는 어느 계정으로든 로그인할 수 있어서, 버튼 · 칸 제목에는 지금 그 칸에 로그인한 계정을 띄웁니다.
+    // 로그인 · 로그아웃 뒤에는 화면이 다시 열리므로(load) 그때마다 다시 묻습니다.
+    const label = async () => {
+      const me = await fetch("/api/auth/me", { referrer: `/?as=${slot}`, cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      b.innerHTML = title.innerHTML = me
+        ? `${ROLE[me.role] ?? me.role} <small>${me.login_id}</small>`
+        : `로그인 전 <small>${login} 추천</small>`;
+    };
+    s.querySelector("iframe").addEventListener("load", label);
+    label();
+  }
+  const side = document.createElement("button");
+  side.className = "side";
+  side.textContent = "나란히";
+  side.onclick = () => show("side");
+  nav.append(side);
+  buttons.set("side", side);
+
+  function show(view) {
+    frames.classList.toggle("side", view === "side");
+    for (const s of frames.children) s.classList.toggle("on", s.dataset.slot === view);
+    for (const [k, b] of buttons) b.setAttribute("aria-pressed", String(k === view));
+    try { localStorage.setItem(KEY, view); } catch { /* 저장 못 해도 화면은 그대로 */ }
+  }
+
+  let last = null;
+  try { last = localStorage.getItem(KEY); } catch { /* 처음 칸으로 */ }
+  show(buttons.has(last) ? last : SLOTS[0][0]);
+</script>
+</body>
+</html>
