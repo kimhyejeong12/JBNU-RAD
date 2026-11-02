@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { RequestRow, AccessItem } from "@/shared/api/types";
-import { mineItem, requestItem, accessOptions, approvalSteps, canWithdraw, heldLabel, matchAccess, rejectNote } from "./lib";
+import { mineItem, requestItem, accessOptions, approvalSteps, canWithdraw, heldLabel, rejectNote } from "./lib";
 
 const row = (p: Partial<RequestRow>): RequestRow => ({
   request_no: "REQ-2026-0001", requester_name: "김민수", requester_department: "인사팀", requested_access: "인사정보 조회",
@@ -96,16 +96,6 @@ test("내 신청 줄 — 반려된 신청에만 반려 의견을 단다", () => 
   const rejected = row({ stage: "rejected", approvals: [{ ...approval, action: "reject", comment: "사유 부족" }] });
   expect(mineItem(rejected).note).toBe("1차 반려 · 박운영 (보안팀) — 사유 부족");
   expect(mineItem(row({ stage: "manager" })).note).toBeUndefined();
-});
-
-test("권한 찾기 — 이름 · 코드 · 시스템 · 분류 · 설명에서 대소문자 없이, 비우면 전부", () => {
-  const a = access("HR_SALARY_READ", "인사 시스템", { name: "급여 테이블 조회", category: "급여정보", description: "급여 금액 읽기" });
-  expect(matchAccess(a, "")).toBe(true);
-  expect(matchAccess(a, "급여")).toBe(true);
-  expect(matchAccess(a, "salary")).toBe(true);
-  expect(matchAccess(a, "인사 시스템")).toBe(true);
-  expect(matchAccess(a, "금액")).toBe(true);
-  expect(matchAccess(a, "방화벽")).toBe(false);
 });
 
 test("보유 중 배지의 기간 — 올해면 월/일까지, 다른 해면 날짜 전체, 끝나는 날이 없으면 보유 중만", () => {

@@ -71,12 +71,6 @@ export function heldLabel(periodEnd: string | null, on: string = today()): strin
   return `보유 중 · ${y === on.slice(0, 4) ? `${Number(m)}/${Number(d)}` : periodEnd}까지`;
 }
 
-// 신청서의 권한 찾기 — 이름 · 코드 · 시스템 · 분류 · 설명 중 하나에 들어 있으면 (대소문자 무시). 비우면 전부.
-export function matchAccess(a: AccessItem, q: string): boolean {
-  const needle = q.trim().toLowerCase();
-  return !needle || [a.name, a.code, a.system, a.category, a.description].some((v) => v?.toLowerCase().includes(needle));
-}
-
 // 결재 기록 (결재자 패널) — 1차 · 최종 결재와 회수를 순서대로, 결재 때의 AI 판정과 함께.
 export function approvalSteps(r: RequestRow): HistoryStep[] {
   const steps: HistoryStep[] = (r.approvals ?? []).map((a) => ({

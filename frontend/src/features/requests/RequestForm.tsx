@@ -1,12 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { accessOptions, canWithdraw, matchAccess, type AccessOptions } from "./lib";
+import { accessOptions, canWithdraw, type AccessOptions } from "./lib";
 import { useCreateRequest, useRequestAction } from "./api";
 import { useCatalog, useMine } from "@/app/session/data";
 import type { AccessItem, RequestRow } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { Icon } from "@/shared/ui/base/Icon";
-import { actionButton, card, field, formActions, formGrid, formMsg, formMsgOk, input, linkButton, note, primaryButton, searchBox, searchInput } from "@/shared/ui/base/styles";
+import { actionButton, card, field, formActions, formGrid, formMsg, formMsgOk, input, linkButton, note, primaryButton } from "@/shared/ui/base/styles";
 
 // 일반 사용자의 권한 신청서 — 권한은 권한 목록의 켜진 권한을 카드로 펼쳐 놓고 하나를 고릅니다. 이미 가진 권한은 카드의 보유 중 배지(기간 포함)로 보여 주고,
 // 현재 보유 권한은 적지 않습니다 (서버가 신청 때 승인된 유효 신청에서 읽어 신청 행에 남깁니다).
@@ -15,7 +14,6 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
   const mine = useMine();
   const create = useCreateRequest();
   const [code, setCode] = useState("");
-  const [q, setQ] = useState("");
   const [msg, setMsg] = useState({ text: "", ok: false });
 
   const o = accessOptions(catalog, mine, code);
@@ -27,7 +25,6 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
       onSuccess: (made) => {
         form.reset();
         setCode("");
-        setQ("");
         setMsg({ text: `${made.request_no} 신청했습니다. 보안 운영자의 1차 결재를 기다립니다.`, ok: true });
       },
       onError: (err) => setMsg({ text: err.message, ok: false }),
@@ -40,7 +37,7 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
       <form id="new-request" className={formGrid} onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <div className={cn(field, "col-span-full")}>
           <span>신청할 권한 <b className="text-risk">*</b></span>
-          <AccessPicker o={o} q={q} onQuery={setQ} onPick={setCode} />
+          <AccessPicker o={o} onPick={setCode} />
         </div>
         <label className={cn(field, "col-span-full")}>신청 사유<textarea className={input} name="reason" rows={2} maxLength={2000} placeholder="업무상 왜 필요한지" /></label>
         <label className={field}>사용 시작일<input className={input} type="date" name="period_start" /></label>
@@ -70,22 +67,12 @@ export function WithdrawButton({ r }: { r: RequestRow }) {
 
 // 신청할 권한 고르기 — 카드를 시스템 순으로 한 격자에 가로로 이어 놓고 하나를 고릅니다 (시스템마다 줄을 나누면 카드가 적은 시스템도 한 줄을 차지해 길어집니다). 카드에는 이름 · 분류 · 설명을 두어 무엇을 하는 권한인지 보고 고르게 하고,
 // 보유 중 · 결재 중인 권한은 이유를 달고 막습니다. 고른 카드를 다시 누르면 풉니다. 고른 권한은 숨은 칸(access_code)으로 폼과 함께 보냅니다.
-function AccessPicker({ o, q, onQuery, onPick }: { o: AccessOptions; q: string; onQuery: (q: string) => void; onPick: (code: string) => void }) {
+function AccessPicker({ o, onPick }: { o: AccessOptions; onPick: (code: string) => void }) {
   if (o.empty) return <p className={cn(note, "font-normal")}>신청할 수 있는 권한이 없습니다. 보안 총책임자에게 등록을 요청하세요.</p>;
-  const items = o.items.filter((a) => matchAccess(a, q));
   return (
-    <div className="flex flex-col gap-2.5 font-normal">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-2 font-normal" role="radiogroup" aria-label="신청할 권한">
       <input type="hidden" name="access_code" value={o.value} />
-      {/* 권한이 수십 개로 늘어도 찾을 수 있게 — 이름 · 코드 · 시스템 · 분류 · 설명에서 찾습니다. */}
-      <label className={cn(searchBox, "max-w-[320px]")}>
-        <Icon name="search" small />
-        <input type="search" className={searchInput} placeholder="권한 이름 · 시스템 · 설명으로 찾기" autoComplete="off" value={q} onChange={(e) => onQuery(e.target.value)} />
-      </label>
-      {items.length ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-2" role="radiogroup" aria-label="신청할 권한">
-          {items.map((a) => <AccessCard key={a.code} a={a} reason={o.reason[a.code]} picked={o.value === a.code} onPick={() => onPick(o.value === a.code ? "" : a.code)} />)}
-        </div>
-      ) : <p className={note}>찾는 권한이 없습니다.</p>}
+      {o.items.map((a) => <AccessCard key={a.code} a={a} reason={o.reason[a.code]} picked={o.value === a.code} onPick={() => onPick(o.value === a.code ? "" : a.code)} />)}
     </div>
   );
 }
