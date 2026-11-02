@@ -8,6 +8,7 @@ import type { AccessItem } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { isActive } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
+import { noEnterSubmit } from "@/shared/lib/hooks";
 import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 import { Switch } from "@/shared/ui/base/parts";
 
@@ -38,7 +39,7 @@ function NewAccess() {
   return (
     <>
       <PanelHead title="권한 등록" />
-      <form className={cn(panelBody, formGrid, "px-4.5 py-4")} id="access-form" onSubmit={onSubmit}>
+      <form className={cn(panelBody, formGrid, "px-4.5 py-4")} id="access-form" onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <label className={field}>코드 (바꿀 수 없음)<input className={input} name="code" required maxLength={64} pattern="[A-Za-z0-9_.\-]+" autoComplete="off" placeholder="예: HR_SALARY_READ" /></label>
         <Fields />
         <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>등록</button></div>
@@ -77,7 +78,7 @@ function EditAccess({ a }: { a: AccessItem }) {
         <Switch className="mt-3.5" checked={a.is_active} disabled={update.isPending} onChange={onToggle}
           label={a.is_active ? "켜짐" : "꺼짐"}
           hint={a.is_active ? "일반 사용자가 신청할 수 있습니다. 끄면 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로" : "새로 신청할 수 없습니다. 켜면 다시 신청할 수 있습니다"} />
-        <form key={formKey} className={cn(formGrid, "px-0 pt-3 pb-0")} id="access-edit" onSubmit={onSubmit}>
+        <form key={formKey} className={cn(formGrid, "px-0 pt-3 pb-0")} id="access-edit" onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
           <Fields v={a} />
           <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
         </form>

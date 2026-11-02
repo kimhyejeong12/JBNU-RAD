@@ -35,3 +35,9 @@ export function activateProps(fn: () => void) {
     },
   };
 }
+
+// 데이터를 바꾸는 폼(관리 패널 · 노드 등록 · 권한 신청서)은 버튼을 눌러야만 보냅니다 — 입력 칸에서 엔터를 쳐도 폼이 제출되지 않게 막습니다.
+// 여러 줄 칸의 줄바꿈과 한글 조합을 끝내는 엔터(isComposing)는 그대로 둡니다.
+export function noEnterSubmit(e: KeyboardEvent<HTMLFormElement>) {
+  if (e.key === "Enter" && !e.nativeEvent.isComposing && e.target instanceof HTMLInputElement) e.preventDefault();
+}

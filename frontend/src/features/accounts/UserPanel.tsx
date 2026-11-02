@@ -8,6 +8,7 @@ import type { Role, UserRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { ROLE_LABEL } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
+import { noEnterSubmit } from "@/shared/lib/hooks";
 import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 import { Switch } from "@/shared/ui/base/parts";
 
@@ -35,7 +36,7 @@ function NewUser() {
   return (
     <>
       <PanelHead title="새 계정" />
-      <form className={cn(panelBody, formGrid, "px-4.5 py-4")} id="user-form" onSubmit={onSubmit}>
+      <form className={cn(panelBody, formGrid, "px-4.5 py-4")} id="user-form" onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <label className={field}>아이디<input className={input} name="login_id" required maxLength={100} autoComplete="off" /></label>
         <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
         <label className={field}>부서<input className={input} name="department" maxLength={100} /></label>
@@ -89,14 +90,14 @@ function EditUser({ u }: { u: UserRow }) {
           <>
             <Switch className="mt-3.5" checked={u.is_active} disabled={fixed || action.isPending} onChange={onToggle}
               label={u.is_active ? "활성" : "정지"} hint={u.is_active ? "로그인할 수 있습니다. 끄면 정지 · 세션 끊김" : "로그인할 수 없습니다. 켜면 다시 로그인할 수 있습니다"} />
-            <form key={`edit:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-edit" onSubmit={onEdit}>
+            <form key={`edit:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-edit" onKeyDown={noEnterSubmit} onSubmit={onEdit}>
               <label className={field}>이름<input className={input} name="display_name" defaultValue={u.display_name} maxLength={100} /></label>
               <label className={field}>부서<input className={input} name="department" defaultValue={u.department ?? ""} maxLength={100} /></label>
               <label className={field}>역할<RoleSelect value={u.role} disabled={fixed} /></label>
               <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="보안 솔루션 로그의 UserID" /></label>
               <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
             </form>
-            <form key={`reset:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-reset" onSubmit={onReset}>
+            <form key={`reset:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-reset" onKeyDown={noEnterSubmit} onSubmit={onReset}>
               <label className={WIDE_FIELD}>비밀번호 초기화 — 임시 비밀번호<input className={input} name="temporary_password" type="password" required autoComplete="new-password" /></label>
               <div className={WIDE_ACTIONS}><button type="submit" className={actionButton}>초기화</button></div>
             </form>

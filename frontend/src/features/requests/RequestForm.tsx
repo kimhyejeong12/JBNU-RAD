@@ -5,6 +5,7 @@ import { useCatalog, useMine } from "@/app/session/data";
 import type { RequestRow } from "@/shared/api/types";
 import { isActive } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
+import { noEnterSubmit } from "@/shared/lib/hooks";
 import { actionButton, card, field, formActions, formGrid, formMsg, formMsgOk, input, note, primaryButton } from "@/shared/ui/base/styles";
 
 // 일반 사용자의 권한 신청서 — 권한은 권한 목록의 켜진 권한에서 고르고, 현재 보유 권한은 적지 않고 보여주기만 합니다.
@@ -37,7 +38,7 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
   return (
     <section className={card} id="req-form" hidden={hidden}>
       <h3 className="m-0 px-4.5 pt-4 pb-2 text-[15.5px] font-bold">권한 신청</h3>
-      <form id="new-request" className={formGrid} onSubmit={onSubmit}>
+      <form id="new-request" className={formGrid} onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <label className={cn(field, "col-span-full")}>
           <span>신청할 권한 <b className="text-risk">*</b></span>
           <AccessSelect o={o} onChange={setCode} />

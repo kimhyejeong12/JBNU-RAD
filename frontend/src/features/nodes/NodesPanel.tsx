@@ -13,6 +13,7 @@ import { Icon } from "@/shared/ui/base/Icon";
 import { KvTable, LevelDot, Section } from "@/shared/ui/base/parts";
 import { ModuleTables } from "@/shared/ui/server/ModuleTables";
 import { cn } from "@/shared/lib/cn";
+import { noEnterSubmit } from "@/shared/lib/hooks";
 import {
   actionButton, box, empty, field, formActions, formGrid, formMsg, input, meta, note, panelBody, primaryButton, recLine, subject, toolButton,
 } from "@/shared/ui/base/styles";
@@ -39,7 +40,7 @@ function AddNodePanel() {
     <>
       <PanelHead title="노드 등록" />
       <div className={panelBody}>
-        <form id="node-form" className={formGrid} onSubmit={onSubmit}>
+        <form id="node-form" className={formGrid} onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
           <label className={cn(field, "col-span-full")}><span>노드 이름 <b className="text-risk">*</b></span><input className={input} id="node-name" name="name" required maxLength={64} pattern="[A-Za-z0-9._\-]+" placeholder="예: cust-db01" autoFocus /></label>
           <div className={cn(formActions, "col-span-full")}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>등록하고 키 발급</button></div>
         </form>
