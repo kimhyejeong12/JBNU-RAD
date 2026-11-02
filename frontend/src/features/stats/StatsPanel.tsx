@@ -42,18 +42,31 @@ function NodePanel({ d, node }: { d: Stats; node: string }) {
   const { gotoNode } = useUi();
   const clauses = useClauses();
   const n = d.servers.nodes.find((x) => x.node === node);
-  if (!n) return <Body title="보안 통계" subject="기간 안에 없는 노드입니다" />;
+  // 끊김은 안전 점수의 노드 목록에만 있습니다. 이 기간에 점검이 없는 노드(안전 점수 옆 "판정 없음" 등)도 막다른 곳이 되지 않게
+  // 지금 상태와 [노드 탭에서 보기]를 둡니다.
+  const now = d.safety?.items?.find((i) => i.node === node);
+  const stale: [string, string][] = now?.stale ? [["수집", "끊김"]] : [];
+  const go = <div className="mt-4.5"><button className={toolButton} id="stat-go" onClick={() => gotoNode(node)}><Icon name="server" small />노드 탭에서 보기</button></div>;
+  if (!n) {
+    return (
+      <Body title="서버 등급 변화" subject={node}>
+        <KvTable rows={[["마지막 등급", now?.level || "판정 없음"], ...stale]} />
+        <p className={note}>이 기간에는 서버 점검 결과가 없습니다.</p>
+        {go}
+      </Body>
+    );
+  }
   const hit = d.servers.clauses.filter((c) => c.nodes.includes(n.node));
   return (
     <Body title="서버 등급 변화" subject={n.node}>
-      <KvTable rows={[["마지막 등급", n.level || "판정 없음"], ["기간 안 변화", n.trend],
+      <KvTable rows={[["마지막 등급", n.level || "판정 없음"], ...stale, ["기간 안 변화", n.trend],
         ["점검", n.grades.map((g) => `${stamp(g.at)} ${g.level}`).join("\n") || "없음"], ["설정이 바뀐 수집", `${n.changed} / ${n.collected}`]]} />
       {hit.length > 0 && (
         <Section icon="warn" title="걸린 조항">
           <div className={boxPre}>{hit.map((c) => `${clauses.label(c.source)} — ${c.items.filter((i) => i.startsWith(n.node + " ")).map((i) => i.slice(n.node.length + 3)).join(", ")}`).join("\n")}</div>
         </Section>
       )}
-      <div className="mt-4.5"><button className={toolButton} id="stat-go" onClick={() => gotoNode(n.node)}><Icon name="server" small />노드 탭에서 보기</button></div>
+      {go}
     </Body>
   );
 }
