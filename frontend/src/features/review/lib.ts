@@ -63,3 +63,16 @@ export function eventItems(r: Results): QueueItem[] {
     };
   });
 }
+
+// 판정한 로그 한 줄 — 엔진이 만든 모양(data/types.py SecurityEvent.describe): "- 날짜 시각 UTC [솔루션] 부서 이름(IP) — 위치 / 행위 / 항목".
+const LOG_LINE = /^- (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) UTC (\[[^\]]*\] .+?\)) — (.*)$/;
+
+// 판정한 로그를 줄입니다 — 줄마다 같은 "[솔루션] 부서 이름(IP)"는 머리로 한 번만 빼고, 시각은 다른 화면처럼 한국 시간으로.
+// 사람이 섞이거나 줄 모양이 다르면(엔진이 모양을 바꾼 경우) 원문 그대로 둡니다.
+export function compactLog(text: string): { head: string | null; lines: string[] } {
+  const raw = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const parsed = raw.map((l) => LOG_LINE.exec(l)).filter((m): m is RegExpExecArray => m !== null);
+  const head = parsed[0]?.[3];
+  if (!head || parsed.length !== raw.length || parsed.some((m) => m[3] !== head)) return { head: null, lines: raw.map((l) => l.replace(/^- /, "")) };
+  return { head, lines: parsed.map((m) => `${stamp(`${m[1]}T${m[2]}Z`)} — ${m[4]}`) };
+}

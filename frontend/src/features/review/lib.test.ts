@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { EMPTY_RESULTS } from "@/shared/api/queries";
 import type { EventFinding, Results, ServerFinding } from "@/shared/api/types";
-import { eventItems, policyItems, serverItems, decisionTone } from "./lib";
+import { compactLog, eventItems, policyItems, serverItems, decisionTone } from "./lib";
 
 const decision = { action: "approve", decider_name: "운영자", decided_at: "2026-10-29T04:00:00+09:00", comment: null, ai_level: "위험" };
 const event = (p: Partial<EventFinding>): EventFinding =>
@@ -40,4 +40,20 @@ test("아무것도 돌리지 않은 서버는 세 목록이 모두 빈다", () =
 
 test("결정 버튼 표가 모든 버튼 색을 덮음", () => {
   expect(Object.keys(decisionTone).sort()).toEqual(["approve", "cond", "reject"]);
+});
+
+test("compactLog: 줄마다 같은 [솔루션] 부서 이름(IP)는 머리로 한 번, 줄은 한국 시간 · 위치 · 행위 · 항목", () => {
+  const text = "- 2026-09-15 00:10:07 UTC [SecureMark] 재무 정다은(1.1.1.6) — PC / 출력행위 / Attachments=제안서.pptx, PrintCount=3\n"
+    + "- 2026-09-16 03:00:35 UTC [SecureMark] 재무 정다은(1.1.1.6) — VDI / 출력행위";
+  expect(compactLog(text)).toEqual({
+    head: "[SecureMark] 재무 정다은(1.1.1.6)",
+    lines: ["2026-09-15 09:10 — PC / 출력행위 / Attachments=제안서.pptx, PrintCount=3", "2026-09-16 12:00 — VDI / 출력행위"],
+  });
+});
+
+test("compactLog: 사람이 섞이거나 줄 모양이 다르면 원문 그대로(앞의 '- '만 뗌), 비면 빈 목록", () => {
+  const mixed = "- 2026-09-15 00:10:07 UTC [A] 재무 정다은(1.1.1.6) — PC / 출력\n- 2026-09-15 00:11:07 UTC [A] 개발 박민수(1.1.1.7) — PC / 출력";
+  expect(compactLog(mixed)).toEqual({ head: null, lines: ["2026-09-15 00:10:07 UTC [A] 재무 정다은(1.1.1.6) — PC / 출력", "2026-09-15 00:11:07 UTC [A] 개발 박민수(1.1.1.7) — PC / 출력"] });
+  expect(compactLog("로그 없음")).toEqual({ head: null, lines: ["로그 없음"] });
+  expect(compactLog("")).toEqual({ head: null, lines: [] });
 });

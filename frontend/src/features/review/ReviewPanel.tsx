@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DECISIONS, DECISION_SET, decisionTone } from "./lib";
+import { DECISIONS, DECISION_SET, compactLog, decisionTone } from "./lib";
 import { useDecide, type ReviewItem } from "./api";
 import { DecisionLog } from "./DecisionLog";
 import { useResults } from "@/app/session/data";
@@ -106,11 +106,21 @@ function ServerSections({ f }: { f: ServerFinding }) {
   );
 }
 
+// 판정한 로그 — 줄마다 같은 사람 · 솔루션은 머리에 한 번만 두고, 최근 5줄만 보입니다 (원문 전체는 로그 조회에서도 봄).
+const RECENT_LOGS = 5;
 function EventSection({ f, onLogs }: { f: EventFinding; onLogs: () => void }) {
+  const [all, setAll] = useState(false);
+  const log = compactLog(f.detail?.events ?? "");
+  const shown = all ? log.lines : log.lines.slice(-RECENT_LOGS);
+  const hidden = log.lines.length - shown.length;
   return (
-    <Section icon="file" title="판정한 로그">
-      <div className={boxPre}>{f.detail?.events || "로그 없음"}</div>
-      <button className={toolButton} id="to-logs" onClick={onLogs}><Icon name="search" small />이 사용자의 최근 한 달 로그</button>
+    <Section icon="file" title={`판정한 로그 ${log.lines.length}줄`}>
+      {log.head && <p className={cn(note, "mb-1.5")}>{log.head}</p>}
+      <div className={boxPre}>{shown.join("\n") || "로그 없음"}</div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {hidden > 0 && <button className={cn(toolButton, "ml-0")} onClick={() => setAll(true)}>앞의 {hidden}줄 더 보기</button>}
+        <button className={cn(toolButton, "ml-0")} id="to-logs" onClick={onLogs}><Icon name="search" small />이 사용자의 최근 한 달 로그</button>
+      </div>
     </Section>
   );
 }
