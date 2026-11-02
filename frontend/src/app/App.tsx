@@ -5,6 +5,7 @@ import { AppShell, LoadError } from "./layout/AppShell";
 import { AuthContext, useAuth, type GateMode } from "@/features/auth/AuthContext";
 import { Gate } from "@/features/auth/Gate";
 import { onUnauthorized } from "@/shared/api/http";
+import { ConfirmLayer } from "@/app/ui/ConfirmLayer";
 
 export default function App() {
   const [gate, setGate] = useState<GateMode>(null);
@@ -36,6 +37,7 @@ function Root() {
       {shell}
       {me.isError && !auth.gate && <LoadError message={me.error.message} />}
       {mode && <Gate mode={mode} />}
+      <ConfirmLayer />
     </>
   );
 }

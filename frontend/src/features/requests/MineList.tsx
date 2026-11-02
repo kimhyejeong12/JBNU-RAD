@@ -8,6 +8,7 @@ import { today } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
 import { Periods } from "@/shared/ui/base/parts";
 import { card, empty, formMsg, formMsgOk, linkButton } from "@/shared/ui/base/styles";
+import { ask } from "@/app/ui/ask";
 
 // 머리줄과 줄이 같은 칸 — 신청일 · 신청 권한 · 사유 · 상태 · 번호 · [철회 · 사유 보기]. 사용자는 언제 · 무엇으로 신청을 가려내므로 날짜 · 권한이 앞이고,
 // 번호(날짜가 들어 있고 문의할 때 쓰는 값)는 뒤에 흐리게. 사유는 같은 권한을 여러 번 신청했을 때 어느 건인지 가려 줍니다 (길면 한 줄에서 자름).
@@ -80,8 +81,8 @@ function MineRow({ r, on, open, onNote }: { r: RequestRow; on: string; open: boo
 function WithdrawButton({ r }: { r: RequestRow }) {
   const action = useRequestAction();
   if (!canWithdraw(r)) return null;
-  const withdraw = () => {
-    if (confirm(`${r.request_no} 신청을 철회합니다.`)) action.mutate({ no: r.request_no, act: "withdraw" });
+  const withdraw = async () => {
+    if (await ask({ title: "신청 철회", confirm: "철회", danger: true, message: `${r.request_no} 신청을 철회합니다.` })) action.mutate({ no: r.request_no, act: "withdraw" });
   };
   return <button type="button" className={linkButton} disabled={action.isPending} onClick={withdraw}>철회</button>;
 }

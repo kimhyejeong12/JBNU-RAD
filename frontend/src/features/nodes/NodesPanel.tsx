@@ -1,5 +1,6 @@
 import type { FormEvent, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { ask } from "@/app/ui/ask";
 import { nodeActions, nodeState, nodeStateText, nodeStateTone, type NodeStateClass } from "./lib";
 import { useCreateNode, useNodeAction, type NodeAct } from "./api";
 import { NodeKey } from "./NodeKey";
@@ -72,8 +73,11 @@ function NodePanel({ n }: { n: NodeRow }) {
   const action = useNodeAction();
   const [cls, label, tip] = nodeState(n);
 
-  const act = (a: NodeAct) => {
-    if (a === "key" && !confirm(`${n.name} 의 키를 새로 발급합니다. 지금 키는 바로 못 쓰게 되어, 그 서버의 node.conf 를 새 키로 바꿔야 다시 보냅니다. 계속할까요?`)) return;
+  const act = async (a: NodeAct) => {
+    if (a === "key" && !(await ask({
+      title: "키 다시 발급", confirm: "다시 발급", danger: true,
+      message: `${n.name} 의 키를 새로 발급합니다. 지금 키는 바로 못 쓰게 되어, 그 서버의 node.conf 를 새 키로 바꿔야 다시 보냅니다.`,
+    }))) return;
     action.mutate({ name: n.name, action: a });
   };
 

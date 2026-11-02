@@ -11,6 +11,7 @@ import { cn } from "@/shared/lib/cn";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 import { Switch } from "@/shared/ui/base/parts";
+import { ask } from "@/app/ui/ask";
 
 // 두 칸을 다 쓰는 칸 · 버튼 줄.
 const WIDE_FIELD = cn(field, "col-span-full");
@@ -62,11 +63,12 @@ function EditAccess({ a }: { a: AccessItem }) {
     update.mutate({ code: a.code, patch: { name: f.get("name"), system: f.get("system"), category: f.get("category"), description: f.get("description") } });
   }
   // 켜고 끄기는 저장과 따로 바로 적용합니다. 바꾸기 전에 한 번 묻습니다.
-  function onToggle(on: boolean) {
+  async function onToggle(on: boolean) {
     const what = `${a.name} (${a.code}) 권한을`;
-    const ask = on ? `${what} 켭니다. 일반 사용자가 다시 신청할 수 있습니다. 계속할까요?`
-      : `${what} 끕니다. 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로입니다. 계속할까요?`;
-    if (confirm(ask)) update.mutate({ code: a.code, patch: { is_active: on }, done: on ? "✓ 켰습니다" : "✓ 껐습니다" });
+    const ok = await ask(on
+      ? { title: "권한 켜기", confirm: "켜기", message: `${what} 켭니다. 일반 사용자가 다시 신청할 수 있습니다.` }
+      : { title: "권한 끄기", confirm: "끄기", danger: true, message: `${what} 끕니다. 새 신청만 막고, 이미 받은 권한 · 결재 중인 신청은 그대로입니다.` });
+    if (ok) update.mutate({ code: a.code, patch: { is_active: on }, done: on ? "✓ 켰습니다" : "✓ 껐습니다" });
   }
 
   return (

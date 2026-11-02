@@ -11,6 +11,7 @@ import { cn } from "@/shared/lib/cn";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 import { Switch } from "@/shared/ui/base/parts";
+import { ask } from "@/app/ui/ask";
 
 // 두 칸을 다 쓰는 칸 · 버튼 줄.
 const WIDE_FIELD = cn(field, "col-span-full");
@@ -76,11 +77,12 @@ function EditUser({ u }: { u: UserRow }) {
     action.mutate({ id: u.id, patch });
   }
   // 활성 · 정지는 저장과 따로 바로 적용합니다. 바꾸기 전에 한 번 묻습니다.
-  function onToggle(on: boolean) {
+  async function onToggle(on: boolean) {
     const who = `${u.display_name} (${u.login_id}) 계정을`;
-    const ask = on ? `${who} 다시 활성으로 바꿉니다. 로그인할 수 있게 됩니다. 계속할까요?`
-      : `${who} 정지합니다. 로그인이 막히고, 지금 로그인한 세션도 바로 끊깁니다. 계속할까요?`;
-    if (confirm(ask)) action.mutate({ id: u.id, patch: { is_active: on }, done: on ? "✓ 활성으로 바꿨습니다" : "✓ 정지했습니다" });
+    const ok = await ask(on
+      ? { title: "계정 활성", confirm: "활성으로", message: `${who} 다시 활성으로 바꿉니다. 로그인할 수 있게 됩니다.` }
+      : { title: "계정 정지", confirm: "정지", danger: true, message: `${who} 정지합니다. 로그인이 막히고, 지금 로그인한 세션도 바로 끊깁니다.` });
+    if (ok) action.mutate({ id: u.id, patch: { is_active: on }, done: on ? "✓ 활성으로 바꿨습니다" : "✓ 정지했습니다" });
   }
   function onReset(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

@@ -10,6 +10,7 @@ import { actionButton, field, formActions, input, meta, note, panelActions, pane
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useUploadRegulation } from "./api";
 import { docItem, editProblem, uploadProblem } from "./lib";
+import { ask } from "@/app/ui/ask";
 
 // 기준 문서 패널 (보안 총책임자) — 선택 없음 = 문서 올리기, 고르면 원문 · [수정]. 지우기는 없습니다.
 // 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둡니다.
@@ -84,14 +85,14 @@ function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
   const [typed, setTyped] = useState("");
   const problem = editProblem(d, { content, reason, typed });
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (problem) return;
-    const ask = `기준 문서 ${d.name} 내용을 고칩니다.\n\n`
+    const message = `기준 문서 ${d.name} 내용을 고칩니다.\n\n`
       + "· 저장하면 이 문서를 바로 다시 적재하고, 앞으로의 AI 판정은 새 내용을 근거로 씁니다.\n"
       + "· 정책은 다음 [정책 관리 검토 실행] 때 새 기준으로 다시 판정됩니다.\n"
-      + "· 고치기 전 원문과 사유는 감사 기록에 남습니다.\n\n계속할까요?";
-    if (confirm(ask)) edit.mutate({ name: d.name, content, reason }, { onSuccess: onClose });
+      + "· 고치기 전 원문과 사유는 감사 기록에 남습니다.";
+    if (await ask({ title: "기준 문서 고치기", confirm: "고치기", message })) edit.mutate({ name: d.name, content, reason }, { onSuccess: onClose });
   }
   // 보내기 전이면 고치던 글을 버리고 닫습니다. 기다리는 중이면 고치기를 멈추고, 쓰던 글은 남깁니다 (이미 고쳐졌으면 닫음).
   async function onCancel() {
