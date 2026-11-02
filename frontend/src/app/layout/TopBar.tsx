@@ -44,7 +44,8 @@ export function TopBar() {
           <LevelDot level="위험" />AI 엔진 점검 필요
         </span>
         <div className="flex items-center gap-1.5 text-[12.5px] text-bar-ink" id="who">
-          <span id="who-name" className="narrow:hidden">{me.display_name} · {ROLE_LABEL[me.role]}{me.is_root ? " (루트)" : ""}</span>
+          {/* 이름은 휴대폰 폭에서만 숨깁니다 (1150px 미만에서도 자리가 남아서). */}
+          <span id="who-name" className="max-sm:hidden">{me.display_name} · {ROLE_LABEL[me.role]}{me.is_root ? " (루트)" : ""}</span>
           <button className={TOP_BTN} id="btn-password" onClick={() => auth.showPassword(false)}>비밀번호 변경</button>
           <button className={TOP_BTN} id="btn-logout" onClick={() => void logout()}>로그아웃</button>
         </div>
