@@ -88,13 +88,13 @@ JBNU-RAD/
 ├── frontend/                 React 화면 소스 (김혜정) — TypeScript · Vite · TanStack Query · Vitest · Tailwind v4. 10/29에 옛 index.html 을 기능 · 모양 그대로 옮기고 10/30에 CSS를 Tailwind로 바꿨음 (화면 그대로, 리디자인은 다음)
 │   └── src/
 │       ├── app/                  껍데기 — App(로그인 게이트) · styles.css(CSS는 이 파일 하나 — Tailwind · 색 토큰 · 화면 틀)
-│       │   ├── layout/             화면 틀 — AppShell · TopBar · Sidebar · Workspace · MainTabs · RightPanel · Footer
+│       │   ├── layout/             화면 틀 — AppShell · TopBar · Sidebar · Workspace · MainTabs · RightPanel · Footer · 큰 화면 확대(pageScale)
 │       │   ├── overlays/           기준 문서 창 · 툴팁
-│       │   ├── session/            로그인한 사람(me) · 역할별 메뉴(views) · 역할별 데이터 훅(data) · 부팅(useBoot)
-│       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · SourceChips)
+│       │   ├── session/            로그인한 사람(me) · 역할별 메뉴(views) · 역할별 데이터 훅(data) · 부팅(useBoot) · 새로고침 뒤 마지막 화면(lastPage)
+│       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · SourceChips) · confirm/(확인 창 — ask · ConfirmLayer)
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
-│       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
-│       └── features/             메뉴별 — auth · requests · review · nodes · logs · ask(예시 질문은 config.ts) · stats · catalog · accounts. 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
+│       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
+│       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(예시 질문은 config.ts) · stats · catalog · accounts · regulations(기준 문서). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
 ├── docs/                     판정 근거 기준 문서(.md · .txt) — 보안 총책임자가 화면에서 올리고(10/30) 고침(11/2), 지우기 없음, 코드 작업으로는 고치지 않음 (make index 가 RAG에 적재)
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료

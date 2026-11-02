@@ -13,7 +13,7 @@ import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 import { Switch } from "@/shared/ui/base/parts";
-import { ask } from "@/app/ui/ask";
+import { ask } from "@/app/ui/confirm/ask";
 
 // 두 칸을 다 쓰는 칸 · 버튼 줄.
 const WIDE_FIELD = cn(field, "col-span-full");

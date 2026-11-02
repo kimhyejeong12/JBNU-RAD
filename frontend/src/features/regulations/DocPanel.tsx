@@ -10,7 +10,7 @@ import { actionButton, field, formActions, input, meta, note, panelActions, pane
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useUploadRegulation } from "./api";
 import { docItem, editProblem, uploadProblem } from "./lib";
-import { ask } from "@/app/ui/ask";
+import { ask } from "@/app/ui/confirm/ask";
 
 // 기준 문서 패널 (보안 총책임자) — 선택 없음 = 문서 올리기, 고르면 원문 · [수정]. 지우기는 없습니다.
 // 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둡니다.

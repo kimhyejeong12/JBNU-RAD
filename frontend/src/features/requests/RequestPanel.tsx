@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ask } from "@/app/ui/ask";
+import { ask } from "@/app/ui/confirm/ask";
 import { useRequestAction, type RequestAct } from "./api";
 import { approvalSteps } from "./lib";
 import { useMe } from "@/app/session/me";

@@ -1,6 +1,6 @@
 import type { FormEvent, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ask } from "@/app/ui/ask";
+import { ask } from "@/app/ui/confirm/ask";
 import { nodeActions, nodeState, nodeStateText, nodeStateTone, type NodeStateClass } from "./lib";
 import { useCreateNode, useNodeAction, type NodeAct } from "./api";
 import { NodeKey } from "./NodeKey";

@@ -5,7 +5,7 @@ import { AppShell, LoadError } from "./layout/AppShell";
 import { AuthContext, useAuth, type GateMode } from "@/features/auth/AuthContext";
 import { Gate } from "@/features/auth/Gate";
 import { onUnauthorized } from "@/shared/api/http";
-import { ConfirmLayer } from "@/app/ui/ConfirmLayer";
+import { ConfirmLayer } from "@/app/ui/confirm/ConfirmLayer";
 
 export default function App() {
   const [gate, setGate] = useState<GateMode>(null);
