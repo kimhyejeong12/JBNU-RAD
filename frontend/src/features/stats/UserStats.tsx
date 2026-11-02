@@ -24,7 +24,8 @@ export function UserHead({ d, onSelect }: Props) {
   return (
     <>
       <div className={statSafety} id="stat-safety">
-        <SafetyBand label="사용자 안전 점수 · 지금" safety={d.safety} onSelect={onSelect}
+        {/* 사람은 바로 아래 의심 점수 표에 점수순으로 다 있어 여기는 수만 둡니다. */}
+        <SafetyBand label="사용자 안전 점수 · 지금" safety={d.safety} onSelect={onSelect} names={0}
           groups={[["의심 높음", susGroup("높음"), "suspect", "위험"], ["의심 보통", susGroup("보통"), "suspect", "주의"]]} />
       </div>
       <div className={statTiles} id="stat-tiles">

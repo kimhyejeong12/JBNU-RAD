@@ -49,4 +49,4 @@ export const statChart = "px-4.5 pt-1 pb-1.5";
 export const statLabel = "text-[12px] font-semibold text-ink-dim";
 // 타일 수가 탭마다 달라(보안 통계 둘 · 사용자 위협 셋) 폭에 맞춰 나눕니다.
 export const statTiles = "grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2.5 px-4.5 pb-4";
-export const statSafety = "mx-4.5 mb-3 grid grid-cols-[auto_minmax(0,1fr)_minmax(160px,260px)] items-center gap-4.5 rounded-[10px] border border-line px-4 py-3.5 empty:hidden phone:grid-cols-[auto_minmax(0,1fr)]";
+export const statSafety = "mx-4.5 mb-3 grid grid-cols-[auto_minmax(0,1fr)_minmax(140px,220px)] items-center gap-4.5 rounded-[10px] border border-line px-4 py-3.5 empty:hidden phone:grid-cols-[auto_minmax(0,1fr)]";
