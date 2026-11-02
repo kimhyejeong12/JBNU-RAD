@@ -5,6 +5,7 @@ import { errorText } from "@/shared/api/http";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
 import { actionButton, field, formActions, formMsg, input, note, primaryButton } from "@/shared/ui/base/styles";
+import { forgetPages } from "@/app/session/lastPage";
 
 // 로그인 화면은 앱 위를 덮는 카드 하나입니다.
 const CARD = "flex w-[min(380px,100%)] flex-col gap-3 rounded-[14px] border border-line bg-surface px-6 pt-6.5 pb-4.5";
@@ -27,6 +28,7 @@ function LoginForm() {
     const f = new FormData(e.currentTarget);
     try {
       await login(String(f.get("login_id")), String(f.get("password")));
+      forgetPages();   // 로그인 직후에는 첫 메뉴로 (새로고침과 같은 reload 라 여기서 지웁니다)
       location.reload();
     } catch (err) {
       setMsg(errorText(err));
