@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { QueueItem } from "./types";
-import { firstKeyInView, inView, openRisks, viewCounts, visible, emptyText } from "./select";
+import { firstKeyInView, inView, openRisks, stageCounts, viewCounts, visible, emptyText } from "./select";
 import type { Jobs } from "@/shared/api/types";
 
 const item = (p: Record<string, unknown>): QueueItem =>
@@ -77,4 +77,9 @@ test("내 신청 · 계정 · 권한 목록", () => {
   expect(emptyText("mine", "pending", jobs, false)).toBe("아직 신청한 권한이 없습니다. 위 신청서를 채워 신청하세요.");
   expect(emptyText("users", "pending", jobs, false)).toBe("계정이 없습니다.");
   expect(emptyText("access", "pending", jobs, false)).toBe("등록한 권한이 없습니다. [권한 등록]으로 넣으세요.");
+});
+
+test("stageCounts: 결재함 거르기 버튼의 건수 — 결재 대기(내 단계) · 유효 권한 · 전체, 신청만 센다", () => {
+  expect(stageCounts(items, "manager")).toEqual({ pending: 1, active: 1, all: 2 });
+  expect(stageCounts(items, "top")).toEqual({ pending: 0, active: 1, all: 2 });
 });

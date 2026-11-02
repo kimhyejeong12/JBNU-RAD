@@ -6,14 +6,20 @@ import type { StageFilter } from "@/app/ui/state/uiReducer";
 import { runButton, useStartJob } from "@/shared/api/jobs";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
-import { formMsg, formMsgOk, searchBox, searchInput, select, toolButton } from "@/shared/ui/base/styles";
+import { formMsg, formMsgOk, searchBox, searchInput, toolButton } from "@/shared/ui/base/styles";
+import { Periods } from "@/shared/ui/base/parts";
+import { useQueue } from "./useQueue";
+import { stageCounts } from "./select";
 
-// 대기열 제목 줄 — 검색 · 결재 단계 거르기 · 실행 버튼. 버튼은 빼지 않고 hidden 으로 숨깁니다.
-// 검색 칸이 오른쪽으로 밀고 거르기 · 버튼은 그 옆에 붙입니다 (버튼도 밀면 남는 자리를 나눠 검색 칸이 가운데로 뜹니다).
+const STAGES: [StageFilter, string][] = [["pending", "결재 대기"], ["active", "유효 권한"], ["all", "전체"]];
+
+// 대기열 제목 줄 — 제목 · 결재함 거르기(제목 옆) · 검색 · 실행 버튼. 버튼은 빼지 않고 hidden 으로 숨깁니다.
+// 검색 칸이 오른쪽으로 밀고 버튼은 그 옆에 붙입니다 (버튼도 밀면 남는 자리를 나눠 검색 칸이 가운데로 뜹니다).
 export function QueueHead() {
   const me = useMe();
   const { ui, setQuery, setStageFilter, deselect } = useUi();
   const jobs = useJobs();
+  const counts = stageCounts(useQueue(), me.role);
   const start = useStartJob();
   const meta = ui.view ? VIEWS[ui.view] : null;
   const title = ui.view === "requests"
@@ -24,18 +30,17 @@ export function QueueHead() {
   return (
     <div className="flex flex-wrap items-center gap-3 px-4.5 pt-4 pb-3">
       <h3 id="queue-title" className="m-0 text-[15.5px] font-bold">{title}</h3>
+      {/* 결재함 거르기 — 세 보기를 늘 보이게 두고 건수를 붙입니다 (고르기 칸은 눌러 봐야 다른 보기와 건수를 알 수 있었습니다). */}
+      {ui.view === "requests" && (
+        <Periods<StageFilter> id="stage-filter" label="결재 단계" value={ui.stageFilter} onChange={setStageFilter}
+          labels={STAGES.map(([k, name]) => [k, <>{name}<span className="ml-1.5 tabular-nums text-ink-faint">{counts[k]}</span></>])} />
+      )}
       {/* 일반 사용자는 패널이 없어 철회 결과를 여기에 띄웁니다. */}
       {ui.view === "mine" && ui.panelMsg && <span className={cn(ui.panelMsg.startsWith("✓") ? formMsgOk : formMsg, "mr-0")}>{ui.panelMsg}</span>}
       <label className={cn(searchBox, "ml-auto max-w-[320px] flex-[1_1_220px]")}>
         <Icon name="search" small />
         <input id="q" type="search" className={searchInput} placeholder={meta?.search ?? ""} autoComplete="off" value={ui.query} onChange={(e) => setQuery(e.target.value)} />
       </label>
-      <select id="stage-filter" className={select} aria-label="결재 단계" hidden={ui.view !== "requests"} value={ui.stageFilter}
-        onChange={(e) => setStageFilter(e.target.value as StageFilter)}>
-        <option value="pending">결재 대기</option>
-        <option value="active">유효 권한</option>
-        <option value="all">전체</option>
-      </select>
       <button className={cn(toolButton, "ml-0")} id="run" hidden={run.hidden} disabled={run.disabled} onClick={() => start.mutate("policies")}>
         <Icon name="activity" small /><span id="run-txt">{run.text}</span>
       </button>

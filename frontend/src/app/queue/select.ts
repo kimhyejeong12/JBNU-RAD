@@ -43,6 +43,13 @@ export function viewCounts(items: readonly QueueItem[], views: View[], stageFilt
   return n;
 }
 
+// 결재함 거르기 버튼의 건수 — 버튼마다 붙여 다른 보기에 무엇이 있는지 눌러 보지 않고 알게 합니다.
+export const stageCounts = (items: readonly QueueItem[], role: Role): Record<StageFilter, number> => ({
+  pending: items.filter((it) => inView(it, "requests", "pending", role)).length,
+  active: items.filter((it) => inView(it, "requests", "active", role)).length,
+  all: items.filter((it) => inView(it, "requests", "all", role)).length,
+});
+
 export const firstKeyInView = (items: QueueItem[], view: View, stageFilter: StageFilter, role: Role): string | null =>
   items.find((it) => inView(it, view, stageFilter, role))?.key ?? null;
 
