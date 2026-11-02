@@ -4,8 +4,8 @@ export type MainTab = "queue" | "nodes" | "logs" | "ask" | "stats" | "ustats";
 export type View = "requests" | "policies" | "stats" | "qa" | "events" | "mine" | "users" | "access" | "docs";
 export type ItemType = "req" | "server" | "mine" | "user" | "access" | "policy" | "event" | "doc";
 
-// 사이드바 구역 — 결재 · 보안 운영 · 관리(보안 총책임자만).
-export type NavGroup = "결재" | "보안 운영" | "관리";
+// 사이드바 구역 — 결재 · 보안 운영. 관리 메뉴(보안 총책임자)는 구역 대신 사이드바 아래 [관리] 하나로 묶습니다.
+export type NavGroup = "결재" | "보안 운영";
 
 interface ViewMeta {
   title?: string;
@@ -32,11 +32,11 @@ export const VIEWS: Record<View, ViewMeta> = {
             tabs: ["queue", "logs", "ask"], cols: ["분류", "대상 사용자", "상세 내용", "시간", "AI 판정"], search: "사용자 · 내용으로 검색" },
   mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청",
           tabs: ["queue"], cols: ["번호", "신청 권한", "사유", "신청 시각", "상태"], search: "신청 번호 · 권한으로 검색" },
-  users: { group: "관리", title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리",
+  users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리",
            tabs: ["queue"], cols: ["역할", "이름 (아이디)", "부서", "마지막 로그인", "상태"], search: "이름 · 아이디 · 부서로 검색" },
-  access: { group: "관리", title: "권한 목록", label: "권한 목록", icon: "key", tip: "권한 목록",
+  access: { title: "권한 목록", label: "권한 목록", icon: "key", tip: "권한 목록",
             tabs: ["queue"], cols: ["시스템", "권한 (코드)", "분류 · 설명", "고친 시각", "상태"], search: "권한 이름 · 코드 · 시스템으로 검색" },
-  docs: { group: "관리", title: "기준 문서", label: "기준 문서", icon: "book", tip: "기준 문서",
+  docs: { title: "기준 문서", label: "기준 문서", icon: "book", tip: "기준 문서",
           tabs: ["queue"], cols: ["분류", "문서", "파일", "고친 시각", "조항"], search: "문서 이름 · 내용으로 검색" },
 };
 
@@ -46,6 +46,9 @@ export const ROLE_VIEWS: Record<Role, View[]> = {
   manager: ["requests", "policies", "events", "stats", "qa"],
   top: ["requests", "policies", "events", "stats", "qa", "access", "users", "docs"],
 };
+// 관리 — 매일 처리하는 일이 아니라 시스템 설정이라 사이드바에는 [관리] 하나로 두고, 들어가면 탭 줄로 셋을 오갑니다.
+export const ADMIN_VIEWS: readonly View[] = ["access", "users", "docs"];
+export const isAdminView = (v: View | null): boolean => v !== null && ADMIN_VIEWS.includes(v);
 export const RESULT_VIEWS: ReadonlySet<View> = new Set<View>(["policies", "events"]);
 export const LEVEL_VIEWS: ReadonlySet<View> = new Set<View>(["requests", "policies", "events"]);
 export const TYPE_VIEW: Record<ItemType, View> = { req: "requests", server: "policies", mine: "mine", user: "users", access: "access", policy: "policies", event: "events", doc: "docs" };

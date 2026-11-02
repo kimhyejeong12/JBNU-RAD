@@ -21,6 +21,12 @@ test("NAVIGATE: 검토 현황 탭이 없는 메뉴는 첫 탭으로", () => {
   expect(stats.stats.kind).toBe("stats");
 });
 
+test("NAVIGATE: 관리의 탭을 보면 기억하고, 다른 메뉴로 가도 잊지 않는다", () => {
+  const users = uiReducer(at({ view: "access" }), { type: "NAVIGATE", view: "users", nextSelected: null });
+  expect(users.lastAdmin).toBe("users");
+  expect(uiReducer(users, { type: "NAVIGATE", view: "requests", nextSelected: null }).lastAdmin).toBe("users");
+});
+
 test("SELECT: 다른 항목을 고르면 메시지를 지우고, SELECT_SILENT 는 남긴다", () => {
   const base = at({ view: "requests", selected: "req:1", panelMsg: "✓ 승인했습니다" });
   expect(uiReducer(base, { type: "SELECT", key: "req:2", view: "requests" }).panelMsg).toBe("");

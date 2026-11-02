@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { useMe, useViews } from "@/app/session/me";
-import { VIEWS, navGroups } from "@/app/session/views";
+import { VIEWS, isAdminView, navGroups } from "@/app/session/views";
 import { useUi } from "@/app/ui/state/UiContext";
 import { Icon } from "@/shared/ui/base/Icon";
 import { useQueue } from "@/app/queue/useQueue";
@@ -16,7 +16,7 @@ const navTone = (current: boolean) => (current ? "bg-risk-tint text-risk" : "hov
 // 툴팁이 곧바로 뜨는 구역입니다 (data-tip-instant).
 export function Sidebar({ wide, onToggle, onDocs }: { wide: boolean; onToggle: () => void; onDocs: () => void }) {
   const me = useMe();
-  const { ui, navigate } = useUi();
+  const { ui, navigate, openAdmin } = useUi();
   const views = useViews();
   const counts = useViewCounts();
   const item = (key: string, icon: string, label: string, opts: { current?: boolean; count?: number; tip?: string; iconClass?: string; onClick: () => void; id?: string; view?: string }) =>
@@ -47,9 +47,13 @@ export function Sidebar({ wide, onToggle, onDocs }: { wide: boolean; onToggle: (
           </Fragment>
         ))}
       </div>
-      {/* 아래쪽 — 기준 문서 · 메뉴 접기/펼치기 */}
+      {/* 아래쪽 — 관리 · 기준 문서 · 메뉴 접기/펼치기 */}
       <div className={cn("mt-auto flex flex-col gap-1.5", !wide && "items-center")}>
-        {/* 기준 문서 메뉴가 있는 보안 총책임자는 관리 구역에서 열고, 보안 운영자는 이 버튼으로 원문 창을 엽니다. */}
+        {/* 관리는 건수를 달지 않습니다 — 등록된 개수라 결재처럼 처리할 일이 아닙니다. */}
+        {views.some(isAdminView) && item("admin", "gear", "관리", {
+          id: "nav-admin", view: "admin", current: isAdminView(ui.view), tip: "관리|권한 목록 · 계정 관리 · 기준 문서", onClick: openAdmin,
+        })}
+        {/* 기준 문서 메뉴가 있는 보안 총책임자는 관리에서 열고, 보안 운영자는 이 버튼으로 원문 창을 엽니다. */}
         {me.role !== "user" && !views.includes("docs") && item("docs", "book", "기준 문서", { id: "nav-docs", tip: "기준 문서 원문", onClick: onDocs })}
         {item("toggle", "chev", wide ? "메뉴 접기" : "메뉴 펼치기", { id: "nav-toggle", iconClass: cn(wide && "rotate-180"), onClick: onToggle })}
       </div>
@@ -59,20 +63,22 @@ export function Sidebar({ wide, onToggle, onDocs }: { wide: boolean; onToggle: (
 
 // 사이드바가 없는 좁은 화면의 메뉴. 메뉴가 탭보다 위이므로 어느 탭에서든 보이게 탭 줄 위에 둡니다.
 export function Seg() {
-  const { ui, navigate } = useUi();
+  const { ui, navigate, openAdmin } = useUi();
   const views = useViews();
   const counts = useViewCounts();
   return (
     <div className="hidden self-start rounded-lg bg-canvas p-0.75 narrow:flex" role="tablist" id="seg" aria-label="메뉴" hidden={views.length < 2}>
-      {views.map((v) => (
-        <button key={v} role="tab" aria-selected={ui.view === v} onClick={() => navigate(v)}
-          className="rounded-md border-none bg-transparent px-3 py-1.25 text-[12.5px] font-semibold text-ink-dim aria-selected:bg-surface aria-selected:text-ink aria-selected:shadow-[0_1px_2px_rgba(0,0,0,.08)]">
+      {views.filter((v) => !isAdminView(v)).map((v) => (
+        <button key={v} role="tab" aria-selected={ui.view === v} onClick={() => navigate(v)} className={SEG}>
           {VIEWS[v].label}{" "}<span data-count={v}>{counts[v] ?? ""}</span>
         </button>
       ))}
+      {views.some(isAdminView) && <button role="tab" aria-selected={isAdminView(ui.view)} onClick={openAdmin} className={SEG}>관리</button>}
     </div>
   );
 }
+
+const SEG = "rounded-md border-none bg-transparent px-3 py-1.25 text-[12.5px] font-semibold text-ink-dim aria-selected:bg-surface aria-selected:text-ink aria-selected:shadow-[0_1px_2px_rgba(0,0,0,.08)]";
 
 // 메뉴별 건수 — 사이드바와 좁은 화면의 세그먼트가 같이 씁니다.
 function useViewCounts(): Record<string, number> {
