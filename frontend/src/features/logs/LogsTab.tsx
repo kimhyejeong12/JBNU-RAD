@@ -13,9 +13,10 @@ import { card, cardCount, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd
 
 const PERIODS = Object.entries(PERIOD_LABEL) as [LogPeriod, string][];
 type LogCond = UiState["logs"];
-// 좁은 화면에서는 솔루션 · 위치 · 행위 칸을 숨깁니다.
-const WIDE_TH = cn(lth, "narrow:hidden");
-const WIDE_TD = cn(ltd, "narrow:hidden");
+// 표 폭이 560px 아래면 솔루션 · 위치 · 행위 칸을 숨깁니다 — 창 폭이 아니라 표 폭으로 봅니다 (검토 현황 목록과 같음,
+// 창 폭으로 보던 때는 패널이 서랍으로 빠져 자리가 남는 좁은 창에서도 숨겼습니다). 짧은 값이라 줄을 바꾸지 않습니다.
+const WIDE_TH = cn(lth, "@max-[560px]:hidden");
+const WIDE_TD = cn(ltd, "whitespace-nowrap @max-[560px]:hidden");
 
 // 로그 조회 — 거르기 · 세기는 서버가 합니다. 화면은 조건을 넘기고 받은 그대로 보여줍니다. 조건이 바뀔 때만 다시 받습니다.
 export function LogsTab() {
@@ -39,7 +40,7 @@ export function LogsTab() {
   };
 
   return (
-    <section className={cn(card, "flex min-h-80 flex-col")} id="view-logs" role="tabpanel" aria-labelledby="tab-logs" ref={section}>
+    <section className={cn(card, "@container flex min-h-80 flex-col")} id="view-logs" role="tabpanel" aria-labelledby="tab-logs" ref={section}>
       <div className={cardHead}>
         <h3 className={cardTitle}>로그 조회</h3>
         <Periods id="log-periods" labels={PERIODS} value={L.period} onChange={(period) => { if (period !== L.period) change({ period }); }} />
