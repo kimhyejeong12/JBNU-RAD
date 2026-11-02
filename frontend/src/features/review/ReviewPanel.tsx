@@ -33,10 +33,7 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
         <div className={cn(recLine, it.level && levelText[it.level])}><Icon name={(it.level && LEVEL_ICON[it.level]) || "warn"} className="size-5" />{it.level}</div>
         <div className={meta}>{it.id}</div>
 
-        {it.type === "server" && <ServerSections f={it.raw} />}
-        {it.type === "event" && <EventSection f={it.raw} onLogs={() => openLogs({ user: it.raw.title, period: "month" })} />}
-        {it.type === "policy" && <PolicySection issue={it.raw} policies={results.policies} />}
-
+        {/* 결론(판단 · 권고 · 근거)을 먼저, 판정에 쓴 원자료(로그 · 모듈 상태 · 정책 원본)는 그 아래 — 원자료가 길어 결론이 밀려나지 않게. */}
         {gapped && it.type === "server" ? <GapSections itemKey={it.key} f={it.raw} /> : (
           <>
             <Section icon="activity" title="판단 이유"><div className={box}>{r.reason}</div></Section>
@@ -46,6 +43,10 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
             </Section>
           </>
         )}
+
+        {it.type === "server" && <ServerSections f={it.raw} />}
+        {it.type === "event" && <EventSection f={it.raw} onLogs={() => openLogs({ user: it.raw.title, period: "month" })} />}
+        {it.type === "policy" && <PolicySection issue={it.raw} policies={results.policies} />}
         {results.decision_log && <DecisionLog log={results.decision_log} it={it} />}
       </div>
 
