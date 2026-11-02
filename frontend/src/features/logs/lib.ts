@@ -1,6 +1,7 @@
 import type { LogPeriod } from "@/shared/api/types";
 
-export const PERIOD_LABEL: Record<LogPeriod, string> = { day: "하루", week: "일주일", month: "한 달", quarter: "3개월", half: "6개월", year: "1년", all: "전체" };
+// 자주 쓰는 넷만 둡니다 (11/2 — 일곱이면 머리줄을 다 차지했음). 서버는 3개월 · 6개월 · 1년도 받습니다.
+export const PERIOD_LABEL: Record<LogPeriod, string> = { day: "하루", week: "일주일", month: "한 달", all: "전체" };
 
 // 버튼으로 거르는 칸 — [조건 이름, 칸 id, 이름, 응답 options 의 키, 집계(facts)의 키]. 사용자는 사람이 많아 검색 칸으로 따로 둡니다.
 export const LOG_FILTERS: [key: "solution" | "how", id: string, label: string, opt: "solutions" | "how", fact: "by_solution" | "by_how"][] = [

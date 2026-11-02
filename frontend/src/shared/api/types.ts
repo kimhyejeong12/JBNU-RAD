@@ -240,7 +240,7 @@ export interface AskItem extends Partial<AskAnswer> {
   started: number | null;
 }
 
-export type LogPeriod = "day" | "week" | "month" | "quarter" | "half" | "year" | "all";
+export type LogPeriod = "day" | "week" | "month" | "all";
 export type StatPeriod = "week" | "month" | "quarter" | "all";
 
 export interface LogsParams {

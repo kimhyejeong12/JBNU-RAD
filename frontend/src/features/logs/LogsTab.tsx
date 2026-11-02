@@ -43,7 +43,10 @@ export function LogsTab() {
       <div className={cardHead}>
         <h3 className={cardTitle}>로그 조회</h3>
         <Periods id="log-periods" labels={PERIODS} value={L.period} onChange={(period) => { if (period !== L.period) change({ period }); }} />
-        <span className={cardCount} id="log-count">{logs.isFetching ? "불러오는 중…" : d ? `${d.total.toLocaleString()}건` : ""}</span>
+        <span className={cn(cardCount, "ml-0")} id="log-count">{logs.isFetching ? "불러오는 중…" : d ? `${d.total.toLocaleString()}건` : ""}</span>
+        {/* 사용자 찾기는 머리줄 오른쪽 끝(검토 현황의 검색 칸과 같은 자리, 건수는 기간 바로 뒤) — 거르기 줄에 솔루션 · 행위만 남아 13인치에서도 한 줄입니다. */}
+        <PickInput key={L.user} id="log-user" label="사용자" values={filterChoices(d?.options.users ?? [], L.user, undefined).map((c) => c.value)}
+          value={L.user} onPick={(v) => change({ user: v })} />
       </div>
       <LogFilters d={d} cond={L} onChange={change} />
       <div className={ltableWrap}>
@@ -75,13 +78,11 @@ export function LogsTab() {
   );
 }
 
-// 거르기 — 사용자는 검색 칸 하나(치면 후보가 뜸, 사람이 늘어도 한 줄). 솔루션 · 행위는 버튼 줄로 늘어놓고 건수를 붙입니다.
+// 거르기 — 솔루션 · 행위는 버튼 줄로 늘어놓고 건수를 붙입니다 (사용자는 머리줄의 검색 칸).
 // 값이 하나뿐이거나 없어도 무엇으로 거를 수 있는지 보이게 늘 둡니다. 값은 응답의 options, 건수는 facts 에서.
 function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChange: (patch: Partial<LogCond>) => void }) {
-  const users = filterChoices(d?.options.users ?? [], cond.user, undefined).map((c) => c.value);
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4.5 pb-3">
-      <PickInput key={cond.user} id="log-user" label="사용자" values={users} value={cond.user} onPick={(v) => onChange({ user: v })} />
       {LOG_FILTERS.map(([k, id, label, opt, fact]) => {
         const choices = filterChoices(d?.options[opt] ?? [], cond[k], d?.facts?.[fact]);
         return (
@@ -97,9 +98,10 @@ function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChan
 }
 
 // 사용자 찾기 — 입력하면 후보가 뜨고, 목록에 있는 이름과 똑같아지거나 비우면 거릅니다 (서버는 완전 일치로 거름).
+// 이름은 짧아 200px 이면 충분합니다 (휴대폰은 한 줄 전체).
 function PickInput({ id, label, values, value, onPick }: { id: string; label: string; values: string[]; value: string; onPick: (v: string) => void }) {
   return (
-    <label className={cn(searchBox, "w-full max-w-[320px]")}>
+    <label className={cn(searchBox, "ml-auto w-50 phone:w-full")}>
       <Icon name="search" small />
       <input id={id} type="search" list={`${id}-list`} className={searchInput} defaultValue={value} placeholder={`${label} 이름으로 찾기`} autoComplete="off"
         onChange={(e) => { const v = e.target.value.trim(); if (!v || values.includes(v)) onPick(v); }} />
