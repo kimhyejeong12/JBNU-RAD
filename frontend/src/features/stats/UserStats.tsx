@@ -9,6 +9,7 @@ import { HBars } from "@/shared/ui/charts/HBars";
 import { DataTable, Legend, Meter, TableView } from "@/shared/ui/charts/parts";
 import { Icon } from "@/shared/ui/base/Icon";
 import { cardCount, cardHead, cardTitle, toolButton } from "@/shared/ui/base/styles";
+import { cn } from "@/shared/lib/cn";
 
 interface Props { d: UserStats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
 
@@ -49,7 +50,8 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
     <section className={statCard} id="stat-suspects">
       <div className={cardHead}>
         <h3 className={cardTitle}>위협 예측 — 의심 점수</h3>
-        <span className={cardCount}>{sus.length ? `${sus.length}명 · ${stamp(latest)} 예측` : ""}</span>
+        {/* 건수는 제목 옆, 버튼은 오른쪽 끝 (둘 다 오른쪽으로 밀면 버튼이 가운데로 뜸). */}
+        <span className={cn(cardCount, "ml-0")}>{sus.length ? `${sus.length}명 · ${stamp(latest)} 예측` : ""}</span>
         <button className={toolButton} id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
           <Icon name="activity" small />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
         </button>

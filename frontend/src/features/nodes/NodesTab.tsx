@@ -25,12 +25,13 @@ export function NodesTab() {
     <section className={cn(card, "flex min-h-80 flex-col")} id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes">
       <div className={cardHead}>
         <h3 className={cardTitle}>수집 노드</h3>
-        <span className={cardCount} id="node-count">{nodes.data ? `${list.length}대` : ""}</span>
+        {/* 건수는 제목 옆, 버튼은 오른쪽 끝 — 건수와 버튼이 둘 다 오른쪽으로 밀면 남는 자리를 나눠 버튼이 가운데로 떠서. */}
+        <span className={cn(cardCount, "ml-0")} id="node-count">{nodes.data ? `${list.length}대` : ""}</span>
         <button className={toolButton} id="check-now" disabled={!jobs || !!jobs.running || start.isPending} onClick={() => start.mutate("nodes")}>
           <Icon name="activity" small />
           <span id="check-now-txt">{checking ? `점검 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 점검"}</span>
         </button>
-        <button className={toolButton} id="add-node" onClick={addNode}><Icon name="plus" small />노드 등록</button>
+        <button className={cn(toolButton, "ml-0")} id="add-node" onClick={addNode}><Icon name="plus" small />노드 등록</button>
       </div>
       <div className={ltableWrap}>
         <table className={ltable}>
