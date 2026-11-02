@@ -1,5 +1,5 @@
 import type { Level, LogPeriod, StatPeriod } from "@/shared/api/types";
-import { VIEWS, isAdminView, type MainTab, type View } from "@/app/session/views";
+import { VIEWS, isAdminView, type MainTab, type SavedPage, type View } from "@/app/session/views";
 
 // 화면(UI) 상태 — 서버 데이터는 TanStack Query 에 있고, 여기에는 어느 메뉴 · 탭 · 항목을 보고 있는지만 둡니다.
 
@@ -36,6 +36,7 @@ export const initialUi: UiState = {
 
 export type UiAction =
   | { type: "NAVIGATE"; view: View; nextSelected: string | null }
+  | ({ type: "RESTORE"; nextSelected: string | null } & SavedPage)
   | { type: "SET_MAIN_TAB"; tab: MainTab }
   | { type: "SELECT"; key: string; view: View }
   | { type: "SELECT_SILENT"; key: string | null }
@@ -76,6 +77,11 @@ export function uiReducer(s: UiState, a: UiAction): UiState {
     case "NAVIGATE": {
       const tabs = VIEWS[a.view].tabs;
       return { ...withTab(withView(s, a.view), tabs.includes(s.mainTab) ? s.mainTab : tabs[0]), selected: a.nextSelected };
+    }
+    // 새로고침 뒤 마지막 화면 — 메뉴 · 탭 · 결재 단계 · 관리의 마지막 탭을 한 번에 (값은 views.restorable 이 걸러서 옵니다).
+    case "RESTORE": {
+      const base = { ...s, stageFilter: a.stageFilter, lastAdmin: a.lastAdmin };
+      return { ...withTab(withView(base, a.view), a.mainTab), selected: a.nextSelected };
     }
     case "SET_MAIN_TAB":
       return withTab(s, a.tab);

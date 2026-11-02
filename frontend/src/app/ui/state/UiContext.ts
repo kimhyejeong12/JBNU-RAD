@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useReducer, type Dispatch } from "react";
 import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { initialUi, uiReducer, type AskSource, type LevelFilter, type StageFilter, type UiAction, type UiState } from "./uiReducer";
-import { ROLE_VIEWS, TYPE_VIEW, isAdminView, type MainTab, type View } from "@/app/session/views";
+import { ROLE_VIEWS, TYPE_VIEW, isAdminView, type MainTab, type SavedPage, type View } from "@/app/session/views";
 import { firstKeyInView, inView } from "@/app/queue/select";
 import { useQueue } from "@/app/queue/useQueue";
 import { useMe } from "@/app/session/me";
@@ -13,6 +13,7 @@ export interface UiStore {
   ui: UiState;
   dispatch: Dispatch<UiAction>;
   navigate(view: View): void;
+  restore(page: SavedPage): void;
   openAdmin(): void;
   select(key: string): void;
   selectSilent(key: string | null): void;
@@ -65,6 +66,7 @@ export function useUiStore(): UiStore {
     return {
       ui, dispatch, openDrawer,
       navigate: (view) => dispatch({ type: "NAVIGATE", view, nextSelected: keepOrFirst(view, ui.stageFilter) }),
+      restore: (page) => dispatch({ type: "RESTORE", ...page, nextSelected: firstKeyInView(items, page.view, page.stageFilter, role) }),
       // 관리는 마지막으로 보던 탭으로 엽니다 (처음에는 첫 탭).
       openAdmin: () => {
         const view = ui.lastAdmin ?? ROLE_VIEWS[role].find(isAdminView);

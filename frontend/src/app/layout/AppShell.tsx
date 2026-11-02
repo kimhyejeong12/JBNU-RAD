@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { MeContext, useViews } from "@/app/session/me";
+import { MeContext, useMe, useViews } from "@/app/session/me";
+import { restorable } from "@/app/session/views";
 import { useNeeds } from "@/app/session/data";
 import { NARROW, UiContext, useUiStore } from "@/app/ui/state/UiContext";
 import { useBoot } from "@/app/session/useBoot";
@@ -27,6 +28,7 @@ export function AppShell({ me }: { me: Me }) {
 // body 가 그리드라 자식 순서를 지키고 감싸는 요소를 두지 않습니다 (#root 는 display: contents).
 // body 의 칸 나누기 · 스크롤은 진입 CSS 가 data-solo · data-nav-wide · data-drawer-open 으로 정합니다.
 function Shell() {
+  const me = useMe();
   const views = useViews();
   const store = useUiStore();
   const { ui, dispatch, navigate } = store;
@@ -54,10 +56,23 @@ function Shell() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [dispatch]);
-  // 데이터를 다 받으면 첫 메뉴를 엽니다.
+  // 데이터를 다 받으면 새로고침 전에 보던 화면을, 없으면(또는 이 계정에 없는 메뉴면) 첫 메뉴를 엽니다.
+  // 계정별로 남깁니다 — 개발용 비교 화면(compare.html)의 세 칸이 같은 브라우저 저장소를 써서.
+  const pageKey = `sentinelai.page.${me.login_id}`;
   useEffect(() => {
-    if (boot.ready && ui.view === null) navigate(views[0]);
-  }, [boot.ready, ui.view, navigate, views]);
+    if (!boot.ready || ui.view !== null) return;
+    const saved = restorable(readPage(pageKey), me.role);
+    if (saved) store.restore(saved);
+    else navigate(views[0]);
+  }, [boot.ready, ui.view, navigate, views, pageKey, me.role, store]);
+  useEffect(() => {
+    if (!ui.view) return;
+    try {
+      localStorage.setItem(pageKey, JSON.stringify({ view: ui.view, mainTab: ui.mainTab, stageFilter: ui.stageFilter, lastAdmin: ui.lastAdmin }));
+    } catch {
+      // 저장하지 못해도 이번 화면은 그대로입니다 (새로고침하면 첫 메뉴).
+    }
+  }, [pageKey, ui.view, ui.mainTab, ui.stageFilter, ui.lastAdmin]);
   // 결재 · 회수로 목록에서 빠진 항목을 고르고 있었으면 같은 신청을 다른 메뉴에서 찾지 않고 그대로 비웁니다.
   const items = useQueue();
   useEffect(() => {
@@ -75,6 +90,14 @@ function Shell() {
       <TooltipLayer />
     </UiContext.Provider>
   );
+}
+
+function readPage(key: string): unknown {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? "null");
+  } catch {
+    return null;   // 저장소를 못 쓰거나 값이 망가졌으면 첫 메뉴로
+  }
 }
 
 // body 의 상태 속성 — 켜면 "true", 끄면 지웁니다. 화면을 떠날 때도 지웁니다.

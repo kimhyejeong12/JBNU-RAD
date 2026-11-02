@@ -89,3 +89,9 @@ test("NAVIGATE: 지금 탭이 새 메뉴에도 있으면 탭을 유지한다", (
   expect(uiReducer(at({ view: "qa", mainTab: "ask" }), { type: "NAVIGATE", view: "policies", nextSelected: null }).mainTab).toBe("ask");
   expect(uiReducer(at({ view: "policies", mainTab: "nodes" }), { type: "NAVIGATE", view: "events", nextSelected: null }).mainTab).toBe("queue");
 });
+
+test("RESTORE: 새로고침 뒤 마지막 메뉴 · 탭 · 결재 단계 · 관리의 마지막 탭을 한 번에 되살린다", () => {
+  const s = uiReducer(initialUi, { type: "RESTORE", view: "policies", mainTab: "nodes", stageFilter: "active", lastAdmin: "users", nextSelected: "server:a" });
+  expect(s).toMatchObject({ view: "policies", mainTab: "nodes", stageFilter: "active", lastAdmin: "users", selected: "server:a" });
+  expect(uiReducer(initialUi, { type: "RESTORE", view: "docs", mainTab: "queue", stageFilter: "pending", lastAdmin: null, nextSelected: null }).lastAdmin).toBe("docs");
+});

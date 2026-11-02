@@ -1,4 +1,5 @@
 import type { Role } from "@/shared/api/types";
+import type { StageFilter } from "@/app/ui/state/uiReducer";
 
 export type MainTab = "queue" | "nodes" | "logs" | "ask" | "stats" | "ustats";
 export type View = "requests" | "policies" | "stats" | "qa" | "events" | "mine" | "users" | "access" | "docs";
@@ -81,6 +82,26 @@ export function navGroups(views: View[]): [NavGroup, View[]][] {
     else out.push([g, [v]]);
   }
   return out;
+}
+
+// 새로고침 뒤 돌아갈 마지막 화면 — 메뉴 · 탭 · 결재 단계 · 관리의 마지막 탭.
+export interface SavedPage { view: View; mainTab: MainTab; stageFilter: StageFilter; lastAdmin: View | null }
+
+// 저장된 값이 이 역할의 메뉴 · 탭에 있을 때만 씁니다 (계정이 바뀌었거나 메뉴가 바뀌었으면 null → 첫 메뉴).
+export function restorable(raw: unknown, role: Role): SavedPage | null {
+  if (!raw || typeof raw !== "object") return null;
+  const p = raw as Partial<Record<keyof SavedPage, unknown>>;
+  const views = ROLE_VIEWS[role];
+  const view = views.find((v) => v === p.view);
+  if (!view) return null;
+  const tabs = VIEWS[view].tabs;
+  const admin = views.find((v) => v === p.lastAdmin && isAdminView(v));
+  return {
+    view,
+    mainTab: tabs.find((t) => t === p.mainTab) ?? tabs[0],
+    stageFilter: p.stageFilter === "active" || p.stageFilter === "all" ? p.stageFilter : "pending",
+    lastAdmin: admin ?? null,
+  };
 }
 
 // 사이드바를 처음에 펼칠지 — 1440px 이상이면 펼쳐도 목록(최소 760px) · 오른쪽 패널(430px)이 들어갑니다.
