@@ -27,6 +27,11 @@ export function visible(items: QueueItem[], o: VisibleOptions): QueueItem[] {
   });
 }
 
+// 정책 관리 · 로그 감시는 결정하지 않은 주의 · 위험을 위로 — 결정한 판정도 목록에 남고 로그 감시는 30분마다 쌓여, 할 일이 그 사이에 묻히지 않게.
+// 같은 무리 안의 순서는 그대로입니다 (sort 는 같은 값끼리 순서를 지킴). 권한 신청 · 관리 목록은 순서가 바뀌지 않습니다.
+const waiting = (it: QueueItem) => (it.type === "policy" || it.type === "server" || it.type === "event") && !it.decision && (it.level === "주의" || it.level === "위험");
+export const todoFirst = (items: QueueItem[]): QueueItem[] => [...items].sort((a, b) => Number(waiting(b)) - Number(waiting(a)));
+
 // 종 배지: 내가 결재할 위험 신청 + 결정하지 않은 정책 · 서버 · 로그 위험.
 export function openRisks(items: QueueItem[], role: Role): QueueItem[] {
   if (role === "user") return [];

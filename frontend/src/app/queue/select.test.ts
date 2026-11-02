@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { QueueItem } from "./types";
-import { firstKeyInView, inView, levelCounts, openRisks, stageCounts, todoCounts, visible, emptyText } from "./select";
+import { firstKeyInView, inView, levelCounts, openRisks, stageCounts, todoCounts, todoFirst, visible, emptyText } from "./select";
 import type { Jobs } from "@/shared/api/types";
 
 const item = (p: Record<string, unknown>): QueueItem =>
@@ -50,6 +50,10 @@ test("todoCounts: 사이드바 숫자는 할 일 — 내 단계 결재 대기 ·
   const frozen = Object.freeze([...items, evtFast]);
   expect(todoCounts(frozen, ["requests", "policies", "events", "qa", "docs"], "manager")).toEqual({ requests: 1, policies: 1, events: 1 });
   expect(todoCounts(frozen, ["requests", "policies", "events"], "top").requests).toBe(0);
+});
+
+test("todoFirst: 결정하지 않은 주의 이상이 위로, 같은 무리 안 순서와 신청끼리의 순서는 그대로", () => {
+  expect(todoFirst(items).map((i) => i.key)).toEqual(["policy:a", "event:c", "req:1", "req:2", "policy:b"]);
 });
 
 test("firstKeyInView", () => {
