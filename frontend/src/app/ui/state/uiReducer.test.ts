@@ -21,6 +21,12 @@ test("NAVIGATE: 검토 현황 탭이 없는 메뉴는 첫 탭으로", () => {
   expect(stats.stats.kind).toBe("stats");
 });
 
+test("NAVIGATE: 관리의 탭을 보면 기억하고, 다른 메뉴로 가도 잊지 않는다", () => {
+  const users = uiReducer(at({ view: "access" }), { type: "NAVIGATE", view: "users", nextSelected: null });
+  expect(users.lastAdmin).toBe("users");
+  expect(uiReducer(users, { type: "NAVIGATE", view: "requests", nextSelected: null }).lastAdmin).toBe("users");
+});
+
 test("SELECT: 다른 항목을 고르면 메시지를 지우고, SELECT_SILENT 는 남긴다", () => {
   const base = at({ view: "requests", selected: "req:1", panelMsg: "✓ 승인했습니다" });
   expect(uiReducer(base, { type: "SELECT", key: "req:2", view: "requests" }).panelMsg).toBe("");
@@ -40,9 +46,9 @@ test("SET_MAIN_TAB: 탭을 바꾸면 인용 조항을 닫고, 통계 종류가 �
   expect(u.stats).toEqual({ period: "week", kind: "ustats", selected: null });
 });
 
-test("TOGGLE_FILTER: 같은 등급을 다시 누르면 전체", () => {
-  expect(uiReducer(at({ filter: "전체" }), { type: "TOGGLE_FILTER", level: "위험" }).filter).toBe("위험");
-  expect(uiReducer(at({ filter: "위험" }), { type: "TOGGLE_FILTER", level: "위험" }).filter).toBe("전체");
+test("SET_FILTER: 등급 거르기 버튼에서 고른 값으로 (전체 포함)", () => {
+  expect(uiReducer(at({ filter: "전체" }), { type: "SET_FILTER", filter: "위험" }).filter).toBe("위험");
+  expect(uiReducer(at({ filter: "위험" }), { type: "SET_FILTER", filter: "전체" }).filter).toBe("전체");
 });
 
 test("SET_STAGE_FILTER: 값과 첫 항목", () => {
@@ -55,6 +61,7 @@ test("CLOSE_PANEL: 서랍을 닫고 탭별 선택을 푼다", () => {
     .toMatchObject({ drawerOpen: false, nodes: { selected: null, adding: false } });
   expect(uiReducer(at({ mainTab: "logs", logs: { ...initialUi.logs, selected: 3 } }), { type: "CLOSE_PANEL" }).logs.selected).toBeNull();
   expect(uiReducer(at({ mainTab: "ask", askSource: { i: 0, n: 0 } }), { type: "CLOSE_PANEL" }).askSource).toBeNull();
+  expect(uiReducer(at({ mainTab: "stats", stats: { ...initialUi.stats, selected: { kind: "node", key: "n1" } } }), { type: "CLOSE_PANEL" }).stats.selected).toBeNull();
   expect(uiReducer(at({ mainTab: "queue", selected: "req:1", drawerOpen: true }), { type: "CLOSE_PANEL" })).toMatchObject({ selected: "req:1", drawerOpen: false });
 });
 
@@ -82,4 +89,10 @@ test("NAVIGATE: 지금 탭이 새 메뉴에도 있으면 탭을 유지한다", (
   expect(uiReducer(at({ view: "policies", mainTab: "ask" }), { type: "NAVIGATE", view: "events", nextSelected: null }).mainTab).toBe("ask");
   expect(uiReducer(at({ view: "qa", mainTab: "ask" }), { type: "NAVIGATE", view: "policies", nextSelected: null }).mainTab).toBe("ask");
   expect(uiReducer(at({ view: "policies", mainTab: "nodes" }), { type: "NAVIGATE", view: "events", nextSelected: null }).mainTab).toBe("queue");
+});
+
+test("RESTORE: 새로고침 뒤 마지막 메뉴 · 탭 · 결재 단계 · 관리의 마지막 탭을 한 번에 되살린다", () => {
+  const s = uiReducer(initialUi, { type: "RESTORE", view: "policies", mainTab: "nodes", stageFilter: "active", lastAdmin: "users", nextSelected: "server:a" });
+  expect(s).toMatchObject({ view: "policies", mainTab: "nodes", stageFilter: "active", lastAdmin: "users", selected: "server:a" });
+  expect(uiReducer(initialUi, { type: "RESTORE", view: "docs", mainTab: "queue", stageFilter: "pending", lastAdmin: null, nextSelected: null }).lastAdmin).toBe("docs");
 });

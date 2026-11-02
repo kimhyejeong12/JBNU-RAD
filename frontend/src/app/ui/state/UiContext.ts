@@ -1,19 +1,23 @@
 import { createContext, useContext, useMemo, useReducer, type Dispatch } from "react";
 import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
-import { initialUi, uiReducer, type AskSource, type StageFilter, type UiAction, type UiState } from "./uiReducer";
-import { TYPE_VIEW, type MainTab, type View } from "@/app/session/views";
+import { initialUi, uiReducer, type AskSource, type LevelFilter, type StageFilter, type UiAction, type UiState } from "./uiReducer";
+import { ROLE_VIEWS, TYPE_VIEW, isAdminView, type MainTab, type SavedPage, type View } from "@/app/session/views";
 import { firstKeyInView, inView } from "@/app/queue/select";
 import { useQueue } from "@/app/queue/useQueue";
 import { useMe } from "@/app/session/me";
-import type { Level } from "@/shared/api/types";
 import { useMediaQuery } from "@/shared/lib/hooks";
 
 export const NARROW = "(max-width: 1150px)";
+
+// 완료(✓) 안내가 저절로 사라지기까지 — 오류 안내는 고칠 때까지 봐야 해서 다음 동작까지 남깁니다.
+export const DONE_MSG_MS = 4000;
 
 export interface UiStore {
   ui: UiState;
   dispatch: Dispatch<UiAction>;
   navigate(view: View): void;
+  restore(page: SavedPage): void;
+  openAdmin(): void;
   select(key: string): void;
   selectSilent(key: string | null): void;
   deselect(): void;
@@ -21,7 +25,7 @@ export interface UiStore {
   closePanel(): void;
   openDrawer(): void;
   openLogs(cond: Partial<UiState["logs"]>): void;
-  toggleFilter(level: Level): void;
+  setFilter(filter: LevelFilter): void;
   setQuery(query: string): void;
   setStageFilter(value: StageFilter): void;
   setPanelMsg(msg: string): void;
@@ -65,6 +69,12 @@ export function useUiStore(): UiStore {
     return {
       ui, dispatch, openDrawer,
       navigate: (view) => dispatch({ type: "NAVIGATE", view, nextSelected: keepOrFirst(view, ui.stageFilter) }),
+      restore: (page) => dispatch({ type: "RESTORE", ...page, nextSelected: firstKeyInView(items, page.view, page.stageFilter, role) }),
+      // 관리는 마지막으로 보던 탭으로 엽니다 (처음에는 첫 탭).
+      openAdmin: () => {
+        const view = ui.lastAdmin ?? ROLE_VIEWS[role].find(isAdminView);
+        if (view) dispatch({ type: "NAVIGATE", view, nextSelected: keepOrFirst(view, ui.stageFilter) });
+      },
       select: (key) => {
         const it = items.find((i) => i.key === key);
         const view = it ? TYPE_VIEW[it.type] : ui.view;
@@ -83,7 +93,7 @@ export function useUiStore(): UiStore {
         qc.removeQueries({ queryKey: ["logs"] });
         dispatch({ type: "OPEN_LOGS", cond });
       },
-      toggleFilter: (level) => dispatch({ type: "TOGGLE_FILTER", level }),
+      setFilter: (filter) => dispatch({ type: "SET_FILTER", filter }),
       setQuery: (query) => dispatch({ type: "SET_QUERY", query }),
       setStageFilter: (value) => {
         if (ui.view) dispatch({ type: "SET_STAGE_FILTER", value, nextSelected: keepOrFirst(ui.view, value) });

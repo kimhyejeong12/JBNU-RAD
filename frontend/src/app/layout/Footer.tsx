@@ -11,12 +11,12 @@ export function Footer() {
   const results = useResults();
   const jobs = useJobs();
   const hidden = ui.mainTab !== "queue" || !ui.view || !RESULT_VIEWS.has(ui.view);
-  if (hidden) return <footer className="foot" id="foot" hidden />;
+  if (hidden) return <footer id="foot" hidden />;
   const warns = footerWarnings(results, jobs);
   return (
-    <footer className="foot" id="foot">
+    <footer className="px-1 py-0.5 text-[11.5px] text-ink-dim" id="foot">
       {results.generated_at ? `계산 시각 ${stamp(results.generated_at)}` : "아직 분석하지 않았습니다"}
-      {warns.map((w, i) => <Fragment key={i}> · <span className="warn">{w}</span></Fragment>)}
+      {warns.map((w, i) => <Fragment key={i}> · <span className="text-risk">{w}</span></Fragment>)}
     </footer>
   );
 }

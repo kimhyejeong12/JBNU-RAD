@@ -6,6 +6,7 @@ import { PanelHead } from "@/app/ui/panel/Panel";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/base/Icon";
 import { KvTable, Section } from "@/shared/ui/base/parts";
+import { empty, meta, note, panelBody, subject, toolButton } from "@/shared/ui/base/styles";
 
 // 패널: 고른 줄이 있으면 그 로그의 원본, 없으면 지금 조건의 집계. 숫자는 모두 서버가 센 값입니다.
 export function LogsPanel() {
@@ -22,12 +23,12 @@ export function LogsPanel() {
     return (
       <>
         <PanelHead title="로그 원본" />
-        <div className="panel-body">
-          <p className="subject">{e.user}</p>
-          <div className="meta">{stamp(e.occurred_at)} · {e.solution}</div>
+        <div className={panelBody}>
+          <p className={subject}>{e.user}</p>
+          <div className={meta}>{stamp(e.occurred_at)} · {e.solution}</div>
           <Section icon="list" title="내용"><KvTable rows={fields} /></Section>
           <Section icon="file" title="내보낸 행 그대로"><KvTable rows={Object.entries(e.raw || {})} /></Section>
-          <button className="rerun" id="log-back" onClick={closePanel}><Icon name="activity" className="sm" />집계로 돌아가기</button>
+          <button className={toolButton} id="log-back" onClick={closePanel}><Icon name="activity" small />집계로 돌아가기</button>
         </div>
       </>
     );
@@ -36,22 +37,22 @@ export function LogsPanel() {
   const f = d?.facts;
   const list = (obj: Record<string, number> | undefined, limit: number) => {
     const rows = Object.entries(obj || {});
-    if (!rows.length) return <p className="note">없음</p>;
+    if (!rows.length) return <p className={note}>없음</p>;
     return (
       <>
         <KvTable rows={rows.slice(0, limit).map(([k, v]) => [k, `${v}건`])} />
-        {rows.length > limit && <p className="note">상위 {limit}개만 표시합니다.</p>}
+        {rows.length > limit && <p className={note}>상위 {limit}개만 표시합니다.</p>}
       </>
     );
   };
   return (
     <>
       <PanelHead title="조회 집계" />
-      <div className="panel-body">
-        {!d || !f ? <div className="empty">{logs.isError ? logs.error.message : "불러오는 중…"}</div> : (
+      <div className={panelBody}>
+        {!d || !f ? <div className={empty}>{logs.isError ? logs.error.message : "불러오는 중…"}</div> : (
           <>
-            <p className="subject">{[PERIOD_LABEL[d.period], ...Object.values(d.criteria)].join(" · ")}</p>
-            <div className="meta">{stamp(d.since) || "처음"} ~ {stamp(d.until)}</div>
+            <p className={subject}>{[PERIOD_LABEL[d.period], ...Object.values(d.criteria)].join(" · ")}</p>
+            <div className={meta}>{stamp(d.since) || "처음"} ~ {stamp(d.until)}</div>
             <Section icon="activity" title="합계">
               <KvTable rows={[
                 ["해당 로그", `${f.count.toLocaleString()}건`],
@@ -61,7 +62,7 @@ export function LogsPanel() {
             </Section>
             <Section icon="users" title="사용자별">{list(f.by_user, 20)}</Section>
             <Section icon="list" title="날짜별 (많은 순)">{list(f.by_day, 14)}</Section>
-            <p className="note">줄을 고르면 원본을 봅니다.</p>
+            <p className={note}>줄을 고르면 원본을 봅니다.</p>
           </>
         )}
       </div>

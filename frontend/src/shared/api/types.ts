@@ -28,6 +28,7 @@ export interface Health {
 export interface Regulation {
   name: string;
   content: string;
+  updated_at?: string;   // 파일을 고친 시각
 }
 
 export type Stage = "manager" | "top" | "approved" | "rejected" | "withdrawn" | "revoked";
@@ -181,6 +182,7 @@ export interface Decision {
   decided_at: string;
   comment: string | null;
   ai_level: string | null;
+  carried_from?: string;   // 다시 판정됐지만 결과가 그대로라 지난 판정의 결정을 이어받았으면 그 판정의 key (서버가 붙임)
 }
 
 export interface Results {
@@ -204,7 +206,7 @@ export interface Jobs {
   total?: number;
   kinds: Record<string, string>;
   last?: Record<string, { finished_at?: string | null; error?: string | null }>;
-  fast?: { every_min: number; next_at: string | null; last: Record<string, { finished_at?: string | null }> };
+  fast?: { every_min: number; next_at: string | null; last: Record<string, { finished_at?: string | null }>; running?: string | null };
 }
 
 export type AskKind = "policy" | "servers" | "logs";
@@ -238,7 +240,7 @@ export interface AskItem extends Partial<AskAnswer> {
   started: number | null;
 }
 
-export type LogPeriod = "day" | "week" | "month" | "quarter" | "half" | "year" | "all";
+export type LogPeriod = "day" | "week" | "month" | "all";
 export type StatPeriod = "week" | "month" | "quarter" | "all";
 
 export interface LogsParams {
@@ -298,6 +300,8 @@ export interface LogFacts {
   last?: string | null;
   attribute_totals: Record<string, number>;
   by_user: Record<string, number>;
+  by_solution?: Record<string, number>;
+  by_how?: Record<string, number>;
   by_day: Record<string, number>;
 }
 

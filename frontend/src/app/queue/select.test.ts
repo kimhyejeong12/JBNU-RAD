@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { QueueItem } from "./types";
-import { firstKeyInView, inView, openRisks, viewCounts, visible, emptyText } from "./select";
+import { firstKeyInView, inView, levelCounts, openRisks, stageCounts, todoCounts, todoFirst, visible, emptyText } from "./select";
 import type { Jobs } from "@/shared/api/types";
 
 const item = (p: Record<string, unknown>): QueueItem =>
@@ -45,9 +45,15 @@ test("openRisks: 내가 결재할 위험 신청 + 결정하지 않은 위험 판
   expect(openRisks(items, "user")).toEqual([]);
 });
 
-test("viewCounts: 메뉴별 건수, 입력은 바꾸지 않는다", () => {
-  const frozen = Object.freeze([...items]);
-  expect(viewCounts(frozen, ["requests", "policies", "events", "qa"], "all", "manager")).toEqual({ requests: 2, policies: 2, events: 1 });
+test("todoCounts: 사이드바 숫자는 할 일 — 내 단계 결재 대기 · 결정 안 한 주의 이상(1차 판정 제외), 탭과 상관없이, 입력은 바꾸지 않는다", () => {
+  const evtFast = item({ type: "event", key: "event:f", level: "위험", raw: { stage: "fast" } });
+  const frozen = Object.freeze([...items, evtFast]);
+  expect(todoCounts(frozen, ["requests", "policies", "events", "qa", "docs"], "manager")).toEqual({ requests: 1, policies: 1, events: 1 });
+  expect(todoCounts(frozen, ["requests", "policies", "events"], "top").requests).toBe(0);
+});
+
+test("todoFirst: 결정하지 않은 주의 이상이 위로, 같은 무리 안 순서와 신청끼리의 순서는 그대로", () => {
+  expect(todoFirst(items).map((i) => i.key)).toEqual(["policy:a", "event:c", "req:1", "req:2", "policy:b"]);
 });
 
 test("firstKeyInView", () => {
@@ -73,8 +79,17 @@ test("권한 신청은 결재 단계 거르기마다", () => {
   expect(emptyText("requests", "all", jobs, false)).toBe("신청이 없습니다.");
 });
 
-test("내 신청 · 계정 · 권한 목록", () => {
-  expect(emptyText("mine", "pending", jobs, false)).toBe("아직 신청한 권한이 없습니다. 위 신청서를 채워 신청하세요.");
+test("계정 · 권한 목록", () => {
   expect(emptyText("users", "pending", jobs, false)).toBe("계정이 없습니다.");
   expect(emptyText("access", "pending", jobs, false)).toBe("등록한 권한이 없습니다. [권한 등록]으로 넣으세요.");
+});
+
+test("stageCounts: 결재함 거르기 버튼의 건수 — 결재 대기(내 단계) · 유효 권한 · 전체, 신청만 센다", () => {
+  expect(stageCounts(items, "manager")).toEqual({ pending: 1, active: 1, all: 2 });
+  expect(stageCounts(items, "top")).toEqual({ pending: 0, active: 1, all: 2 });
+});
+
+test("levelCounts: 등급 거르기 버튼의 건수 — 지금 메뉴 · 결재 단계 범위에서 등급별과 전체", () => {
+  expect(levelCounts(items, "policies", "pending", "top")).toEqual({ 전체: 2, 정상: 0, 주의: 0, 위험: 2 });
+  expect(levelCounts(items, "requests", "all", "manager")).toEqual({ 전체: 2, 정상: 1, 주의: 0, 위험: 1 });
 });

@@ -9,10 +9,15 @@ import { AskPanel } from "@/features/ask/AskPanel";
 import { StatsPanel } from "@/features/stats/StatsPanel";
 import { UserPanel } from "@/features/accounts/UserPanel";
 import { AccessPanel } from "@/features/catalog/AccessPanel";
+import { DocPanel } from "@/features/regulations/DocPanel";
 import type { View } from "@/app/session/views";
 import { PanelHead } from "@/app/ui/panel/Panel";
+import { cn } from "@/shared/lib/cn";
+import { NEW_ITEM, panelIdle } from "@/app/ui/state/uiReducer";
+import { useMe } from "@/app/session/me";
+import { card, empty, panelBody } from "@/shared/ui/base/styles";
 
-// 오른쪽 패널 — 메뉴 · 탭마다 내용이 다릅니다. 작은 화면에서는 서랍으로 뜹니다.
+// 오른쪽 패널 — 메뉴 · 탭마다 내용이 다릅니다. 작은 화면에서는 서랍으로 뜹니다. 일반 사용자에게는 없습니다 (Workspace).
 export function RightPanel() {
   const { ui } = useUi();
   const items = useQueue();
@@ -22,31 +27,44 @@ export function RightPanel() {
   else if (ui.mainTab === "logs") body = <LogsPanel />;
   else if (ui.mainTab === "nodes") body = <NodesPanel />;
   else if (ui.mainTab === "stats" || ui.mainTab === "ustats") body = <StatsPanel />;
-  // 계정 · 권한 목록 메뉴에서 선택이 없으면 새로 만드는 폼입니다.
-  else if (ui.view === "users" && (!it || it.type !== "user")) body = <UserPanel key="new" u={null} />;
-  else if (it && (it.type === "req" || it.type === "mine")) body = <RequestPanel key={it.key} it={it} />;
+  // 계정 · 권한 목록 · 기준 문서의 새로 만드는 · 올리는 폼은 [+ …] 버튼을 눌렀을 때만 (선택 없음은 다른 메뉴처럼 안내).
+  else if (ui.selected === NEW_ITEM && ui.view === "users") body = <UserPanel key="new" u={null} />;
+  else if (ui.selected === NEW_ITEM && ui.view === "access") body = <AccessPanel key="new" a={null} />;
+  else if (ui.selected === NEW_ITEM && ui.view === "docs") body = <DocPanel key="new" d={null} />;
+  else if (it && it.type === "req") body = <RequestPanel key={it.key} it={it} />;
   else if (it && it.type === "user") body = <UserPanel key={it.key} u={it.raw} />;
-  else if (ui.view === "access") body = <AccessPanel key={it?.type === "access" ? it.key : "new"} a={it?.type === "access" ? it.raw : null} />;
+  else if (it && it.type === "doc") body = <DocPanel key={it.key} d={it.raw} />;
+  else if (it && it.type === "access") body = <AccessPanel key={it.key} a={it.raw} />;
   else if (it && (it.type === "policy" || it.type === "server" || it.type === "event")) body = <ReviewPanel key={it.key} it={it} />;
   else body = <EmptyQueuePanel view={ui.view} />;
+  // 질의 · 통계 탭은 근거 칩 · 줄을 고르기 전에는 패널을 두지 않습니다 (Workspace 와 같은 조건).
+  const hidden = panelIdle(ui);
   return (
-    <aside className={ui.drawerOpen ? "card panel open" : "card panel"} id="panel">
+    <aside id="panel" className={cn(card, PANEL, ui.drawerOpen ? DRAWER_OPEN : DRAWER_SHUT, hidden && "hidden")}>
       {body}
     </aside>
   );
 }
 
-// 빈 패널도 메뉴를 따릅니다. 일반 사용자에게는 AI 문구를 보이지 않습니다.
+// 넓은 화면은 오른쪽 칸, 좁은 화면은 오른쪽에서 밀려 나오는 서랍 — 폰에서도 바깥을 눌러 닫을 48px 를 남깁니다.
+// 밀려 나오는 움직임은 transform 전환이라 Tailwind 의 translate(별도 속성) 대신 transform 값을 그대로 씁니다.
+const PANEL = "flex min-h-0 flex-col overflow-hidden narrow:fixed narrow:inset-y-0 narrow:right-0 narrow:z-50 narrow:w-[min(430px,calc(100vw-48px))] narrow:rounded-none narrow:border-0 narrow:shadow-[-12px_0_32px_rgba(0,0,0,.16)]";
+const DRAWER_SHUT = "narrow:invisible narrow:transform-[translateX(100%)] narrow:[transition:transform_.2s_ease,visibility_0s_linear_.2s]";
+const DRAWER_OPEN = "narrow:visible narrow:transform-none narrow:[transition:transform_.2s_ease]";
+
+// 빈 패널도 메뉴를 따릅니다 (일반 사용자에게는 패널이 없습니다).
 function EmptyQueuePanel({ view }: { view: View | null }) {
-  const [title, text] = view === "mine"
-    ? ["내 신청", <>신청하거나 목록에서 신청을 고르면<br />결재 상태와 기록이 표시됩니다.</>]
-    : view === "requests"
-      ? ["권한 신청 검토", <>목록에서 신청을 선택하면<br />신청 내용 · AI 판정 · 결재 기록이 표시됩니다.</>]
-      : ["AI 판단 근거", <>목록에서 항목을 선택하면<br />AI 판단 근거와 권고가 표시됩니다.</>];
+  const top = useMe().role === "top";
+  const [title, text] = view === "requests"
+    ? ["권한 신청 검토", <>목록에서 신청을 선택하면<br />신청 내용 · AI 판정 · 결재 기록이 표시됩니다.</>]
+    : view === "users" ? ["계정", <>목록에서 계정을 고르거나<br />[새 계정]을 누르세요.</>]
+      : view === "access" ? ["권한", <>목록에서 권한을 고르거나<br />[권한 등록]을 누르세요.</>]
+        : view === "docs" ? ["기준 문서", top ? <>목록에서 문서를 고르거나<br />[문서 업로드]를 누르세요.</> : <>목록에서 문서를 고르면<br />원문을 봅니다.</>]
+          : ["AI 판단 근거", <>목록에서 항목을 선택하면<br />AI 판단 근거와 권고가 표시됩니다.</>];
   return (
     <>
       <PanelHead title={title} />
-      <div className="panel-body"><div className="empty">{text}</div></div>
+      <div className={panelBody}><div className={empty}>{text}</div></div>
     </>
   );
 }

@@ -1,19 +1,201 @@
-/* 지금 화면의 CSS 를 영역별로 나눈 것 — 순서가 곧 우선순위라 바꾸지 않습니다. responsive 는 마지막. */
-@import "../shared/styles/base.css";
-@import "./layout/topbar.css";
-@import "./layout/sidebar.css";
-@import "./queue/queue.css";
-@import "../shared/styles/layout.css";
-@import "../shared/styles/components.css";
-@import "../shared/styles/panel.css";
-@import "../shared/styles/forms.css";
-@import "../shared/ui/charts/charts.css";
-@import "../features/stats/stats.css";
-@import "../features/logs/logs.css";
-@import "../features/nodes/nodes.css";
-@import "../features/ask/ask.css";
-@import "../features/review/review.css";
-@import "../features/requests/requests.css";
-@import "./overlays/overlays.css";
-@import "../features/auth/auth.css";
-@import "../shared/styles/responsive.css";
+/* 화면 CSS 의 시작점 — Tailwind(기본 스타일 초기화 preflight · 유틸리티)와 색 토큰 · 화면 틀. 모양은 모두 컴포넌트의 클래스에 둡니다. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
+/* 시험 파일의 글자는 화면 클래스가 아니라 훑지 않습니다. */
+@source not "../**/*.test.ts";
+
+
+/* 색 토큰 — 값은 지금 화면 그대로. static 이라 쓰지 않은 토큰도 CSS 변수로 나와 인라인 스타일(차트 선 색 등)에서 쓸 수 있습니다. */
+@theme static {
+  --color-ink: #111111;
+  --color-ink-dim: #666666;
+  --color-ink-soft: #333333;
+  --color-ink-faint: #999999;
+  --color-ink-ghost: #BBBBBB;
+  --color-surface: #FFFFFF;
+  --color-canvas: #F5F5F6;
+  --color-row-hover: #FAFAFB;
+  --color-line: #E4E4E7;
+  --color-risk: #EA002C;
+  --color-warn: #FF7A00;
+  --color-ok: #2E7D5B;
+  --color-risk-tint: #FFF4F6;
+  --color-warn-tint: #FFF6EE;
+  --color-ok-tint: #EFF7F3;
+  --color-ok-line: #9CCDB5;
+  --color-warn-line: #FFC999;
+  --color-warn-ink: #B85600;
+  --color-idle: #B5B5BA;
+  --color-mark-etc: #D4D4D8;
+  --color-bar-ink: #DDDDDD;
+  --color-bar-line: #3A3A3A;
+  --color-bar-line-hover: #888888;
+  --color-bar-hover: #262626;
+  --color-tip-dim: #CFCFCF;
+  /* 간격(p · m · gap · h · size …)의 단위는 px — 옛 CSS 처럼 브라우저 기본 글자 크기를 키워도 여백은 그대로 (리디자인에서 rem 으로 바꿀지 정함). */
+  --spacing: 4px;
+  /* 둥근 모서리 기준 — shadcn 의 --radius 를 테마에도 둡니다 (Tailwind 기본 테마의 0.25rem 대신, 편집기 확장 · 유틸리티가 같은 값을 보게). */
+  --radius: 8px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+/* 반응형 — 큰 화면 기준이라 max-width 그대로. narrow 는 JS 의 NARROW(app/ui/state/UiContext.ts)와 같은 쿼리입니다.
+   phone 을 뒤에 둬야 둘 다 걸리는 폭에서 phone 이 이깁니다. */
+@custom-variant narrow (@media (max-width: 1150px));
+@custom-variant phone (@media (max-width: 760px));
+/* hover 는 옛 :hover 그대로 터치 기기에서도 (Tailwind 기본은 @media (hover: hover) 안에서만). */
+@custom-variant hover (&:hover);
+
+/* shadcn/ui 색 변수 — 2단계에서 넣을 부품이 씁니다. 값은 지금 색에 맞춰 둡니다. */
+:root {
+  --background: #F5F5F6;
+  --foreground: #111111;
+  --card: #FFFFFF;
+  --card-foreground: #111111;
+  --popover: #FFFFFF;
+  --popover-foreground: #111111;
+  --primary: #111111;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F5F5F6;
+  --secondary-foreground: #111111;
+  --muted: #F5F5F6;
+  --muted-foreground: #666666;
+  --accent: #F5F5F6;
+  --accent-foreground: #111111;
+  --destructive: #EA002C;
+  --border: #E4E4E7;
+  --input: #E4E4E7;
+  --ring: #111111;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  /* 커서 — 버튼은 손가락(preflight 는 기본 커서로 둡니다), 툴팁이 있는 요소는 물음표, 툴팁이 있는 버튼은 다시 손가락.
+     선택자 구체성으로 정해지고, 요소에 준 클래스(cursor-pointer 등)가 늘 이깁니다. */
+  button {
+    cursor: pointer;
+  }
+  [data-tip] {
+    cursor: help;
+  }
+  button[data-tip] {
+    cursor: pointer;
+  }
+  /* preflight 가 바꾸는 브라우저 기본 동작 중 화면 · 손맛에 드러나는 것은 기본값으로 되돌립니다 (리디자인에서 다시 정함).
+     고르기 칸 묶음 이름의 굵기, 안내 글자(placeholder) 색 · 흐림, 쓸 수 없는 칸의 흐림, 날짜 칸 안쪽 여백, 글상자 크기 조절 방향, 탭 강조(iOS), 초점 · 잘못된 값 표시(Firefox). */
+  optgroup {
+    font-weight: revert;
+  }
+  ::placeholder {
+    color: revert;
+    opacity: revert;
+  }
+  button,
+  input,
+  select,
+  optgroup,
+  textarea {
+    opacity: revert;
+  }
+  ::-webkit-date-and-time-value {
+    min-height: revert;
+    text-align: revert;
+  }
+  ::-webkit-datetime-edit {
+    display: revert;
+  }
+  ::-webkit-datetime-edit-fields-wrapper {
+    padding: revert;
+  }
+  ::-webkit-datetime-edit,
+  ::-webkit-datetime-edit-year-field,
+  ::-webkit-datetime-edit-month-field,
+  ::-webkit-datetime-edit-day-field {
+    padding-block: revert;
+  }
+  ::-webkit-calendar-picker-indicator {
+    line-height: revert;
+  }
+  textarea {
+    resize: revert;
+  }
+  html {
+    -webkit-tap-highlight-color: revert;
+  }
+  :-moz-focusring {
+    outline: revert;
+  }
+  :-moz-ui-invalid {
+    box-shadow: revert;
+  }
+
+  /* 화면 틀 — body 가 그리드(상단 바 · 사이드바 · 작업 공간)라 React 뿌리(#root)는 투명하게 둡니다.
+     메뉴가 하나뿐인 일반 사용자는 사이드바 칸이 없고(data-solo), 좁은 화면은 세로로 쌓고 서랍이 열리면 뒤를 스크롤하지 않습니다(data-drawer-open). */
+  body {
+    /* 큰 화면 확대(app/layout/pageScale.ts) 때는 화면 높이 ÷ 배율 — vh 는 확대와 함께 커져 넘쳐서. */
+    height: var(--page-h, 100vh);
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 56px minmax(0, 1fr);
+    grid-template-columns: 60px minmax(0, 1fr);
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  body[data-solo] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* 사이드바를 펼치면 첫 칸이 메뉴 이름까지 들어가는 184px. */
+  body[data-nav-wide] {
+    grid-template-columns: 184px minmax(0, 1fr);
+  }
+  #root {
+    display: contents;
+  }
+  @media (max-width: 1150px) {
+    body {
+      height: auto;
+      overflow: auto;
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto;
+    }
+    body[data-solo] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    body[data-nav-wide] {
+      grid-template-columns: 1fr;
+    }
+    body[data-drawer-open] {
+      overflow: hidden;
+    }
+  }
+}

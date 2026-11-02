@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { logAttrs, pageCount } from "./lib";
+import { filterChoices, logAttrs, pageCount } from "./lib";
 
 test("logAttrs: 항목을 '키=값 · 키=값' 으로", () => {
   expect(logAttrs({ attributes: { Attachments: "a.pdf", PrintCount: 3 } })).toBe("Attachments=a.pdf · PrintCount=3");
@@ -9,4 +9,17 @@ test("logAttrs: 항목을 '키=값 · 키=값' 으로", () => {
 test("pageCount: 최소 1쪽", () => {
   expect(pageCount({ total: 0, page_size: 100 })).toBe(1);
   expect(pageCount({ total: 101, page_size: 100 })).toBe(2);
+});
+
+test("filterChoices: 거르기 버튼 — 값마다 건수(그 칸을 거르지 않을 때만), 고른 값이 목록에 없어도 남긴다", () => {
+  const counts = { "재무 정다은": 48, "개발 박민수": 25 };
+  expect(filterChoices(["개발 박민수", "재무 정다은"], "", counts)).toEqual([
+    { value: "개발 박민수", count: 25 }, { value: "재무 정다은", count: 48 },
+  ]);
+  // 그 칸을 거르는 중이면 다른 값의 건수는 걸러진 결과라 0 으로 보이므로 붙이지 않습니다.
+  expect(filterChoices(["개발 박민수", "재무 정다은"], "재무 정다은", { "재무 정다은": 48 })).toEqual([
+    { value: "개발 박민수" }, { value: "재무 정다은" },
+  ]);
+  // 판정에서 넘어온 사용자처럼 고른 값이 이 기간 로그에 없어도 버튼에서 사라지지 않습니다.
+  expect(filterChoices(["개발 박민수"], "외주개발 이준호", undefined)).toEqual([{ value: "외주개발 이준호" }, { value: "개발 박민수" }]);
 });

@@ -1,37 +1,54 @@
-import { safetyTone } from "./lib";
+import { Fragment } from "react";
+import { safetyTone, statLabel } from "./lib";
 import type { Level, SafetyScore } from "@/shared/api/types";
 import { activateProps } from "@/shared/lib/hooks";
 import { LevelDot } from "@/shared/ui/base/parts";
 import { Sparkline } from "@/shared/ui/charts/parts";
+import { cn } from "@/shared/lib/cn";
+import { levelText, note } from "@/shared/ui/base/styles";
+
+const SCORE = "flex flex-col gap-0.5";
+const BIG = "text-[34px] leading-[1.1] font-extrabold tracking-[-1px]";
+// 흐름 아래 처음 · 끝 점수는 양 끝에.
+const TREND_NOTE = cn(note, "mt-0.5 flex justify-between");
 
 export type SafetyGroup = [name: string, list: { key: string; label: string }[], kind: string, dot: Level | "none"];
 
-// 안전 점수 — 대상마다 마지막 등급의 비율(서버가 셉니다). 아래 묶음은 점수를 깎은 대상이고, 누르면 그 대상의 패널을 엽니다.
-export function SafetyBand({ label, safety, groups, onSelect }: { label: string; safety: SafetyScore | null | undefined; groups: SafetyGroup[]; onSelect: (kind: string, key: string) => void }) {
+// 안전 점수 — 대상마다 마지막 등급의 비율(서버가 셉니다). 옆 묶음은 점수를 깎은 대상이고, 이름을 누르면 그 대상의 패널을 엽니다.
+// 묶음마다 한 줄 — 이름은 앞의 names 개만 두고 나머지는 "외 n" (11/2, 다 늘어놓으면 화면이 길어졌음). 0이면 수만 (아래 표에 대상이 다 있을 때).
+export function SafetyBand({ label, safety, groups, onSelect, names = 3 }: { label: string; safety: SafetyScore | null | undefined; groups: SafetyGroup[]; onSelect: (kind: string, key: string) => void; names?: number }) {
   if (!safety || safety.score == null) {
-    return <div className="score"><span className="label">{label}</span><span className="big">—</span><p className="note">아직 점검한 대상이 없습니다.</p></div>;
+    return <div className={SCORE}><span className={statLabel}>{label}</span><span className={BIG}>—</span><p className={note}>아직 점검한 대상이 없습니다.</p></div>;
   }
   const t = safety.trend || [];
   const shown = groups.filter(([, list]) => list.length);
   return (
     <>
-      <div className="score"><span className="label">{label}</span><span className={`big ${safetyTone(safety.score)}`}>{safety.score}점</span></div>
-      <div className="groups">
+      <div className={SCORE}><span className={statLabel}>{label}</span><span className={cn(BIG, levelText[safetyTone(safety.score)])}>{safety.score}점</span></div>
+      <div className="grid min-w-0 gap-1.5 text-[13px]">
         {shown.length ? shown.map(([name, list, kind, dot]) => (
-          <div key={name}>
-            <b><LevelDot level={dot === "none" ? null : dot} />{name} {list.length}</b>
-            {list.map((x) => <span key={x.key} className="who" {...activateProps(() => onSelect(kind, x.key))}>{x.label}</span>)}
+          // 이름은 묶음 이름 아래 줄 — 옆에 두면 13인치에서 이름 칸이 좁아 거의 다 잘렸습니다.
+          <div key={name} className="min-w-0">
+            <b className="font-bold"><LevelDot level={dot === "none" ? null : dot} />{name} {list.length}</b>
+            {names > 0 && (
+              <span className="block truncate pl-4">
+                {list.slice(0, names).map((x, i) => (
+                  <Fragment key={x.key}>{i > 0 && ", "}<span className="cursor-pointer font-semibold underline decoration-line underline-offset-[3px] hover:decoration-current focus:decoration-current" {...activateProps(() => onSelect(kind, x.key))}>{x.label}</span></Fragment>
+                ))}
+                {list.length > names && <span className="text-ink-dim"> 외 {list.length - names}</span>}
+              </span>
+            )}
           </div>
-        )) : <p className="note">점수를 깎은 대상이 없습니다.</p>}
+        )) : <p className={note}>점수를 깎은 대상이 없습니다.</p>}
       </div>
-      <div className="trend">
+      <div className="phone:col-span-full">
         {t.length > 1 ? (
           <>
-            <Sparkline width={(t.length - 1) * 10} height={44} stroke="var(--ink-dim)" ariaLabel={`${label} 흐름`}
+            <Sparkline width={(t.length - 1) * 10} height={44} stroke="var(--color-ink-dim)" style={{ width: "100%", height: 44, display: "block" }} ariaLabel={`${label} 흐름`}
               points={t.map((x, n) => [n * 10, 42 - (x.score / 100) * 40])} />
-            <p className="note"><span>{t[0].day.slice(5)} {t[0].score}점</span><span>{t[t.length - 1].day.slice(5)} {t[t.length - 1].score}점</span></p>
+            <p className={TREND_NOTE}><span>{t[0].day.slice(5)} {t[0].score}점</span><span>{t[t.length - 1].day.slice(5)} {t[t.length - 1].score}점</span></p>
           </>
-        ) : <p className="note">흐름은 이틀 이상 쌓이면 보입니다.</p>}
+        ) : <p className={TREND_NOTE}>흐름은 이틀 이상 쌓이면 보입니다.</p>}
       </div>
     </>
   );

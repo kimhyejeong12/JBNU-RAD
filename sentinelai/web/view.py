@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+import json
+
 from typing import Any
 
 LEVELS = ("정상", "주의", "위험")
@@ -92,3 +94,43 @@ def results(policies: dict[str, Any] | None, events: dict[str, Any] | None, node
         "servers": servers,
         "events": findings,
     }
+
+
+# --- 운영자 결정 이어받기 ----------------------------------------------------------------
+# 운영자 결정은 판정 한 건(결과 행)에 붙어, AI 가 같은 대상을 다시 판정하면(정책 관리 검토 다시 실행 · 노드가 새 수집을 보냄)
+# 새 판정은 결정이 없는 것이 됩니다. 결과가 그대로면 지난 결정을 이어받아 같은 문제를 다시 결정하지 않게 하고, 결과가 바뀌었을 때만 다시 할 일로 둡니다.
+# 결과가 같다 = 서버 점검은 같은 노드 · 등급 · 정책과 다른 곳(항목 · 등급), 정책 문제는 같은 유형 · 등급 · 정책 ID. 로그 감시는 판정마다 새 로그라 잇지 않습니다.
+
+def server_signature(node: str, level: str | None, gaps: list[dict[str, Any]]) -> tuple:
+    return ("server", node, level, tuple(sorted((g.get("item", ""), g.get("level", "")) for g in gaps if g.get("level") != "정상")))
+
+
+def policy_signature(kind: str, level: str | None, policy_ids: list[str]) -> tuple:
+    return ("policy", kind, level, tuple(sorted(policy_ids)))
+
+
+def row_signature(key: str, row: dict[str, Any]) -> tuple | None:
+    """AI 결과 DB 의 지난 판정 행 → 비교용 지문 (db.results.findings_by_key 의 값)."""
+    if key.startswith("node_findings/"):
+        return server_signature(row["node"], row["level"], json.loads(row["gaps"]))
+    if key.startswith("policy_issues/"):
+        return policy_signature(row["kind"], row["level"], json.loads(row["policy_ids"]))
+    return None
+
+
+def carry_decisions(current: list[tuple[str, tuple]], decided: dict[str, dict], signatures: dict[str, tuple], touched: set[str]) -> dict[str, dict]:
+    """지금 판정 [(key, 지문)] 중 결정이 없는 것에 같은 지문의 지난 결정을 잇습니다 → key → 결정(+carried_from: 이어받은 판정 key).
+    decided = 지금 결정(취소 제외), signatures = 결정된 지난 판정의 지문, touched = 자기 기록(취소 포함)이 있는 key — 이것은 잇지 않습니다
+    (이어진 결정을 [취소]하면 정말 결정 없음이 되게)."""
+    latest: dict[tuple, tuple[str, dict]] = {}
+    for key, decision in decided.items():
+        sig = signatures.get(key)
+        if sig is not None and (sig not in latest or decision["id"] > latest[sig][1]["id"]):
+            latest[sig] = (key, decision)
+    out: dict[str, dict] = {}
+    for key, sig in current:
+        if key in touched or sig not in latest:
+            continue
+        source, decision = latest[sig]
+        out[key] = {**decision, "item_key": key, "carried_from": source}
+    return out

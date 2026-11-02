@@ -1,7 +1,10 @@
 import type { Level, LogPeriod, StatPeriod } from "@/shared/api/types";
-import { VIEWS, type MainTab, type View } from "@/app/session/views";
+import { VIEWS, isAdminView, type MainTab, type SavedPage, type View } from "@/app/session/views";
 
 // 화면(UI) 상태 — 서버 데이터는 TanStack Query 에 있고, 여기에는 어느 메뉴 · 탭 · 항목을 보고 있는지만 둡니다.
+
+// 관리 메뉴의 등록 창 — [+ 새 계정] · [권한 등록] · [문서 업로드]를 누르면 고른 항목 자리에 이 값을 둡니다 (안 고른 상태는 다른 메뉴처럼 안내만).
+export const NEW_ITEM = "new";
 
 export type StageFilter = "pending" | "active" | "all";
 export type StatKind = "stats" | "ustats";
@@ -11,6 +14,7 @@ export interface StatSelection { kind: string; key: string }
 
 export interface UiState {
   view: View | null;
+  lastAdmin: View | null;         // 관리에서 마지막으로 본 탭 — [관리]를 누르면 여기로 돌아옵니다
   mainTab: MainTab;
   filter: LevelFilter;
   stageFilter: StageFilter;
@@ -26,7 +30,7 @@ export interface UiState {
 }
 
 export const initialUi: UiState = {
-  view: null, mainTab: "queue", filter: "전체", stageFilter: "pending", query: "", selected: null, panelMsg: "",
+  view: null, lastAdmin: null, mainTab: "queue", filter: "전체", stageFilter: "pending", query: "", selected: null, panelMsg: "",
   expanded: new Set(), askSource: null, drawerOpen: false,
   nodes: { selected: null, adding: false },
   logs: { period: "week", user: "", solution: "", how: "", page: 1, selected: null },
@@ -35,11 +39,12 @@ export const initialUi: UiState = {
 
 export type UiAction =
   | { type: "NAVIGATE"; view: View; nextSelected: string | null }
+  | ({ type: "RESTORE"; nextSelected: string | null } & SavedPage)
   | { type: "SET_MAIN_TAB"; tab: MainTab }
   | { type: "SELECT"; key: string; view: View }
   | { type: "SELECT_SILENT"; key: string | null }
   | { type: "DESELECT" }
-  | { type: "TOGGLE_FILTER"; level: Level }
+  | { type: "SET_FILTER"; filter: LevelFilter }
   | { type: "SET_QUERY"; query: string }
   | { type: "SET_STAGE_FILTER"; value: StageFilter; nextSelected: string | null }
   | { type: "SET_PANEL_MSG"; msg: string }
@@ -54,7 +59,10 @@ export type UiAction =
   | { type: "SET_STATS"; patch: Partial<UiState["stats"]> }
   | { type: "SET_ASK_SOURCE"; src: AskSource | null };
 
-const isStatTab = (t: MainTab): t is StatKind => t === "stats" || t === "ustats";
+export const isStatTab = (t: MainTab): t is StatKind => t === "stats" || t === "ustats";
+// 질의 · 통계 탭은 근거 칩 · 줄을 골랐을 때만 패널을 엽니다 — 그 전에는 비어 있는 패널 대신 질의 · 표 · 차트가 전체 폭 (통계는 11/2).
+export const panelOnDemand = (tab: MainTab): boolean => tab === "ask" || isStatTab(tab);
+export const panelIdle = (s: UiState): boolean => panelOnDemand(s.mainTab) && !(s.mainTab === "ask" ? s.askSource : s.stats.selected);
 
 // 탭을 떠나면 열어 둔 인용 조항도 닫습니다. 통계 종류가 바뀌면 고른 막대를 풉니다.
 function withTab(s: UiState, tab: MainTab): UiState {
@@ -66,7 +74,7 @@ function withTab(s: UiState, tab: MainTab): UiState {
 // 메뉴가 바뀌면 거르기 · 메시지 · 인용을 초기화합니다. 질의 탭도 메뉴를 따르므로 열어 둔 근거는 다른 질의의 것입니다.
 function withView(s: UiState, view: View): UiState {
   if (view === s.view) return s;
-  return { ...s, view, filter: "전체", panelMsg: "", askSource: null };
+  return { ...s, view, lastAdmin: isAdminView(view) ? view : s.lastAdmin, filter: "전체", panelMsg: "", askSource: null };
 }
 
 export function uiReducer(s: UiState, a: UiAction): UiState {
@@ -75,6 +83,11 @@ export function uiReducer(s: UiState, a: UiAction): UiState {
     case "NAVIGATE": {
       const tabs = VIEWS[a.view].tabs;
       return { ...withTab(withView(s, a.view), tabs.includes(s.mainTab) ? s.mainTab : tabs[0]), selected: a.nextSelected };
+    }
+    // 새로고침 뒤 마지막 화면 — 메뉴 · 탭 · 결재 단계 · 관리의 마지막 탭을 한 번에 (값은 views.restorable 이 걸러서 옵니다).
+    case "RESTORE": {
+      const base = { ...s, stageFilter: a.stageFilter, lastAdmin: a.lastAdmin };
+      return { ...withTab(withView(base, a.view), a.mainTab), selected: a.nextSelected };
     }
     case "SET_MAIN_TAB":
       return withTab(s, a.tab);
@@ -86,8 +99,8 @@ export function uiReducer(s: UiState, a: UiAction): UiState {
       return { ...s, selected: a.key };
     case "DESELECT":
       return { ...s, selected: null, panelMsg: "" };
-    case "TOGGLE_FILTER":
-      return { ...s, filter: s.filter === a.level ? "전체" : a.level };
+    case "SET_FILTER":
+      return { ...s, filter: a.filter };
     case "SET_QUERY":
       return { ...s, query: a.query };
     case "SET_STAGE_FILTER":
@@ -108,6 +121,7 @@ export function uiReducer(s: UiState, a: UiAction): UiState {
       if (s.mainTab === "nodes") return { ...t, nodes: { selected: null, adding: false } };
       if (s.mainTab === "logs") return { ...t, logs: { ...s.logs, selected: null } };
       if (s.mainTab === "ask") return { ...t, askSource: null };
+      if (isStatTab(s.mainTab)) return { ...t, stats: { ...s.stats, selected: null } };
       return t;
     }
     case "OPEN_LOGS":

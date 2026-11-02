@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { usePanelAction, useUi } from "@/app/ui/state/UiContext";
+import { usePanelAction } from "@/app/ui/state/UiContext";
 import { send } from "@/shared/api/http";
 
 export type RequestAct = "approve" | "reject" | "revoke" | "withdraw" | "rejudge";
@@ -27,15 +27,11 @@ export function useRequestAction() {
   }, ["requests"]);
 }
 
-// 신청 — 목록을 다시 받은 뒤 새 신청을 고릅니다 (받기 전에 고르면 목록에 없어 선택이 풀립니다).
+// 신청 — 끝나면 목록을 다시 받습니다 (결과 문구는 신청서가 띄웁니다).
 export function useCreateRequest() {
   const qc = useQueryClient();
-  const { selectSilent } = useUi();
   return useMutation({
     mutationFn: (body: Record<string, FormDataEntryValue>) => send<{ request_no: string }>("/api/requests", body),
-    onSuccess: async (made) => {
-      await qc.invalidateQueries({ queryKey: ["requests"] });
-      selectSilent(`mine:${made.request_no}`);
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["requests"] }),
   });
 }
