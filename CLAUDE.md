@@ -68,7 +68,7 @@ JBNU-RAD/
 │   │   ├── suspect.py            의심 점수의 행동 신호 (최근 7일 vs 앞 4주, 코드가 셈), 계정 ↔ 로그 사용자 잇기 (10/22)
 │   │   ├── servers.py            서버 ↔ 규칙 맞춰 보기 (IP · 대역 · 호스트 이름, ANY 제외) → server_chain 입력
 │   │   └── events.py             로그 시각 필터(between · latest) · 사용자별 묶음 → event_chain 입력, 로그 질의용 search · summarize · vocabulary
-│   ├── db/                     권한 DB · AI 결과 DB (SQLite). 엔진 · 데이터 계층은 모름. 설계는 design/db-schema.md · design/results-db.md
+│   ├── db/                     권한 DB · AI 결과 DB (PostgreSQL 스키마 main · results). 엔진 · 데이터 계층은 모름. 설계는 design/db-schema.md · design/results-db.md
 │   │   ├── schema.sql            권한 DB — 사용자 · 세션 · 감사 기록 · 신청(1건 = 1행: 신청 · AI 판정 · 1차 · 최종 결재 · 회수). 결재 순서 · 역할은 트리거가 강제
 │   │   ├── results_schema.sql    AI 결과 DB — 정책 관리 검토 · 로그 감시 판정 · 질의 기록 (쌓기만, 로그 자체는 안 쌓음). results_servers.sql 이 서버 점검을 더함
 │   │   ├── auth.py               Argon2id · 로그인 잠금 · 세션 2일 · 계정 관리는 보안 총책임자 (루트 계정은 루트만)
@@ -166,7 +166,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 ## 2. 코어와 웹
 
 - 판정은 모두 엔진(`sentinelai.engine` — 흐름은 `pipeline.py`, 실행 · 저장 · 큐는 `Engine`)이 함
-- CLI와 웹이 같은 `Engine` 기능을 부르고, 결과는 AI 결과 DB(`SENTINELAI_RESULTS_DB_PATH`)에 실행마다 쌓음
+- CLI와 웹이 같은 `Engine` 기능을 부르고, 결과는 AI 결과 DB(`SENTINELAI_DATABASE_URL`의 스키마 `results`)에 실행마다 쌓음
 - 판정 실패 시 2회 재시도(`pipeline.attempt`). 그래도 실패하면 `failed` · `error`로 남기고 화면에는 "주의"로 올림 (이유 칸에 원인)
 - Milvus Lite는 한 프로세스만 DB를 엶. 웹이 떠 있으면 판정은 웹 작업(`/api/jobs`)으로, 꺼져 있으면 CLI로. 둘 다 같은 AI 결과 DB에 쌓음
 

@@ -38,23 +38,23 @@ def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
         servers = review.get("servers") or {}
         rid = conn.execute(
             "INSERT INTO policy_reviews (source, load_issues, rules, summary, failed, error, model, elapsed_sec, created_at,"
-            " servers_source, servers_load_issues) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            " servers_source, servers_load_issues) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (str(review.get("source", "")), _json(review.get("load_issues", [])), _json(review.get("rules", [])),
              review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now(),
              str(servers.get("source", "")), _json(servers.get("load_issues", []))),
-        ).lastrowid
+        ).fetchone()[0]
         # 서버 점검은 차이(gaps)마다 근거 조항 · 바꿀 것을 따로 둡니다. reason 에는 요약, sources 에는 차이들의 조항을 모읍니다.
-        conn.executemany(
+        conn.cursor().executemany(
             "INSERT INTO server_findings (review_id, seq, host, ip, state, matched, level, reason, recommendation, sources,"
-            " failed, error, elapsed_sec, gaps, unjudged, snapshot) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " failed, error, elapsed_sec, gaps, unjudged, snapshot) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             [(rid, n, f["host"], f.get("ip", ""), _json(f.get("state", {})), f.get("matched", ""), f.get("level"),
               f.get("summary", ""), "", _json(list(dict.fromkeys(g["source"] for g in f.get("gaps", []) if g.get("source")))),
               int(f["failed"]), f.get("error"), f.get("elapsed_sec"), _json(f.get("gaps", [])), _json(f.get("unjudged", [])),
               _json(f.get("snapshot") or {}))
              for n, f in enumerate(servers.get("findings", []), start=1)],
         )
-        conn.executemany(
-            "INSERT INTO policy_issues (review_id, seq, kind, level, policy_ids, reason, recommendation) VALUES (?,?,?,?,?,?,?)",
+        conn.cursor().executemany(
+            "INSERT INTO policy_issues (review_id, seq, kind, level, policy_ids, reason, recommendation) VALUES (%s,%s,%s,%s,%s,%s,%s)",
             [(rid, n, i["kind"], i["level"], _json(i.get("policy_ids", [])), i.get("reason", ""), i.get("recommendation", ""))
              for n, i in enumerate(review.get("issues", []), start=1)],
         )
@@ -72,7 +72,7 @@ def findings_by_key(db: Database, keys: Any) -> dict[str, dict[str, Any]]:
     with db.connection() as conn:
         for table, nums in ids.items():   # 표 이름은 위의 정해진 둘뿐
             if nums:
-                rows = conn.execute(f"SELECT * FROM {table} WHERE id IN ({','.join('?' * len(nums))})", nums).fetchall()
+                rows = conn.execute(f"SELECT * FROM {table} WHERE id = ANY(%s)", (nums,)).fetchall()
                 out.update({f"{table}/{r['id']}": dict(r) for r in rows})
     return out
 
@@ -83,8 +83,8 @@ def latest_policy_review(db: Database) -> dict[str, Any] | None:
         row = conn.execute("SELECT * FROM policy_reviews ORDER BY id DESC LIMIT 1").fetchone()
         if row is None:
             return None
-        issues = conn.execute("SELECT * FROM policy_issues WHERE review_id = ? ORDER BY seq", (row["id"],)).fetchall()
-        servers = conn.execute("SELECT * FROM server_findings WHERE review_id = ? ORDER BY seq", (row["id"],)).fetchall()
+        issues = conn.execute("SELECT * FROM policy_issues WHERE review_id = %s ORDER BY seq", (row["id"],)).fetchall()
+        servers = conn.execute("SELECT * FROM server_findings WHERE review_id = %s ORDER BY seq", (row["id"],)).fetchall()
     return {
         "id": row["id"],
         "generated_at": row["created_at"],
@@ -127,7 +127,7 @@ def _snapshot(r: Any) -> dict[str, Any]:
 def latest_snapshot(db: Database, node: str) -> dict[str, Any] | None:
     """이 노드의 가장 늦은 수집 — 다음 수집의 바뀐 것을 셀 때 견줍니다."""
     with db.connection() as conn:
-        r = conn.execute("SELECT * FROM server_snapshots WHERE node = ? ORDER BY collected_at DESC LIMIT 1", (node,)).fetchone()
+        r = conn.execute("SELECT * FROM server_snapshots WHERE node = %s ORDER BY collected_at DESC LIMIT 1", (node,)).fetchone()
     return _snapshot(r) if r else None
 
 
@@ -135,14 +135,15 @@ def save_snapshot(db: Database, snap: dict[str, Any]) -> tuple[int | None, bool]
     """pipeline.snapshot_row 가 만든 수집 기록 한 건. 같은 노드 · 수집 시각이 이미 있으면 넣지 않습니다. → (id, 넣었는지)"""
     with db.transaction() as conn:
         cur = conn.execute(
-            "INSERT OR IGNORE INTO server_snapshots (node, host, ip, collected_at, collected_by, file, modules, sections, changes, loaded_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO server_snapshots (node, host, ip, collected_at, collected_by, file, modules, sections, changes, loaded_at)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING id",
             (snap["node"], snap["host"], snap.get("ip", ""), _utc(snap["collected_at"]), snap.get("collected_by", ""), "",
              _json(snap.get("modules", {})), _json(snap.get("sections", {})), _json(snap.get("changes", [])), now()),
         )
-        if cur.rowcount:
-            return cur.lastrowid, True
-        r = conn.execute("SELECT id FROM server_snapshots WHERE node = ? AND collected_at = ?",
+        inserted = cur.fetchone()
+        if inserted:
+            return inserted[0], True
+        r = conn.execute("SELECT id FROM server_snapshots WHERE node = %s AND collected_at = %s",
                          (snap["node"], _utc(snap["collected_at"]))).fetchone()
         return (r["id"] if r else None), False
 
@@ -163,12 +164,12 @@ def save_node_finding(db: Database, f: dict[str, Any], model: str) -> int:
     with db.transaction() as conn:
         return conn.execute(
             "INSERT INTO node_findings (node, snapshot_id, host, ip, state, matched, level, summary, gaps, unjudged, sources,"
-            " failed, error, elapsed_sec, model, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " failed, error, elapsed_sec, model, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (f["node"], f["snapshot_id"], f.get("host", ""), f.get("ip", ""), _json(f.get("state", {})), f.get("matched", ""),
              f.get("level"), f.get("summary", ""), _json(f.get("gaps", [])), _json(f.get("unjudged", [])),
              _json(list(dict.fromkeys(g["source"] for g in f.get("gaps", []) if g.get("source")))),
              int(f["failed"]), f.get("error"), f.get("elapsed_sec"), model, now()),
-        ).lastrowid
+        ).fetchone()[0]
 
 
 def latest_node_findings(db: Database) -> list[dict[str, Any]]:
@@ -191,9 +192,9 @@ def latest_node_findings(db: Database) -> list[dict[str, Any]]:
 def node_history(db: Database, node: str, limit: int = 20) -> dict[str, Any]:
     """노드 화면 — 최근 수집(바뀐 것) · 판정 등급 기록과 가장 늦은 수집의 모듈 상태."""
     with db.connection() as conn:
-        snaps = conn.execute("SELECT * FROM server_snapshots WHERE node = ? ORDER BY collected_at DESC LIMIT ?", (node, limit)).fetchall()
+        snaps = conn.execute("SELECT * FROM server_snapshots WHERE node = %s ORDER BY collected_at DESC LIMIT %s", (node, limit)).fetchall()
         findings = conn.execute("SELECT f.id, f.snapshot_id, f.level, f.failed, f.summary, f.created_at FROM node_findings f"
-                                " WHERE f.node = ? ORDER BY f.id DESC LIMIT ?", (node, limit)).fetchall()
+                                " WHERE f.node = %s ORDER BY f.id DESC LIMIT %s", (node, limit)).fetchall()
     return {
         "latest": _snapshot(snaps[0]) if snaps else None,
         "snapshots": [{"id": r["id"], "collected_at": r["collected_at"], "changes": json.loads(r["changes"])} for r in snaps],
@@ -206,12 +207,11 @@ def server_history(db: Database, nodes: list[str], since: str | None = None, unt
     """서버 질의 — 고른 노드들의 기간 안 수집(바뀐 것) · 판정 기록, 오래된 것부터. 기간이 없으면 처음부터 끝까지입니다."""
     if not nodes:
         return {"snapshots": [], "findings": []}
-    marks = ",".join("?" * len(nodes))
-    where, args = f"node IN ({marks})", list(nodes)
+    where, args = "node = ANY(%s)", [list(nodes)]
     if since:
-        where += " AND {at} >= ?"; args.append(_utc(since))
+        where += " AND {at} >= %s"; args.append(_utc(since))
     if until:
-        where += " AND {at} <= ?"; args.append(_utc(until))
+        where += " AND {at} <= %s"; args.append(_utc(until))
     with db.connection() as conn:
         snaps = conn.execute(f"SELECT node, collected_at, changes FROM server_snapshots WHERE {where.format(at='collected_at')}"
                              " ORDER BY collected_at", args).fetchall()
@@ -244,12 +244,12 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
     at = _utc(since)
     with db.connection() as conn:
         # 통계 · 의심 점수는 정밀 감시(확정)만 셉니다. 빠른 감시의 1차 판정은 같은 로그를 다시 판정하기 전의 값이라 세면 겹칩니다.
-        events = conn.execute(f"SELECT id, user, subject, level, failed, events, last_event_at FROM event_findings WHERE {_FINAL}"
-                              + (" AND last_event_at >= ?" if at else "") + " ORDER BY last_event_at", (at,) if at else ()).fetchall()
+        events = conn.execute(f"SELECT id, \"user\", subject, level, failed, events, last_event_at FROM event_findings WHERE {_FINAL}"
+                              + (" AND last_event_at >= %s" if at else "") + " ORDER BY last_event_at", (at,) if at else ()).fetchall()
         findings = conn.execute("SELECT id, node, level, failed, gaps, created_at FROM node_findings"
-                                + (" WHERE created_at >= ?" if at else "") + " ORDER BY created_at, id", (at,) if at else ()).fetchall()
-        snaps = conn.execute("SELECT node, count(*) AS n, sum(changes <> '[]') AS changed FROM server_snapshots WHERE node <> ''"
-                             + (" AND collected_at >= ?" if at else "") + " GROUP BY node", (at,) if at else ()).fetchall()
+                                + (" WHERE created_at >= %s" if at else "") + " ORDER BY created_at, id", (at,) if at else ()).fetchall()
+        snaps = conn.execute("SELECT node, count(*) AS n, count(*) FILTER (WHERE changes <> '[]') AS changed FROM server_snapshots WHERE node <> ''"
+                             + (" AND collected_at >= %s" if at else "") + " GROUP BY node", (at,) if at else ()).fetchall()
 
     # 판정 실패는 화면과 같이 "주의"로 셉니다 (확인하지 못한 것을 정상으로 두지 않습니다).
     level = lambda r: "주의" if r["failed"] else r["level"]  # noqa: E731
@@ -377,8 +377,8 @@ def user_findings(db: Database, since: str | None = None) -> list[dict[str, Any]
     """의심 점수 — 기간 안 로그 감시 판정을 로그 사용자 ID(user)별로. 묶인 로그 줄 수와 판정 시각(마지막 로그)을 함께 줍니다."""
     at = _utc(since)
     with db.connection() as conn:
-        rows = conn.execute(f"SELECT id, user, subject, level, failed, reason, events, last_event_at FROM event_findings WHERE {_FINAL}"
-                            + (" AND last_event_at >= ?" if at else "") + " ORDER BY last_event_at", (at,) if at else ()).fetchall()
+        rows = conn.execute(f"SELECT id, \"user\", subject, level, failed, reason, events, last_event_at FROM event_findings WHERE {_FINAL}"
+                            + (" AND last_event_at >= %s" if at else "") + " ORDER BY last_event_at", (at,) if at else ()).fetchall()
     return [{"key": f"event_findings/{r['id']}", "log_id": r["user"], "subject": r["subject"], "level": "주의" if r["failed"] else r["level"],
              "failed": bool(r["failed"]), "reason": r["reason"], "lines": len(_EVENT_LINE.findall(r["events"])), "at": r["last_event_at"]}
             for r in rows]
@@ -392,11 +392,11 @@ def save_suspect(db: Database, person: dict[str, Any], result: dict[str, Any], m
     with db.transaction() as conn:
         return conn.execute(
             "INSERT INTO suspect_scores (person, subject, log_id, login_id, score, level, reason, watch, signals, records, failed, error,"
-            " elapsed_sec, model, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " elapsed_sec, model, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (person["key"], f"{person['department']} {person['name']}".strip(), person["log_id"] or "", person["login_id"],
              result.get("score"), result.get("level"), result.get("reason", ""), result.get("watch", ""),
              _json(person["signals"] or {}), _json(records), int(result["failed"]), result.get("error"), result.get("elapsed_sec"), model, now()),
-        ).lastrowid
+        ).fetchone()[0]
 
 
 def latest_suspects(db: Database, history: int = 12) -> list[dict[str, Any]]:
@@ -425,13 +425,13 @@ def save_monitor_run(db: Database, run: dict[str, Any], model: str,
     """pipeline.monitor 결과 1회를 쌓습니다. stage = final(정밀 감시, 생각 켬) · fast(빠른 감시, 1차 판정). → monitor_runs.id"""
     with db.transaction() as conn:
         rid = conn.execute(
-            "INSERT INTO monitor_runs (source, load_issues, since, until, last_event_at, model, created_at, stage) VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT INTO monitor_runs (source, load_issues, since, until, last_event_at, model, created_at, stage) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (str(run.get("source", "")), _json(run.get("load_issues", [])), _utc(since), _utc(until),
              _utc(run.get("last_event_at")), model, now(), stage),
-        ).lastrowid
-        conn.executemany(
-            "INSERT INTO event_findings (run_id, user, subject, first_event_at, last_event_at, events, level, reason,"
-            " recommendation, sources, failed, error, elapsed_sec) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        ).fetchone()[0]
+        conn.cursor().executemany(
+            "INSERT INTO event_findings (run_id, \"user\", subject, first_event_at, last_event_at, events, level, reason,"
+            " recommendation, sources, failed, error, elapsed_sec) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             [(rid, f["user"], f.get("subject", ""), _utc(f["first_event_at"]), _utc(f["last_event_at"]), f.get("events", ""),
               f.get("level"), f.get("reason", ""), f.get("recommendation", ""), _json(f.get("sources", [])),
               int(f["failed"]), f.get("error"), f.get("elapsed_sec"))
@@ -446,7 +446,7 @@ def next_monitor_since(db: Database, stage: str = "final") -> datetime | None:
     빠른 감시는 정밀 감시보다 뒤로 가지 않습니다 (정밀 감시가 이미 확정한 구간을 1차 판정으로 다시 띄우지 않게).
     """
     with db.connection() as conn:
-        last = conn.execute("SELECT max(last_event_at) FROM monitor_runs WHERE stage = ?", (stage,)).fetchone()[0]
+        last = conn.execute("SELECT max(last_event_at) FROM monitor_runs WHERE stage = %s", (stage,)).fetchone()[0]
         if stage == "fast":
             final = conn.execute("SELECT max(last_event_at) FROM monitor_runs WHERE stage = 'final'").fetchone()[0]
             last = max(filter(None, (last, final)), default=None)
@@ -466,7 +466,7 @@ def monitor_findings(db: Database) -> dict[str, Any] | None:
         final = conn.execute("SELECT max(last_event_at) FROM monitor_runs WHERE stage = 'final'").fetchone()[0]
         rows = conn.execute(
             "SELECT f.*, m.stage FROM event_findings f JOIN monitor_runs m ON m.id = f.run_id"
-            " WHERE m.stage = 'final' OR f.first_event_at > coalesce(?, '') ORDER BY f.id", (final,)).fetchall()
+            " WHERE m.stage = 'final' OR f.first_event_at > coalesce(%s, '') ORDER BY f.id", (final,)).fetchall()
     return {
         "generated_at": run["created_at"],
         "source": run["source"],
@@ -495,19 +495,19 @@ def save_qa(db: Database, kind: str, question: str, result: dict[str, Any], mode
     with db.transaction() as conn:
         return conn.execute(
             "INSERT INTO qa_records (kind, question, answer, sources, criteria, facts, evidence, failed, error, model,"
-            " elapsed_sec, asker_id, asker_name, asker_department, asked_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " elapsed_sec, asker_id, asker_name, asker_department, asked_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (kind, question, result.get("answer", ""), _json(result.get("sources", [])), _json(result.get("criteria", {})),
              _json(result["facts"]) if result.get("facts") is not None else None, _json(result.get("evidence", [])),
              int(bool(result.get("failed"))), result.get("error"), model, result.get("elapsed_sec"),
              asker.id, asker.display_name, asker.department, now()),
-        ).lastrowid
+        ).fetchone()[0]
 
 
 def my_qa(db: Database, asker: User, kind: str, limit: int = 50) -> list[dict[str, Any]]:
     """내 질의 기록 (최근 것부터). 다른 사람의 기록은 돌려주지 않습니다."""
     with db.connection() as conn:
         rows = conn.execute(
-            "SELECT * FROM qa_records WHERE asker_id = ? AND kind = ? ORDER BY id DESC LIMIT ?", (asker.id, kind, limit)
+            "SELECT * FROM qa_records WHERE asker_id = %s AND kind = %s ORDER BY id DESC LIMIT %s", (asker.id, kind, limit)
         ).fetchall()
     out = []
     for r in rows:

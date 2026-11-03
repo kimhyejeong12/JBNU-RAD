@@ -56,7 +56,7 @@ DRIFTS = [
 
 def node_key(name: str) -> str:
     """시험 환경의 노드 키. 없으면 등록, 해시만 남은 예전 키면 다시 발급합니다."""
-    db = open_main_db(Settings.load().db_path)
+    db = open_main_db(Settings.load().database_url)
     with db.connection() as conn:
         root = User.of(conn.execute("SELECT * FROM users WHERE is_root = 1").fetchone())
     if not any(n["name"] == name for n in nodes.list_nodes(db)):

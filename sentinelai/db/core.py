@@ -1,121 +1,148 @@
 from __future__ import annotations
 
-import sqlite3
-from collections.abc import Iterator
+import re
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
-from .. import ROOT
+import psycopg
+from psycopg.adapt import Dumper
+from psycopg.conninfo import conninfo_to_dict
+from psycopg_pool import ConnectionPool
 
 HERE = Path(__file__).resolve().parent
 
-# 트리거는 한국어로 막습니다. 제약 조건 위반만 SQLite 원문이라 화면에 보일 문장으로 바꿉니다.
+# 트리거는 한국어로 막습니다. 제약 조건 위반만 PostgreSQL 원문이라 화면에 보일 문장으로 바꿉니다 (제약 · 색인 이름 → 문장).
 _CONSTRAINT_TEXT = {
-    "UNIQUE constraint failed: users.login_id": "이미 있는 아이디입니다",
-    "UNIQUE constraint failed: users.is_root": "루트 계정이 이미 있습니다",
-    "UNIQUE constraint failed: users.log_id": "다른 계정이 이미 쓰는 로그 사용자 ID 입니다",
-    "UNIQUE constraint failed: access_requests.request_no": "신청 번호가 겹쳤습니다. 다시 신청하세요",
-    "FOREIGN KEY constraint failed": "없는 계정 · 신청을 가리킵니다",
+    "users_login_id": "이미 있는 아이디입니다",
+    "users_single_root": "루트 계정이 이미 있습니다",
+    "users_log_id": "다른 계정이 이미 쓰는 로그 사용자 ID 입니다",
+    "access_requests_request_no_key": "신청 번호가 겹쳤습니다. 다시 신청하세요",
 }
 
 
-def _readable(exc: sqlite3.IntegrityError) -> str:
-    text = str(exc)
-    if text in _CONSTRAINT_TEXT:
-        return _CONSTRAINT_TEXT[text]
-    if text.startswith("CHECK constraint failed"):
+def _readable(exc: psycopg.IntegrityError) -> str:
+    if exc.diag.constraint_name in _CONSTRAINT_TEXT:
+        return _CONSTRAINT_TEXT[exc.diag.constraint_name]
+    if isinstance(exc, psycopg.errors.ForeignKeyViolation):
+        return "없는 계정 · 신청을 가리킵니다"
+    if isinstance(exc, psycopg.errors.CheckViolation):
         return "허용되지 않는 값입니다"
-    return text
+    return exc.diag.message_primary or str(exc)
 
 
 class Denied(Exception):
     """규칙에 막힌 요청. 화면에 그대로 보여줄 수 있는 문장을 담습니다."""
 
 
-def _statements(script: str) -> Iterator[str]:
-    """SQL 파일을 문장 하나씩 나눕니다. 트리거 본문의 ; 에서는 끊지 않습니다 (complete_statement)."""
-    buffer = ""
-    for line in script.splitlines(keepends=True):
-        buffer += line
-        if sqlite3.complete_statement(buffer):
-            if buffer.strip():
-                yield buffer
-            buffer = ""
-    if buffer.strip() and sqlite3.complete_statement(buffer + ";"):
-        yield buffer
+class Row(dict):
+    """sqlite3.Row 처럼 이름(row["id"])과 순서(row[0]) 둘 다로 읽는 행. dict(row) 는 그대로 dict 입니다."""
+
+    def __getitem__(self, key: Any) -> Any:
+        if isinstance(key, int):
+            return list(self.values())[key]
+        return super().__getitem__(key)
+
+
+def _rows(cursor: psycopg.Cursor[Any]) -> Callable[[Sequence[Any]], Row]:
+    names = [c.name for c in cursor.description or ()]
+    return lambda values: Row(zip(names, values))
+
+
+class _Flag(Dumper):
+    """True · False 를 1 · 0 으로 넣습니다. 켜짐 · 실패 같은 0/1 칸이 SQLite 때처럼 INTEGER 라 bool 을 그대로 받지 않습니다."""
+
+    oid = psycopg.postgres.types["int2"].oid
+
+    def dump(self, obj: bool) -> bytes:
+        return b"1" if obj else b"0"
+
+
+def _configure(conn: psycopg.Connection[Any]) -> None:
+    conn.adapters.register_dumper(bool, _Flag)
 
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def describe(url: str) -> str:
+    """화면 · 로그에 보일 DB 위치. 비밀번호는 빼고, 연결하지 않습니다."""
+    info = conninfo_to_dict(url)
+    return f"postgresql://{info.get('host', 'localhost')}:{info.get('port', 5432)}/{info.get('dbname', '')}"
+
+
+SCHEMA_NAME = re.compile(r"^[a-z_][a-z0-9_]*$")
+
+
 class Database:
-    """SQLite 파일 하나. 요청마다 연결을 새로 열어 스레드 간에 연결을 나눠 쓰지 않습니다."""
+    """PostgreSQL 스키마 하나 (권한 DB = main, AI 결과 DB = results). 연결은 풀에서 빌려 쓰고 돌려줍니다.
 
-    def __init__(self, path: str | Path, *schemas: str) -> None:
-        path = Path(path)
-        self.path = path if path.is_absolute() else ROOT / path
+    연결마다 search_path 를 이 스키마로 두므로 쿼리에는 스키마 이름을 쓰지 않습니다.
+    """
+
+    def __init__(self, url: str, schema: str, *schemas: str) -> None:
+        if not SCHEMA_NAME.match(schema):
+            raise ValueError(f"스키마 이름이 올바르지 않습니다: {schema}")
+        self.url = url
+        self.schema = schema
         self.schemas = [HERE / s for s in schemas]
+        # 쓰기 트랜잭션은 이 키로 차례를 받습니다 (SQLite 의 BEGIN IMMEDIATE 처럼 스키마마다 한 번에 하나).
+        self._lock = f"sentinelai.{schema}"
+        self.pool = ConnectionPool(
+            url, min_size=1, max_size=10, timeout=10, name=schema, open=True,
+            kwargs={"autocommit": True, "row_factory": _rows, "options": f"-c search_path={schema} -c lock_timeout=10s"},
+            configure=_configure, check=ConnectionPool.check_connection,
+        )
 
-    def connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.path, timeout=10, isolation_level=None)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        conn.execute("PRAGMA busy_timeout = 10000")
-        return conn
+    @property
+    def label(self) -> str:
+        return f"{describe(self.url)} (스키마 {self.schema})"
+
+    def close(self) -> None:
+        self.pool.close()
 
     def init(self) -> None:
-        """아직 적용하지 않은 스키마 파일을 차례로 적용합니다. n번째 파일을 적용하면 user_version 이 n 입니다."""
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.connection() as conn:
-            # WAL 은 파일에 남습니다. 바꾸기는 busy_timeout 을 기다리지 않아, 동시에 연 다른 연결이 잠금을 잡고 있으면 그쪽에 맡깁니다.
-            try:
-                conn.execute("PRAGMA journal_mode = WAL")
-            except sqlite3.OperationalError:
-                pass
-            # 웹이 뜰 때 자동 감시와 화면 요청이 동시에 처음 열 수 있습니다. 쓰기 잠금을 잡은 뒤에 버전을 읽어야 같은 스키마를 두 번 적용하지 않습니다.
-            conn.execute("BEGIN IMMEDIATE")
-            try:
-                version = conn.execute("PRAGMA user_version").fetchone()[0]
-                for n, schema in enumerate(self.schemas[version:], start=version + 1):
-                    # executescript 는 먼저 COMMIT 해 잠금을 놓으므로 문장마다 나눠 같은 트랜잭션에서 실행합니다.
-                    for statement in _statements(schema.read_text(encoding="utf-8")):
-                        conn.execute(statement)
-                    conn.execute(f"PRAGMA user_version = {n}")
-                conn.execute("COMMIT")
-            except BaseException:
-                conn.execute("ROLLBACK")
-                raise
+        """아직 적용하지 않은 스키마 파일을 차례로 적용합니다. n번째 파일을 적용하면 schema_version 이 n 입니다."""
+        with self.connection() as conn, conn.transaction():
+            # 웹이 뜰 때 자동 감시와 화면 요청이 동시에 처음 열 수 있습니다. 차례를 받은 뒤에 버전을 읽어야 같은 스키마를 두 번 적용하지 않습니다.
+            conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (self._lock,))
+            conn.execute(f"CREATE SCHEMA IF NOT EXISTS {self.schema}")
+            conn.execute("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)")
+            row = conn.execute("SELECT version FROM schema_version").fetchone()
+            version = row["version"] if row else 0
+            # PostgreSQL 은 DDL 도 트랜잭션 안에서 돌아, 중간에 실패하면 앞의 파일까지 함께 되돌립니다.
+            for schema in self.schemas[version:]:
+                conn.execute(schema.read_text(encoding="utf-8"))
+            if len(self.schemas) > version:
+                conn.execute("DELETE FROM schema_version")
+                conn.execute("INSERT INTO schema_version (version) VALUES (%s)", (len(self.schemas),))
 
     @contextmanager
-    def connection(self) -> Iterator[sqlite3.Connection]:
-        conn = self.connect()
-        try:
+    def connection(self) -> Iterator[psycopg.Connection[Row]]:
+        with self.pool.connection() as conn:
             yield conn
-        finally:
-            conn.close()
 
     @contextmanager
-    def transaction(self) -> Iterator[sqlite3.Connection]:
-        """쓰기 트랜잭션. 트리거가 막으면 Denied 로 바꿔 올립니다."""
+    def transaction(self) -> Iterator[psycopg.Connection[Row]]:
+        """쓰기 트랜잭션. 트리거 · 제약 조건이 막으면 Denied 로 바꿔 올립니다."""
         with self.connection() as conn:
-            # 번호 매기기처럼 읽고 나서 쓰는 일이 끼어들지 않게 처음부터 쓰기 잠금을 잡습니다.
-            conn.execute("BEGIN IMMEDIATE")
             try:
-                yield conn
-                conn.execute("COMMIT")
-            except sqlite3.IntegrityError as exc:
-                conn.execute("ROLLBACK")
+                with conn.transaction():
+                    # 번호 매기기처럼 읽고 나서 쓰는 일이 끼어들지 않게 처음부터 차례를 받습니다.
+                    conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (self._lock,))
+                    yield conn
+            except psycopg.errors.RaiseException as exc:
+                raise Denied(exc.diag.message_primary or str(exc)) from None
+            except psycopg.IntegrityError as exc:
                 raise Denied(_readable(exc)) from None
-            except BaseException:
-                conn.execute("ROLLBACK")
-                raise
 
 
-def audit(conn: sqlite3.Connection, action: str, user_id: int | None = None, *, login_id: str | None = None,
+def audit(conn: psycopg.Connection[Row], action: str, user_id: int | None = None, *, login_id: str | None = None,
           target_type: str | None = None, target_id: str | None = None, detail: str = "{}", ip: str | None = None) -> None:
     conn.execute(
-        "INSERT INTO audit_log (at, user_id, login_id, action, target_type, target_id, detail, ip) VALUES (?,?,?,?,?,?,?,?)",
+        "INSERT INTO audit_log (at, user_id, login_id, action, target_type, target_id, detail, ip) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
         (now(), user_id, login_id, action, target_type, target_id, detail, ip),
     )

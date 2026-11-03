@@ -1,0 +1,25 @@
+# PostgreSQL — 권한 DB(스키마 main) · AI 결과 DB(스키마 results). `make db-up` 후 make web.
+# 비밀번호는 .env 의 SENTINELAI_DB_PASSWORD 로 바꿉니다 (없으면 개발용 기본값 — SENTINELAI_DATABASE_URL 과 맞춰 주세요).
+# 이 컴퓨터(127.0.0.1)에서만 붙을 수 있게 엽니다.
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: sentinelai
+      POSTGRES_PASSWORD: ${SENTINELAI_DB_PASSWORD:-sentinelai-dev}
+      POSTGRES_DB: sentinelai
+      # 문자열 비교 · 정렬이 SQLite 때(바이트 순)와 같게 C 로캘로 만듭니다.
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./scripts/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinelai -d sentinelai"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

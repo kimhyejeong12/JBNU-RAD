@@ -70,8 +70,7 @@ class Settings:
     policies_source: str
     servers_source: str
     events_source: str
-    db_path: str
-    results_db_path: str
+    database_url: str
     monitor_interval_min: int
     fast_interval_min: str
 
@@ -165,6 +164,8 @@ class Engine:
         self.fast: JobRunner | None = None
         self._fast_llm: ChatOllama | None = None
         self.verdicts: VerdictWorker | None = None
+        self._dbs: dict[str, Database] = {}
+        self._db_lock = threading.Lock()
 
     # --- 모델 ---------------------------------------------------------------
 
@@ -245,15 +246,22 @@ class Engine:
 
     # --- DB ----------------------------------------------------------------
 
-    @cached_property
+    def _db(self, name: str, opener: Callable[[str], Database]) -> Database:
+        # 웹이 뜰 때 큐 · 자동 실행 스레드가 동시에 처음 엽니다. 연결 풀을 둘 만들지 않게 한 번에 하나만 엽니다.
+        with self._db_lock:
+            if name not in self._dbs:
+                self._dbs[name] = opener(self.settings.database_url)
+            return self._dbs[name]
+
+    @property
     def main_db(self) -> Database:
         """권한 DB — 계정 · 신청 · 결재 · 운영자 결정 · 노드 등록부."""
-        return open_main_db(self.settings.db_path)
+        return self._db("main", open_main_db)
 
-    @cached_property
+    @property
     def results_db(self) -> Database:
         """AI 결과 DB — 정책 관리 검토 · 로그 감시 · 수집 · 서버 점검 · 질의 기록."""
-        return open_results_db(self.settings.results_db_path)
+        return self._db("results", open_results_db)
 
     # --- 상태 ---------------------------------------------------------------
 
@@ -457,7 +465,7 @@ class Engine:
         with self.main_db.connection() as conn:
             row = conn.execute(
                 "SELECT r.*, c.system AS access_system, c.category AS access_category, c.description AS access_description"
-                " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code WHERE r.request_no = ?",
+                " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code WHERE r.request_no = %s",
                 (request_no,)).fetchone()
         return pipeline.judge_request(self, dict(row)) if row else None
 
@@ -480,7 +488,7 @@ class Engine:
             self.fast.every("events_fast", int(self.settings.fast_interval_min))
 
     def stop(self) -> None:
-        """큐를 멈추고 벡터 DB 잠금을 풉니다. --reload 로 새로 뜨는 프로세스 · CLI 가 벡터 DB 를 열 수 있게 합니다."""
+        """큐를 멈추고 벡터 DB 잠금을 풉니다. --reload 로 새로 뜨는 프로세스 · CLI 가 벡터 DB 를 열 수 있게 합니다. DB 연결 풀도 닫습니다."""
         if self.jobs:
             self.jobs.stop()
         if self.fast:
@@ -488,6 +496,10 @@ class Engine:
         if self.verdicts:
             self.verdicts.stop()
         self.documents.close()
+        with self._db_lock:
+            for db in self._dbs.values():
+                db.close()
+            self._dbs.clear()
 
 
 class JobRunner:

@@ -22,7 +22,7 @@ def record(db: Database, by: User, kind: str, item_key: str, action: str, subjec
         conn.execute(
             "INSERT INTO review_decisions (kind, item_key, subject, action, comment, ai_level, decider_id, decider_name,"
             " decider_department, decided_at)"
-            " SELECT ?, ?, ?, ?, ?, ?, id, display_name, department, ? FROM users WHERE id = ?",
+            " SELECT %s, %s, %s, %s, %s, %s, id, display_name, department, %s FROM users WHERE id = %s",
             (kind, item_key, subject.strip(), action, comment.strip(), ai_level, now(), by.id),
         )
         audit(conn, f"{kind}_decision", by.id, target_type=kind, target_id=item_key,
@@ -35,7 +35,7 @@ def current(db: Database, kind: str) -> dict[str, dict]:
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT d.* FROM review_decisions d"
-            " JOIN (SELECT item_key, max(id) AS id FROM review_decisions WHERE kind = ? GROUP BY item_key) last ON d.id = last.id",
+            " JOIN (SELECT item_key, max(id) AS id FROM review_decisions WHERE kind = %s GROUP BY item_key) last ON d.id = last.id",
             (kind,),
         ).fetchall()
     return {r["item_key"]: dict(r) for r in rows if r["action"] != "cancel"}
@@ -44,7 +44,7 @@ def current(db: Database, kind: str) -> dict[str, dict]:
 def history(db: Database, kind: str) -> dict[str, list[dict]]:
     """항목 key → 결정 기록 전부 (오래된 것부터, 취소 포함). 보안 총책임자가 아래에서 올라온 판단을 읽을 때 씁니다."""
     with db.connection() as conn:
-        rows = conn.execute("SELECT * FROM review_decisions WHERE kind = ? ORDER BY id", (kind,)).fetchall()
+        rows = conn.execute("SELECT * FROM review_decisions WHERE kind = %s ORDER BY id", (kind,)).fetchall()
     out: dict[str, list[dict]] = {}
     for r in rows:
         out.setdefault(r["item_key"], []).append(dict(r))

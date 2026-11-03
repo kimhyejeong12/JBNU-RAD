@@ -5,21 +5,22 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from datetime import datetime
 from typing import Any
 
+import psycopg
+
 from . import catalog
 from .auth import User
-from .core import Database, Denied, audit, now
+from .core import Database, Denied, Row, audit, now
 
 STAGES = ("manager", "top", "approved", "rejected", "withdrawn", "revoked")
 
 
-def _next_request_no(conn: sqlite3.Connection) -> str:
+def _next_request_no(conn: psycopg.Connection[Row]) -> str:
     # 날짜는 사내 업무 기준인 서버 현지 시각(KST)으로 매깁니다.
     day = datetime.now().astimezone().strftime("%Y%m%d")
-    last = conn.execute("SELECT max(request_no) FROM access_requests WHERE request_no LIKE ?", (f"REQ-{day}-%",)).fetchone()[0]
+    last = conn.execute("SELECT max(request_no) FROM access_requests WHERE request_no LIKE %s", (f"REQ-{day}-%",)).fetchone()[0]
     seq = int(last[-3:]) + 1 if last else 1
     if seq > 999:
         raise Denied("오늘 받을 수 있는 신청 수(999건)를 넘었습니다")
@@ -31,15 +32,15 @@ def _today() -> str:
     return datetime.now().astimezone().strftime("%Y-%m-%d")
 
 
-def _held(conn: sqlite3.Connection, user_id: int) -> list[sqlite3.Row]:
+def _held(conn: psycopg.Connection[Row], user_id: int) -> list[Row]:
     """지금 가진 권한 = 이 시스템에서 최종 승인됐고 사용 기간이 남은 신청 (회수 · 만료는 빠집니다)."""
     return conn.execute(
         "SELECT request_no, access_code, requested_access, period_end FROM access_requests"
-        " WHERE requester_id = ? AND stage = 'approved' AND (period_end = '' OR period_end >= ?) ORDER BY submitted_at",
+        " WHERE requester_id = %s AND stage = 'approved' AND (period_end = '' OR period_end >= %s) ORDER BY submitted_at",
         (user_id, _today())).fetchall()
 
 
-def _held_text(rows: list[sqlite3.Row]) -> str:
+def _held_text(rows: list[Row]) -> str:
     lines = []
     for r in rows:
         name = f"{r['requested_access']} ({r['access_code']})" if r["access_code"] else r["requested_access"]
@@ -59,30 +60,30 @@ def submit(db: Database, by: User, access_code: str, reason: str = "", period_st
         held = _held(conn, by.id)
         if any(r["access_code"] == item["code"] for r in held):
             raise Denied("이미 가진 권한입니다")
-        if conn.execute("SELECT 1 FROM access_requests WHERE requester_id = ? AND access_code = ? AND stage IN ('manager', 'top')",
+        if conn.execute("SELECT 1 FROM access_requests WHERE requester_id = %s AND access_code = %s AND stage IN ('manager', 'top')",
                         (by.id, item["code"])).fetchone():
             raise Denied("같은 권한의 신청이 결재 중입니다")
         request_no = _next_request_no(conn)
         rid = conn.execute(
             "INSERT INTO access_requests (request_no, requester_id, requester_name, requester_department, access_code,"
             " requested_access, current_access, reason, period_start, period_end, submitted_at)"
-            " SELECT ?, id, display_name, department, ?, ?, ?, ?, ?, ?, ? FROM users WHERE id = ?",
+            " SELECT %s, id, display_name, department, %s, %s, %s, %s, %s, %s, %s FROM users WHERE id = %s RETURNING id",
             (request_no, item["code"], item["name"], _held_text(held), reason.strip(), period_start, period_end, now(), by.id),
-        ).lastrowid
+        ).fetchone()[0]
         audit(conn, "request_submit", by.id, target_type="request", target_id=request_no)
         return _detail(conn, rid)
 
 
-def _row(conn: sqlite3.Connection, request_no: str) -> sqlite3.Row:
-    row = conn.execute("SELECT * FROM access_requests WHERE request_no = ?", (request_no,)).fetchone()
+def _row(conn: psycopg.Connection[Row], request_no: str) -> Row:
+    row = conn.execute("SELECT * FROM access_requests WHERE request_no = %s", (request_no,)).fetchone()
     if row is None:
         raise Denied("없는 신청입니다")
     return row
 
 
-def _detail(conn: sqlite3.Connection, rid: int) -> dict:
+def _detail(conn: psycopg.Connection[Row], rid: int) -> dict:
     """신청 한 행 → 화면용 dict. AI 판정 · 결재 · 회수 칸은 묶음으로 나눠 담습니다."""
-    row = dict(conn.execute("SELECT * FROM access_requests WHERE id = ?", (rid,)).fetchone())
+    row = dict(conn.execute("SELECT * FROM access_requests WHERE id = %s", (rid,)).fetchone())
     req = {k: v for k, v in row.items() if not k.startswith(("ai_", "manager_", "top_", "revoke"))}
     req["ai_verdict"] = None if row["ai_judged_at"] is None else {
         "level": row["ai_level"], "reason": row["ai_reason"], "recommendation": row["ai_recommendation"],
@@ -104,7 +105,7 @@ def _detail(conn: sqlite3.Connection, rid: int) -> dict:
     return req
 
 
-def _can_view(by: User, req: sqlite3.Row) -> bool:
+def _can_view(by: User, req: Row) -> bool:
     return by.role in ("manager", "top") or req["requester_id"] == by.id
 
 
@@ -122,9 +123,9 @@ def list_requests(db: Database, by: User, stage: str | None = None, mine: bool =
         raise Denied(f"stage 는 {', '.join(STAGES)} 중 하나입니다")
     where, args = [], []
     if mine or by.role == "user":
-        where.append("requester_id = ?"); args.append(by.id)
+        where.append("requester_id = %s"); args.append(by.id)
     if stage:
-        where.append("stage = ?"); args.append(stage)
+        where.append("stage = %s"); args.append(stage)
     sql = "SELECT id FROM access_requests" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY submitted_at DESC, id DESC"
     with db.connection() as conn:
         return [_detail(conn, r["id"]) for r in conn.execute(sql, args).fetchall()]
@@ -137,13 +138,13 @@ def withdraw(db: Database, by: User, request_no: str) -> dict:
             raise Denied("본인 신청만 철회할 수 있습니다")
         if req["stage"] != "manager":
             raise Denied("1차 결재 전에만 철회할 수 있습니다")
-        conn.execute("UPDATE access_requests SET stage = 'withdrawn', closed_at = ? WHERE id = ?", (now(), req["id"]))
+        conn.execute("UPDATE access_requests SET stage = 'withdrawn', closed_at = %s WHERE id = %s", (now(), req["id"]))
         audit(conn, "request_withdraw", by.id, target_type="request", target_id=request_no)
         return _detail(conn, req["id"])
 
 
-def _person(conn: sqlite3.Connection, by: User) -> sqlite3.Row:
-    return conn.execute("SELECT id, display_name, department FROM users WHERE id = ?", (by.id,)).fetchone()
+def _person(conn: psycopg.Connection[Row], by: User) -> Row:
+    return conn.execute("SELECT id, display_name, department FROM users WHERE id = %s", (by.id,)).fetchone()
 
 
 def decide(db: Database, by: User, request_no: str, action: str, comment: str = "") -> dict:
@@ -157,8 +158,8 @@ def decide(db: Database, by: User, request_no: str, action: str, comment: str = 
         req = _row(conn, request_no)
         person = _person(conn, by)
         conn.execute(
-            f"UPDATE access_requests SET {step}_action = ?, {step}_comment = ?, {step}_id = ?, {step}_name = ?,"
-            f" {step}_department = ?, {step}_decided_at = ? WHERE id = ?",
+            f"UPDATE access_requests SET {step}_action = %s, {step}_comment = %s, {step}_id = %s, {step}_name = %s,"
+            f" {step}_department = %s, {step}_decided_at = %s WHERE id = %s",
             (action, comment.strip(), person["id"], person["display_name"], person["department"], now(), req["id"]),
         )
         audit(conn, f"request_{action}", by.id, target_type="request", target_id=request_no,
@@ -173,8 +174,8 @@ def revoke(db: Database, by: User, request_no: str, reason: str) -> dict:
         req = _row(conn, request_no)
         person = _person(conn, by)
         conn.execute(
-            "UPDATE access_requests SET revoke_reason = ?, revoker_id = ?, revoker_name = ?, revoker_department = ?, revoked_at = ?"
-            " WHERE id = ?",
+            "UPDATE access_requests SET revoke_reason = %s, revoker_id = %s, revoker_name = %s, revoker_department = %s, revoked_at = %s"
+            " WHERE id = %s",
             (reason.strip(), person["id"], person["display_name"], person["department"], now(), req["id"]),
         )
         audit(conn, "request_revoke", by.id, target_type="request", target_id=request_no)
@@ -189,7 +190,7 @@ def request_stats(db: Database, since: str | None = None) -> dict[str, Any]:
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT stage, ai_level, ai_failed, ai_judged_at FROM access_requests"
-            + (" WHERE submitted_at >= ?" if since else ""), (since,) if since else ()).fetchall()
+            + (" WHERE submitted_at >= %s" if since else ""), (since,) if since else ()).fetchall()
     totals: dict[str, int] = {}
     mismatches = 0
     for r in rows:
@@ -206,7 +207,7 @@ def user_requests(db: Database, since: str | None = None) -> list[dict[str, Any]
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT request_no, requester_id, requested_access, stage, ai_level, ai_failed, ai_judged_at, manager_action, top_action,"
-            " revoke_reason, submitted_at FROM access_requests" + (" WHERE submitted_at >= ?" if since else "") + " ORDER BY submitted_at",
+            " revoke_reason, submitted_at FROM access_requests" + (" WHERE submitted_at >= %s" if since else "") + " ORDER BY submitted_at",
             (since,) if since else ()).fetchall()
     return [{"request_no": r["request_no"], "account_id": r["requester_id"], "access": r["requested_access"], "stage": r["stage"],
              "ai": None if r["ai_judged_at"] is None or r["ai_failed"] else r["ai_level"],
@@ -220,7 +221,7 @@ def held_by_account(db: Database) -> dict[int, list[dict[str, Any]]]:
         rows = conn.execute(
             "SELECT r.requester_id, r.request_no, r.access_code, r.requested_access, r.period_end, c.system, c.category"
             " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code"
-            " WHERE r.stage = 'approved' AND (r.period_end = '' OR r.period_end >= ?) ORDER BY r.submitted_at", (_today(),)).fetchall()
+            " WHERE r.stage = 'approved' AND (r.period_end = '' OR r.period_end >= %s) ORDER BY r.submitted_at", (_today(),)).fetchall()
     out: dict[int, list[dict[str, Any]]] = {}
     for r in rows:
         out.setdefault(r["requester_id"], []).append({"request_no": r["request_no"], "code": r["access_code"], "access": r["requested_access"],
@@ -235,9 +236,9 @@ def save_ai_verdict(db: Database, request_no: str, result: dict, model: str) -> 
     """pipeline.judge_request 의 결과를 신청 행에 씁니다. 그사이 1차 결재가 났으면 쓰지 않고 False"""
     with db.transaction() as conn:
         updated = conn.execute(
-            "UPDATE access_requests SET ai_level = ?, ai_reason = ?, ai_recommendation = ?, ai_sources = ?, ai_failed = ?,"
-            " ai_error = ?, ai_model = ?, ai_elapsed_sec = ?, ai_judged_at = ?"
-            " WHERE request_no = ? AND stage = 'manager' AND manager_action IS NULL",
+            "UPDATE access_requests SET ai_level = %s, ai_reason = %s, ai_recommendation = %s, ai_sources = %s, ai_failed = %s,"
+            " ai_error = %s, ai_model = %s, ai_elapsed_sec = %s, ai_judged_at = %s"
+            " WHERE request_no = %s AND stage = 'manager' AND manager_action IS NULL",
             (result.get("level"), result.get("reason", ""), result.get("recommendation", ""),
              json.dumps(result.get("sources", []), ensure_ascii=False), int(result["failed"]), result.get("error"),
              model, result.get("elapsed_sec"), now(), request_no),
