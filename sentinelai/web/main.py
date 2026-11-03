@@ -18,7 +18,7 @@ from sentinelai.db import User, decisions, results as results_db  # noqa: E402
 from sentinelai.db.core import audit  # noqa: E402
 from sentinelai.engine import KINDS, MANUAL, Engine  # noqa: E402
 
-from . import view  # noqa: E402
+from . import notify, view  # noqa: E402
 from .api_permissions import Approver, role  # noqa: E402
 from .api_permissions import router as permissions_router  # noqa: E402
 from .api_nodes import router as nodes_router  # noqa: E402
@@ -34,6 +34,7 @@ async def lifespan(app: FastAPI):
     engine.start()
     app.state.engine = engine
     app.state.main_db, app.state.results_db, app.state.verdicts = engine.main_db, engine.results_db, engine.verdicts
+    app.state.slack_url = notify.slack_url()
     yield
     engine.stop()
 

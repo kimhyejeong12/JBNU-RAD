@@ -6,10 +6,12 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, StringConstraints
 
 from sentinelai.db import Denied, User, auth, catalog, decisions, permissions
+
+from . import notify
 
 COOKIE = "sentinelai_session"
 
@@ -235,7 +237,8 @@ class NewRequest(BaseModel):
 
 
 @router.post("/requests", status_code=201)
-def submit(body: NewRequest, request: Request, user: Annotated[User, Depends(role("user"))]) -> dict[str, Any]:
+def submit(body: NewRequest, request: Request, background: BackgroundTasks,
+           user: Annotated[User, Depends(role("user"))]) -> dict[str, Any]:
     # 업무상 필요한지는 AI 가 아니라 결재자가 사유를 보고 판단하므로(AI 판정은 부서 · 권한 · 보유 권한만 봄) 비면 받지 않습니다.
     if not body.reason:
         raise HTTPException(status_code=400, detail="신청 사유를 적으세요 — 결재자가 업무상 필요한지 판단하는 근거입니다")
@@ -244,6 +247,7 @@ def submit(body: NewRequest, request: Request, user: Annotated[User, Depends(rol
     except Denied as exc:
         raise _denied(exc) from None
     request.app.state.verdicts.enqueue(req["request_no"])
+    background.add_task(notify.send_slack, request.app.state.slack_url, notify.request_message(req))
     return _with_verdict(request, req, user)
 
 
