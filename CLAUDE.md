@@ -28,7 +28,7 @@ SK쉴더스 산학협력 문제 제안서(2026. 8.)가 이 과제의 기준.
 |---|---|---|
 | 로컬 LLM · RAG — 보안정책 · 접근통제 · 권한 부여 기준 · 운영 가이드를 Vector DB에 | Ollama · Milvus Lite · `docs/` 기준 문서 2개 | 운영 가이드 · 사내 원문 pptx · pdf (§8 6) |
 | 정책 검토 — 공통 형식으로 표준화, 충돌 · 중복 · 과도한 허용 · 기준 위반과 개선안 | `sentinelai/data/` → `review_policies` | 실제 정책 샘플 (§8 1) |
-| 권한 적정성 — 부서 · 직무 · 기존 권한 · 신청 권한 → 승인 · 추가 검토 · 반려 권고 | `judge_request` (정상 → 승인 권고 · 주의 → 추가 검토 · 위험 → 반려 권고) | 직무 — 계정에 부서만 있음 |
+| 권한 적정성 — 부서 · 직무 · 기존 권한 · 신청 권한 → 승인 · 추가 검토 · 반려 권고 | `judge_request` (정상 → 승인 권고 · 주의 → 추가 검토 · 위험 → 반려 권고). 직무 · 신청 사유 · 사용 기간 · 최근 이동을 봄 (11/3). 받은 뒤 이동하면 `judge_grant`로 다시, 퇴사하면 코드가 위험 | 직무 기준 문서 (직무별 필요 권한) |
 | 대시보드 · 알림 — 정상 · 주의 · 위험, 위험이면 운영자 알림(이메일 · 메신저 포함), 고칠 것 설명 | 웹 대시보드 · 종 배지 | 알림 보내기 (§8 3). 이메일 · 메신저는 §8 11에서 범위 밖이라 범위를 정할 때 함께 봄 |
 | 수집 인터페이스 모듈화 — 실제 솔루션 API · Export, 계정 관리 시스템 · AD 연동 대비 | `RowSource` · 수집 노드 | 실제 연동 (§8 11) |
 | 위험도 · 신뢰도 평가 (구조도) | 사용자 의심 점수 · 안전 점수 | 정책 위험도 점수 · AI 판단 신뢰도 (§8 7) |
@@ -76,7 +76,7 @@ JBNU-RAD/
 │   │   ├── decisions.sql · decisions.py  정책 관리 · 로그 감시의 운영자 결정 (쌓기만, 마지막 기록이 지금 결정)
 │   │   ├── access_catalog.sql · catalog.py  권한 목록 — 일반 사용자는 켜진 권한만 신청. 보안 총책임자가 등록 · 고치기 · 끄기 (지우지 않음, 코드 못 바꿈) (10/20)
 │   │   ├── nodes.sql · nodes_keys.sql · nodes_key_view.sql · nodes.py  수집 노드 등록부 — 노드마다 키 발급(해시로 찾고 화면에서 다시 볼 수 있게 키도 둠) · 다시 발급 · 끄기 (10/20)
-│   │   ├── 그 밖의 *.sql          마이그레이션 — accounts(계정 생성을 보안 총책임자로, 10/12) · decisions_server(결정에 서버 점검, 10/12) · roles_names(트리거 문구를 사용자 용어로, 10/20) · users_log_id(계정의 로그 사용자 ID, 10/22) · results_server_snapshots · results_nodes(수집 기록 · 노드 판정, 10/20) · results_server_gaps(다른 곳 · 판단 안 한 항목, 10/14) · results_qa_servers(서버 질의 기록, 10/21) · results_monitor_stage · results_suspects(빠른 · 정밀 감시, 의심 점수, 10/22)
+│   │   ├── 그 밖의 *.sql          마이그레이션 — users_job(직무 · 퇴사일 · 이동 기록 · 보유 권한 재검토, 11/3) · accounts(계정 생성을 보안 총책임자로, 10/12) · decisions_server(결정에 서버 점검, 10/12) · roles_names(트리거 문구를 사용자 용어로, 10/20) · users_log_id(계정의 로그 사용자 ID, 10/22) · results_server_snapshots · results_nodes(수집 기록 · 노드 판정, 10/20) · results_server_gaps(다른 곳 · 판단 안 한 항목, 10/14) · results_qa_servers(서버 질의 기록, 10/21) · results_monitor_stage · results_suspects(빠른 · 정밀 감시, 의심 점수, 10/22)
 │   │   └── results.py            AI 결과 DB 저장 · 조회 — 정책 관리 검토 · 로그 감시(다음 감시 시작점 포함) · 내 질의 기록 · 보안 통계(threat_stats). CLI · 웹이 같은 DB를 씀
 │   └── web/                    웹 계층 (김혜정) — Engine 기능을 부르고 결과를 보여줌. 판정 로직 · 큐 없음
 │       ├── main.py               FastAPI — API + 화면 서빙. 시작 때 Engine 생성 · start()(작업 큐), 끌 때 stop()(큐 · 벡터 DB 잠금 해제)
@@ -95,7 +95,7 @@ JBNU-RAD/
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
 │       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
 │       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(예시 질문은 config.ts) · stats · catalog · accounts · regulations(기준 문서). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
-├── docs/                     판정 근거 기준 문서(.md · .txt) — 보안 총책임자가 화면에서 올리고(10/30) 고침(11/2), 지우기 없음, 코드 작업으로는 고치지 않음 (make index 가 RAG에 적재)
+├── docs/                     판정 근거 기준 문서(.md · .txt) — 보안 총책임자가 화면에서 올리고(10/30) 고치고(11/2) 지움(11/3), 코드 작업으로는 고치지 않음 (make index 가 RAG에 적재)
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
 ├── data/                     검토 대상 · 두 DB 파일 (위치는 .env, DB 파일은 git 제외)
@@ -184,14 +184,20 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 - 한 건씩 `node_findings`에 쌓고 화면은 노드마다 마지막 판정을 봄 (노드 한 대 30초 안팎)
 
 **위협 예측** `run_suspects` (10/22) — 정밀 감시와 같은 주기, 또는 사용자 위협 탭 [지금 예측]
-- 사람마다 행동 신호(`data.suspect.behavior_signals` — 최근 7일 vs 앞 4주: 하루 양 · 근무 시간 밖 · 예외 승인 · 민감 문서 · 30분 안 몰아서 · 처음 보는 계정) + 정밀 감시 판정 · 권한 신청 기록(35일) + 최근 로그 15줄 → `suspect_chain`(생각하는 판정 모델) → `SuspectScore`(0~100 · 이유 · 확인할 점)
+- 사람마다 행동 신호(`data.suspect.behavior_signals` — 최근 7일 vs 앞 4주: 하루 양 · 근무 시간 밖 · 예외 승인 · 민감 문서 · 30분 안 몰아서 · 처음 보는 계정) + 사용자 기록 · 최근 위협 기록 15건(아래 "사용자 기록") → `suspect_chain`(생각하는 판정 모델) → `SuspectScore`(0~100 · 이유 · 확인할 점)
 - 등급은 점수로 코드가 정함. 한 사람씩 `suspect_scores`에 쌓음 (사람당 20초 안팎)
-- 행동 신호는 의심 점수에만 씀. 로그 감시 판정은 기준 문서로만 함 (10/20 결정)
+- 로그 감시 판정의 근거는 기준 문서 · 솔루션 정책만 (10/20 결정). 11/3부터 정밀 감시는 사용자 기록을 맥락으로 함께 봄 — 어긋남의 근거로는 쓰지 않게 프롬프트에 적음
 
 **로그 감시** `monitor` — 두 단계 (10/22), 화면에서는 시작하지 않음
 - 빠른 감시: `SENTINELAI_FAST_INTERVAL_MIN`(5)분마다 생각 단계를 끈 연결(`Engine.fast_llm`)로 새 로그만 판정해 "1차 판정"으로 바로 올림 (묶음당 수 초, 따로 도는 작업 큐). 비우면 정밀 감시만
 - 정밀 감시: `SENTINELAI_MONITOR_INTERVAL_MIN`(30, 0이면 끔)분마다 생각하는 판정 모델로 같은 구간을 다시 판정해 확정. 확정된 구간의 1차 판정은 목록에서 빠짐 (`monitor_runs.stage` = fast · final)
 - 흐름: 지난 감시 이후 로그 → 사용자별 묶음 → `event_chain`(조항 · 규칙 검색) → `Verdict`. 읽은 가장 늦은 로그 시각이 다음 시작점
+
+**사용자 기록** (11/3) — 사용자가 관여한 판정(권한 신청 · 보유 권한 재검토 · 정밀 감시 · 위협 예측)에 그 사람의 기록을 함께 넣음. 빠른 감시는 속도 때문에 넣지 않음
+- 만드는 곳: `Engine.user_records` — 로그 · 운영자 결정은 한 번만 읽고 사람마다 (사용자 기록, 위협 기록) 두 칸. 계정 ↔ 로그 사용자는 `log_id`로 이음
+- 사용자 기록(`pipeline.user_record_text`): 계정(부서 · 직무 · 활성 · 퇴사일) · 이동 · 지금 가진 권한 · 권한 신청(건수 + 최근 10건, 결재 · 반려 의견 · 회수 사유) · 로그 집계 · 행동 신호. 판정할 신청 자신과 그 뒤 신청은 뺌
+- 최근 위협 기록 15건: 운영자가 [조치]로 정한 로그 감시 판정을 먼저, 남은 자리는 코드가 고른 로그(`data.suspect.threat_lines` — 예외 승인 · 민감 문서 · 근무 시간 밖, 같은 종류가 몰리지 않게 돌아가며 최근 것부터)
+- **예전 AI 등급은 넣지 않음** (사람이 정한 것만) — 한 번 위험으로 찍힌 사람이 계속 위험으로 나오는 되먹임을 막으려고. 감사 기록도 넣지 않음
 - 웹이 뜨자마자 한 번 (꺼져 있던 동안 쌓인 로그를 따라잡음), 그 뒤 간격마다 (`JobRunner.every`). 다른 작업이 돌면 1분 뒤 다시 시도
 - 판정은 모두 쌓지만 운영자 검토(목록 · 건수 · 종)에는 **주의 이상**만 올림
 - 1차 판정은 운영자 결정 · 통계 · 의심 점수 기록에 넣지 않음 (종 배지에는 뜸)
@@ -219,6 +225,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `GET /api/results` | 마지막 정책 관리 검토(정책 문제 · 서버 점검) · 쌓인 로그 감시 판정 → 화면용 dict + 운영자 결정. 보안 총책임자에게는 결정 기록 전부(`decision_log`, 취소 포함) |
 | `GET /api/jobs` | 도는 작업 · 단계 · 진행(done/total) · 작업별 마지막 실패. 빠른 감시는 `fast`(간격 · 다음 시각 · 마지막 실행) |
 | `POST /api/jobs/{kind}` | `policies` · `nodes` · `suspects` 백그라운드 시작 (202). 한 번에 하나 — 돌고 있으면 409. `events`는 자동으로만 돌아 404 |
+| `POST /api/jobs/reset` | 돌고 있는 작업(작업 큐 · 빠른 감시)을 강제로 끝냄 (보안 총책임자, 감사 기록 `jobs_reset`). `{rerun: true}`면 같은 작업을 바로 다시 시작. 돌던 판정 한 건은 끝날 때까지 이어지고 결과는 버림 (`JobRunner.reset`). 도는 작업이 없으면 409 |
 | `POST /api/decisions` | 정책 문제 · 서버 점검 · 로그 판정에 대한 운영자 결정 · 취소 (보안 운영자 이상). 지금 결정은 `/api/results`의 `decisions`로 옴 — 다시 판정됐지만 결과가 그대로인 서버 점검 · 정책 문제는 지난 결정을 이어받아 `carried_from`(이어받은 판정 key)과 함께 옴 (`view.carry_decisions`) |
 | `POST /api/nodes/snapshots` | **수집 노드 전용** — 로그인 대신 `Authorization: Bearer 노드 키`. 본문 = 노드가 읽은 원문(`format: sentinel-node 1`, 2MB까지). 모르는 키 401 · 꺼진 노드 403 · 형식 400. 같은 노드 · 수집 시각은 한 번만 쌓음(`stored`) |
 | `POST /api/nodes` · `POST /api/nodes/{이름}/key` · `GET /api/nodes` · `GET /api/nodes/{이름}` · `PATCH /api/nodes/{이름}` | 등록(+ 키) · 키 다시 발급(예전 키 무효) · 목록(상태 · 끊김 · 마지막 판정) · 하나(키 · 최근 수집 · 바뀐 것 · 판정 기록 · 모듈 상태) · 켜기/끄기. 보안 운영자 이상, 감사 기록 |
@@ -228,10 +235,11 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `GET /api/stats?period=week\|month\|quarter\|all` | 보안 통계 (기본 한 달, 모델 없이 셈, `results.threat_stats`) — `logs`(기간 안 로그 수 · 날짜별, 비율의 분모) · `events`(주의 · 위험 판정에 묶인 로그 줄 · 날짜별) · `servers`(노드별 등급 · 위험 · 주의 항목, 모듈별 위협 항목, 걸린 조항 — 노드마다 기간 안 마지막 점검) · `safety`(시스템 안전 점수, 아래) |
 | `GET /api/user-stats?period=` | 사용자 위협 — `suspects`(사람마다 마지막 의심 점수 · 등급 · 이유 · 확인할 점 · 행동 신호 · 흐름 · 지금 가진 권한 `held`, 계정 미연결은 null, 기간과 무관) · `safety`(사용자 안전 점수) · `events.users`(사용자별 위협 로그 줄 · 판정 수 · 로그 사용자 ID) · `requests`(신청 수 · AI 등급별 · AI와 결재가 엇갈린 수) |
 | `GET /api/health` | 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` (보안 운영자 이상) |
-| `GET /api/regulations` · `POST /api/regulations` · `PUT /api/regulations/{이름}` | `docs/` 원문 · 고친 시각(보안 운영자 이상) · 올리기 · 고치기(보안 총책임자). 올리기는 `{name, content}`(.md · .txt, 1MB, 같은 이름 400 — 덮어쓰지 않음) → 바뀐 파일만 적재. 고치기는 `{content, reason}`(없는 문서 404, 같은 내용 400) → 그 문서만 다시 적재, 고치기 전 원문 · 사유는 감사 기록(`regulation_edit`)에. 다른 작업이 돌면 끝나기를 기다렸다가 적재(10분 넘으면 409), AI 엔진(임베딩)에 닿지 않으면 바로 503 |
-| `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 (보안 총책임자). `PATCH`로 로그 사용자 ID(`log_id`, 계정마다 하나, 겹치면 400). 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿈 |
+| `GET /api/regulations` · `POST /api/regulations` · `PUT /api/regulations/{이름}` · `DELETE /api/regulations/{이름}` | `docs/` 원문 · 고친 시각(보안 운영자 이상) · 올리기 · 고치기 · 지우기(보안 총책임자). 지우기는 `{reason}` → 파일을 지우고 그 문서의 조각만 RAG 에서 뺌(`Engine.remove_document`), 지운 원문 · 사유는 감사 기록(`regulation_remove`)에. 마지막 문서는 400. 올리기는 `{name, content}`(.md · .txt, 1MB, 같은 이름 400 — 덮어쓰지 않음) → 바뀐 파일만 적재. 고치기는 `{content, reason}`(없는 문서 404, 같은 내용 400) → 그 문서만 다시 적재, 고치기 전 원문 · 사유는 감사 기록(`regulation_edit`)에. 다른 작업이 돌면 끝나기를 기다렸다가 적재(10분 넘으면 409), AI 엔진(임베딩)에 닿지 않으면 바로 503 |
+| `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 (보안 총책임자). `PATCH`로 로그 사용자 ID(`log_id`, 계정마다 하나, 겹치면 400) · 직무(`job`) · 퇴사일(`left_on`, YYYY-MM-DD). 부서 · 직무가 바뀌면 이동 기록 + 보유 권한 재검토를 판정 큐에. 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿈 |
 | `GET /api/access-catalog` · `POST /api/access-catalog` · `PATCH /api/access-catalog/{코드}` | 권한 목록 — 보기(일반 사용자 · 보안 운영자는 켜진 것만) · 등록 · 고치기 · 끄기(보안 총책임자, 감사 기록) |
-| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` | 신청(일반 사용자, 본문 `access_code` · `reason`(필수, 비면 400) — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400, 현재 보유 권한은 서버가 채움) · 목록(일반 사용자는 자기 것만). 응답에 `ai_verdict` · `judging` |
+| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` | 신청(일반 사용자, 본문 `access_code` · `reason`(필수, 비면 400) — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400, 현재 보유 권한은 서버가 채움) · 목록(일반 사용자는 자기 것만). 응답에 `ai_verdict` · `judging` · `grant_review`(유효 권한의 재검토 — 퇴사 `leave` · 이동 `move`, 일반 사용자에게는 뺌) |
+| `GET /api/people` | 확인할 사람 (보안 운영자 이상, 코드가 셈) — 퇴사 · 최근 90일 이동 · 위험 · 주의인 결재 중 신청 · 보유 권한(이동 뒤 재검토 · 승인 때 AI 판정)이 걸린 일반 사용자. 사람마다 `flags`(kind · level · at · text · request_no) · `level` (`permissions.watch_people`) |
 | `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(보안 운영자 = 1차, 보안 총책임자 = 최종) · 회수 · 다시 판정 |
 | `GET /internal/status` | **서버 자신(127.0.0.1)만** — 작업 큐 · 자동 실행 예약 · 권한 신청 판정 대기열. 로그인 없음, 밖에서 오거나 전달 헤더(`X-Forwarded-For` 등)가 붙으면 404. `curl -s localhost:8000/internal/status` |
 
@@ -248,7 +256,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | 역할 | 메뉴 |
 |---|---|
 | 일반 사용자 | 메뉴 · 오른쪽 패널 없이 내 신청 화면 하나 — 신청서 위 · 목록 아래 (반려 사유 · 철회는 목록 줄의 상태 칸에서). AI 흔적 없음 |
-| 보안 운영자 | 권한 신청(1차 결재함) · 정책 관리 · 로그 감시 · 통계 · 정책 질의 · 기준 문서(읽기만) |
+| 보안 운영자 | 권한 신청(1차 결재함 · 확인할 사람) · 정책 관리 · 로그 감시 · 통계 · 정책 질의 · 기준 문서(읽기만) |
 | 보안 총책임자 | 위 + 최종 결재함 · 관리(권한 목록 · 계정 관리 · 기준 문서) |
 
 ---
@@ -292,7 +300,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 
 ## 4. 규칙
 
-- ❌ `sentinelai/engine/` 수정 · `docs/`를 코드 작업으로 고치기 (기준 문서는 보안 총책임자가 화면에서 올리고 고침, 10/30 · 11/2). 프롬프트(`sentinelai/engine/prompt.py`)도 엔진 담당자와 상의 없이 안 바꿈
+- ❌ `sentinelai/engine/` 수정 · `docs/`를 코드 작업으로 고치기 (기준 문서는 보안 총책임자가 화면에서 올리고 고치고 지움, 10/30 · 11/2 · 11/3). 프롬프트(`sentinelai/engine/prompt.py`)도 엔진 담당자와 상의 없이 안 바꿈
 - ❌ 엔진 기능 재구현 · 엔진 타입을 대체하는 웹 전용 스키마
 - ❌ 서버 주소 · 모델명 하드코딩 — 전부 `Settings`
 - ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제). 화면은 React + Vite, 빌드 결과를 커밋 (서버에 Node 불필요). 화면 소스를 고치면 `make front-build` 결과를 같은 커밋에. 스타일은 Tailwind v4 유틸리티 (`FRONTEND_GUIDE.md` §9). shadcn/ui 부품 등 새 의존성은 리디자인 때 정함
@@ -377,3 +385,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 9. **보안 대시보드** (10/21 TODO) — 권한 신청 · 정책 관리 · 서버 점검 · 로그 감시를 한눈에. 통계 메뉴(10/21)와 겹치지 않게, 운영자가 무엇을 결정하는 데 쓰는지부터 정함 (10/8에 옛 통계 대시보드를 뺀 이유 — `FRONTEND_GUIDE.md` §7)
 10. **위협 미리 판정** (10/21 TODO) — 사고 전에 먼저 판정해 알림. 사용자 쪽은 의심 점수(10/22)를 만들었음. 남은 것: 의심 점수가 오를 때 알리기(3번과 함께) · 서버 쪽 예측. 입력(서버 점검의 바뀐 설정 · 로그 감시 추이 · 권한 신청 등)과 알림과의 관계는 아직 안 정함
 11. **이번 범위 밖** — 이메일 · 메신저 알림 채널, 실제 솔루션 API 수집(`sentinelai.data`에 RowSource로 추가). 로그가 외부 DB(Microsoft Sentinel 등)에 쌓이면 읽기만 하고 우리 DB에 안 쌓음. 그때 로그 질의 조건을 그 DB 쿼리(KQL 등)로 넘기고 로그 전체를 메모리에 읽는 `ask_logs`를 바꿈 (`design/results-db.md` §0)
+12. **감사 기록 분석** (11/3 TODO) — 지금 감사 기록(로그인 · 결재 · 로그 조회 · 기준 문서 · 계정 · 노드 변경)은 쌓기만 하고 아무도 다시 읽지 않음. 이 기록을 전방위로 분석해 사람이 놓친 위협(예: 로그인 실패 몰림 · 한 사람의 몰아서 로그 조회 · 기준 문서 수정 직후 판정 변화 · 결재 패턴)을 찾아 알림(3번과 함께). 중간발표 보안 설계 슬라이드 5번 카드에서 나왔음. 구현 전까지 발표 · 문서에서는 "남김"까지만 말함
+13. **퇴사 · 이직 · DLP 로그 묶기** (11/3 TODO) — 계정에 필드를 더함
+    - ~~퇴사 · 이직(부서 이동)한 사람의 정보~~ → 11/3에 직무 · 퇴사일 · 이동 기록(`user_moves`)을 넣고 판정에 씀 (`design/db-schema.md` §2). 남은 것: 의심 점수 · 로그 감시에도 퇴사 · 이동을 넣을지, 퇴사일이 지나면 계정을 알아서 정지할지
+    - DLP 로그와 묶어 등록할 수 있게 — 계정을 등록할 때 DLP 로그의 사용자 값과 함께 넣음. 지금은 로그 사용자 ID(`log_id`)가 계정마다 하나뿐이고 등록 뒤 계정 관리에서 따로 적음
