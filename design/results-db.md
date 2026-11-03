@@ -1,7 +1,7 @@
 # AI 결과 DB 설계
 
 SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
-- 2026-10-12 · 권한 DB는 [`db-schema.md`](db-schema.md) · DDL: [`sentinelai/db/results_schema.sql`](../sentinelai/db/results_schema.sql)
+- 2026-10-12 · 권한 DB는 [`db-schema.md`](db-schema.md) · DDL: [`sentinelai/db/results.sql`](../sentinelai/db/results.sql) (11/03까지는 `results_schema.sql` 외 SQLite 파일)
 
 ---
 

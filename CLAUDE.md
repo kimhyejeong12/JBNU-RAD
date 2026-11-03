@@ -69,14 +69,14 @@ JBNU-RAD/
 │   │   ├── servers.py            서버 ↔ 규칙 맞춰 보기 (IP · 대역 · 호스트 이름, ANY 제외) → server_chain 입력
 │   │   └── events.py             로그 시각 필터(between · latest) · 사용자별 묶음 → event_chain 입력, 로그 질의용 search · summarize · vocabulary
 │   ├── db/                     권한 DB · AI 결과 DB (PostgreSQL 스키마 main · results). 엔진 · 데이터 계층은 모름. 설계는 design/db-schema.md · design/results-db.md
-│   │   ├── schema.sql            권한 DB — 사용자 · 세션 · 감사 기록 · 신청(1건 = 1행: 신청 · AI 판정 · 1차 · 최종 결재 · 회수). 결재 순서 · 역할은 트리거가 강제
-│   │   ├── results_schema.sql    AI 결과 DB — 정책 관리 검토 · 로그 감시 판정 · 질의 기록 (쌓기만, 로그 자체는 안 쌓음). results_servers.sql 이 서버 점검을 더함
+│   │   ├── core.py               연결 풀 · 스키마 적용(schema_version) · 쓰기 차례(advisory lock) · 트리거 · 제약 위반 → Denied
+│   │   ├── main.sql              권한 DB — 사용자 · 세션 · 감사 기록 · 신청(1건 = 1행: 신청 · AI 판정 · 1차 · 최종 결재 · 회수) · 권한 목록 · 운영자 결정 · 수집 노드. 결재 순서 · 역할은 트리거가 강제 (11/03 SQLite 마이그레이션 10개를 하나로)
+│   │   ├── results.sql           AI 결과 DB — 정책 관리 검토 · 로그 감시 판정 · 서버 점검 · 수집 기록 · 의심 점수 · 질의 기록 (쌓기만, 로그 자체는 안 쌓음)
 │   │   ├── auth.py               Argon2id · 로그인 잠금 · 세션 2일 · 계정 관리는 보안 총책임자 (루트 계정은 루트만)
 │   │   ├── permissions.py        신청(권한 목록 코드로, 현재 보유 권한은 승인된 유효 신청에서 읽어 남김) · AI 판정 저장(1차 결재 전까지만) · 철회 · 결재 · 회수
-│   │   ├── decisions.sql · decisions.py  정책 관리 · 로그 감시의 운영자 결정 (쌓기만, 마지막 기록이 지금 결정)
-│   │   ├── access_catalog.sql · catalog.py  권한 목록 — 일반 사용자는 켜진 권한만 신청. 보안 총책임자가 등록 · 고치기 · 끄기 (지우지 않음, 코드 못 바꿈) (10/20)
-│   │   ├── nodes.sql · nodes_keys.sql · nodes_key_view.sql · nodes.py  수집 노드 등록부 — 노드마다 키 발급(해시로 찾고 화면에서 다시 볼 수 있게 키도 둠) · 다시 발급 · 끄기 (10/20)
-│   │   ├── 그 밖의 *.sql          마이그레이션 — accounts(계정 생성을 보안 총책임자로, 10/12) · decisions_server(결정에 서버 점검, 10/12) · roles_names(트리거 문구를 사용자 용어로, 10/20) · users_log_id(계정의 로그 사용자 ID, 10/22) · results_server_snapshots · results_nodes(수집 기록 · 노드 판정, 10/20) · results_server_gaps(다른 곳 · 판단 안 한 항목, 10/14) · results_qa_servers(서버 질의 기록, 10/21) · results_monitor_stage · results_suspects(빠른 · 정밀 감시, 의심 점수, 10/22)
+│   │   ├── decisions.py          정책 관리 · 로그 감시의 운영자 결정 (쌓기만, 마지막 기록이 지금 결정)
+│   │   ├── catalog.py            권한 목록 — 일반 사용자는 켜진 권한만 신청. 보안 총책임자가 등록 · 고치기 · 끄기 (지우지 않음, 코드 못 바꿈) (10/20)
+│   │   ├── nodes.py              수집 노드 등록부 — 노드마다 키 발급(해시로 찾고 화면에서 다시 볼 수 있게 키도 둠) · 다시 발급 · 끄기 (10/20)
 │   │   └── results.py            AI 결과 DB 저장 · 조회 — 정책 관리 검토 · 로그 감시(다음 감시 시작점 포함) · 내 질의 기록 · 보안 통계(threat_stats). CLI · 웹이 같은 DB를 씀
 │   └── web/                    웹 계층 (김혜정) — Engine 기능을 부르고 결과를 보여줌. 판정 로직 · 큐 없음
 │       ├── main.py               FastAPI — API + 화면 서빙. 시작 때 Engine 생성 · start()(작업 큐), 끌 때 stop()(큐 · 벡터 DB 잠금 해제)
@@ -98,18 +98,20 @@ JBNU-RAD/
 ├── docs/                     판정 근거 기준 문서(.md · .txt) — 보안 총책임자가 화면에서 올리고(10/30) 고침(11/2), 지우기 없음, 코드 작업으로는 고치지 않음 (make index 가 RAG에 적재)
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
-├── data/                     검토 대상 · 두 DB 파일 (위치는 .env, DB 파일은 git 제외)
+├── data/                     검토 대상 (위치는 .env)
 ├── node/                     수집 노드 — 점검 대상 서버에 까는 데몬 (패키지와 따로, 표준 라이브러리만, Python 3.8+). 설치 · 사용은 node/README.md
 │   ├── sentinel_node/          collect(모듈별 원문 읽기) · client(보내기 · 못 보낸 것 쌓기 · 키 저장) · config · __main__(run · once · show · export)
 │   ├── install.sh              /opt/sentinel-node · /etc/sentinel-node/node.conf · systemd 설치 · 제거
 │   └── testenv/                시험용 점검 대상 컨테이너 (Ubuntu + ufw · sshd · PAM · sudo, weak · strict)
-├── scripts/                  dev_setup.py(로컬 시험 환경) · dev_nodes.py(노드 키 꺼내기 · 흉내 노드)
+├── scripts/                  dev_setup.py(로컬 시험 환경) · dev_nodes.py(노드 키 꺼내기 · 흉내 노드) · postgres-init.sql(시험 DB 만들기)
+├── tests/                    DB 시험 (pytest, 시험마다 새 스키마) — make test
 ├── design/                   DB 설계 — db-schema.md(권한 DB 결정 경위 · 남은 질문) · results-db.md(AI 결과 DB)
 ├── FRONTEND_GUIDE.md         화면 가이드 — 화면 동작 · 화면 규칙의 단일 출처
 ├── NOTES.md                  작업 메모 — 설정 값의 이유 · 서버 이슈 경위 · 모델 비교 (설정 파일 · 코드에 설명 주석 대신 여기에)
-├── .dev/ · .milvus/          로컬 시험 환경 DB · 벡터 DB 파일 (git 제외)
+├── .dev/ · .milvus/          로컬 시험 환경 파일 · 벡터 DB 파일 (git 제외)
 ├── .env · .env.example       설정. .env 는 git 제외, make install 이 예시에서 만듦
-├── Makefile · requirements.txt
+├── compose.yaml              PostgreSQL 18 컨테이너 (make db-up). DB sentinelai · sentinelai_dev · sentinelai_test
+├── Makefile · requirements.txt · requirements-dev.txt
 └── Dockerfile · README.md    코어 컨테이너(엔진 · data · db, 웹 없음) · 저장소 소개
 ```
 
@@ -258,6 +260,8 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | 명령 | 하는 일 |
 |---|---|
 | `make install` | venv · 의존성 · `.env` 준비 (처음 한 번) |
+| `make db-up` · `make db-down` | PostgreSQL 컨테이너 올리기 · 내리기 (데이터는 볼륨에 남음). 팀 서버처럼 PostgreSQL 이 따로 있으면 `.env` 주소만 |
+| `make test` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움 |
 | `make web` | 대시보드 http://localhost:8000. 로그 감시 · 서버 점검은 웹이 스스로, 정책 관리 검토는 화면 버튼 |
 | `make health` | 서버 · 모델 · 벡터 DB · 두 DB 위치 확인 |
 | `make create-root LOGIN=아이디 NAME=이름 [DEPT=부서]` | 첫 루트 계정(보안 총책임자) — 서버에서 한 번만. 비밀번호는 화면 표시 없이 입력 |
@@ -266,8 +270,8 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `make review-policies` | 정책 관리 검토 1회 → AI 결과 DB |
 | `make check-nodes` | 서버 점검 1회 (새 수집이 온 노드만) |
 | `make monitor [SINCE=시각] [FULL=1]` | 로그 감시 1회 (지난 감시 이후, 웹 없는 서버에서 cron으로). `FULL=1`이면 처음부터 |
-| `make dev-setup [RESET=1]` | **로컬 시험 환경**을 `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 이 컴퓨터용 노드 `dev-local` 키로 `.dev/node.conf`. 모델 서버에 닿으면 기준 문서도 적재 |
-| `make dev [DEV_CHECK_MIN=5]` | 시험 환경으로 웹 (http://127.0.0.1:8001, `.dev/` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 됨). 로그 감시 · 서버 점검은 `DEV_CHECK_MIN`분마다 |
+| `make dev-setup [RESET=1]` | **로컬 시험 환경**을 `sentinelai_dev` DB · `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 이 컴퓨터용 노드 `dev-local` 키로 `.dev/node.conf`. 모델 서버에 닿으면 기준 문서도 적재 |
+| `make dev [DEV_CHECK_MIN=5]` | 시험 환경으로 웹 (http://127.0.0.1:8001, `sentinelai_dev` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 됨). 로그 감시 · 서버 점검은 `DEV_CHECK_MIN`분마다 |
 | `make dev-sim [NODES=3] [ROUNDS=3] [EVERY=5]` | **노드 수집 흉내** — 흉내 노드(sim-01…)가 잠근 Ubuntu 원문에서 시작해 차례마다 반쯤 확률로 설정 하나를 바꿔(UFW 끄기 · root · 비밀번호 로그인 열기 · NOPASSWD · 실패 잠금 빼기) 진짜 노드와 같은 주소 · 키로 보냄 |
 | `make dev-targets` · `make dev-targets-stop` | **진짜 수집** — podman compose로 점검 대상 컨테이너 2대(`target-weak`: 약한 설정 / `target-strict`: 잠근 설정)를 올리고 내림. 값은 `node/testenv/targets.env`(git 제외: `SERVER` · `KEY_WEAK` · `KEY_STRICT` · `INTERVAL`, 없으면 시험 환경 키로 만듦). SentinelAI를 바깥에 열지 않고(pasta `--map-host-loopback`) ufw가 실제로 켜짐(NET_ADMIN). 사용자 podman 소켓 필요. 10/20 시험: weak 위험 · strict 정상 |
 | `make dev-node` | 이 컴퓨터를 노드로 한 번 보내기 (root가 아니면 SSH · sudo는 "확인 못함") |

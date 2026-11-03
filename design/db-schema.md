@@ -1,7 +1,7 @@
 # 권한 DB 스키마 설계 (검토용)
 
 SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
-- DDL: [`sentinelai/db/schema.sql`](../sentinelai/db/schema.sql) (권한 DB) · AI 결과 DB는 [`results-db.md`](results-db.md)
+- DDL: [`sentinelai/db/main.sql`](../sentinelai/db/main.sql) (권한 DB, 11/03까지는 `schema.sql` 외 SQLite 파일 열 개) · AI 결과 DB는 [`results-db.md`](results-db.md)
 - 2026-10-11 확정 · **DB 계층 · API · 화면까지 구현**
 
 ---
