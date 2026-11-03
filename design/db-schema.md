@@ -62,7 +62,7 @@ SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
 | 정책 · 로그 결정 = 브라우저 메모리 | 결정 · 취소가 DB에 쌓임 (`review_decisions`) |
 | 로그인 없음 | ID/PW 로그인(Argon2id · 세션 2일), 역할 3개, 보안 총책임자가 계정 생성 (처음엔 루트만, 10/12에 넓힘), 감사 기록 |
 
-- ~~SQLite — 파일 하나, 서버 불필요, 표준 라이브러리. WAL 모드~~ → **(11/03) PostgreSQL** — 권한 DB = 스키마 `main`, AI 결과 DB = 스키마 `results`. 주소는 `SENTINELAI_DATABASE_URL` 하나 (§6)
+- ~~SQLite — 파일 하나, 서버 불필요, 표준 라이브러리. WAL 모드~~ → **(11/03) PostgreSQL** — 권한 DB = 스키마 `main`, AI 결과 DB = 스키마 `results`. 주소는 `SENTINELAI_DB_PATH` · `SENTINELAI_RESULTS_DB_PATH`(이름은 SQLite 때 그대로, 값이 PostgreSQL 주소) (§6)
 - 데이터 계층 · 판정 흐름(`engine/pipeline.py`)은 DB를 모름. `sentinelai/db/`는 `Engine`(engine.py — 10/20에 작업 큐와 함께 옮겼음)과 `web`이 씀
 - **결재 규칙은 DB가 강제 (트리거)** — 화면 · 앱 코드에 버그가 있어도 순서 건너뛰기, 역할이 아닌 사람의 결재 · 회수, 기록 수정 불가
 - 시각은 ISO 8601 UTC 문자열. 값은 문자열 위주, 필수 칸 최소
@@ -278,7 +278,8 @@ DB가 거부한 **25가지**
 
 ## 6. PostgreSQL로 옮김 (11/03)
 
-- **한 DB, 스키마 둘** — 권한 DB = `main`, AI 결과 DB = `results`. 주소는 `SENTINELAI_DATABASE_URL` 하나. 연결마다 `search_path`를 그 스키마로 두어 쿼리에는 스키마 이름이 없음
+- **한 DB, 스키마 둘** — 권한 DB = `main`, AI 결과 DB = `results`. 주소는 `SENTINELAI_DB_PATH` · `SENTINELAI_RESULTS_DB_PATH`(이름은 SQLite 때 그대로, 값이 PostgreSQL 주소). 둘이 같은 DB여도 되고 다른 DB여도 됨. 연결마다 `search_path`를 그 스키마로 두어 쿼리에는 스키마 이름이 없음
+- **엔진은 쿼리 한 줄만** — `Engine.judge_request`의 `?` → `%s`. 같은 주소 · 스키마는 `db/__init__.py`가 한 번만 열고(웹이 뜰 때 여러 스레드가 동시에 열어도 연결 풀 하나), 프로세스가 끝날 때 닫음
 - **새로 시작** — SQLite 데이터는 옮기지 않음. 스키마 파일은 SQLite 때 차례로 적용하던 파일들의 최종 상태를 `main.sql` · `results.sql` 하나씩으로 합침 (칸 순서도 그대로)
 - **규칙은 그대로 트리거** — 문장도 그대로. 트리거 19개(권한 DB) · 9개(AI 결과 DB)를 plpgsql 함수로 옮김. 늘 막는 것(고칠 수 없음 · 지울 수 없음)은 `deny('문장')` 하나를 같이 씀
 - **쓰기는 차례로** — SQLite의 `BEGIN IMMEDIATE`처럼 쓰기 트랜잭션은 스키마마다 `pg_advisory_xact_lock`으로 하나씩. 신청 번호 매기기(읽고 나서 쓰기)가 겹치지 않음

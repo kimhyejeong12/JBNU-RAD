@@ -35,7 +35,7 @@ make web                                  # http://localhost:8000
 ```
 
 - 설정은 모두 `.env`의 `SENTINELAI_*`에서 읽음
-- DB는 PostgreSQL(`SENTINELAI_DATABASE_URL`). 권한 DB는 스키마 `main`, AI 결과 DB는 스키마 `results` — 처음 열 때 만듦. `make test`로 트리거 · 쿼리 시험
+- DB는 PostgreSQL(`SENTINELAI_DB_PATH` · `SENTINELAI_RESULTS_DB_PATH`(이름은 SQLite 때 그대로, 값이 PostgreSQL 주소)). 권한 DB는 스키마 `main`, AI 결과 DB는 스키마 `results` — 처음 열 때 만듦. `make test`로 트리거 · 쿼리 시험
 - 화면 소스는 `frontend/`(React · Vite). `make web`은 커밋된 빌드 결과(`sentinelai/web/static/`)를 서빙하므로 서버에 Node 필요 없음
 - 화면을 고치면 `make front-build` 결과를 함께 커밋함 (`FRONTEND_GUIDE.md`)
 - 프로젝트 안내 전체는 `CLAUDE.md`

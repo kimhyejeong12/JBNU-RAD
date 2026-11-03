@@ -9,7 +9,7 @@ DEV_CHECK_MIN ?= 5
 DEV_DATABASE_URL ?= postgresql://sentinelai:sentinelai-dev@127.0.0.1:5432/sentinelai_dev
 TEST_DATABASE_URL ?= postgresql://sentinelai:sentinelai-dev@127.0.0.1:5432/sentinelai_test
 # 로컬 시험 환경 — 진짜 DB · 벡터 DB 대신 시험 DB · .dev/ 를 씁니다 (모델 서버 주소 등 나머지는 .env 그대로). 주기 점검은 DEV_CHECK_MIN 분마다.
-DEV_ENV := SENTINELAI_DATABASE_URL=$(DEV_DATABASE_URL) SENTINELAI_MILVUS_URI=.dev/milvus.db SENTINELAI_MONITOR_INTERVAL_MIN=$(DEV_CHECK_MIN) DEV_PORT=$(DEV_PORT)
+DEV_ENV := SENTINELAI_DB_PATH=$(DEV_DATABASE_URL) SENTINELAI_RESULTS_DB_PATH=$(DEV_DATABASE_URL) SENTINELAI_MILVUS_URI=.dev/milvus.db SENTINELAI_MONITOR_INTERVAL_MIN=$(DEV_CHECK_MIN) DEV_PORT=$(DEV_PORT)
 # 시험용 점검 대상 컨테이너 (node/testenv/compose.yaml) — 노드가 그 안에서 root 로 읽어 보냅니다. 값은 node/testenv/targets.env.
 # podman compose 는 docker-compose 를 쓰므로 사용자 podman 소켓이 떠 있어야 합니다 (systemctl --user start podman.socket).
 PODMAN ?= podman

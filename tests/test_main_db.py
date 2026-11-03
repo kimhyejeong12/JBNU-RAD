@@ -6,7 +6,7 @@ import threading
 
 import pytest
 
-from sentinelai.db import Denied, auth, catalog, decisions, nodes, permissions
+from sentinelai.db import Denied, auth, catalog, decisions, nodes, open_main_db, permissions
 
 from .conftest import PASSWORD
 
@@ -187,6 +187,17 @@ def test_ai_verdict_freezes_at_first_decision(main_db, people, request_no):
     stats = permissions.request_stats(main_db)
     assert stats == {"total": 1, "ai": {"주의": 1}, "mismatches": 0}
     assert permissions.user_requests(main_db)[0]["ai"] == "주의"
+
+
+def test_same_db_is_opened_once(url, schemas, main_db):
+    # 엔진의 cached_property 는 스레드 사이에 잠기지 않습니다. 동시에 처음 열어도 같은 Database(연결 풀 하나)여야 합니다.
+    opened = []
+    threads = [threading.Thread(target=lambda: opened.append(open_main_db(url, schemas[0]))) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert all(db is main_db for db in opened)
 
 
 def test_concurrent_submits_get_distinct_numbers(main_db, people):

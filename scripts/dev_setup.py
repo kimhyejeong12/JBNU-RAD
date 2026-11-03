@@ -39,13 +39,13 @@ CATALOG = [
 ]
 
 
-def reset_db(url: str) -> None:
-    """시험 DB 의 두 스키마를 지웁니다 (SQLite 때 .dev/*.db 를 지우던 것). 진짜 DB 를 지우지 않게 이름에 dev 가 든 DB 만."""
+def reset_db(url: str, schema: str) -> None:
+    """시험 DB 의 스키마를 지웁니다 (SQLite 때 .dev/*.db 를 지우던 것). 진짜 DB 를 지우지 않게 이름에 dev 가 든 DB 만."""
     name = conninfo_to_dict(url).get("dbname", "")
     if "dev" not in name:
         raise SystemExit(f"시험 DB 가 아닙니다 ({name}) — Makefile 의 DEV_DATABASE_URL 로 돌리세요")
     with psycopg.connect(url, autocommit=True) as conn:
-        conn.execute("DROP SCHEMA IF EXISTS main, results CASCADE")
+        conn.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
 
 
 def main() -> int:
@@ -55,7 +55,9 @@ def main() -> int:
             return 1
         shutil.rmtree(DEV)
     DEV.mkdir()
-    reset_db(Settings.load().database_url)
+    settings = Settings.load()
+    reset_db(settings.db_path, "main")
+    reset_db(settings.results_db_path, "results")
     engine = Engine()
     db = engine.main_db
 

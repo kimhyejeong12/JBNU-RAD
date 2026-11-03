@@ -44,7 +44,7 @@ def health(engine: Engine, args: argparse.Namespace) -> int:
                              ("임베딩 모델", "embedding_ready", s.embedding_model)):
         print(f"{label:9s}: {name} {'OK' if h[key] else '없음'}")
     print(f"벡터 DB     : {s.milvus_target} — {'OK' if h['index_ready'] else '비어 있음 (index 로 적재)'}")
-    print(f"DB          : {db.core.describe(s.database_url)} (권한 DB 스키마 main · AI 결과 DB 스키마 results)")
+    print(f"권한 DB     : {db.core.describe(s.db_path)} (스키마 main) · AI 결과 DB: {db.core.describe(s.results_db_path)} (스키마 results)")
     return 0 if h["ok"] else 1
 
 

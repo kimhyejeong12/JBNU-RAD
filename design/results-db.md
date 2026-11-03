@@ -11,8 +11,8 @@ SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
 
 | 저장소 | 담는 것 |
 |---|---|
-| 권한 DB (`SENTINELAI_DATABASE_URL` 스키마 `main`, 11/03까지 `SENTINELAI_DB_PATH`) | 계정 · 세션 · 감사 기록 · 권한 신청(AI 판정 · 1차 · 최종 결재 · 회수를 한 행에) · 정책 · 로그 운영자 결정 |
-| **AI 결과 DB** (`SENTINELAI_DATABASE_URL` 스키마 `results`, 11/03까지 `SENTINELAI_RESULTS_DB_PATH`) | 정책 관리 검토 · 로그 감시 판정(지금의 `results.json`) · AI 질의 기록 |
+| 권한 DB (`SENTINELAI_DB_PATH`, 11/03부터 PostgreSQL 스키마 `main`) | 계정 · 세션 · 감사 기록 · 권한 신청(AI 판정 · 1차 · 최종 결재 · 회수를 한 행에) · 정책 · 로그 운영자 결정 |
+| **AI 결과 DB** (`SENTINELAI_RESULTS_DB_PATH`, 11/03부터 PostgreSQL 스키마 `results`) | 정책 관리 검토 · 로그 감시 판정(지금의 `results.json`) · AI 질의 기록 |
 | 보안 솔루션 로그 | **쌓지 않음.** 로그가 있는 곳(지금은 CSV, 나중에 외부 DB · Microsoft Sentinel)에서 `sentinelai.data`의 소스로 읽음 |
 
 - 처음 이름은 Log DB — 로그는 외부 DB에 쌓일 수 있어 따로 쌓지 않기로 했고(10/12), 남은 것이 AI 결과뿐이라 이름을 바꿨음
