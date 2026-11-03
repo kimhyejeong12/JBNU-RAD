@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { RequestRow, AccessItem } from "@/shared/api/types";
-import { requestItem, accessOptions, approvalSteps, canWithdraw, heldLabel, mineGroup, mineStatus, rejectNote, shortDate } from "./lib";
+import { requestItem, accessOptions, approvalSteps, canWithdraw, heldLabel, mineGroup, mineStatus, moveText, personItem, rejectNote, shortDate } from "./lib";
 
 const row = (p: Partial<RequestRow>): RequestRow => ({
   request_no: "REQ-2026-0001", requester_name: "김민수", requester_department: "인사팀", requested_access: "인사정보 조회",
@@ -120,4 +120,23 @@ test("내 신청 상태 글자 — 사용 중은 기간까지, 기간이 끝난 
 test("짧은 날짜 — 올해면 월/일, 다른 해면 날짜 전체", () => {
   expect(shortDate("2026-12-31", "2026-11-02")).toBe("12/31");
   expect(shortDate("2027-01-05", "2026-11-02")).toBe("2027-01-05");
+});
+
+test("requestItem: 보유 권한 재검토 — 퇴사는 바로 위험, 이동은 판정 중 · 대기 · 등급", () => {
+  const move = { id: 1, from_department: "보안팀", from_job: "보안 관제", to_department: "인사팀", to_job: "", moved_on: "2026-11-03" };
+  const verdict = { level: "위험" as const, reason: "r", recommendation: "c", sources: [], by: "code" as const };
+  const held = { stage: "approved" as const, period_end: "" };
+  expect(requestItem(row({ ...held, grant_review: { cause: "leave", left_on: "2026-11-01", verdict } })).sub).toBe("승인 · 퇴사 재검토 위험");
+  expect(requestItem(row({ ...held, grant_review: { cause: "move", move, verdict: null, judging: true } })).sub).toBe("승인 · 이동 재검토 판정 중");
+  expect(requestItem(row({ ...held, grant_review: { cause: "move", move, verdict: null } })).sub).toBe("승인 · 이동 재검토 판정 대기");
+  expect(requestItem(row({ ...held, grant_review: { cause: "move", move, verdict: { ...verdict, level: "정상", by: "ai" } } })).sub).toBe("승인 · 이동 재검토 정상");
+  expect(moveText(move)).toBe("2026-11-03 보안팀(보안 관제) → 인사팀");
+});
+
+test("personItem: 확인할 사람 한 줄 — 부서 이름(직무), 걸린 것을 이어 씀, 가장 높은 등급", () => {
+  const p = { id: 3, login_id: "dev-user", name: "김", department: "인사팀", job: "채용 담당", is_active: false, left_on: "", level: "위험" as const, at: "2026-11-03",
+    flags: [{ kind: "grant" as const, level: "위험" as const, at: "2026-10-20", text: "보유 CRM 조회 — 이동 뒤 재검토 위험", request_no: "REQ-1" },
+            { kind: "move" as const, level: "정상" as const, at: "2026-11-03", text: "이동 2026-11-03 보안팀 → 인사팀" }] };
+  expect(personItem(p)).toMatchObject({ type: "person", key: "person:3", id: "dev-user", level: "위험", who: "인사팀 김 (채용 담당)",
+    what: "보유 CRM 조회 — 이동 뒤 재검토 위험 · 이동 2026-11-03 보안팀 → 인사팀", when: "2026-11-03", judge: "위험", sub: "2건 · 정지" });
 });

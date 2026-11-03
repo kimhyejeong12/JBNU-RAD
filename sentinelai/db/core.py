@@ -50,6 +50,11 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def today() -> str:
+    # 사용 기간 · 퇴사일 · 이동일은 날짜만 적으므로 사내 업무 기준인 서버 현지 날짜(KST)로 봅니다.
+    return datetime.now().astimezone().strftime("%Y-%m-%d")
+
+
 class Database:
     """SQLite 파일 하나. 요청마다 연결을 새로 열어 스레드 간에 연결을 나눠 쓰지 않습니다."""
 

@@ -3,7 +3,7 @@ import { getJSON } from "./http";
 import { jobsInterval } from "./jobs";
 import type {
   AccessItem, AskItem, AskKind, Health, Jobs, LogsPage, LogsParams, Me, NodeDetail, NodeRow, QaRecord, Regulation,
-  RequestRow, Results, StatPeriod, Stats, UserRow, UserStats,
+  RequestRow, Results, StatPeriod, Stats, UserRow, UserStats, WatchPerson,
 } from "./types";
 
 // 암묵적 재요청(창 포커스 · 재접속 · 재시도)을 모두 끕니다 — /api/logs 는 조회마다 감사 기록을 남기고,
@@ -27,7 +27,15 @@ export const regulationsQuery = () => queryOptions({ queryKey: ["regulations"], 
 export const requestsQuery = (mine: boolean) => queryOptions({
   queryKey: mine ? ["requests", "mine"] : ["requests"],
   queryFn: () => getJSON<RequestRow[]>(mine ? "/api/requests?mine=true" : "/api/requests"),
-  refetchInterval: mine ? false : (q) => (q.state.data?.some((r) => r.judging) ? 3000 : false),
+  refetchInterval: mine ? false : (q) => (q.state.data?.some((r) => r.judging || r.grant_review?.judging) ? 3000 : false),
+  refetchIntervalInBackground: true,
+});
+
+// 확인할 사람 — 키를 ["requests", …] 아래에 두어 신청 · 결재 · 회수 뒤 목록과 같이 다시 받습니다. 재검토 대기가 있으면 3초마다.
+export const peopleQuery = () => queryOptions({
+  queryKey: ["requests", "people"],
+  queryFn: () => getJSON<WatchPerson[]>("/api/people"),
+  refetchInterval: (q) => (q.state.data?.some((p) => p.flags.some((f) => f.text.endsWith("재검토 대기"))) ? 3000 : false),
   refetchIntervalInBackground: true,
 });
 
