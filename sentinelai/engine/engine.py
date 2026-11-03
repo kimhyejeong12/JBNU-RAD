@@ -290,6 +290,10 @@ class Engine:
         """기준 문서 적재 (바뀐 파일만, 기본 docs/). rebuild 면 컬렉션을 비우고 전부 새로 (규칙도 지워져 정책 관리 검토를 다시 돌려야 함)."""
         return pipeline.index_documents(self, source or pipeline.DOCS_DIR, rebuild)
 
+    def remove_document(self, name: str) -> bool:
+        """기준 문서 하나를 RAG 에서 뺍니다 (docs/ 의 파일은 부르는 쪽이 지움). 지난 판정은 그대로라 근거가 바뀌면 정책 관리 검토를 다시 돌립니다."""
+        return self.documents.remove(name)
+
     def run_policies(self, progress: Progress | None = None) -> dict[str, Any]:
         """정책 관리 검토 1회 — 기준 문서 · 정책 규칙 적재 + 정책 간 검토 → AI 결과 DB."""
         review = pipeline.review_policies(self, self.settings.policies_source, progress)
