@@ -68,6 +68,11 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def today() -> str:
+    # 사용 기간 · 퇴사일 · 이동일은 날짜만 적으므로 사내 업무 기준인 서버 현지 날짜(KST)로 봅니다.
+    return datetime.now().astimezone().strftime("%Y-%m-%d")
+
+
 def describe(url: str) -> str:
     """화면 · 로그에 보일 DB 위치. 비밀번호는 빼고, 연결하지 않습니다."""
     info = conninfo_to_dict(url)

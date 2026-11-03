@@ -26,6 +26,8 @@ export function useUserAction() {
     if (patch) {
       await send(`/api/users/${id}`, patch, "PATCH");
       await qc.invalidateQueries({ queryKey: ["me"] });
+      // 부서 · 직무 · 퇴사일이 바뀌면 확인할 사람 · 보유 권한 재검토도 달라집니다.
+      await qc.invalidateQueries({ queryKey: ["requests"] });
       return done;
     }
     await send(`/api/users/${id}/reset-password`, { temporary_password });

@@ -9,13 +9,13 @@ import hashlib
 import json
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from argon2.profiles import RFC_9106_LOW_MEMORY
 
-from .core import Database, Denied, Row, audit, now
+from .core import Database, Denied, Row, audit, now, today
 
 HASHER = PasswordHasher.from_parameters(RFC_9106_LOW_MEMORY)
 SESSION_TTL = timedelta(days=2)
@@ -88,19 +88,20 @@ def _guard_target(by: User, target: Row) -> None:
         raise Denied("루트 계정은 루트만 고칠 수 있습니다")
 
 
-def create_user(db: Database, by: User, login_id: str, password: str, display_name: str, department: str, role: str) -> User:
+def create_user(db: Database, by: User, login_id: str, password: str, display_name: str, department: str, role: str,
+                job: str = "") -> User:
     _require_top(by)
     if role not in ROLES:
         raise Denied(f"역할은 {', '.join(ROLES)} 중 하나입니다")
     _check_password(password)
     with db.transaction() as conn:
         uid = conn.execute(
-            "INSERT INTO users (login_id, password_hash, display_name, department, role, created_at, created_by)"
-            " VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
-            (login_id, HASHER.hash(password), display_name, department, role, now(), by.id),
+            "INSERT INTO users (login_id, password_hash, display_name, department, job, role, created_at, created_by)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
+            (login_id, HASHER.hash(password), display_name, department, job.strip(), role, now(), by.id),
         ).fetchone()[0]
         audit(conn, "user_create", by.id, target_type="user", target_id=str(uid),
-              detail=json.dumps({"login_id": login_id, "role": role, "department": department}, ensure_ascii=False))
+              detail=json.dumps({"login_id": login_id, "role": role, "department": department, "job": job.strip()}, ensure_ascii=False))
         return User.of(conn.execute("SELECT * FROM users WHERE id = %s", (uid,)).fetchone())
 
 
@@ -108,16 +109,24 @@ def update_user(db: Database, by: User, user_id: int, **changes: object) -> User
     """역할 · 부서 · 이름 · 활성 여부 · 로그 사용자 ID 를 바꿉니다. 정지하면 그 사람의 세션도 끊습니다.
 
     로그 사용자 ID 는 보안 솔루션 로그의 UserID 입니다. 사용자 위협의 의심 점수가 로그 감시 판정 · 행동 신호와 권한 신청을 이 값으로 한 사람에 모읍니다.
+    부서 · 직무가 실제로 바뀌면 이동 기록(user_moves)을 남깁니다 — 이동 전에 받은 권한을 새 업무에 맞는지 다시 판정하는 기준입니다.
+    퇴사일(left_on, YYYY-MM-DD 또는 빈 값)이 지나면 남은 권한을 코드가 바로 위험으로 올립니다 (permissions.grant_review).
     """
     _require_top(by)
-    allowed = {"display_name", "department", "role", "is_active", "log_id"}
+    allowed = {"display_name", "department", "job", "role", "is_active", "log_id", "left_on"}
     fields = {k: v for k, v in changes.items() if k in allowed and v is not None}
     if not fields:
         raise Denied("바꿀 항목이 없습니다")
     if "role" in fields and fields["role"] not in ROLES:
         raise Denied(f"역할은 {', '.join(ROLES)} 중 하나입니다")
-    if "log_id" in fields:
-        fields["log_id"] = str(fields["log_id"]).strip()
+    for key in ("log_id", "department", "job", "left_on"):
+        if key in fields:
+            fields[key] = str(fields[key]).strip()
+    if fields.get("left_on"):
+        try:
+            date.fromisoformat(fields["left_on"])
+        except ValueError:
+            raise Denied("퇴사일은 YYYY-MM-DD 로 적습니다") from None
     with db.transaction() as conn:
         target = conn.execute("SELECT * FROM users WHERE id = %s", (user_id,)).fetchone()
         if target is None:
@@ -129,6 +138,14 @@ def update_user(db: Database, by: User, user_id: int, **changes: object) -> User
         if target["id"] == by.id and ("role" in fields or fields.get("is_active") in (0, False)):
             raise Denied("자기 계정의 역할을 바꾸거나 정지할 수 없습니다")
         conn.execute(f"UPDATE users SET {', '.join(f'{k} = %s' for k in fields)} WHERE id = %s", (*fields.values(), user_id))
+        # 비어 있던 칸을 처음 채우는 것은 이동이 아닙니다 (직무 칸은 11/3에 생겨 기존 계정이 모두 빈 값).
+        moved = [k for k in ("department", "job") if k in fields and fields[k] != target[k] and target[k]]
+        if moved:
+            conn.execute(
+                "INSERT INTO user_moves (user_id, from_department, from_job, to_department, to_job, moved_on, recorded_at, recorded_by)"
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (user_id, target["department"], target["job"], fields.get("department", target["department"]),
+                 fields.get("job", target["job"]), today(), now(), by.id))
         if fields.get("is_active") in (0, False):
             conn.execute("UPDATE sessions SET revoked_at = %s WHERE user_id = %s AND revoked_at IS NULL", (now(), user_id))
         audit(conn, "user_update", by.id, target_type="user", target_id=str(user_id),
@@ -159,7 +176,7 @@ def list_users(db: Database, by: User) -> list[dict]:
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT id, login_id, display_name, department, role, is_root, is_active, must_change_password,"
-            " locked_until, last_login_at, created_at, log_id FROM users ORDER BY id"
+            " locked_until, last_login_at, created_at, log_id, job, left_on FROM users ORDER BY id"
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -168,7 +185,7 @@ def accounts_brief(db: Database) -> list[dict]:
     """사용자 위협 — 의심 점수를 사람별로 모을 때 쓰는 계정 요약 (이름 · 부서 · 역할 · 로그 사용자 ID). 비밀번호 칸은 읽지 않습니다."""
     with db.connection() as conn:
         return [dict(r) for r in conn.execute(
-            "SELECT id, login_id, display_name, department, role, is_active, log_id FROM users ORDER BY id")]
+            "SELECT id, login_id, display_name, department, job, role, is_active, log_id, left_on FROM users ORDER BY id")]
 
 
 def _login_failed(db: Database, user_id: int | None, login_id: str, ip: str | None, reason: str) -> bool:

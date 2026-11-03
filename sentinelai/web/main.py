@@ -1,6 +1,7 @@
 """FastAPI 백엔드 — `make web` 후 http://localhost:8000"""
 from __future__ import annotations
 
+import json
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -13,7 +14,8 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request  # noqa: E40
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, StringConstraints  # noqa: E402
 
-from sentinelai.db import decisions, results as results_db  # noqa: E402
+from sentinelai.db import User, decisions, results as results_db  # noqa: E402
+from sentinelai.db.core import audit  # noqa: E402
 from sentinelai.engine import KINDS, MANUAL, Engine  # noqa: E402
 
 from . import view  # noqa: E402
@@ -90,6 +92,25 @@ def _carry(rdb: Any, out: dict[str, Any], log: dict[str, dict[str, list[dict]]])
 def jobs(request: Request) -> dict[str, Any]:
     """돌고 있는 작업과 진행 상황, 구역별 마지막 실행 결과."""
     return {**_engine(request).job_status(), "kinds": KINDS}
+
+
+class ResetJobs(BaseModel):
+    rerun: bool = False
+
+
+@app.post("/api/jobs/reset")
+def reset_jobs(body: ResetJobs, request: Request, user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
+    """돌고 있는 작업을 강제로 끝냅니다 (보안 총책임자). rerun 이면 같은 작업을 곧바로 다시 시작합니다. 감사 기록에 남깁니다.
+
+    멈춘 것처럼 보이는 작업(모델 서버가 응답하지 않음 등) 때문에 다른 작업이 막힐 때 씁니다. 판정 한 건은 끝날 때까지 이어집니다 (JobRunner.reset).
+    """
+    reset = _engine(request).reset_jobs(rerun=body.rerun)
+    if not reset:
+        raise HTTPException(status_code=409, detail="돌고 있는 작업이 없습니다")
+    with request.app.state.main_db.transaction() as conn:
+        audit(conn, "jobs_reset", user.id, login_id=user.login_id, target_type="jobs", target_id=",".join(reset),
+              detail=json.dumps({"rerun": body.rerun}, ensure_ascii=False), ip=request.client.host if request.client else None)
+    return jobs(request)
 
 
 @app.post("/api/jobs/{kind}", status_code=202, dependencies=analyst)

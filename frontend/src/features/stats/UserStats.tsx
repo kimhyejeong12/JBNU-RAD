@@ -2,6 +2,7 @@ import { SUSPECT_COLOR, statCard, statSafety, statSub, statTiles, trendMark, ver
 import { SafetyBand } from "./SafetyBand";
 import { Tile } from "./Tile";
 import type { StatSelection } from "@/app/ui/state/uiReducer";
+import { JobReset } from "@/app/ui/jobs/JobReset";
 import { useStartJob } from "@/shared/api/jobs";
 import type { Jobs, Suspect, SuspectLevel, UserStats } from "@/shared/api/types";
 import { pct, stamp } from "@/shared/lib/format";
@@ -55,6 +56,7 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
         <button className={toolButton} id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
           <Icon name="activity" small />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
         </button>
+        <JobReset />
       </div>
       <p className={statSub}>앞으로 보안 위협이 될 가능성(0~100, 높음 70 이상 · 보통 40~69 · 낮음 40 미만)으로, 먼저 살펴볼 사람을 고르는 예측입니다. 줄을 누르면 오른쪽에 예측 이유 · 확인할 점 · 가진 권한이 열립니다.</p>
       {sus.length ? (

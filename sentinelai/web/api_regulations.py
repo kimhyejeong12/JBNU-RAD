@@ -4,7 +4,8 @@
 - 올리면 바뀐 파일만 다시 적재합니다 (Engine.index). 적재가 실패하면 올린 파일을 지웁니다.
 - 고치면 그 문서만 다시 적재합니다 — 같은 이름의 내용이 바뀌면 엔진이 그 문서의 예전 조각만 바꿉니다.
   지난 판정이 고치기 전 조항을 근거로 했으므로 고치기 전 원문 · 사유를 감사 기록에 남깁니다.
-- 지우기는 두지 않습니다 — 엔진에 문서 하나만 RAG 에서 빼는 기능이 없어 전체 재적재와 정책 관리 검토가 필요합니다 (NOTES.md).
+- 지우면 docs/ 의 파일을 지우고 그 문서의 조각만 RAG 에서 뺍니다 (Engine.remove_document). 지운 원문 · 사유는 감사 기록에 남깁니다.
+  마지막 문서는 지우지 않습니다 — 판정할 근거가 없어지고, 비어 있는 docs/ 는 적재가 실패합니다.
 """
 
 from __future__ import annotations
@@ -144,3 +145,27 @@ async def edit(name: str, body: EditRegulation, request: Request, user: Top) -> 
         raise HTTPException(status_code=502, detail=f"적재하지 못해 고치지 않았습니다: {exc}") from None
     _audit(request, user, "regulation_edit", name, {"reason": body.reason, "chars": len(body.content), "before": before})
     return _entry(path)
+
+
+class RemoveRegulation(BaseModel):
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+
+
+@router.delete("/{name}")
+async def remove(name: str, body: RemoveRegulation, request: Request, user: Top) -> dict[str, str]:
+    """기준 문서 지우기 — 파일을 지우고 그 문서만 RAG 에서 뺍니다. RAG 에서 빼지 못하면 파일을 되돌립니다."""
+    path = DOCS_DIR / name
+    if not NAME.fullmatch(name) or not path.is_file():
+        raise HTTPException(status_code=404, detail="그 기준 문서가 없습니다")
+    if len(_files()) <= 1:
+        raise HTTPException(status_code=400, detail="마지막 기준 문서는 지울 수 없습니다. 새 문서를 먼저 올리세요")
+    before = path.read_text(encoding="utf-8")
+    engine = await _ready(request)
+    path.unlink()
+    try:
+        await run_in_threadpool(engine.remove_document, name)
+    except Exception as exc:
+        path.write_text(before, encoding="utf-8")
+        raise HTTPException(status_code=502, detail=f"RAG 에서 빼지 못해 지우지 않았습니다: {exc}") from None
+    _audit(request, user, "regulation_remove", name, {"reason": body.reason, "before": before})
+    return {"name": name}

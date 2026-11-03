@@ -1,5 +1,5 @@
 import type { QueueItem } from "@/app/queue/types";
-import type { RequestRow, AccessItem } from "@/shared/api/types";
+import type { RequestRow, AccessItem, WatchPerson } from "@/shared/api/types";
 import { stamp, person } from "@/shared/lib/format";
 import { STAGE_LABEL, isActive, requester, today } from "@/shared/lib/request";
 import type { HistoryStep } from "@/shared/ui/base/parts";
@@ -14,10 +14,38 @@ export function requestItem(r: RequestRow): QueueItem {
     what: r.requested_access,
     when: stamp(r.submitted_at),
     judge: level || (r.judging ? "판정 중" : v && v.failed ? "판정 실패" : "판정 대기"),
-    sub: r.stage === "approved" && !isActive(r) ? "승인 · 기간 끝" : STAGE_LABEL[r.stage],
+    sub: r.stage === "approved" && !isActive(r) ? "승인 · 기간 끝" : grantNote(r) ?? STAGE_LABEL[r.stage],
     raw: r,
   };
 }
+
+// 확인할 사람 한 줄 — 대상은 부서 · 이름(직무), 상세는 걸린 것을 등급 높은 순으로 이어 씀, 판정 칸은 가장 높은 등급과 걸린 수.
+export function personItem(p: WatchPerson): QueueItem {
+  return {
+    type: "person", key: `person:${p.id}`, id: p.login_id, level: p.level,
+    who: `${p.department} ${p.name}`.trim() + (p.job ? ` (${p.job})` : ""),
+    what: p.flags.map((f) => f.text).join(" · "),
+    when: p.at,
+    judge: p.level,
+    sub: `${p.flags.length}건${!p.is_active ? " · 정지" : ""}`,
+    raw: p,
+  };
+}
+
+// 지금 가진 권한의 재검토 한 줄 — 퇴사는 코드가 바로 위험, 이동은 AI 판정 (판정 중 · 대기 · 실패도 글자로).
+export function grantNote(r: RequestRow): string | undefined {
+  const g = r.grant_review;
+  if (!g) return undefined;
+  const v = g.verdict;
+  const state = v ? (v.failed ? "판정 실패" : v.level) : g.judging ? "판정 중" : "판정 대기";
+  return `승인 · ${g.cause === "leave" ? "퇴사" : "이동"} 재검토 ${state}`;
+}
+
+// 이동 한 줄 — 2026-11-03 보안팀(보안 관제) → 인사팀(채용 담당).
+export const moveText = (m: { moved_on: string; from_department: string; from_job: string; to_department: string; to_job: string }): string => {
+  const side = (d: string, j: string) => `${d || "부서 없음"}${j ? `(${j})` : ""}`;
+  return `${m.moved_on} ${side(m.from_department, m.from_job)} → ${side(m.to_department, m.to_job)}`;
+};
 
 // 일반 사용자의 내 신청 묶음 — 결재 중(1차 · 최종 결재 대기) · 사용 중(승인됐고 기간이 남음) · 끝난 것(반려 · 철회 · 회수 · 기간 끝남).
 export type MineGroup = "pending" | "active" | "done";

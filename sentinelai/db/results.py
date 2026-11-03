@@ -384,6 +384,15 @@ def user_findings(db: Database, since: str | None = None) -> list[dict[str, Any]
             for r in rows]
 
 
+def finding_users(db: Database, ids: list[int]) -> dict[int, dict[str, Any]]:
+    """로그 감시 판정 id → 로그 사용자 ID · 마지막 로그 시각. 운영자 결정(event_findings/{id})이 누구의 로그인지 찾을 때 씁니다."""
+    if not ids:
+        return {}
+    with db.connection() as conn:
+        rows = conn.execute("SELECT id, \"user\", last_event_at FROM event_findings WHERE id = ANY(%s)", (ids,)).fetchall()
+    return {r["id"]: {"log_id": r["user"], "at": r["last_event_at"]} for r in rows}
+
+
 def save_suspect(db: Database, person: dict[str, Any], result: dict[str, Any], model: str) -> int:
     """사용자 한 명의 의심 점수 한 건 (pipeline.predict_suspect). 쌓기만 하고 화면은 사람마다 마지막 것과 흐름을 봅니다."""
     records = {"로그 위험": sum(f["level"] == "위험" for f in person["findings"]), "로그 주의": sum(f["level"] == "주의" for f in person["findings"]),

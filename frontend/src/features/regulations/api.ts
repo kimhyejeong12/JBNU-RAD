@@ -49,3 +49,20 @@ export function useEditRegulation() {
   }
   return { ...mutation, cancel };
 }
+
+// 기준 문서 지우기 — 사유와 함께 보내고, 그 문서만 RAG 에서 빠진 뒤 목록을 다시 받고 선택을 풉니다.
+export function useRemoveRegulation() {
+  const qc = useQueryClient();
+  const { selectSilent, setPanelMsg } = useUi();
+  return useMutation({
+    mutationFn: ({ name, reason }: { name: string; reason: string }) =>
+      getJSON<{ name: string }>(`/api/regulations/${encodeURIComponent(name)}`, {
+        method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }),
+      }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["regulations"] });
+      selectSilent(null);
+    },
+    onError: (e) => setPanelMsg(e.message),
+  });
+}

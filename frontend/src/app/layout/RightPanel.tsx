@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useUi } from "@/app/ui/state/UiContext";
 import { useQueue } from "@/app/queue/useQueue";
 import { RequestPanel } from "@/features/requests/RequestPanel";
+import { PersonPanel } from "@/features/requests/PersonPanel";
 import { ReviewPanel } from "@/features/review/ReviewPanel";
 import { NodesPanel } from "@/features/nodes/NodesPanel";
 import { LogsPanel } from "@/features/logs/LogsPanel";
@@ -32,6 +33,7 @@ export function RightPanel() {
   else if (ui.selected === NEW_ITEM && ui.view === "access") body = <AccessPanel key="new" a={null} />;
   else if (ui.selected === NEW_ITEM && ui.view === "docs") body = <DocPanel key="new" d={null} />;
   else if (it && it.type === "req") body = <RequestPanel key={it.key} it={it} />;
+  else if (it && it.type === "person") body = <PersonPanel key={it.key} it={it} />;
   else if (it && it.type === "user") body = <UserPanel key={it.key} u={it.raw} />;
   else if (it && it.type === "doc") body = <DocPanel key={it.key} d={it.raw} />;
   else if (it && it.type === "access") body = <AccessPanel key={it.key} a={it.raw} />;
@@ -55,7 +57,10 @@ const DRAWER_OPEN = "narrow:visible narrow:transform-none narrow:[transition:tra
 // 빈 패널도 메뉴를 따릅니다 (일반 사용자에게는 패널이 없습니다).
 function EmptyQueuePanel({ view }: { view: View | null }) {
   const top = useMe().role === "top";
-  const [title, text] = view === "requests"
+  const people = useUi().ui.stageFilter === "people";
+  const [title, text] = view === "requests" && people
+    ? ["확인할 사람", <>목록에서 사람을 고르면<br />걸린 신청 · 보유 권한 · 이동이 표시됩니다.</>]
+    : view === "requests"
     ? ["권한 신청 검토", <>목록에서 신청을 선택하면<br />신청 내용 · AI 판정 · 결재 기록이 표시됩니다.</>]
     : view === "users" ? ["계정", <>목록에서 계정을 고르거나<br />[새 계정]을 누르세요.</>]
       : view === "access" ? ["권한", <>목록에서 권한을 고르거나<br />[권한 등록]을 누르세요.</>]

@@ -64,6 +64,7 @@ export interface RequestRow {
   request_no: string;
   requester_name: string;
   requester_department: string;
+  requester_job?: string;
   requested_access: string;
   access_code: string | null;
   current_access: string | null;
@@ -75,7 +76,47 @@ export interface RequestRow {
   ai_verdict?: Verdict | null;   // 일반 사용자에게는 없습니다
   judging?: boolean;
   approvals?: Approval[];
+  grant_review?: GrantReview | null;   // 지금 가진 권한의 재검토 (퇴사 · 사내 이동). 일반 사용자에게는 없습니다
   revocation?: Revocation | null;
+}
+
+// 확인할 사람 (GET /api/people) — 퇴사 · 이동, 위험 · 주의인 신청 · 보유 권한. 코드가 셉니다.
+export interface WatchFlag {
+  kind: "leave" | "move" | "grant" | "request";
+  level: Level;
+  at: string;
+  text: string;
+  request_no?: string;
+}
+
+export interface WatchPerson {
+  id: number;
+  login_id: string;
+  name: string;
+  department: string;
+  job: string;
+  is_active: boolean;
+  left_on: string;
+  level: Level;
+  at: string;
+  flags: WatchFlag[];
+}
+
+export interface UserMove {
+  id: number;
+  from_department: string;
+  from_job: string;
+  to_department: string;
+  to_job: string;
+  moved_on: string;
+}
+
+export interface GrantReview {
+  cause: "leave" | "move";
+  left_on?: string;
+  move?: UserMove;
+  verdict: (Verdict & { by: "code" | "ai" }) | null;   // move 이고 아직 판정 전이면 null
+  judging?: boolean;
 }
 
 export interface AccessItem {
@@ -101,6 +142,8 @@ export interface UserRow {
   locked_until: string | null;
   last_login_at: string | null;
   log_id: string | null;
+  job: string;
+  left_on: string;
   created_at: string;
 }
 

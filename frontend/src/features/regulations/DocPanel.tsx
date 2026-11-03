@@ -7,13 +7,13 @@ import type { Regulation } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
 import { Section } from "@/shared/ui/base/parts";
-import { actionButton, field, formActions, input, meta, note, panelActions, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+import { actionButton, dangerButton, field, formActions, input, meta, note, panelActions, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { useEditRegulation, useUploadRegulation } from "./api";
-import { docItem, editProblem, uploadProblem } from "./lib";
+import { useEditRegulation, useRemoveRegulation, useUploadRegulation } from "./api";
+import { docItem, editProblem, removeProblem, uploadProblem } from "./lib";
 import { ask } from "@/app/ui/confirm/ask";
 
-// 기준 문서 패널 — 고르면 원문(보안 총책임자는 [수정]도), d 가 없으면 [문서 업로드]로 연 올리기 창(보안 총책임자만). 지우기는 없습니다.
+// 기준 문서 패널 — 고르면 원문(보안 총책임자는 [수정] · [지우기]도), d 가 없으면 [문서 업로드]로 연 올리기 창(보안 총책임자만).
 // 보안 운영자는 읽기만. 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둡니다.
 export function DocPanel({ d }: { d: Regulation | null }) {
   const top = useMe().role === "top";
@@ -56,16 +56,22 @@ function UploadDoc() {
 
 function DocView({ d, canEdit }: { d: Regulation; canEdit: boolean }) {
   const it = docItem(d);
-  const [editing, setEditing] = useState(false);
+  const [mode, setMode] = useState<"view" | "edit" | "remove">("view");
+  const close = () => setMode("view");
   return (
     <>
       <PanelHead title="기준 문서" />
       <div className={panelBody}>
         <p className={subject}>{it.who}</p>
         <div className={meta}>{d.name}{d.updated_at ? ` · 고친 시각 ${stamp(d.updated_at)}` : ""} · 조항 {it.judge}</div>
-        {editing ? <EditDoc d={d} onClose={() => setEditing(false)} /> : (
+        {mode === "edit" ? <EditDoc d={d} onClose={close} /> : mode === "remove" ? <RemoveDoc d={d} onClose={close} /> : (
           <>
-            {canEdit && <div className={panelActions}><button type="button" className={actionButton} onClick={() => setEditing(true)}>수정</button></div>}
+            {canEdit && (
+              <div className={panelActions}>
+                <button type="button" className={actionButton} onClick={() => setMode("edit")}>수정</button>
+                <button type="button" className={actionButton} onClick={() => setMode("remove")}>지우기</button>
+              </div>
+            )}
             <Section icon="book" title="원문">
               <pre className="m-0 whitespace-pre-wrap rounded-lg bg-canvas px-3.5 py-3 text-[13px] font-[inherit]">{d.content.trim()}</pre>
             </Section>
@@ -120,6 +126,45 @@ function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
       <div className={formActions}>
         <button type="button" className={actionButton} onClick={() => void onCancel()}>취소</button>
         <button type="submit" className={cn(actionButton, primaryButton)} disabled={edit.isPending}>{edit.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "적재하는 중…") : "고치기"}</button>
+      </div>
+    </form>
+  );
+}
+
+// 지우기 — 판정의 근거가 빠지므로 고치기처럼 사유 · 파일 이름 입력 · 확인 창을 거칩니다. 지운 원문 · 사유는 감사 기록에 남습니다.
+function RemoveDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
+  const remove = useRemoveRegulation();
+  const busy = busyJob(useJobs());
+  const count = useRegulations().length;
+  const [reason, setReason] = useState("");
+  const [typed, setTyped] = useState("");
+  const [tried, setTried] = useState(false);
+  const problem = removeProblem(d, count, { reason, typed });
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (problem) return setTried(true);
+    const message = `기준 문서 ${d.name} 를 지웁니다.\n\n`
+      + "· 이 문서의 조항은 바로 AI 판정의 근거에서 빠집니다.\n"
+      + "· 이미 이 문서를 근거로 낸 판정은 그대로 남습니다. 정책은 다음 [정책 관리 검토 실행] 때 남은 기준으로 다시 판정됩니다.\n"
+      + "· 지운 원문과 사유는 감사 기록에 남습니다.";
+    if (await ask({ title: "기준 문서 지우기", confirm: "지우기", danger: true, message })) remove.mutate({ name: d.name, reason });
+  }
+
+  return (
+    <form className="mt-3 flex flex-col gap-3" id="doc-remove" onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+      <label className={field}>지우는 사유 (감사 기록에 남습니다)
+        <input className={input} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="예: 새 기준 문서로 바뀜" />
+      </label>
+      <label className={field}>확인 — 파일 이름을 똑같이 입력하세요
+        <input className={input} value={typed} autoComplete="off" onChange={(e) => setTyped(e.target.value)} placeholder={d.name} />
+      </label>
+      {problem && <p className={cn(note, (tried || count <= 1) && "text-risk")}>{problem}</p>}
+      {busy && !problem && <p className={note}>지금 AI 작업({busy})이 돌고 있어, 지우기를 누르면 끝나는 대로 바로 적용합니다.</p>}
+      <div className={formActions}>
+        <PanelMsg />
+        <button type="button" className={actionButton} onClick={onClose} disabled={remove.isPending}>취소</button>
+        <button type="submit" className={cn(actionButton, dangerButton)} disabled={remove.isPending}>{remove.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "지우는 중…") : "지우기"}</button>
       </div>
     </form>
   );

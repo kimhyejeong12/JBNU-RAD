@@ -1,4 +1,4 @@
-import type { AccessItem, Decision, EventFinding, Level, PolicyIssue, Regulation, RequestRow, ServerFinding, UserRow } from "@/shared/api/types";
+import type { AccessItem, Decision, EventFinding, Level, PolicyIssue, Regulation, RequestRow, ServerFinding, UserRow, WatchPerson } from "@/shared/api/types";
 
 // 큐 항목 — 메뉴마다 다른 데이터를 한 목록 형식으로. raw 는 종류별 원본 행입니다.
 interface Base {
@@ -17,6 +17,7 @@ interface Base {
 
 export type QueueItem =
   | (Base & { type: "req"; raw: RequestRow })
+  | (Base & { type: "person"; raw: WatchPerson })
   | (Base & { type: "user"; raw: UserRow })
   | (Base & { type: "access"; raw: AccessItem })
   | (Base & { type: "doc"; raw: Regulation })

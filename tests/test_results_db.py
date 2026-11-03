@@ -47,6 +47,9 @@ def test_monitor_runs(results_db):
     assert stats["events"]["lines"]["위험"] == 2
     assert stats["events"]["users"][0]["log_id"] == "kim.hj"
     assert [f["log_id"] for f in results.user_findings(results_db, "2026-11-01T00:00:00+00:00")] == ["kim.hj"]
+    with results_db.connection() as conn:
+        ids = [r["id"] for r in conn.execute("SELECT id FROM event_findings")]
+    assert {v["log_id"] for v in results.finding_users(results_db, [*ids, 999]).values()} == {"kim.hj"}
 
 
 def test_snapshots_and_node_findings(results_db):

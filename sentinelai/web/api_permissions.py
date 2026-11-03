@@ -105,15 +105,18 @@ class NewUser(BaseModel):
     password: Annotated[str, StringConstraints(min_length=1, max_length=200)]
     display_name: Name
     department: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = ""
+    job: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = ""
     role: str
 
 
 class UserChange(BaseModel):
     display_name: Name | None = None
     department: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
+    job: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
     role: str | None = None
     is_active: bool | None = None
     log_id: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
+    left_on: Annotated[str, StringConstraints(strip_whitespace=True, max_length=10)] | None = None
 
 
 class PasswordReset(BaseModel):
@@ -132,7 +135,7 @@ def list_users(request: Request, user: Anyone) -> list[dict]:
 def create_user(body: NewUser, request: Request, user: Anyone) -> dict[str, Any]:
     try:
         return auth.create_user(request.app.state.main_db, user, body.login_id, body.password,
-                                body.display_name, body.department, body.role).public()
+                                body.display_name, body.department, body.role, body.job).public()
     except Denied as exc:
         raise _denied(exc) from None
 
@@ -143,9 +146,13 @@ def update_user(user_id: int, body: UserChange, request: Request, user: Anyone) 
     if "is_active" in changes:
         changes["is_active"] = int(changes["is_active"])
     try:
-        return auth.update_user(request.app.state.main_db, user, user_id, **changes).public()
+        changed = auth.update_user(request.app.state.main_db, user, user_id, **changes)
     except Denied as exc:
         raise _denied(exc) from None
+    # 부서 · 직무를 옮겼으면 예전 업무로 받은 권한을 다시 판정합니다 (권한마다 한 건, 백그라운드).
+    if "department" in changes or "job" in changes:
+        request.app.state.verdicts.enqueue_grants(user_id)
+    return changed.public()
 
 
 @router.post("/users/{user_id}/reset-password")
@@ -206,9 +213,18 @@ def _with_verdict(request: Request, req: dict, user: User) -> dict:
     AI 판정은 결재자를 위한 것이라 일반 사용자에게는 AI 칸(결재 기록의 그때 AI 등급까지)을 아예 빼고 줍니다.
     """
     if user.role == "user":
-        return {**{k: v for k, v in req.items() if k != "ai_verdict"},
+        return {**{k: v for k, v in req.items() if k not in ("ai_verdict", "grant_review")},
                 "approvals": [{k: v for k, v in a.items() if k != "ai_level"} for a in req["approvals"]]}
-    return {**req, "judging": request.app.state.verdicts.pending(req["request_no"])}
+    review = req.get("grant_review")
+    if review and review["cause"] == "move":
+        review = {**review, "judging": request.app.state.verdicts.pending(f"grant:{req['request_no']}:{review['move']['id']}")}
+    return {**req, "grant_review": review, "judging": request.app.state.verdicts.pending(req["request_no"])}
+
+
+@router.get("/people", dependencies=[Depends(role("manager", "top"))])
+def people(request: Request) -> list[dict[str, Any]]:
+    """확인할 사람 — 퇴사 · 이동이 있거나 신청 · 보유 권한이 위험 · 주의인 일반 사용자 (코드가 셈)."""
+    return permissions.watch_people(request.app.state.main_db)
 
 
 class NewRequest(BaseModel):

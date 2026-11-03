@@ -21,7 +21,7 @@ const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
 const TAB = "-mb-px inline-flex items-center gap-1.75 border-0 border-b-2 border-transparent bg-transparent px-3.5 py-2.25 text-[14px] font-bold text-ink-dim hover:text-ink aria-selected:border-b-ink aria-selected:text-ink";
 const BAR = "flex gap-1 border-b border-line";
 
-const STAGES: [StageFilter, string, string][] = [["pending", "결재 대기", "list"], ["active", "유효 권한", "key"], ["all", "전체", "file"]];
+const STAGES: [StageFilter, string, string][] = [["pending", "결재 대기", "list"], ["active", "유효 권한", "key"], ["people", "확인할 사람", "users"], ["all", "전체", "file"]];
 
 export function MainTabs() {
   const { ui, setMainTab, navigate, setStageFilter } = useUi();

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 import threading
+import time
 
 import pytest
 
@@ -254,3 +255,48 @@ def test_nodes(main_db, people):
     with pytest.raises(nodes.Unauthorized):
         nodes.authenticate(main_db, key, {})
     assert new_key != key
+
+
+# --- 직무 · 이동 · 퇴사 (11/3) ------------------------------------------------------
+
+
+def _approve(main_db, people, request_no):
+    permissions.decide(main_db, people["manager"], request_no, "approve")
+    permissions.decide(main_db, people["top"], request_no, "approve")
+
+
+def test_move_asks_to_review_held_grant(main_db, people, request_no):
+    _approve(main_db, people, request_no)
+    time.sleep(1.1)  # 이동이 신청 시각보다 늦게 기록돼야 재검토 대상입니다 (시각은 초 단위)
+    auth.update_user(main_db, people["root"], people["user"].id, job="급여 담당")   # 빈 직무를 처음 채우는 것은 이동이 아님
+    auth.update_user(main_db, people["root"], people["user"].id, department="개발팀")
+    record = permissions.account_record(main_db, people["user"].id)
+    assert [m["to_department"] for m in record["moves"]] == ["개발팀"] and len(record["held"]) == 1
+
+    [job] = permissions.pending_grant_reviews(main_db)
+    move_id = int(job.split(":")[2])
+    assert permissions.grant_input(main_db, request_no, move_id)["move"]["from_department"] == "인사팀"
+    watched = permissions.watch_people(main_db)
+    assert watched[0]["login_id"] == "user" and {f["kind"] for f in watched[0]["flags"]} == {"move", "grant"}
+
+    assert permissions.save_grant_review(main_db, request_no, move_id, {"level": "위험", "reason": "업무가 바뀜", "failed": False}, "m")
+    assert permissions.pending_grant_reviews(main_db) == []
+    assert permissions.watch_people(main_db)[0]["level"] == "위험"
+    with denied("이동 기록은 고칠 수 없습니다"), main_db.transaction() as conn:
+        conn.execute("UPDATE user_moves SET to_job = 'x'")
+    with denied("AI 결과는 고칠 수 없습니다"), main_db.transaction() as conn:
+        conn.execute("UPDATE grant_reviews SET level = '정상'")
+    with denied("제출한 신청 내용은 고칠 수 없습니다"), main_db.transaction() as conn:
+        conn.execute("UPDATE access_requests SET requester_job = 'x'")
+
+
+def test_leave_makes_held_grant_risky(main_db, people, request_no):
+    assert permissions.judge_input(main_db, request_no)["move"] is None
+    _approve(main_db, people, request_no)
+    with denied("퇴사일은 YYYY-MM-DD 로 적습니다"):
+        auth.update_user(main_db, people["root"], people["user"].id, left_on="어제")
+    auth.update_user(main_db, people["root"], people["user"].id, left_on="2026-01-01")
+    [person] = permissions.watch_people(main_db)
+    assert person["level"] == "위험" and person["flags"][0]["kind"] == "leave"
+    assert permissions.pending_grant_reviews(main_db) == []   # 퇴사는 코드가 판정하므로 AI 재검토 큐에 넣지 않습니다
+

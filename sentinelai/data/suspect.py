@@ -101,6 +101,37 @@ def _highlights(s: dict[str, Any]) -> list[str]:
     return h
 
 
+THREAT_LIMIT = 15
+
+
+def threat_marks(e: SecurityEvent) -> list[str]:
+    """한 로그 줄의 위협 표시 — 코드가 정하는 사실(예외 승인 · 민감 문서 · 근무 시간 밖)만. AI 판정은 넣지 않습니다."""
+    marks = ["예외 승인"] if _exception(e) else []
+    if words := _sensitive(e):
+        marks.append(f"민감 문서({', '.join(words)})")
+    if _off_hours(e):
+        marks.append("근무 시간 밖")
+    return marks
+
+
+def threat_lines(events: list[SecurityEvent], limit: int = THREAT_LIMIT) -> list[str]:
+    """한 사람의 대표적인 최근 위협 기록 — 위협 표시가 붙은 로그 중 최근 것부터, 같은 종류(솔루션 · 행위 · 표시)가 몰리지 않게 골라 limit 줄.
+
+    같은 행위를 수십 번 한 사람도 다른 종류의 기록이 밀려나지 않게, 종류마다 가장 최근 것부터 돌아가며 뽑습니다. 고른 줄은 시간순으로 돌려줍니다.
+    """
+    kinds: dict[tuple, list[tuple[SecurityEvent, list[str]]]] = defaultdict(list)
+    for e in sorted(events, key=lambda e: e.occurred_at, reverse=True):
+        if marks := threat_marks(e):
+            kinds[(e.solution, e.how, tuple(m.split("(")[0] for m in marks))].append((e, marks))
+    picked: list[tuple[SecurityEvent, list[str]]] = []
+    queues = sorted(kinds.values(), key=lambda q: q[0][0].occurred_at, reverse=True)
+    while len(picked) < limit and any(queues):
+        for q in queues:
+            if q and len(picked) < limit:
+                picked.append(q.pop(0))
+    return [f"{e.describe()} [{' · '.join(m)}]" for e, m in sorted(picked, key=lambda x: x[0].occurred_at)]
+
+
 BANDS = ((70, "높음"), (40, "보통"))
 
 

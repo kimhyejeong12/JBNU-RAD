@@ -1,7 +1,7 @@
 # 권한 DB 스키마 설계 (검토용)
 
 SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
-- DDL: [`sentinelai/db/main.sql`](../sentinelai/db/main.sql) (권한 DB, 11/03까지는 `schema.sql` 외 SQLite 파일 열 개) · AI 결과 DB는 [`results-db.md`](results-db.md)
+- DDL: [`sentinelai/db/main.sql`](../sentinelai/db/main.sql) (권한 DB, 11/03까지는 `schema.sql` 외 SQLite 파일 열한 개) · AI 결과 DB는 [`results-db.md`](results-db.md)
 - 2026-10-11 확정 · **DB 계층 · API · 화면까지 구현**
 
 ---
@@ -79,7 +79,7 @@ users ─┬─ sessions
 users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 ```
 
-- 스키마 파일은 차례로 적용 — `Database(url, "main", "main.sql")`. SQLite 때 파일 열 개(schema.sql ~ users_log_id.sql)를 적용한 최종 상태가 `main.sql` 하나 (11/03)
+- 스키마 파일은 차례로 적용 — `Database(url, "main", "main.sql")`. SQLite 때 파일 열한 개(schema.sql ~ users_job.sql)를 적용한 최종 상태가 `main.sql` 하나 (11/03)
 - n번째 파일 적용 → 스키마 안 `schema_version` = n. 이미 만든 DB는 시작할 때 빠진 파일만 더 적용
 - 테이블을 더할 때는 새 파일을 뒤에 붙임. 앞 파일은 고치지 않음
 
@@ -257,6 +257,17 @@ DB가 거부한 **25가지**
 
 ---
 
+### `users.job` · `users.left_on` · `user_moves` · `grant_reviews` — 직무 · 퇴사 · 이동 (11/3, `users_job.sql` → `main.sql`)
+
+- `users.job` 직무 · `users.left_on` 퇴사일(YYYY-MM-DD 또는 빈 값). 보안 총책임자가 계정 관리에서 적음
+- `access_requests.requester_job` — 신청 때 직무 (트리거로 고칠 수 없음)
+- 이직 = 사내 부서 · 직무 이동, 회사를 떠나는 것은 퇴사로 따로 다룸
+- `user_moves` — 부서 · 직무가 실제로 바뀌면 한 행 (예전 · 새 부서 · 직무, 날짜, 누가). 비어 있던 칸을 처음 채우는 것은 이동이 아님. 고치거나 지울 수 없음
+- `grant_reviews` — 이동 뒤 보유 권한 재검토 AI 판정 (신청 · 이동마다 쌓기만). 신청 행의 AI 칸과 따로 둠 — 1차 결재 뒤 AI 칸이 굳어서
+- 재검토 대상: 승인됐고 기간이 남은 권한 중 신청 뒤에 이동이 기록된 것. 마지막 이동에만 판정
+- 퇴사일이 지난 사람의 보유 권한은 모델 없이 코드가 바로 위험 · 회수 권고 (`permissions._grant_review`). 저장하지 않고 읽을 때 셈
+- 회수는 사람이 함 (자동 회수 없음)
+
 ## 5. 남은 질문
 
 1. **세션 2일은 절대 만료** — 무활동 만료(예: 30분 안 쓰면 끊김)도 둘지
@@ -268,7 +279,7 @@ DB가 거부한 **25가지**
 6. **결재 이력 화면** — 보안 운영자는 자기 결재만 볼지, 전체를 볼지
 7. ~~정책 데이터 · 정책 검토 · 질의 기록 — 어디에 두나?~~ → 정책 검토 · 질의 기록은 AI 결과 DB ([`results-db.md`](results-db.md), 10/12). 정책 데이터(솔루션 정책 원본)는 아직 파일
 8. **초기 루트 생성 방법** — 지금은 서버에서 실행하는 CLI(`make create-root`, 비밀번호는 화면 표시 없이 입력)로 만들었음. 다른 방법으로 정하면 바꿈
-9. **AI 판정 입력** — 지금 판정은 신청자 · 신청 권한 · 현재 권한만 봄. 신청 사유 · 사용 기간도 보게 하려면 `review_chain` 프롬프트 변경 필요 (엔진)
+9. ~~AI 판정 입력~~ → 11/3에 신청 사유 · 사용 기간 · 직무 · 신청 전 90일 안의 이동을 넣음 (`ACCESS_REVIEW`)
 10. ~~비밀번호 규칙~~ → 길이 제한 없음 (10/12, 인트라넷 서비스). 빈 비밀번호만 막음. 잠금은 5회 실패 → 15분 그대로
 11. **도입 전부터 가진 권한** — 현재 보유 권한은 이 시스템에서 승인된 신청만 읽음. 나중에 옮겨 넣는(마이그레이션) 부분을 따로 만들 예정 (10/20)
     - 기존 권한을 계정별로 넣을지 (보안 총책임자가 화면에서, 또는 IAM 내보내기)
