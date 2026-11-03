@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useMe } from "./me";
 import { dataNeeds, type DataNeeds } from "./views";
 import {
-  EMPTY_RESULTS, catalogQuery, healthQuery, jobsQuery, qaQuery, regulationsQuery, requestsQuery, resultsQuery, usersQuery,
+  EMPTY_RESULTS, catalogQuery, healthQuery, jobsQuery, peopleQuery, qaQuery, regulationsQuery, requestsQuery, resultsQuery, usersQuery,
 } from "@/shared/api/queries";
-import type { AccessItem, AskItem, AskKind, Jobs, Regulation, RequestRow, Results, UserRow } from "@/shared/api/types";
+import type { AccessItem, AskItem, AskKind, Jobs, Regulation, RequestRow, Results, UserRow, WatchPerson } from "@/shared/api/types";
 import { chipLabel, clauseText } from "@/shared/lib/clause";
 
 // 역할에 따라 받는 데이터 — 같은 키를 여러 컴포넌트가 구독해도 요청은 한 번입니다.
@@ -17,6 +17,11 @@ export const useNeeds = (): DataNeeds => dataNeeds(useMe().role);
 export function useRequests(): RequestRow[] {
   const enabled = useNeeds().requests;
   return useQuery({ ...requestsQuery(false), enabled }).data ?? NONE;
+}
+
+export function usePeople(): WatchPerson[] {
+  const enabled = useNeeds().requests;
+  return useQuery({ ...peopleQuery(), enabled }).data ?? NONE;
 }
 
 export function useMine(): RequestRow[] {

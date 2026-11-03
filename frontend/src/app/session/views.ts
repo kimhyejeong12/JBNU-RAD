@@ -3,7 +3,7 @@ import type { StageFilter } from "@/app/ui/state/uiReducer";
 
 export type MainTab = "queue" | "nodes" | "logs" | "ask" | "stats" | "ustats";
 export type View = "requests" | "policies" | "stats" | "qa" | "events" | "mine" | "users" | "access" | "docs";
-export type ItemType = "req" | "server" | "user" | "access" | "policy" | "event" | "doc";
+export type ItemType = "req" | "person" | "server" | "user" | "access" | "policy" | "event" | "doc";
 
 // 사이드바 구역 — 결재 · 보안 운영. 관리 메뉴(보안 총책임자)는 구역 대신 사이드바 아래 [관리] 하나로 묶습니다.
 export type NavGroup = "결재" | "보안 운영";
@@ -52,8 +52,10 @@ const ADMIN_VIEWS: readonly View[] = ["access", "users", "docs"];
 export const isAdminView = (v: View | null): boolean => v !== null && ADMIN_VIEWS.includes(v);
 export const RESULT_VIEWS: ReadonlySet<View> = new Set<View>(["policies", "events"]);
 export const LEVEL_VIEWS: ReadonlySet<View> = new Set<View>(["requests", "policies", "events"]);
-export const TYPE_VIEW: Record<ItemType, View> = { req: "requests", server: "policies", user: "users", access: "access", policy: "policies", event: "events", doc: "docs" };
-export const TYPE_LABEL: Record<ItemType, string> = { req: "권한 신청", server: "서버 점검", user: "계정", access: "권한", policy: "정책 문제", event: "로그 감시", doc: "기준 문서" };
+export const TYPE_VIEW: Record<ItemType, View> = { req: "requests", person: "requests", server: "policies", user: "users", access: "access", policy: "policies", event: "events", doc: "docs" };
+// 권한 신청 메뉴의 [확인할 사람] 탭 머리줄 — 줄이 신청이 아니라 사람이라 칸 이름이 다릅니다.
+export const PEOPLE_COLS = ["사람", "걸린 것", "최근", "등급"];
+export const TYPE_LABEL: Record<ItemType, string> = { req: "권한 신청", person: "확인할 사람", server: "서버 점검", user: "계정", access: "권한", policy: "정책 문제", event: "로그 감시", doc: "기준 문서" };
 
 export interface DataNeeds { operator: boolean; requests: boolean; mine: boolean; users: boolean; catalog: boolean; results: boolean }
 
@@ -99,7 +101,7 @@ export function restorable(raw: unknown, role: Role): SavedPage | null {
   return {
     view,
     mainTab: tabs.find((t) => t === p.mainTab) ?? tabs[0],
-    stageFilter: p.stageFilter === "active" || p.stageFilter === "all" ? p.stageFilter : "pending",
+    stageFilter: p.stageFilter === "active" || p.stageFilter === "all" || p.stageFilter === "people" ? p.stageFilter : "pending",
     lastAdmin: admin ?? null,
   };
 }

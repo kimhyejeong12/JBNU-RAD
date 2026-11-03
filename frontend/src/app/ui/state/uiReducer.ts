@@ -6,7 +6,7 @@ import { VIEWS, isAdminView, type MainTab, type SavedPage, type View } from "@/a
 // 관리 메뉴의 등록 창 — [+ 새 계정] · [권한 등록] · [문서 업로드]를 누르면 고른 항목 자리에 이 값을 둡니다 (안 고른 상태는 다른 메뉴처럼 안내만).
 export const NEW_ITEM = "new";
 
-export type StageFilter = "pending" | "active" | "all";
+export type StageFilter = "pending" | "active" | "people" | "all";
 export type StatKind = "stats" | "ustats";
 export type LevelFilter = "전체" | Level;
 export interface AskSource { i: number; n: number }   // 패널에 띄운 인용 조항 { 질의 순번, sources 순번 }

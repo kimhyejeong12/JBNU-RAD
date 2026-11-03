@@ -29,9 +29,10 @@ from langchain_ollama import ChatOllama
 from pydantic import BaseModel
 
 from .. import ROOT
-from ..data import LoadResult, behavior_signals, load_collected, load_events, period_since, suspect_people
+from ..data import LoadResult, SecurityEvent, behavior_signals, load_collected, load_events, period_since, summarize, suspect_people
+from ..data.suspect import THREAT_LIMIT, threat_lines
 from ..data.collected import FORMAT
-from ..db import Database, User, auth, nodes, open_main_db, open_results_db, permissions, results
+from ..db import Database, User, auth, decisions, nodes, open_main_db, open_results_db, permissions, results
 from . import pipeline
 from .rag import DocumentStore, IndexReport
 from .types import Answer
@@ -213,6 +214,9 @@ class Engine:
     def review_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         return pipeline.review_chain(self, *args, **kwargs)
 
+    def grant_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+        return pipeline.grant_chain(self, *args, **kwargs)
+
     def policy_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         return pipeline.policy_chain(self, *args, **kwargs)
 
@@ -290,6 +294,10 @@ class Engine:
         """기준 문서 적재 (바뀐 파일만, 기본 docs/). rebuild 면 컬렉션을 비우고 전부 새로 (규칙도 지워져 정책 관리 검토를 다시 돌려야 함)."""
         return pipeline.index_documents(self, source or pipeline.DOCS_DIR, rebuild)
 
+    def remove_document(self, name: str) -> bool:
+        """기준 문서 하나를 RAG 에서 뺍니다 (docs/ 의 파일은 부르는 쪽이 지움). 지난 판정은 그대로라 근거가 바뀌면 정책 관리 검토를 다시 돌립니다."""
+        return self.documents.remove(name)
+
     def run_policies(self, progress: Progress | None = None) -> dict[str, Any]:
         """정책 관리 검토 1회 — 기준 문서 · 정책 규칙 적재 + 정책 간 검토 → AI 결과 DB."""
         review = pipeline.review_policies(self, self.settings.policies_source, progress)
@@ -318,7 +326,9 @@ class Engine:
         if since is None and not full:
             since = results.next_monitor_since(self.results_db, stage)
         fast = stage == "fast"
-        run = pipeline.monitor(self, self.settings.events_source, since, until, progress, fast=fast)
+        records = None if fast else self.user_records()
+        run = pipeline.monitor(self, self.settings.events_source, since, until, progress, fast=fast,
+                               history=None if fast else (lambda log_id: records(log_id=log_id)))
         results.save_monitor_run(self.results_db, run, f"{self.settings.model} (생각 끔)" if fast else self.settings.model,
                                  since.isoformat() if since else None, until.isoformat() if until else None, stage)
         return {**run, "since": since.isoformat() if since else None}
@@ -396,21 +406,21 @@ class Engine:
                 "requests": permissions.request_stats(self.main_db, at), "suspects": suspects, "safety": results.user_safety(self.results_db, at)}
 
     def run_suspects(self, progress: Progress | None = None) -> dict[str, Any]:
-        """위협 예측 1회 — 사람마다 행동 신호(코드) · 판정 · 신청 기록으로 판정 모델이 의심 점수를 냅니다. 한 사람씩 바로 쌓습니다.
+        """위협 예측 1회 — 사람마다 행동 신호(코드) · 사용자 기록 · 위협 기록으로 판정 모델이 의심 점수를 냅니다. 한 사람씩 바로 쌓습니다.
 
-        신호는 로그 전체에서 최근 7일을 그 앞 4주와 견주고, 판정 · 신청 기록은 지금부터 35일 안의 것을 봅니다.
+        신호는 로그 전체에서 최근 7일을 그 앞 4주와 견줍니다. 지금부터 35일 안의 판정 · 신청 기록은 화면의 기록 칸에만 씁니다 (모델에는 AI 등급을 넣지 않음).
         """
         now = datetime.now(timezone.utc)
         recent = (now - timedelta(days=35)).isoformat(timespec="seconds")
         events = load_events(self.settings.events_source).records
-        lines: dict[str, list[str]] = {}
-        for e in events:
-            lines.setdefault(e.user_id or e.who, []).append(e.describe())
         people = suspect_people(auth.accounts_brief(self.main_db), behavior_signals(events, now),
                                 results.user_findings(self.results_db, recent), permissions.user_requests(self.main_db, recent))
+        records = self.user_records(events)
         scored = []
         for n, person in enumerate(people, start=1):
-            result = pipeline.predict_suspect(self, person, lines.get(person["log_id"], []) if person["log_id"] else [])
+            account = int(person["key"].split(":")[1]) if person["key"].startswith("account:") else None
+            record, threats = records(account, person["log_id"] or "", signals=False)
+            result = pipeline.predict_suspect(self, person, record, threats)
             results.save_suspect(self.results_db, person, result, self.settings.model)
             scored.append({"key": person["key"], **result})
             if progress:
@@ -454,16 +464,58 @@ class Engine:
 
     def judge_request(self, request_no: str) -> dict[str, Any] | None:
         """권한 신청 한 건의 AI 판정 (저장은 save_request_verdict). 신청이 없으면 None."""
-        with self.main_db.connection() as conn:
-            row = conn.execute(
-                "SELECT r.*, c.system AS access_system, c.category AS access_category, c.description AS access_description"
-                " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code WHERE r.request_no = ?",
-                (request_no,)).fetchone()
-        return pipeline.judge_request(self, dict(row)) if row else None
+        row = permissions.judge_input(self.main_db, request_no)
+        if row is None:
+            return None
+        record, threats = self.user_records()(row["requester_id"], before=row["submitted_at"])
+        return pipeline.judge_request(self, row, record, threats)
 
     def save_request_verdict(self, request_no: str, result: dict[str, Any]) -> bool:
         """판정을 신청 행의 AI 칸에 씁니다. 그사이 1차 결재가 났으면 버리고 False."""
         return permissions.save_ai_verdict(self.main_db, request_no, result, self.settings.model)
+
+    def judge_grant(self, request_no: str, move_id: int) -> dict[str, Any] | None:
+        """이동 뒤 보유 권한 재검토 (저장은 save_grant_review). 회수 · 만료됐거나 더 늦은 이동이 있으면 None."""
+        grant = permissions.grant_input(self.main_db, request_no, move_id)
+        if grant is None:
+            return None
+        record, threats = self.user_records()(grant["requester_id"])
+        return pipeline.judge_grant(self, grant, record, threats)
+
+    def user_records(self, events: list[SecurityEvent] | None = None) -> Callable[..., tuple[str, str]]:
+        """사용자 기록을 만드는 함수 — 로그 · 운영자 결정은 한 번만 읽고, 사람마다 (사용자 기록, 위협 기록) 두 칸을 돌려줍니다.
+
+        부르는 법: records(계정 id, 로그 사용자 ID, before=신청 시각, signals=행동 신호를 넣을지). 둘 중 하나만 줘도 계정의 log_id 로 잇습니다.
+        위협 기록은 운영자가 조치로 정한 로그 감시 판정을 먼저, 남은 자리는 코드가 고른 로그(threat_lines)로 채웁니다 (합쳐 15건).
+        """
+        events = load_events(self.settings.events_source).records if events is None else events
+        by_user: dict[str, list[SecurityEvent]] = {}
+        for e in events:
+            by_user.setdefault(e.user_id or e.who, []).append(e)
+        accounts = auth.accounts_brief(self.main_db)
+        acts = {k: d for k, d in decisions.current(self.main_db, "event").items() if d["action"] == "act"}
+        owners = results.finding_users(self.results_db, [int(k.split("/")[1]) for k in acts if k.startswith("event_findings/")])
+        all_signals = behavior_signals(events)
+
+        def records(account_id: int | None = None, log_id: str = "", before: str | None = None, signals: bool = True) -> tuple[str, str]:
+            if account_id is None and log_id:
+                account_id = next((a["id"] for a in accounts if a["log_id"] == log_id), None)
+            account = permissions.account_record(self.main_db, account_id, before) if account_id is not None else None
+            log_id = log_id or (account or {}).get("log_id") or ""
+            mine = sorted(by_user.get(log_id, []), key=lambda e: e.occurred_at) if log_id else []
+            human = [f"- {o['at'][:16].replace('T', ' ')} UTC 로그 감시 묶음 — {d['decider_name']}이(가) 조치 필요로 정함"
+                     + (f": {d['comment'][:100]}" if d["comment"] else "")
+                     for k, d in acts.items() if (o := owners.get(int(k.split("/")[1]))) and log_id and o["log_id"] == log_id]
+            human = sorted(human)[-THREAT_LIMIT:]
+            lines = human + threat_lines(mine, THREAT_LIMIT - len(human))
+            text = pipeline.user_record_text(account, log_id, summarize(mine) if mine else None,
+                                             all_signals.get(log_id) if log_id else None, signals)
+            return text, "\n".join(lines) or pipeline.NO_RECORD
+
+        return records
+
+    def save_grant_review(self, request_no: str, move_id: int, result: dict[str, Any]) -> bool:
+        return permissions.save_grant_review(self.main_db, request_no, move_id, result, self.settings.model)
 
     # --- 작업 큐 (웹) ---------------------------------------------------------
 
@@ -479,6 +531,17 @@ class Engine:
             self.fast = JobRunner(self)
             self.fast.every("events_fast", int(self.settings.fast_interval_min))
 
+    def reset_jobs(self, rerun: bool = False) -> list[str]:
+        """돌고 있는 작업(작업 큐 · 빠른 감시)을 강제로 끝냅니다. rerun 이면 같은 작업을 곧바로 다시 시작합니다. → 끝낸 작업 종류"""
+        reset = []
+        for runner in (self.jobs, self.fast):
+            kind = runner.reset() if runner else None
+            if kind:
+                reset.append(kind)
+                if rerun:
+                    runner.start(kind)
+        return reset
+
     def stop(self) -> None:
         """큐를 멈추고 벡터 DB 잠금을 풉니다. --reload 로 새로 뜨는 프로세스 · CLI 가 벡터 DB 를 열 수 있게 합니다."""
         if self.jobs:
@@ -488,6 +551,10 @@ class Engine:
         if self.verdicts:
             self.verdicts.stop()
         self.documents.close()
+
+
+class JobCancelled(Exception):
+    """reset() 으로 끝낸 작업 — 다음 진행 보고 때 멈추고 결과를 남기지 않습니다."""
 
 
 class JobRunner:
@@ -506,6 +573,8 @@ class JobRunner:
         self._stop = threading.Event()
         self._status: dict[str, Any] = {"running": None, "auto": False, "done": 0, "total": 0, "started_at": None, "last": {}}
         self._schedule: dict[str, dict[str, Any]] = {}
+        # 작업마다 번호를 매겨, reset() 뒤에도 돌던 스레드가 상태 · 결과를 덮어쓰지 못하게 합니다.
+        self._generation = 0
 
     def status(self) -> dict[str, Any]:
         with self._lock:
@@ -520,9 +589,27 @@ class JobRunner:
         with self._lock:
             if self._status["running"]:
                 return False
+            self._generation += 1
             self._status.update(running=kind, auto=auto, done=0, total=0, started_at=_now())
-        threading.Thread(target=self._run, args=(kind, auto), daemon=True).start()
+            generation = self._generation
+        threading.Thread(target=self._run, args=(kind, auto, generation), daemon=True).start()
         return True
+
+    def reset(self) -> str | None:
+        """돌고 있는 작업을 강제로 끝냅니다. → 끝낸 작업 종류 (없으면 None)
+
+        스레드는 밖에서 멈출 수 없어, 큐를 바로 비우고 돌던 스레드는 다음 진행 보고(판정 한 건이 끝날 때)에 멈춥니다.
+        그때까지 모델 호출 한 건은 이어지고, 그 작업이 이미 쌓은 판정(서버 점검 · 위협 예측은 한 건씩 쌓음)은 남습니다.
+        로그 감시 · 정책 관리 검토는 끝에 한 번에 쌓으므로 남는 것이 없고, 다음 감시가 같은 구간을 다시 판정합니다.
+        """
+        with self._lock:
+            kind = self._status["running"]
+            if not kind:
+                return None
+            self._generation += 1
+            self._status["last"][kind] = {"finished_at": _now(), "error": "강제로 끝냈습니다", "auto": self._status["auto"]}
+            self._status.update(running=None, auto=False, done=0, total=0)
+            return kind
 
     def every(self, kind: str, minutes: int) -> None:
         """kind 작업을 지금 한 번, 그 뒤 minutes 분마다 시작합니다 (0 이하면 끔).
@@ -545,19 +632,26 @@ class JobRunner:
                 return
             wait = interval if self.start(kind, auto=True) else self.RETRY
 
-    def _progress(self, done: int, total: int, _item: dict[str, Any]) -> None:
+    def _progress(self, generation: int, done: int, total: int) -> None:
         with self._lock:
+            if generation != self._generation:
+                raise JobCancelled
             self._status.update(done=done, total=total)
 
-    def _run(self, kind: str, auto: bool) -> None:
+    def _run(self, kind: str, auto: bool, generation: int) -> None:
         error = None
+        progress = lambda done, total, _item: self._progress(generation, done, total)  # noqa: E731
         try:
             {"policies": self.engine.run_policies, "events": self.engine.run_events, "events_fast": self.engine.run_fast_events,
              "suspects": self.engine.run_suspects,
-             "nodes": self.engine.run_nodes}[kind](progress=self._progress)
+             "nodes": self.engine.run_nodes}[kind](progress=progress)
+        except JobCancelled:
+            return
         except Exception as exc:  # 파일 없음 · 컬럼 없음 등은 화면에 그대로 보여줍니다.
             error = f"{type(exc).__name__}: {exc}"
         with self._lock:
+            if generation != self._generation:
+                return
             self._status["last"][kind] = {"finished_at": _now(), "error": error, "auto": auto}
             self._status.update(running=None, auto=False)
 
@@ -599,9 +693,14 @@ class VerdictWorker:
             return {"current": self._current, "waiting": sorted(self._pending - {self._current})}
 
     def resume(self) -> None:
-        """1차 결재 전인데 판정이 없거나 실패한 신청을 다시 줄 세웁니다 (웹을 다시 띄웠을 때)."""
-        for request_no in permissions.unjudged(self.engine.main_db):
-            self.enqueue(request_no)
+        """1차 결재 전인데 판정이 없거나 실패한 신청, 이동 뒤 재검토가 없는 보유 권한을 다시 줄 세웁니다 (웹을 다시 띄웠을 때)."""
+        for task in permissions.unjudged(self.engine.main_db) + permissions.pending_grant_reviews(self.engine.main_db):
+            self.enqueue(task)
+
+    def enqueue_grants(self, user_id: int) -> None:
+        """부서 · 직무가 바뀐 사람의 보유 권한 재검토를 줄 세웁니다."""
+        for task in permissions.pending_grant_reviews(self.engine.main_db, user_id):
+            self.enqueue(task)
 
     def _run(self) -> None:
         while not self._stopping.is_set():
@@ -611,6 +710,9 @@ class VerdictWorker:
             with self._lock:
                 self._current = request_no
             try:
+                if request_no.startswith("grant:"):
+                    self._grant(request_no)
+                    continue
                 result = self.engine.judge_request(request_no)
                 # 종료 중에 끝난 판정은 벡터 DB 가 먼저 닫혀 실패했을 수 있어 남기지 않습니다.
                 if result is not None and not self._stopping.is_set() and not self.engine.save_request_verdict(request_no, result):
@@ -621,6 +723,14 @@ class VerdictWorker:
                 with self._lock:
                     self._pending.discard(request_no)
                     self._current = None
+
+
+    def _grant(self, task: str) -> None:
+        """grant:신청번호:이동 id — 이동 뒤 보유 권한 재검토. 그사이 회수 · 만료되면 남기지 않습니다."""
+        _, request_no, move_id = task.split(":")
+        result = self.engine.judge_grant(request_no, int(move_id))
+        if result is not None and not self._stopping.is_set() and not self.engine.save_grant_review(request_no, int(move_id), result):
+            log.info("보유 권한 %s 은 재검토 중에 회수 · 만료되어 판정을 버립니다", request_no)
 
 
 def _now() -> str:

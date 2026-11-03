@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { nodeState, nodeStateText, nodeStateTone } from "./lib";
 import { useJobs } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
+import { JobReset } from "@/app/ui/jobs/JobReset";
 import { useStartJob } from "@/shared/api/jobs";
 import { nodesQuery } from "@/shared/api/queries";
 import { stamp } from "@/shared/lib/format";
@@ -33,6 +34,7 @@ export function NodesTab() {
           <Icon name="activity" small />
           <span id="check-now-txt">{checking ? `점검 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 점검"}</span>
         </button>
+        <JobReset />
         <button className={cn(toolButton, "ml-0")} id="add-node" onClick={addNode}><Icon name="plus" small />노드 등록</button>
       </div>
       <div className={ltableWrap}>

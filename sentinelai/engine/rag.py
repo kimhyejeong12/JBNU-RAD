@@ -174,6 +174,13 @@ class DocumentStore:
             self.store.delete(expr=stale)
         return report
 
+    def remove(self, name: str) -> bool:
+        """기준 문서 하나(파일 이름)의 조각을 모두 지웁니다. 규칙 묶음은 지우지 않습니다. 지운 게 있으면 True"""
+        if name.startswith(self.RULES_PREFIX) or not self.store.search_by_metadata(expr=self._expr(name), limit=1):
+            return False
+        self.store.delete(expr=self._expr(name))
+        return True
+
     def clear_rules(self) -> bool:
         """솔루션 정책 규칙을 모두 지웁니다 (정책 폴더가 비었을 때). 지운 게 있으면 True"""
         if not self.store.search_by_metadata(expr=self.KIND_EXPR["rule"], limit=1):

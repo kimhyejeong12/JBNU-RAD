@@ -28,3 +28,11 @@ export function editProblem(d: { name: string; content: string }, form: { conten
   if (form.typed.trim() !== d.name) return "확인 칸에 파일 이름을 똑같이 입력하세요";
   return null;
 }
+
+// 지우기 전에 확인 — 사유를 적고, 확인 칸에 파일 이름을 똑같이 입력했는지, 마지막 문서가 아닌지. 문제가 없으면 null.
+export function removeProblem(d: { name: string }, count: number, form: { reason: string; typed: string }): string | null {
+  if (count <= 1) return "마지막 기준 문서는 지울 수 없습니다. 새 문서를 먼저 올리세요";
+  if (!form.reason.trim()) return "지우는 사유를 적으세요";
+  if (form.typed.trim() !== d.name) return "확인 칸에 파일 이름을 똑같이 입력하세요";
+  return null;
+}

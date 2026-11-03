@@ -54,6 +54,7 @@ function NewUser() {
         <label className={field}>아이디<input className={input} name="login_id" required maxLength={100} autoComplete="off" /></label>
         <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
         <label className={field}>부서<input className={input} name="department" maxLength={100} /></label>
+        <label className={field}>직무<input className={input} name="job" maxLength={100} placeholder="예: 서버 운영 담당" /></label>
         <div className={WIDE_FIELD}>역할<RoleSelect value="user" /></div>
         <label className={WIDE_FIELD}>임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input className={input} name="password" type="password" required autoComplete="new-password" /></label>
         <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>계정 만들기</button></div>
@@ -79,7 +80,20 @@ function EditUser({ u }: { u: UserRow }) {
   async function onEdit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const patch: Record<string, unknown> = { display_name: f.get("display_name"), department: f.get("department"), log_id: f.get("log_id") };
+    const patch: Record<string, unknown> = {
+      display_name: f.get("display_name"), department: f.get("department"), job: f.get("job"), log_id: f.get("log_id"), left_on: f.get("left_on"),
+    };
+    // 부서 · 직무를 옮기면 이동 기록이 남고 지금 가진 권한을 AI 가 하나씩 다시 판정합니다. 비어 있던 칸을 처음 채우는 것은 이동이 아닙니다.
+    const moved = (["department", "job"] as const).filter((k) => (u[k] ?? "") !== "" && String(f.get(k) ?? "").trim() !== (u[k] ?? ""));
+    if (moved.length && !(await ask({
+      title: "부서 · 직무 이동", confirm: "저장",
+      message: `${u.display_name} (${u.login_id})의 ${moved.map((k) => (k === "department" ? "부서" : "직무")).join(" · ")}를 바꿉니다. 이동으로 기록되고, 지금 가진 권한이 새 업무에 맞는지 AI 가 권한마다 다시 판정합니다 (권한 신청 화면에서 봄).`,
+    }))) return;
+    const leftOn = String(f.get("left_on") ?? "");
+    if (leftOn && leftOn !== u.left_on && !(await ask({
+      title: "퇴사일 적기", confirm: "저장", danger: true,
+      message: `${u.display_name} (${u.login_id})의 퇴사일을 ${leftOn}로 적습니다. 그날이 지나면 남은 권한이 모두 위험(회수 권고)으로 올라갑니다. 계정 정지 · 권한 회수는 따로 하세요.`,
+    }))) return;
     if (!fixed) {
       const role = f.get("role") as Role;
       // 역할이 바뀔 때만 묻습니다 — 저장하면 권한이 바로 오르내려서. 이름 · 부서만 고칠 때는 묻지 않습니다.
@@ -125,8 +139,10 @@ function EditUser({ u }: { u: UserRow }) {
             <form key={`edit:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-edit" onKeyDown={noEnterSubmit} onSubmit={onEdit}>
               <label className={field}>이름<input className={input} name="display_name" defaultValue={u.display_name} maxLength={100} /></label>
               <label className={field}>부서<input className={input} name="department" defaultValue={u.department ?? ""} maxLength={100} /></label>
+              <label className={field}>직무<input className={input} name="job" defaultValue={u.job} maxLength={100} placeholder="예: 서버 운영 담당" /></label>
               <div className={WIDE_FIELD}>역할<RoleSelect value={u.role} disabled={fixed} /></div>
               <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="보안 솔루션 로그의 UserID" /></label>
+              <label className={field}>퇴사일<input className={input} name="left_on" type="date" defaultValue={u.left_on} /></label>
               <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
             </form>
             <form key={`reset:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-reset" noValidate onKeyDown={noEnterSubmit} onSubmit={onReset}>

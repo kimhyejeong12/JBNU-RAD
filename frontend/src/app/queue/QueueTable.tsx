@@ -1,6 +1,6 @@
 import { useMe } from "@/app/session/me";
 import { useJobs } from "@/app/session/data";
-import { TYPE_LABEL, VIEWS, type ItemType } from "@/app/session/views";
+import { PEOPLE_COLS, TYPE_LABEL, VIEWS, type ItemType } from "@/app/session/views";
 import { useUi } from "@/app/ui/state/UiContext";
 import { useQueue } from "./useQueue";
 import { inView, visible, emptyText } from "./select";
@@ -23,7 +23,7 @@ export function QueueTable() {
   const items = useQueue();
   const jobs = useJobs();
   const view = ui.view;
-  const cols = view ? VIEWS[view].cols : [];
+  const cols = view === "requests" && ui.stageFilter === "people" ? PEOPLE_COLS : view ? VIEWS[view].cols : [];
   const rows = view ? visible(items, { view, stageFilter: ui.stageFilter, role: me.role, filter: ui.filter, query: ui.query }) : [];
   const anyInView = !!view && items.some((it) => inView(it, view, ui.stageFilter, me.role));
   // 고른 줄을 다시 누르면 선택을 풉니다 (패널은 안내만, 관리 메뉴도 같음 — 등록 창은 [+ …] 버튼으로만 엶).

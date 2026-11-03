@@ -66,6 +66,13 @@ def review_chain(engine: Engine, retrieve: bool = True, k: int | None = None, **
     return RunnablePassthrough.assign(context=query | lookup(engine, k, "clause")) | reviewer
 
 
+def grant_chain(engine: Engine, k: int | None = None, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
+    """부서 · 직무를 옮긴 사람이 예전에 받은 권한을 새 업무에 비춥니다 → Verdict. 입력: requester, move, requested_access, reason, period"""
+    reviewer = engine.chain(Prompts.GRANT_REVIEW, Verdict, **kwargs)
+    query = lambda x: f"{x['requester']} / {x['requested_access']}"  # noqa: E731
+    return RunnablePassthrough.assign(context=query | lookup(engine, k, "clause")) | reviewer
+
+
 def policy_chain(engine: Engine, structured: bool = True, retrieve: bool = True, k: int | None = None,
                  **kwargs: Any) -> Runnable[dict[str, Any], Any]:
     """솔루션 정책 간 중복 · 충돌 · 과도한 허용 → PolicyReview. 입력: policies (한 줄에 한 건).
@@ -183,15 +190,53 @@ def index_documents(engine: Engine, source: Any = DOCS_DIR, rebuild: bool = Fals
     return engine.documents.index(source, rebuild=rebuild)
 
 
-def judge_request(engine: Engine, request: dict[str, Any]) -> dict[str, Any]:
+# 사용자 기록에 넣는 권한 신청 줄 수 (나머지는 건수로만).
+RECORD_REQUESTS = 10
+NO_RECORD = "기록 없음"
+FAST_RECORD = "빠른 감시라 넣지 않음 — 이 로그만으로 판단"
+
+
+def judge_request(engine: Engine, request: dict[str, Any], history: str = NO_RECORD, threats: str = NO_RECORD) -> dict[str, Any]:
     """권한 DB의 신청 1건 → AI 판정 (신청 행의 AI 칸에 저장할 dict). 신청이 들어오면 바로 부릅니다."""
+    lines = [f"{request.get('requester_department', '')} {request['requester_name']}".strip(),
+             f"직무: {request.get('requester_job') or '적지 않음'}"]
+    if request.get("move"):
+        lines.append(f"최근 이동: {_move_text(request['move'])}")
     inputs = {
-        "requester": f"{request.get('requester_department', '')} {request['requester_name']}".strip(),
+        "requester": "\n".join(lines),
         "requested_access": _access_text(request),
+        "reason": (request.get("reason") or "").strip() or "적지 않음",
+        "period": _period_text(request),
         "current_access": request.get("current_access") or "없음",
+        "history": history, "threats": threats,
     }
     verdict, error, elapsed = attempt(lambda: engine.review_chain().invoke(inputs))
     return _judged(verdict, error, elapsed)
+
+
+def judge_grant(engine: Engine, grant: dict[str, Any], history: str = NO_RECORD, threats: str = NO_RECORD) -> dict[str, Any]:
+    """이동 뒤 보유 권한 재검토 1건 → AI 판정 (grant_reviews 에 쌓을 dict). grant 는 신청 행 + move."""
+    move = grant["move"]
+    inputs = {
+        "requester": f"{move['to_department']} {grant['requester_name']}\n직무: {move['to_job'] or '적지 않음'}".strip(),
+        "move": _move_text(move),
+        "requested_access": _access_text(grant),
+        "reason": (grant.get("reason") or "").strip() or "적지 않음",
+        "period": _period_text(grant),
+        "history": history, "threats": threats,
+    }
+    verdict, error, elapsed = attempt(lambda: engine.grant_chain().invoke(inputs))
+    return _judged(verdict, error, elapsed)
+
+
+def _move_text(move: dict[str, Any]) -> str:
+    side = lambda d, j: f"{d or '부서 없음'}({j or '직무 없음'})"  # noqa: E731
+    return f"{move['moved_on']} {side(move['from_department'], move['from_job'])} → {side(move['to_department'], move['to_job'])}"
+
+
+def _period_text(request: dict[str, Any]) -> str:
+    start, end = request.get("period_start") or "", request.get("period_end") or ""
+    return f"{start or '신청일'}부터 {end + '까지' if end else '끝을 정하지 않음'}"
 
 
 def _access_text(request: dict[str, Any]) -> str:
@@ -292,10 +337,12 @@ def monitor(
     until: datetime | None = None,
     progress: Progress | None = None,
     fast: bool = False,
+    history: Callable[[str], tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
     """로그 감시 1회 — 읽기 → 시각 필터 → 사용자별 묶기 → event_chain 판정. → db.results.save_monitor_run
 
     fast 면 판정 모델의 생각 단계를 끈 연결(engine.fast_llm)로 판정합니다 — 빠른 감시의 1차 판정 (묶음당 수 초).
+    history(로그 사용자 ID) → (사용자 기록, 위협 기록). 정밀 감시만 넘깁니다 — 빠른 감시는 수 초 안에 끝나야 해서 로그만 봅니다.
     """
     loaded = load_events(source, since=since, until=until)
     findings = []
@@ -303,7 +350,8 @@ def monitor(
     chain = (engine.event_chain(llm=engine.fast_llm) if fast else engine.event_chain()) if groups else None
     for n, (user, events) in enumerate(groups.items(), start=1):
         inputs = event_review_input(events)
-        verdict, error, elapsed = attempt(lambda: chain.invoke(inputs))
+        record, threats = history(user) if history else (FAST_RECORD, FAST_RECORD)
+        verdict, error, elapsed = attempt(lambda: chain.invoke({**inputs, "history": record, "threats": threats}))
         last = latest(events)
         finding = {
             # 같은 사용자가 다음 실행에도 나올 수 있어 마지막 로그 시각을 붙여 구분합니다.
@@ -478,9 +526,6 @@ def ask_servers(engine: Engine, registry: list[dict[str, Any]],
 # --- 사용자 의심 점수 ------------------------------------------------------------
 # 행동 신호는 코드가 세고(data.suspect.behavior_signals), 판정 모델은 그 신호와 판정 · 신청 기록을 보고 앞으로의 위협 가능성을 예측합니다.
 
-SUSPECT_LINES = 15
-
-
 def _signals_text(s: dict[str, Any] | None) -> str:
     if s is None:
         return "로그 없음 (권한 신청 기록만 있음)"
@@ -493,23 +538,57 @@ def _signals_text(s: dict[str, Any] | None) -> str:
     return "\n".join(rows + [f"- 눈에 띔: {h}" for h in s["highlights"]])
 
 
-def _records_text(person: dict[str, Any]) -> str:
-    rows = [f"- 로그 감시 {f['at'][:10]} {f['level']}: {f['reason'][:150]}" for f in person["findings"] if f["level"] != "정상"]
-    rows += [f"- 권한 신청 {r['at'][:10]} {r['access']} — AI {r['ai'] or '판정 없음'}, {r['stage']}"
-             + (f" ({r['rejected_by']} 반려)" if r["rejected_by"] else "") for r in person["requests"]]
-    ok = sum(1 for f in person["findings"] if f["level"] == "정상")
-    return "\n".join(rows + ([f"- 로그 감시 정상 {ok}건"] if ok else [])) or "기록 없음"
+# --- 사용자 기록 (판정의 맥락) ------------------------------------------------------
+# 사용자가 관여한 판정(권한 신청 · 보유 권한 재검토 · 정밀 감시 · 위협 예측)에 그 사람의 기록을 함께 넣습니다.
+# 사람이 정한 사실(계정 · 이동 · 결재 · 회수 · 운영자 결정)과 코드가 고른 위협 기록만 담고 예전 AI 등급은 넣지 않습니다.
 
 
-def predict_suspect(engine: Engine, person: dict[str, Any], lines: list[str]) -> dict[str, Any]:
+
+def user_record_text(account: dict[str, Any] | None, log_id: str, facts: dict[str, Any] | None,
+                     signals: dict[str, Any] | None, include_signals: bool = True) -> str:
+    """계정 기록(db.permissions.account_record) · 로그 집계(data.summarize) · 행동 신호 → 판정 입력 한 칸."""
+    rows: list[str] = []
+    if account:
+        rows.append(f"- 계정: {account['department'] or '부서 없음'} · 직무 {account['job'] or '적지 않음'} · "
+                    f"{'정지' if not account['is_active'] else '활성'} · 만든 날 {account['created_at'][:10]}"
+                    + (f" · 퇴사일 {account['left_on']}" if account["left_on"] else ""))
+        rows += [f"- 이동: {_move_text(m)}" for m in account["moves"][-5:]]
+        rows.append("- 지금 가진 권한: " + (", ".join(f"{h['requested_access']}({h['period_end'] or '기간 없음'}까지)" for h in account["held"]) or "없음"))
+        reqs = account["requests"]
+        if reqs:
+            counts = {k: sum(r["stage"] == k for r in reqs) for k in ("승인", "반려", "회수", "철회")}
+            rows.append(f"- 권한 신청 {len(reqs)}건 (" + ", ".join(f"{k} {v}" for k, v in counts.items() if v) + ")")
+            for r in reqs[:RECORD_REQUESTS]:
+                line = f"  - {r['at'][:10]} {r['access']} — {r['stage']}"
+                if r["rejected_by"]:
+                    line += f" ({r['rejected_by']} 반려: {(r['comment'] or '의견 없음')[:80]})"
+                if r["revoke_reason"]:
+                    line += f" (회수 사유: {r['revoke_reason'][:80]})"
+                rows.append(line + f" · 사유: {(r['reason'] or '없음')[:60]}")
+        else:
+            rows.append("- 권한 신청 없음")
+    else:
+        rows.append("- SentinelAI 계정과 잇지 않은 로그 사용자 — 계정 기록 없음 (의심 근거 아님)")
+    if facts and facts["count"]:
+        top = lambda d: ", ".join(f"{k} {v}" for k, v in list(d.items())[:3])  # noqa: E731
+        rows.append(f"- 로그 {facts['count']}건 ({facts['first'][:10]} ~ {facts['last'][:10]}) · 솔루션 {top(facts['by_solution'])} · 행위 {top(facts['by_how'])}")
+    elif log_id:
+        rows.append("- 로그 없음")
+    else:
+        rows.append("- 로그 사용자 ID 를 아직 적지 않아 로그를 잇지 못함 (의심 근거 아님)")
+    if include_signals and signals:
+        rows.append("- 행동 신호 (최근 7일 vs 앞 4주):\n" + "\n".join("  " + x for x in _signals_text(signals).splitlines()))
+    return "\n".join(rows)
+
+
+def predict_suspect(engine: Engine, person: dict[str, Any], record: str, threats: str) -> dict[str, Any]:
     """사용자 한 명의 의심 점수 (판정 모델). person = data.suspect_people 의 한 줄, lines = 그 사람의 최근 로그 (describe)."""
     who = f"{person['department']} {person['name']}".strip()
     # 계정과 로그 사용자를 아직 잇지 않은 것은 운영 설정일 뿐이라 모델이 의심 근거로 삼지 않게 그렇게 적습니다.
     account = person["login_id"] or "SentinelAI 계정과 아직 잇지 않음 — 의심 근거 아님"
     log_id = person["log_id"] or "로그 사용자 ID 를 아직 적지 않음 — 의심 근거 아님"
     inputs = {"subject": f"{who} (계정: {account} / 로그 사용자 ID: {log_id})",
-              "signals": _signals_text(person["signals"]), "records": _records_text(person),
-              "lines": "\n".join(lines[-SUSPECT_LINES:]) or "최근 로그 없음"}
+              "signals": _signals_text(person["signals"]), "records": record, "lines": threats}
     verdict, error, elapsed = attempt(lambda: engine.suspect_chain().invoke(inputs))
     result = _judged(verdict, error, elapsed)
     if verdict is not None:

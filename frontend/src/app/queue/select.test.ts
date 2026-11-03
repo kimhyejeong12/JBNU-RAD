@@ -84,9 +84,18 @@ test("계정 · 권한 목록", () => {
   expect(emptyText("access", "pending", jobs, false)).toBe("등록한 권한이 없습니다. [권한 등록]으로 넣으세요.");
 });
 
-test("stageCounts: 결재함 거르기 버튼의 건수 — 결재 대기(내 단계) · 유효 권한 · 전체, 신청만 센다", () => {
-  expect(stageCounts(items, "manager")).toEqual({ pending: 1, active: 1, all: 2 });
-  expect(stageCounts(items, "top")).toEqual({ pending: 0, active: 1, all: 2 });
+test("stageCounts: 결재함 거르기 버튼의 건수 — 결재 대기(내 단계) · 유효 권한 · 확인할 사람 · 전체, 신청 · 사람만 센다", () => {
+  expect(stageCounts(items, "manager")).toEqual({ pending: 1, active: 1, people: 0, all: 2 });
+  expect(stageCounts(items, "top")).toEqual({ pending: 0, active: 1, people: 0, all: 2 });
+  const person = item({ type: "person", key: "person:3", level: "위험", raw: {} });
+  expect(stageCounts([...items, person], "manager")).toEqual({ pending: 1, active: 1, people: 1, all: 2 });
+});
+
+test("inView: 확인할 사람 탭은 사람만, 다른 탭에는 사람이 없다", () => {
+  const person = item({ type: "person", key: "person:3", level: "위험", raw: {} });
+  expect(inView(person, "requests", "people", "manager")).toBe(true);
+  expect(inView(reqActive, "requests", "people", "manager")).toBe(false);
+  expect(inView(person, "requests", "all", "manager")).toBe(false);
 });
 
 test("levelCounts: 등급 거르기 버튼의 건수 — 지금 메뉴 · 결재 단계 범위에서 등급별과 전체", () => {

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { ask } from "@/app/ui/confirm/ask";
 import { useRequestAction, type RequestAct } from "./api";
-import { approvalSteps } from "./lib";
+import { approvalSteps, moveText } from "./lib";
 import { useMe } from "@/app/session/me";
 import { PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
 import { SourceChips } from "@/app/ui/panel/SourceChips";
@@ -46,6 +46,7 @@ export function RequestPanel({ it }: { it: RequestItem }) {
 
   const rows: [string, ReactNode][] = [
     ["신청자", requester(r)],
+    ["신청 때 직무", r.requester_job || "적지 않음"],
     ["신청 권한", r.access_code ? `${r.requested_access} (${r.access_code})` : r.requested_access],
     ["신청 때 보유 권한", r.current_access || "—"],
     ["신청 사유", r.reason || "—"],
@@ -68,6 +69,7 @@ export function RequestPanel({ it }: { it: RequestItem }) {
         <div className={meta}>{no} · {STAGE_LABEL[r.stage]}</div>
         <Section icon="file" title="신청 내용"><KvTable rows={rows} /></Section>
         <AiVerdict it={it} />
+        {r.grant_review && <GrantReview it={it} />}
         <Section icon="list" title="결재 기록">
           {steps.length ? <History steps={steps} /> : <p className={note}>아직 결재가 없습니다.</p>}
         </Section>
@@ -93,6 +95,25 @@ function AiVerdict({ it }: { it: RequestItem }) {
       <Section icon="db" title="근거 조항"><SourceChips itemKey={it.key} sources={v.sources} /></Section>
       <p className={note}>{stamp(v.judged_at)} 판정</p>
     </>
+  );
+}
+
+// 보유 권한 재검토 — 받은 뒤 퇴사했거나 부서 · 직무를 옮겼을 때. 회수는 아래 칸에서 사람이 합니다.
+function GrantReview({ it }: { it: RequestItem }) {
+  const g = it.raw.grant_review!;
+  const v = g.verdict;
+  const why = g.cause === "leave" ? `${g.left_on} 퇴사` : `이동 ${moveText(g.move!)}`;
+  const title = "보유 권한 재검토";
+  if (!v) return <Section icon="activity" title={title}><div className={box}>{why} — {g.judging ? "AI가 새 업무에 맞는지 판정하고 있습니다… (수십 초)" : "판정을 기다리고 있습니다."}</div></Section>;
+  if (v.failed) return <Section icon="activity" title={title}><div className={cn(box, "text-risk")}>{why} — 판정 실패: {v.error || "원인 불명"}. 수동으로 검토하세요.</div></Section>;
+  return (
+    <Section icon="activity" title={title}>
+      <div className={cn(recLine, levelText[v.level])}><Icon name={LEVEL_ICON[v.level]} className="size-5" />{v.level}</div>
+      <p className={note}>{why}{v.by === "code" ? " — 퇴사일로 정해지는 판정입니다 (AI 아님)" : ` · ${stamp(v.judged_at)} AI 판정`}</p>
+      <div className={box}>{v.reason}</div>
+      <div className={cn(box, "mt-1.5")}>{v.recommendation}</div>
+      {v.sources.length > 0 && <SourceChips itemKey={`${it.key}:grant`} sources={v.sources} />}
+    </Section>
   );
 }
 
