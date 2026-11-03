@@ -483,6 +483,17 @@ class Engine:
             self.fast = JobRunner(self)
             self.fast.every("events_fast", int(self.settings.fast_interval_min))
 
+    def reset_jobs(self, rerun: bool = False) -> list[str]:
+        """돌고 있는 작업(작업 큐 · 빠른 감시)을 강제로 끝냅니다. rerun 이면 같은 작업을 곧바로 다시 시작합니다. → 끝낸 작업 종류"""
+        reset = []
+        for runner in (self.jobs, self.fast):
+            kind = runner.reset() if runner else None
+            if kind:
+                reset.append(kind)
+                if rerun:
+                    runner.start(kind)
+        return reset
+
     def stop(self) -> None:
         """큐를 멈추고 벡터 DB 잠금을 풉니다. --reload 로 새로 뜨는 프로세스 · CLI 가 벡터 DB 를 열 수 있게 합니다."""
         if self.jobs:
@@ -492,6 +503,10 @@ class Engine:
         if self.verdicts:
             self.verdicts.stop()
         self.documents.close()
+
+
+class JobCancelled(Exception):
+    """reset() 으로 끝낸 작업 — 다음 진행 보고 때 멈추고 결과를 남기지 않습니다."""
 
 
 class JobRunner:
@@ -510,6 +525,8 @@ class JobRunner:
         self._stop = threading.Event()
         self._status: dict[str, Any] = {"running": None, "auto": False, "done": 0, "total": 0, "started_at": None, "last": {}}
         self._schedule: dict[str, dict[str, Any]] = {}
+        # 작업마다 번호를 매겨, reset() 뒤에도 돌던 스레드가 상태 · 결과를 덮어쓰지 못하게 합니다.
+        self._generation = 0
 
     def status(self) -> dict[str, Any]:
         with self._lock:
@@ -524,9 +541,27 @@ class JobRunner:
         with self._lock:
             if self._status["running"]:
                 return False
+            self._generation += 1
             self._status.update(running=kind, auto=auto, done=0, total=0, started_at=_now())
-        threading.Thread(target=self._run, args=(kind, auto), daemon=True).start()
+            generation = self._generation
+        threading.Thread(target=self._run, args=(kind, auto, generation), daemon=True).start()
         return True
+
+    def reset(self) -> str | None:
+        """돌고 있는 작업을 강제로 끝냅니다. → 끝낸 작업 종류 (없으면 None)
+
+        스레드는 밖에서 멈출 수 없어, 큐를 바로 비우고 돌던 스레드는 다음 진행 보고(판정 한 건이 끝날 때)에 멈춥니다.
+        그때까지 모델 호출 한 건은 이어지고, 그 작업이 이미 쌓은 판정(서버 점검 · 위협 예측은 한 건씩 쌓음)은 남습니다.
+        로그 감시 · 정책 관리 검토는 끝에 한 번에 쌓으므로 남는 것이 없고, 다음 감시가 같은 구간을 다시 판정합니다.
+        """
+        with self._lock:
+            kind = self._status["running"]
+            if not kind:
+                return None
+            self._generation += 1
+            self._status["last"][kind] = {"finished_at": _now(), "error": "강제로 끝냈습니다", "auto": self._status["auto"]}
+            self._status.update(running=None, auto=False, done=0, total=0)
+            return kind
 
     def every(self, kind: str, minutes: int) -> None:
         """kind 작업을 지금 한 번, 그 뒤 minutes 분마다 시작합니다 (0 이하면 끔).
@@ -549,19 +584,26 @@ class JobRunner:
                 return
             wait = interval if self.start(kind, auto=True) else self.RETRY
 
-    def _progress(self, done: int, total: int, _item: dict[str, Any]) -> None:
+    def _progress(self, generation: int, done: int, total: int) -> None:
         with self._lock:
+            if generation != self._generation:
+                raise JobCancelled
             self._status.update(done=done, total=total)
 
-    def _run(self, kind: str, auto: bool) -> None:
+    def _run(self, kind: str, auto: bool, generation: int) -> None:
         error = None
+        progress = lambda done, total, _item: self._progress(generation, done, total)  # noqa: E731
         try:
             {"policies": self.engine.run_policies, "events": self.engine.run_events, "events_fast": self.engine.run_fast_events,
              "suspects": self.engine.run_suspects,
-             "nodes": self.engine.run_nodes}[kind](progress=self._progress)
+             "nodes": self.engine.run_nodes}[kind](progress=progress)
+        except JobCancelled:
+            return
         except Exception as exc:  # 파일 없음 · 컬럼 없음 등은 화면에 그대로 보여줍니다.
             error = f"{type(exc).__name__}: {exc}"
         with self._lock:
+            if generation != self._generation:
+                return
             self._status["last"][kind] = {"finished_at": _now(), "error": error, "auto": auto}
             self._status.update(running=None, auto=False)
 

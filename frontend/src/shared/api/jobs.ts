@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { getJSON } from "./http";
+import { getJSON, send } from "./http";
 import type { JobKind, Jobs } from "./types";
 
 // 분석 실행은 정책 관리만 합니다. 권한 신청은 들어오면 바로 판정되고, 로그 감시는 서버가 스스로 돌립니다.
@@ -57,5 +57,18 @@ export function useStartJob() {
       alert(`분석을 시작하지 못했습니다: ${e.message}`);
       refreshResults(qc);
     },
+  });
+}
+
+// 강제 중지 후 다시 돌리기 (보안 총책임자) — 멈춘 듯한 작업이 다른 작업을 막을 때. 돌던 판정 한 건은 끝날 때까지 이어집니다.
+export function useResetJobs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (rerun: boolean) => send<Jobs>("/api/jobs/reset", { rerun }),
+    onSuccess: (jobs) => {
+      qc.setQueryData(["jobs"], jobs);
+      refreshResults(qc);
+    },
+    onError: (e) => alert(`작업을 끝내지 못했습니다: ${e.message}`),
   });
 }
