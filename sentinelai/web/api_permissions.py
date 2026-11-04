@@ -282,6 +282,7 @@ def decide(request_no: str, body: DecisionBody, request: Request, background: Ba
     except Denied as exc:
         raise _denied(exc) from None
     background.add_task(notify.notify_waiting, request.app.state.slack_url, req)
+    background.add_task(notify.notify_result, request.app.state.mail, request.app.state.main_db, req)
     return _with_verdict(request, req, user)
 
 

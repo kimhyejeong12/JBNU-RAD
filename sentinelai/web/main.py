@@ -35,6 +35,7 @@ async def lifespan(app: FastAPI):
     app.state.engine = engine
     app.state.main_db, app.state.results_db, app.state.verdicts = engine.main_db, engine.results_db, engine.verdicts
     app.state.slack_url = notify.slack_url()
+    app.state.mail = notify.mail_settings()
     yield
     engine.stop()
 

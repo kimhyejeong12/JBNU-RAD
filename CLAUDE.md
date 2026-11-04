@@ -29,7 +29,7 @@ SK쉴더스 산학협력 문제 제안서(2026. 8.)가 이 과제의 기준.
 | 로컬 LLM · RAG — 보안정책 · 접근통제 · 권한 부여 기준 · 운영 가이드를 Vector DB에 | Ollama · Milvus Lite · `docs/` 기준 문서 2개 | 운영 가이드 · 사내 원문 pptx · pdf (§8 6) |
 | 정책 검토 — 공통 형식으로 표준화, 충돌 · 중복 · 과도한 허용 · 기준 위반과 개선안 | `sentinelai/data/` → `review_policies` | 실제 정책 샘플 (§8 1) |
 | 권한 적정성 — 부서 · 직무 · 기존 권한 · 신청 권한 → 승인 · 추가 검토 · 반려 권고 | `judge_request` (정상 → 승인 권고 · 주의 → 추가 검토 · 위험 → 반려 권고). 직무 · 신청 사유 · 사용 기간 · 최근 이동을 봄 (11/3). 받은 뒤 이동하면 `judge_grant`로 다시, 퇴사하면 코드가 위험 | 직무 기준 문서 (직무별 필요 권한) |
-| 대시보드 · 알림 — 정상 · 주의 · 위험, 위험이면 운영자 알림(이메일 · 메신저 포함), 고칠 것 설명 | 웹 대시보드 · 종 배지 · 결재 대기 Slack 채널 알림(11/04) | 위험 판정 알림 (§8 3) |
+| 대시보드 · 알림 — 정상 · 주의 · 위험, 위험이면 운영자 알림(이메일 · 메신저 포함), 고칠 것 설명 | 웹 대시보드 · 종 배지 · 결재 대기 Slack 채널 알림 · 결재 결과 신청자 메일(11/04) | 위험 판정 알림 (§8 3) |
 | 수집 인터페이스 모듈화 — 실제 솔루션 API · Export, 계정 관리 시스템 · AD 연동 대비 | `RowSource` · 수집 노드 | 실제 연동 (§8 11) |
 | 위험도 · 신뢰도 평가 (구조도) | 사용자 의심 점수 · 안전 점수 | 정책 위험도 점수 · AI 판단 신뢰도 (§8 7) |
 
@@ -85,7 +85,7 @@ JBNU-RAD/
 │       ├── api_regulations.py    기준 문서 API — 보기 · 올리기 · 고치기(보안 총책임자, 감사 기록). 엔진의 공개 기능(index)만 씀 (/api/regulations)
 │       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 줌
 │       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
-│       ├── notify.py             결재 대기 → Slack 채널 (새 신청 = 1차 결재 대기, 1차 승인 = 최종 결재 대기). `SENTINELAI_SLACK_WEBHOOK_URL`, 비우면 끔. 신청 번호 · 부서 · 권한만, 결과(승인 · 반려)는 안 보냄 (11/04)
+│       ├── notify.py             결재 대기 → Slack 채널 (새 신청 = 1차 결재 대기, 1차 승인 = 최종 결재 대기). `SENTINELAI_SLACK_WEBHOOK_URL`, 비우면 끔. 신청 번호 · 부서 · 권한만, 결과(승인 · 반려)는 채널에 안 보냄. 결재 결과(1차 반려 · 최종 승인 · 최종 반려) → 신청자 계정 이메일(`users.email`), SMTP `SENTINELAI_SMTP_*`, 비우면 끔, 신청 번호 · 권한 · 결과만 (11/04)
 │       └── static/               화면 빌드 결과 — frontend/ 에서 `make front-build` 로 만들어 커밋. 서버는 그대로 서빙
 ├── frontend/                 React 화면 소스 (김혜정) — TypeScript · Vite · TanStack Query · Vitest · Tailwind v4. 10/29에 옛 index.html 을 기능 · 모양 그대로 옮기고 10/30에 CSS를 Tailwind로 바꿨음 (화면 그대로, 리디자인은 다음)
 │   └── src/
@@ -242,7 +242,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `GET /api/regulations` · `POST /api/regulations` · `PUT /api/regulations/{이름}` · `DELETE /api/regulations/{이름}` | `docs/` 원문 · 고친 시각(보안 운영자 이상) · 올리기 · 고치기 · 지우기(보안 총책임자). 지우기는 `{reason}` → 파일을 지우고 그 문서의 조각만 RAG 에서 뺌(`Engine.remove_document`), 지운 원문 · 사유는 감사 기록(`regulation_remove`)에. 마지막 문서는 400. 올리기는 `{name, content}`(.md · .txt, 1MB, 같은 이름 400 — 덮어쓰지 않음) → 바뀐 파일만 적재. 고치기는 `{content, reason}`(없는 문서 404, 같은 내용 400) → 그 문서만 다시 적재, 고치기 전 원문 · 사유는 감사 기록(`regulation_edit`)에. 다른 작업이 돌면 끝나기를 기다렸다가 적재(10분 넘으면 409), AI 엔진(임베딩)에 닿지 않으면 바로 503 |
 | `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 (보안 총책임자). `PATCH`로 로그 사용자 ID(`log_id`, 계정마다 하나, 겹치면 400) · 직무(`job`) · 퇴사일(`left_on`, YYYY-MM-DD) · 이메일(`email`, 결재 결과 알림용, 만들 때도 받음, 빈 값이면 안 보냄, 형식이 틀리면 400). 부서 · 직무가 바뀌면 이동 기록 + 보유 권한 재검토를 판정 큐에. 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿈 |
 | `GET /api/access-catalog` · `POST /api/access-catalog` · `PATCH /api/access-catalog/{코드}` | 권한 목록 — 보기(일반 사용자 · 보안 운영자는 켜진 것만) · 등록 · 고치기 · 끄기(보안 총책임자, 감사 기록) |
-| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` | 신청(일반 사용자, 본문 `access_code` · `reason`(필수, 비면 400) — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400, 현재 보유 권한은 서버가 채움) · 목록(일반 사용자는 자기 것만). 신청 · 1차 승인 뒤 응답을 보내고 Slack 채널에 결재 대기 알림(실패해도 신청 · 결재는 그대로). 응답에 `ai_verdict` · `judging` · `grant_review`(유효 권한의 재검토 — 퇴사 `leave` · 이동 `move`, 일반 사용자에게는 뺌) |
+| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` | 신청(일반 사용자, 본문 `access_code` · `reason`(필수, 비면 400) — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400, 현재 보유 권한은 서버가 채움) · 목록(일반 사용자는 자기 것만). 신청 · 1차 승인 뒤 응답을 보내고 Slack 채널에 결재 대기 알림, 결재가 끝나면 신청자 이메일로 결과 메일(실패해도 신청 · 결재는 그대로). 응답에 `ai_verdict` · `judging` · `grant_review`(유효 권한의 재검토 — 퇴사 `leave` · 이동 `move`, 일반 사용자에게는 뺌) |
 | `GET /api/people` | 확인할 사람 (보안 운영자 이상, 코드가 셈) — 퇴사 · 최근 90일 이동 · 위험 · 주의인 결재 중 신청 · 보유 권한(이동 뒤 재검토 · 승인 때 AI 판정)이 걸린 일반 사용자. 사람마다 `flags`(kind · level · at · text · request_no) · `level` (`permissions.watch_people`) |
 | `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(보안 운영자 = 1차, 보안 총책임자 = 최종) · 회수 · 다시 판정 |
 | `GET /internal/status` | **서버 자신(127.0.0.1)만** — 작업 큐 · 자동 실행 예약 · 권한 신청 판정 대기열. 로그인 없음, 밖에서 오거나 전달 헤더(`X-Forwarded-For` 등)가 붙으면 404. `curl -s localhost:8000/internal/status` |
@@ -382,7 +382,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 
 1. **데이터를 다시 정하고 `qwen3:14b`로 전 건 판정해 §5와 대조** — 권한 신청 CSV는 지웠고 정책 · 서버 현황 폴더는 비어 있음 (연습용은 10/20에 지움). 서버 현황은 점검 도구 · 자산관리에서 내보내는 컬럼부터 정함
 2. **DB · 로그인 · 권한 신청** — 구현 끝 (10/11~10/12). 권한 DB(신청 1건 = 1행: AI 판정 · 1차 · 최종 결재 · 회수), ID/PW 로그인, 계정 생성은 보안 총책임자, AI 결과 DB 분리(`design/results-db.md`), 질의 기록(자기 것만). 보안 총책임자는 결정 기록 전부 · 1차 결재 의견을 봄. 남은 질문은 `design/db-schema.md` §5
-3. **알림(Notifier)** — 로그 감시의 주의 · 위험 판정을 운영자에게 보냄. 자리(`Notifier`)만 `sentinelai/engine/types.py`에 있고 `pipeline.py`의 `monitor`에 부를 곳을 표시했음. 결재 대기 알림은 11/04에 웹(`web/notify.py`)에서 Slack 채널로 보냄 (11/04 팀 결정: 채널, Slack 먼저) — 같은 채널을 쓰면 됨
+3. **알림(Notifier)** — 로그 감시의 주의 · 위험 판정을 운영자에게 보냄. 자리(`Notifier`)만 `sentinelai/engine/types.py`에 있고 `pipeline.py`의 `monitor`에 부를 곳을 표시했음. 결재 대기 알림은 11/04에 웹(`web/notify.py`)에서 Slack 채널로 보냄 (11/04 팀 결정: 채널, Slack 먼저) — 같은 채널을 쓰면 됨. 결재 결과는 같은 날 신청자 이메일로 (SMTP, 시연은 Gmail · 사내 이전 때 사내 SMTP). 계정 관리 화면의 이메일 칸은 리디자인 때 (그 전에는 `PATCH /api/users/{id}`)
 4. **출력 · 매체 반출 조항 없음** — 로그 감시가 근거 없이 판정함. 절차서 14 · 17번(예외처리 · 매체 반출입) 원문 필요. 10/20 시나리오 B · D가 이 때문에 "정상"으로 나와 검토에서 빠졌음. **코드 규칙(출력량 · 시간대 · 새 계정)으로 올리지 않고 절차서 원문을 RAG에 넣기로 했음 (10/20).** 원문을 받으면 6번 경로로 넣고 시나리오로 다시 확인
 5. **로그 감시 이력 화면** — 같은 사용자의 반복 주의 · 위험, 솔루션 · 행위별 추이, 마지막 감시 시각 · 판정 못한 로그. 데이터가 쌓이고 4번 조항이 들어온 뒤에 만듦
 6. **문서 데이터 읽기** — 지금 `DocumentStore`는 `.md` · `.txt`만 적재. 사내 정책 원문(pptx · pdf · docx 등)을 기준 조항으로 넣음. `docs/보안 정책 관리 업무 프로세스.pptx`는 글자 없는 이미지 4장이라 OCR 필요. 4번 절차서도 이 경로로

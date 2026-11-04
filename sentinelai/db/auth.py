@@ -196,6 +196,13 @@ def list_users(db: Database, by: User) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def email_of(db: Database, user_id: int) -> str:
+    """알림 받을 이메일. 없는 계정이거나 비어 있으면 빈 값."""
+    with db.connection() as conn:
+        row = conn.execute("SELECT email FROM users WHERE id = %s", (user_id,)).fetchone()
+    return row["email"] if row else ""
+
+
 def accounts_brief(db: Database) -> list[dict]:
     """사용자 위협 — 의심 점수를 사람별로 모을 때 쓰는 계정 요약 (이름 · 부서 · 역할 · 로그 사용자 ID). 비밀번호 칸은 읽지 않습니다."""
     with db.connection() as conn:
