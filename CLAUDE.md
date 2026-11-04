@@ -112,9 +112,9 @@ JBNU-RAD/
 ├── NOTES.md                  작업 메모 — 설정 값의 이유 · 서버 이슈 경위 · 모델 비교 (설정 파일 · 코드에 설명 주석 대신 여기에)
 ├── .dev/ · .milvus/          로컬 시험 환경 파일 · 벡터 DB 파일 (git 제외)
 ├── .env · .env.example       설정. .env 는 git 제외, make install 이 예시에서 만듦
-├── compose.yaml              PostgreSQL 18 컨테이너 (make db-up). DB sentinelai · sentinelai_dev · sentinelai_test
+├── compose.yaml              웹(app) + PostgreSQL 18 (make up, DB만은 make db-up). DB sentinelai · sentinelai_dev · sentinelai_test. 벡터 DB · 기준 문서 · PostgreSQL은 볼륨, data/는 읽기만
 ├── Makefile · requirements.txt · requirements-dev.txt
-└── Dockerfile · README.md    코어 컨테이너(엔진 · data · db, 웹 없음) · 저장소 소개
+└── Dockerfile · README.md    컨테이너 이미지(웹 · 엔진 · data · db · CLI, 11/04에 웹을 넣음) · 저장소 소개
 ```
 
 ### 검토 대상 데이터
@@ -269,8 +269,10 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 
 | 명령 | 하는 일 |
 |---|---|
+| `make up` · `make down` · `make logs` | **컨테이너로** 웹 + PostgreSQL 올리기 (venv 없이, http://localhost:8000) · 내리기(볼륨은 남음) · 웹 로그. 다른 컴퓨터에서 보려면 `.env`에 `SENTINELAI_WEB_BIND=0.0.0.0` (11/04) |
+| `make docker-root LOGIN=아이디 NAME=이름 [DEPT=부서]` | 컨테이너 안에서 첫 루트 계정 (`make up` 뒤 한 번). CLI는 `docker compose exec app python -m sentinelai 명령` |
 | `make install` | venv · 의존성 · `.env` 준비 (처음 한 번) |
-| `make db-up` · `make db-down` | PostgreSQL 컨테이너 올리기 · 내리기 (데이터는 볼륨에 남음). 팀 서버처럼 PostgreSQL 이 따로 있으면 `.env` 주소만 |
+| `make db-up` · `make db-down` | PostgreSQL 컨테이너만 올리기 · 내리기 (venv로 돌릴 때) (데이터는 볼륨에 남음). 팀 서버처럼 PostgreSQL 이 따로 있으면 `.env` 주소만 |
 | `make test` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움 |
 | `make web` | 대시보드 http://localhost:8000. 로그 감시 · 서버 점검은 웹이 스스로, 정책 관리 검토는 화면 버튼 |
 | `make health` | 서버 · 모델 · 벡터 DB · 두 DB 위치 확인 |

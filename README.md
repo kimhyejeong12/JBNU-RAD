@@ -25,6 +25,20 @@ AI는 근거와 등급만 냄. 최종 결정은 보안 운영자가 함.
 
 ## 시작
 
+컨테이너로 (Docker만 있으면 됨, 11/04):
+
+```sh
+cp .env.example .env                      # 설정 (모델 서버 주소 등)
+make up                                   # 웹 + PostgreSQL → http://localhost:8000
+make docker-root LOGIN=아이디 NAME=이름    # 첫 계정 (한 번만)
+```
+
+- 기준 문서는 처음 뜰 때 이미지의 `docs/`로 채워짐. RAG 적재는 화면의 [정책 관리 검토 실행]이 함 — 처음 띄운 뒤 한 번 눌러야 권한 신청 판정이 기준 조항을 찾음 (웹이 떠 있으면 CLI `index`는 Milvus 잠금으로 실패)
+- 벡터 DB · 기준 문서 · PostgreSQL은 볼륨에 남음 (`make down` 해도 그대로). `data/`는 이 폴더 것을 읽기만 함
+- 다른 컴퓨터에서 웹을 보려면 `.env`에 `SENTINELAI_WEB_BIND=0.0.0.0`
+
+venv로 (개발):
+
 ```sh
 make install                              # venv · 의존성 · .env 준비
 make db-up                                # PostgreSQL 컨테이너 (권한 DB · AI 결과 DB)

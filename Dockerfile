@@ -1,7 +1,7 @@
-# SentinelAI 코어 — 엔진 · 데이터 계층 · 실행 흐름. 웹은 넣지 않습니다.
+# SentinelAI — 웹 · 엔진 · 데이터 계층 · CLI. `make up`(compose.yaml)이 PostgreSQL 과 함께 띄웁니다.
 # Ollama 는 이 이미지에 없고 SENTINELAI_OLLAMA_BASE_URL 로 가리킵니다.
-# 설정값은 코드에 없습니다. .env.example 을 컨테이너 기본 .env 로 넣고,
-# 실행할 때 --env-file 이나 -e 로 덮어씁니다.
+# 설정값은 코드에 없습니다. .env.example 을 컨테이너 기본 .env 로 넣고, compose 가 .env 값을 환경변수로 덮어씁니다.
+# 화면은 빌드 결과(sentinelai/web/static)가 커밋돼 있어 Node 가 필요 없습니다.
 FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -13,12 +13,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY .env.example ./.env
-# sentinelai/web 은 .dockerignore 로 뺍니다.
 COPY sentinelai ./sentinelai
+# 기준 문서는 compose 의 볼륨이 처음 만들어질 때 이 내용으로 채워집니다. 그 뒤로는 화면에서 올리고 고친 것이 볼륨에 남습니다.
+COPY docs ./docs
 
-# 인덱스를 컨테이너 안에서 만들 수 있게 쓰기 권한을 줍니다.
-RUN useradd --create-home --uid 10001 sentinelai && chown -R sentinelai:sentinelai /app
+# 벡터 DB(.milvus) · 기준 문서를 컨테이너 안에서 쓸 수 있게 쓰기 권한을 줍니다.
+RUN useradd --create-home --uid 10001 sentinelai && mkdir -p .milvus data && chown -R sentinelai:sentinelai /app
 USER sentinelai
 
-ENTRYPOINT ["python", "-m", "sentinelai"]
-CMD ["health"]
+EXPOSE 8000
+# CLI 는 `docker compose exec app python -m sentinelai health` 처럼 부릅니다.
+CMD ["python", "-m", "uvicorn", "sentinelai.web.main:app", "--host", "0.0.0.0", "--port", "8000"]
