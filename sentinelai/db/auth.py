@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import secrets
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
@@ -55,6 +56,14 @@ def _check_password(password: str) -> None:
         raise Denied("비밀번호를 입력하세요")
 
 
+def _check_email(email: str) -> str:
+    """빈 값(알림 안 받음)이나 주소 하나. 실제로 받는지는 보내 봐야 알아 모양만 봅니다."""
+    email = email.strip()
+    if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise Denied("이메일 주소 형식이 아닙니다")
+    return email
+
+
 def _token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
@@ -89,36 +98,42 @@ def _guard_target(by: User, target: Row) -> None:
 
 
 def create_user(db: Database, by: User, login_id: str, password: str, display_name: str, department: str, role: str,
-                job: str = "") -> User:
+                job: str = "", email: str = "") -> User:
     _require_top(by)
     if role not in ROLES:
         raise Denied(f"역할은 {', '.join(ROLES)} 중 하나입니다")
     _check_password(password)
+    email = _check_email(email)
     with db.transaction() as conn:
         uid = conn.execute(
-            "INSERT INTO users (login_id, password_hash, display_name, department, job, role, created_at, created_by)"
-            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
-            (login_id, HASHER.hash(password), display_name, department, job.strip(), role, now(), by.id),
+            "INSERT INTO users (login_id, password_hash, display_name, department, job, email, role, created_at, created_by)"
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
+            (login_id, HASHER.hash(password), display_name, department, job.strip(), email, role, now(), by.id),
         ).fetchone()[0]
         audit(conn, "user_create", by.id, target_type="user", target_id=str(uid),
-              detail=json.dumps({"login_id": login_id, "role": role, "department": department, "job": job.strip()}, ensure_ascii=False))
+              detail=json.dumps({"login_id": login_id, "role": role, "department": department, "job": job.strip(), "email": email},
+                                ensure_ascii=False))
         return User.of(conn.execute("SELECT * FROM users WHERE id = %s", (uid,)).fetchone())
 
 
 def update_user(db: Database, by: User, user_id: int, **changes: object) -> User:
-    """역할 · 부서 · 이름 · 활성 여부 · 로그 사용자 ID 를 바꿉니다. 정지하면 그 사람의 세션도 끊습니다.
+    """역할 · 부서 · 이름 · 활성 여부 · 로그 사용자 ID · 이메일을 바꿉니다. 정지하면 그 사람의 세션도 끊습니다.
+
+    이메일은 결재 결과를 신청자 본인에게 알리는 주소입니다. 비우면 보내지 않습니다.
 
     로그 사용자 ID 는 보안 솔루션 로그의 UserID 입니다. 사용자 위협의 의심 점수가 로그 감시 판정 · 행동 신호와 권한 신청을 이 값으로 한 사람에 모읍니다.
     부서 · 직무가 실제로 바뀌면 이동 기록(user_moves)을 남깁니다 — 이동 전에 받은 권한을 새 업무에 맞는지 다시 판정하는 기준입니다.
     퇴사일(left_on, YYYY-MM-DD 또는 빈 값)이 지나면 남은 권한을 코드가 바로 위험으로 올립니다 (permissions.grant_review).
     """
     _require_top(by)
-    allowed = {"display_name", "department", "job", "role", "is_active", "log_id", "left_on"}
+    allowed = {"display_name", "department", "job", "role", "is_active", "log_id", "left_on", "email"}
     fields = {k: v for k, v in changes.items() if k in allowed and v is not None}
     if not fields:
         raise Denied("바꿀 항목이 없습니다")
     if "role" in fields and fields["role"] not in ROLES:
         raise Denied(f"역할은 {', '.join(ROLES)} 중 하나입니다")
+    if "email" in fields:
+        fields["email"] = _check_email(str(fields["email"]))
     for key in ("log_id", "department", "job", "left_on"):
         if key in fields:
             fields[key] = str(fields[key]).strip()
@@ -176,7 +191,7 @@ def list_users(db: Database, by: User) -> list[dict]:
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT id, login_id, display_name, department, role, is_root, is_active, must_change_password,"
-            " locked_until, last_login_at, created_at, log_id, job, left_on FROM users ORDER BY id"
+            " locked_until, last_login_at, created_at, log_id, job, left_on, email FROM users ORDER BY id"
         ).fetchall()
     return [dict(r) for r in rows]
 

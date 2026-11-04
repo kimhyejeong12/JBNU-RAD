@@ -108,6 +108,7 @@ class NewUser(BaseModel):
     display_name: Name
     department: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = ""
     job: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = ""
+    email: Annotated[str, StringConstraints(strip_whitespace=True, max_length=254)] = ""
     role: str
 
 
@@ -119,6 +120,7 @@ class UserChange(BaseModel):
     is_active: bool | None = None
     log_id: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
     left_on: Annotated[str, StringConstraints(strip_whitespace=True, max_length=10)] | None = None
+    email: Annotated[str, StringConstraints(strip_whitespace=True, max_length=254)] | None = None
 
 
 class PasswordReset(BaseModel):
@@ -137,7 +139,7 @@ def list_users(request: Request, user: Anyone) -> list[dict]:
 def create_user(body: NewUser, request: Request, user: Anyone) -> dict[str, Any]:
     try:
         return auth.create_user(request.app.state.main_db, user, body.login_id, body.password,
-                                body.display_name, body.department, body.role, body.job).public()
+                                body.display_name, body.department, body.role, body.job, body.email).public()
     except Denied as exc:
         raise _denied(exc) from None
 
