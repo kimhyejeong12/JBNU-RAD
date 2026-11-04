@@ -1,4 +1,6 @@
-"""운영자 알림 — 새 권한 신청을 Slack 채널로 보냅니다.
+"""결재자 알림 — 결재할 신청이 생기면 Slack 채널로 보냅니다 (새 신청 → 1차 결재 대기, 1차 승인 → 최종 결재 대기).
+
+채널에는 결재자만 있다고 보고, 신청자에게 가는 승인 · 반려 결과는 보내지 않습니다 (신청자는 화면의 내 신청에서 봄).
 
 주소는 SENTINELAI_SLACK_WEBHOOK_URL (비우면 보내지 않음). 엔진 설정(Settings)에 없는 칸이라 같은 곳(.env · 환경변수)에서 따로 읽습니다.
 """
@@ -19,10 +21,24 @@ def slack_url() -> str:
     return BOOT_ENV.get(KEY) or Settings._from_file().get(KEY, "")
 
 
-def request_message(req: dict) -> str:
+#: 결재 단계 → 알림 머리말 · 결재함. 이 단계로 막 넘어온 신청만 알립니다.
+WAITING = {"manager": ("1차 결재 대기", "1차 결재함"), "top": ("최종 결재 대기", "최종 결재함")}
+
+
+def waiting_message(req: dict) -> str | None:
+    """결재할 차례가 된 신청의 알림 문장. 결재 대기가 아니면(반려 · 승인 · 철회) None."""
+    if req["stage"] not in WAITING:
+        return None
+    head, inbox = WAITING[req["stage"]]
     # 바깥 서비스로 나가므로 신청 사유 · 이름은 넣지 않습니다. 자세한 내용은 결재함에서 봅니다.
-    return (f"새 권한 신청 {req['request_no']} — {req['requester_department']} · {req['requested_access']}\n"
-            "SentinelAI 권한 신청 결재함에서 확인하세요")
+    return (f"[{head}] {req['request_no']} — {req['requester_department']} · {req['requested_access']}\n"
+            f"SentinelAI 권한 신청 {inbox}에서 확인하세요")
+
+
+def notify_waiting(url: str, req: dict) -> None:
+    text = waiting_message(req)
+    if text:
+        send_slack(url, text)
 
 
 def send_slack(url: str, text: str) -> None:

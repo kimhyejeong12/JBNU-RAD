@@ -247,7 +247,7 @@ def submit(body: NewRequest, request: Request, background: BackgroundTasks,
     except Denied as exc:
         raise _denied(exc) from None
     request.app.state.verdicts.enqueue(req["request_no"])
-    background.add_task(notify.send_slack, request.app.state.slack_url, notify.request_message(req))
+    background.add_task(notify.notify_waiting, request.app.state.slack_url, req)
     return _with_verdict(request, req, user)
 
 
@@ -274,11 +274,12 @@ class DecisionBody(BaseModel):
 
 
 @router.post("/requests/{request_no}/decision")
-def decide(request_no: str, body: DecisionBody, request: Request, user: Approver) -> dict[str, Any]:
+def decide(request_no: str, body: DecisionBody, request: Request, background: BackgroundTasks, user: Approver) -> dict[str, Any]:
     try:
         req = permissions.decide(request.app.state.main_db, user, request_no, body.action, body.comment)
     except Denied as exc:
         raise _denied(exc) from None
+    background.add_task(notify.notify_waiting, request.app.state.slack_url, req)
     return _with_verdict(request, req, user)
 
 
