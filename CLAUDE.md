@@ -71,6 +71,7 @@ JBNU-RAD/
 │   ├── db/                     권한 DB · AI 결과 DB (PostgreSQL 스키마 main · results). 엔진 · 데이터 계층은 모름. 설계는 design/db-schema.md · design/results-db.md
 │   │   ├── core.py               연결 풀 · 스키마 적용(schema_version) · 쓰기 차례(advisory lock) · 트리거 · 제약 위반 → Denied
 │   │   ├── main.sql              권한 DB — 사용자 · 세션 · 감사 기록 · 신청(1건 = 1행: 신청 · AI 판정 · 1차 · 최종 결재 · 회수) · 권한 목록 · 운영자 결정 · 수집 노드 · 직무 · 퇴사일 · 이동 기록 · 보유 권한 재검토(11/3). 결재 순서 · 역할은 트리거가 강제 (11/03 SQLite 마이그레이션 11개를 하나로)
+│   │   ├── main_email.sql        main.sql 뒤에 적용 — 계정에 알림 받을 이메일 칸 (11/04)
 │   │   ├── results.sql           AI 결과 DB — 정책 관리 검토 · 로그 감시 판정 · 서버 점검 · 수집 기록 · 의심 점수 · 질의 기록 (쌓기만, 로그 자체는 안 쌓음)
 │   │   ├── auth.py               Argon2id · 로그인 잠금 · 세션 2일 · 계정 관리는 보안 총책임자 (루트 계정은 루트만)
 │   │   ├── permissions.py        신청(권한 목록 코드로, 현재 보유 권한은 승인된 유효 신청에서 읽어 남김) · AI 판정 저장(1차 결재 전까지만) · 철회 · 결재 · 회수
