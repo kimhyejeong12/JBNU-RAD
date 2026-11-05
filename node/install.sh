@@ -1,13 +1,5 @@
 #!/bin/sh
-# SentinelAI 수집 노드 설치 — 점검 대상 서버에서 root 로 돌립니다.
-#
-#   sudo sh install.sh --server http://sentinelai.internal:8000 --key <노드 키> [--interval 30]
-#   sudo sh install.sh --uninstall [--purge]     # 서비스 · 프로그램 제거 (--purge 면 설정 · 키까지)
-#
-# 노드 키는 SentinelAI 정책 관리 → [노드]에서 노드를 등록할 때 한 번 나옵니다 (잃으면 [키 다시 발급] 뒤 --key 로 다시 돌림).
-#
-# /opt/sentinel-node 에 프로그램, /etc/sentinel-node/node.conf 에 설정 · 키(0600), /var/lib/sentinel-node 에 못 보낸 수집,
-# systemd 서비스 sentinel-node 를 켭니다. 다시 돌리면 프로그램만 바꾸고 이미 있는 설정은 그대로 둡니다 (값을 주면 그 값만 바꿉니다).
+# 수집 노드 설치 (root) — sh install.sh --server 주소 --key 노드키 [--interval 30] | --uninstall [--purge]
 set -eu
 
 PREFIX=/opt/sentinel-node

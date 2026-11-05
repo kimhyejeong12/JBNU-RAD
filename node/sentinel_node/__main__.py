@@ -1,10 +1,4 @@
-"""sentinel-node — `python3 -m sentinel_node <명령>`
-
-  run      데몬: 설정한 간격마다 읽어 보냄 (systemd 가 부름)
-  once     한 번 읽어 보냄
-  show     한 번 읽어 화면에 출력만 (보내지 않음 — 무엇을 보내는지 확인)
-  export   한 번 읽어 파일로 남김 (망이 막힌 서버 — SentinelAI 서버에서 import-snapshots)
-"""
+"""sentinel-node — `python3 -m sentinel_node <명령>`"""
 from __future__ import annotations
 
 import argparse

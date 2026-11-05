@@ -1,7 +1,4 @@
-# SentinelAI 웹(app) + PostgreSQL. `docker compose up -d --build --wait` 가 둘 다, 뒤에 postgres 를 붙이면 PostgreSQL 만 띄웁니다 (venv 로 웹 · DB 시험을 돌릴 때).
-# 설정은 .env 를 그대로 읽고, DB 주소만 컨테이너끼리 닿는 이름(postgres)으로 바꿉니다. AI 모델 서버(Ollama)는 .env 주소 그대로.
-# 비밀번호는 .env 의 SENTINELAI_DB_PASSWORD 로 바꿉니다 (없으면 개발용 기본값 — SENTINELAI_DB_PATH · SENTINELAI_RESULTS_DB_PATH 와 맞춰 주세요).
-# 둘 다 이 컴퓨터(127.0.0.1)에서만 열고, 웹을 다른 컴퓨터에서 보려면 .env 에 SENTINELAI_WEB_BIND=0.0.0.0.
+# SentinelAI 웹(app) + PostgreSQL — DB 비밀번호는 .env 의 SENTINELAI_DB_PASSWORD (없으면 개발용 기본값).
 services:
   postgres:
     image: postgres:18
@@ -9,7 +6,7 @@ services:
       POSTGRES_USER: sentinelai
       POSTGRES_PASSWORD: ${SENTINELAI_DB_PASSWORD:-sentinelai-dev}
       POSTGRES_DB: sentinelai
-      # 문자열 비교 · 정렬이 SQLite 때(바이트 순)와 같게 C 로캘로 만듭니다.
+      # 문자열 정렬을 바이트 순으로 맞춥니다.
       POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
     ports:
       - "127.0.0.1:5432:5432"
@@ -32,11 +29,11 @@ services:
     ports:
       - "${SENTINELAI_WEB_BIND:-127.0.0.1}:8000:8000"
     volumes:
-      # 벡터 DB · 기준 문서는 컨테이너를 다시 만들어도 남게 볼륨에 둡니다. 검토 대상 데이터는 이 폴더의 data/ 를 읽기만 합니다.
+      # 벡터 DB · 기준 문서는 볼륨, 검토 대상 data/ 는 읽기만 합니다.
       - milvus:/app/.milvus
       - docs:/app/docs
       - ./data:/app/data:ro
-    # Ollama 가 이 컴퓨터에 있으면 .env 에 http://host.docker.internal:11434 로 적습니다 (컨테이너 안의 localhost 는 컨테이너 자신).
+    # 같은 컴퓨터의 Ollama 는 http://host.docker.internal:11434 로 닿습니다.
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
