@@ -27,7 +27,7 @@ SK쉴더스 산학협력 문제 제안서(2026. 8.)가 이 과제의 기준.
 | 요구 | 지금 구현 | 빈 곳 |
 |---|---|---|
 | 로컬 LLM · RAG — 보안정책 · 접근통제 · 권한 부여 기준 · 운영 가이드를 Vector DB에 | Ollama · Milvus Lite · `docs/` 기준 문서 2개 | 운영 가이드 · 사내 원문 pptx · pdf (§8 6) |
-| 정책 검토 — 공통 형식으로 표준화, 충돌 · 중복 · 과도한 허용 · 기준 위반과 개선안 | `sentinelai/data/` → `review_policies` | 실제 정책 샘플 (§8 1) |
+| 정책 검토 — 공통 형식으로 표준화, 충돌 · 중복 · 과도한 허용 · 기준 위반과 개선안 | `sentinelai/sources/` → `review_policies` | 실제 정책 샘플 (§8 1) |
 | 권한 적정성 — 부서 · 직무 · 기존 권한 · 신청 권한 → 승인 · 추가 검토 · 반려 권고 | `judge_request` (정상 → 승인 권고 · 주의 → 추가 검토 · 위험 → 반려 권고). 직무 · 신청 사유 · 사용 기간 · 최근 이동을 봄 (11/3). 받은 뒤 이동하면 `judge_grant`로 다시, 퇴사하면 코드가 위험 | 직무 기준 문서 (직무별 필요 권한) |
 | 대시보드 · 알림 — 정상 · 주의 · 위험, 위험이면 운영자 알림(이메일 · 메신저 포함), 고칠 것 설명 | 웹 대시보드 · 종 배지 · 결재 대기 Slack 채널 알림 · 결재 결과 신청자 메일(11/04) | 위험 판정 알림 (§8 3) |
 | 수집 인터페이스 모듈화 — 실제 솔루션 API · Export, 계정 관리 시스템 · AD 연동 대비 | `RowSource` · 수집 노드 | 실제 연동 (§8 11) |
@@ -55,20 +55,24 @@ JBNU-RAD/
 ├── sentinelai/               SentinelAI 패키지. __init__.py 는 ROOT · 버전만 (하위 패키지를 가져오지 않음)
 │   ├── dev.py                  로컬 시험 환경 `python -m sentinelai.dev` — setup · web · test · targets (11/5, 예전 scripts/)
 │   ├── __main__.py · cli.py    CLI `python -m sentinelai` — 웹이 꺼져 있을 때 쓰는 최소 명령 (health · index · review-policies · check-nodes · monitor · import-snapshots · create-root). 모두 Engine 기능을 부름
-│   ├── engine/                 엔진 (양현성) — 큰 파일 다섯 개 (10/20에 chains/ · pipeline · 작업 큐 · CLI 를 합쳤음)
-│   │   ├── engine.py             Settings(.env) · Engine — 모델 · RAG 저장소 · 두 DB를 열고 모든 기능(run_policies · run_nodes · run_events · ask · ask_servers · ask_logs · browse_logs · stats · user_stats · run_suspects · receive_snapshot · import_snapshots · judge_request · health)과 작업 큐를 둠 (JobRunner: 자동 로그 감시 · 서버 점검 · 정책 관리 검토, VerdictWorker: 권한 신청 판정). 웹 · CLI는 Engine 하나만 만듦
-│   │   ├── pipeline.py           체인(review · policy · server · server_filter · server_answer · event · log_filter · log_answer · answer · rag)과 판정 흐름(review_policies · check_nodes · snapshot_row · ask_servers · monitor · browse_logs · ask_logs · judge_request · attempt). 결과 dict만 돌려주고 저장 · 큐는 engine.py
-│   │   ├── rag.py                DocumentStore — 기준 조항(clause) · 솔루션 규칙(rule)을 한 컬렉션에, 종류별 검색(lookup · lookup_all)
-│   │   ├── prompt.py             프롬프트 (권한 검토 · 로그 검토 · 정책 검토 · 서버 점검 · 질의응답 · 로그 질의)
-│   │   └── types.py              출력 타입 Verdict · PolicyReview · ServerReview · Answer · LogFilter, 알림 자리 Notifier (구현 없음, §8 3)
-│   ├── data/                   검토 대상 데이터 계층 (양현성) — 엔진과 독립. 소스(CSV · JSON · 메모리) × 매퍼
-│   │   ├── types.py              SecurityEvent · AccessRequest · PolicyRule · ServerState · ServerSnapshot · LoadResult
-│   │   ├── source.py             RowSource — CsvSource · JsonSource · MemorySource, 확장자로 고르는 open_source
-│   │   ├── mapper.py             EventMapper(Microsoft Sentinel 로그) · AccessRequestMapper · PolicyRuleMapper
-│   │   ├── collected.py          수집 노드 본문 → 모듈별 상태(UFW · SSH · PAM · 계정 · sudo), 직전 수집과 달라진 설정, 서버 질의용 server_digest
-│   │   ├── suspect.py            의심 점수의 행동 신호 (최근 7일 vs 앞 4주, 코드가 셈), 계정 ↔ 로그 사용자 잇기 (10/22)
-│   │   ├── servers.py            서버 ↔ 규칙 맞춰 보기 (IP · 대역 · 호스트 이름, ANY 제외) → server_chain 입력
-│   │   └── events.py             로그 시각 필터(between · latest) · 사용자별 묶음 → event_chain 입력, 로그 질의용 search · summarize · vocabulary
+│   ├── engine/                 엔진 (양현성) — 체인 · 판정 흐름 · 큐 (10/20에 chains/ · pipeline · 작업 큐 · CLI 를 합쳤음)
+│   │   ├── engine.py             Settings(.env) · Engine — 모델 · RAG 저장소 · 두 DB를 열고 모든 기능(run_policies · run_nodes · run_events · ask · ask_servers · ask_logs · browse_logs · stats · user_stats · run_suspects · receive_snapshot · import_snapshots · judge_request · health)과 통합 잡 큐를 엮음. 웹 · CLI는 Engine 하나만 만듦
+│   │   ├── jobs.py               JobQueue — 일꾼 하나가 모든 AI 일(권한 신청 · 재검토 · 빠른 · 정밀 감시 · 서버 점검 · 위협 예측 · 정책 관리 검토 · 기준 문서 적재)을 우선순위대로 하나씩, 예약 · 취소 · 강제 중지 (11/5)
+│   │   ├── pipeline.py           체인(review · grant · policy · server · event · suspect · 질의 체인들)과 판정 흐름(review_policies · check_nodes · snapshot_row · monitor · judge_request · judge_grant · predict_suspect · ask_servers · browse_logs · ask_logs · attempt). 판정은 context 빌더 → 체인 → 결과 dict, 저장 · 큐는 engine.py
+│   │   ├── rag.py                DocumentStore — 기준 조항(clause) · 솔루션 규칙(rule)을 한 컬렉션에, 종류별 검색
+│   │   ├── prompt.py             프롬프트 (권한 검토 · 보유 권한 재검토 · 로그 검토 · 위협 예측 · 정책 검토 · 서버 점검 · 질의응답 · 로그 · 서버 질의)
+│   │   └── types.py              출력 타입 Verdict · PolicyReview · ServerReview · SuspectScore · Answer · LogFilter, 알림 자리 Notifier (구현 없음, §8 3)
+│   ├── sources/                검토 대상 데이터 (양현성) — 데이터 종류마다 한 파일에 구조체 · 컬럼 · 읽기 · 프롬프트용 글. 엔진 · DB를 모름 (11/5, 예전 data/)
+│   │   ├── base.py               Record · LoadResult · RowSource(CsvSource · JsonSource · MemorySource) · ColumnMapper · load · parse_datetime
+│   │   ├── logs.py               SecurityEvent · EventMapper(Microsoft Sentinel 로그) · 시각 필터 · 사용자별 묶음 · 로그 질의용 search · summarize · vocabulary · 행동 신호 · 위협 표시
+│   │   ├── policies.py           PolicyRule · PolicyRuleMapper
+│   │   ├── servers.py            ServerState(서버 현황 표) · 서버 ↔ 규칙 맞춰 보기 (IP · 대역 · 호스트 이름, ANY 제외)
+│   │   └── snapshots.py          ServerSnapshot · 수집 노드 본문 → 모듈별 상태(UFW · SSH · PAM · 계정 · sudo), 직전 수집과 달라진 설정, 서버 질의용 server_digest
+│   ├── context/                맥락 빌더 (11/5) — sources · DB · 규정 RAG 를 모아 판정마다 LLM 입력을 만들고 입력 예산에 맞춰 자름
+│   │   ├── person.py             People · Person — 사람 맥락(계정 · 이동 · 지금 가진 권한 · 신청 기록 · 로그 요약 · 행동 신호 · 최근 위협 기록), 위협 예측 대상 고르기
+│   │   ├── regulations.py        규정 RAG — 조항 · 규칙을 종류별로 찾음
+│   │   ├── builders.py           판정마다 빌더 하나 (request · grant · events · suspect · server · policy) + 운영자 결정 줄
+│   │   └── budget.py             Section · fit — 넘치면 정한 칸의 오래된 줄부터 빼고 "N줄 뺐습니다"를 입력에 적음
 │   ├── db/                     권한 DB · AI 결과 DB (PostgreSQL 스키마 main · results). 엔진 · 데이터 계층은 모름. 설계 결정은 §9
 │   │   ├── core.py               연결 풀 · 스키마 적용(schema_version) · 쓰기 차례(advisory lock) · 트리거 · 제약 위반 → Denied
 │   │   ├── main.sql              권한 DB — 사용자 · 세션 · 감사 기록 · 신청(1건 = 1행: 신청 · AI 판정 · 1차 · 최종 결재 · 회수) · 권한 목록 · 운영자 결정 · 수집 노드 · 직무 · 퇴사일 · 이동 기록 · 보유 권한 재검토(11/3). 결재 순서 · 역할은 트리거가 강제 (11/03 SQLite 마이그레이션 11개를 하나로)
@@ -133,7 +137,7 @@ JBNU-RAD/
 | 권한 신청 | `id, requester, requested_access, current_access, 신청일` |
 | 정책 | `policy_id, solution, source, destination, service, action, expires_at` |
 | 서버 현황 | 호스트 이름(`host` · `hostname` · `호스트명` 등)이나 IP(`ip` · `IP` 등) 하나만 있으면 됨. 나머지 컬럼(용도 · 영역 · 외부 노출 · 열린 포트 · 관리자 계정 · 마지막 패치 등)은 이름 그대로 판정에 넣음 |
-| 로그 | Microsoft Sentinel 내보내기 (`TimeGenerated`, `WHO` · `WHERE` · `HOW` 등, `sentinelai/data/mapper.py`) |
+| 로그 | Microsoft Sentinel 내보내기 (`TimeGenerated`, `WHO` · `WHERE` · `HOW` 등, `sentinelai/sources/logs.py`) |
 
 **연습용 데이터** — 실제 솔루션 · 서버의 내보내기가 아니라 결과를 실제 환경 평가로 쓰지 않음. 실제 데이터가 오면 연습용 파일을 뺌.
 - 권한 신청 · 정책 CSV는 10/7에 지웠음 (예전 사례: `8eb0e1d^`)
@@ -158,7 +162,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 - 노드는 정한 간격(기본 30분)마다 UFW · sshd · PAM · 계정 · sudo 원문을 **읽기만** 해서 `POST /api/nodes/snapshots`로 보냄. **이름 없이 키만** 보내고(`Authorization: Bearer`) 서버가 키로 노드를 찾음
 - 키를 잃거나 새어 나가면 [키 다시 발급] (예전 키는 바로 무효). 공용 등록 토큰 · 자동 등록은 처음 설계에 있었으나 화면 발급으로 바꿨음
 - 못 보낸 수집은 노드에 쌓였다가 다음 차례에 먼저 보냄
-- 무엇을 뽑아 판정할지는 `sentinelai/data/collected.py`가 정함 (설치 안 됨과 권한이 없어 못 읽음은 다른 값)
+- 무엇을 뽑아 판정할지는 `sentinelai/sources/snapshots.py`가 정함 (설치 안 됨과 권한이 없어 못 읽음은 다른 값)
 - 서버는 노드 · 수집 시각별로 `server_snapshots`에 쌓고 직전 수집과 달라진 설정을 셈
 - 망이 막힌 서버는 노드의 `export` 파일을 `./sentinel import-snapshots`로 넣음
 - 서버 현황 표(`data/servers/`)가 있으면 노드 점검에 호스트 이름 · IP가 같은 행을 덧붙임
@@ -172,36 +176,46 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 - CLI와 웹이 같은 `Engine` 기능을 부르고, 결과는 AI 결과 DB(`SENTINELAI_RESULTS_DB_PATH`의 스키마 `results`)에 실행마다 쌓음
 - 판정 실패 시 2회 재시도(`pipeline.attempt`). 그래도 실패하면 `failed` · `error`로 남기고 화면에는 "주의"로 올림 (이유 칸에 원인)
 - Milvus Lite는 한 프로세스만 DB를 엶. 웹이 떠 있으면 판정은 웹 작업(`/api/jobs`)으로, 꺼져 있으면 CLI로. 둘 다 같은 AI 결과 DB에 쌓음
+- 판정 입력은 `sentinelai.context`의 빌더가 만듦 — 대상 · 사람 맥락 · 규정 RAG(조항 · 규칙) · 운영자 결정. 입력 예산 = (`NUM_CTX` − `NUM_PREDICT`) × 1.4자 − 프롬프트 글. 넘치면 신청 기록 → 로그 줄 → 위협 기록 · 운영자 결정 순으로 오래된 줄부터 빼고 "오래된 N줄은 입력 한도로 뺐습니다"를 그 칸에 적음. 대상 · 조항은 빼지 않음. 판정 결과 dict의 `input`(글자 수 · 한도 · 뺀 줄)은 저장하지 않음
+
+**통합 잡 큐** (`engine/jobs.py`, 11/5) — 웹만 씀 (CLI는 `run_*`를 바로 부름)
+- 일꾼 하나가 차례로 — 모델 · 벡터 DB를 동시에 치지 않음
+- 우선순위: 권한 신청 · 보유 권한 재검토(0) → 빠른 감시 · 기준 문서 적재(1) → 정밀 감시 · 서버 점검 · 위협 예측 · 정책 관리 검토(2). 같은 순위는 먼저 들어온 것부터
+- 긴 일은 진행 보고(판정 한 건)마다 기다리는 더 급한 일을 그 자리에서 돌림 — 위협 예측 중에 들어온 신청 · 빠른 감시 · 기준 문서 적재가 한 사람 뒤에 끼어듦
+- 같은 key(작업 종류 · 신청 번호 · `grant:신청번호:이동 id`)가 기다리거나 돌고 있으면 다시 넣지 않음
+- 예약: 종류마다 뜨자마자 한 번, 그 뒤 간격마다 넣음. 같은 종류가 이미 큐에 있으면 그 차례는 건너뜀
+- 강제 중지: 돌던 일을 끝내고 일꾼을 새로 띄움. 응답 없는 모델 호출에 묶인 옛 일꾼은 그 호출이 돌아오면 아무것도 쓰지 않고 끝남 (그동안 새 일과 모델 호출이 겹칠 수 있음). 끝낼 때(`stop`)는 돌던 일을 5초 기다림
 
 ### 판정 기능
 
 **정책 관리** `review_policies` — 화면 [정책 관리 검토 실행]
-- 기준 문서(`docs/`) · 정책 규칙을 RAG에 맞춤 (바뀐 것만, 규칙 묶음은 하나만) → 정책 전체 → `policy_chain`(기준 조항 검색) → `PolicyReview`
+- 기준 문서(`docs/`) · 정책 규칙을 RAG에 맞춤 (바뀐 것만, 규칙 묶음은 하나만) → 정책 전체 + 기준 조항 + 지난 검토의 문제에 운영자가 정한 것(유형 · 정책 ID · 결정 · 의견) → `policy_chain` → `PolicyReview`
 - 정책 폴더가 비면 RAG의 예전 규칙을 지우고 빈 검토를 남김 — 서버 점검 · 로그 감시가 지운 규칙을 찾지 않게
 - 실행마다 쌓고 화면은 마지막 실행을 봄
 
 **서버 점검** `check_nodes` — 웹이 뜨자마자 한 번, 그 뒤 `SENTINELAI_MONITOR_INTERVAL_MIN`분마다, 또는 노드 탭 [지금 점검]
 - 켜 둔 노드 중 지난 점검 뒤 새 수집이 온 노드만, 그 노드의 가장 늦은 수집 한 건 → `server_chain` → `ServerReview`
-- 입력: 모듈 상태 · 직전 수집과 달라진 설정 + 서버 현황 표의 같은 서버 행 + 코드가 IP · 대역 · 호스트 이름으로 찾은 규칙 + RAG로 찾은 조항 · 규칙
+- 입력: 모듈 상태 · 직전 수집과 달라진 설정 + 서버 현황 표의 같은 서버 행 + 코드가 IP · 대역 · 호스트 이름으로 찾은 규칙 + RAG로 찾은 조항 · 규칙 + 그 노드의 지난 점검에 운영자가 정한 것(이상 없음 · 조치 필요, 그때 다른 곳 이름 · 의견)
 - 출력: 기준과 다른 곳마다 지금 · 기준 · 근거 조항 · 등급 · 이 환경에서 바꿀 것. 조항이 없거나 확인 못한 항목은 판단하지 않고 이름만
 - 한 건씩 `node_findings`에 쌓고 화면은 노드마다 마지막 판정을 봄 (노드 한 대 30초 안팎)
 
 **위협 예측** `run_suspects` (10/22) — 정밀 감시와 같은 주기, 또는 사용자 위협 탭 [지금 예측]
-- 사람마다 행동 신호(`data.suspect.behavior_signals` — 최근 7일 vs 앞 4주: 하루 양 · 근무 시간 밖 · 예외 승인 · 민감 문서 · 30분 안 몰아서 · 처음 보는 계정) + 사용자 기록 · 최근 위협 기록 15건(아래 "사용자 기록") → `suspect_chain`(생각하는 판정 모델) → `SuspectScore`(0~100 · 이유 · 확인할 점)
+- 사람마다 행동 신호(`sources.logs.behavior_signals` — 최근 7일 vs 앞 4주: 하루 양 · 근무 시간 밖 · 예외 승인 · 민감 문서 · 30분 안 몰아서 · 처음 보는 계정) + 사용자 기록 · 최근 위협 기록 15건(아래 "사용자 기록") + 기준 조항(11/5, 눈에 띄는 신호로 찾음 — 참고로만) → `suspect_chain`(생각하는 판정 모델) → `SuspectScore`(0~100 · 이유 · 확인할 점)
 - 등급은 점수로 코드가 정함. 한 사람씩 `suspect_scores`에 쌓음 (사람당 20초 안팎)
 - 로그 감시 판정의 근거는 기준 문서 · 솔루션 정책만 (10/20 결정). 11/3부터 정밀 감시는 사용자 기록을 맥락으로 함께 봄 — 어긋남의 근거로는 쓰지 않게 프롬프트에 적음
 
 **로그 감시** `monitor` — 두 단계 (10/22), 화면에서는 시작하지 않음
-- 빠른 감시: `SENTINELAI_FAST_INTERVAL_MIN`(5)분마다 생각 단계를 끈 연결(`Engine.fast_llm`)로 새 로그만 판정해 "1차 판정"으로 바로 올림 (묶음당 수 초, 따로 도는 작업 큐). 비우면 정밀 감시만
+- 빠른 감시: `SENTINELAI_FAST_INTERVAL_MIN`(5)분마다 생각 단계를 끈 연결(`Engine.fast_llm`)로 새 로그만 판정해 "1차 판정"으로 바로 올림 (묶음당 수 초, 큐에서 정밀 감시 · 서버 점검보다 먼저). 사람 맥락은 계정(부서 · 직무 · 활성 · 퇴사일) · 지금 가진 권한만 (11/5). 비우면 정밀 감시만
 - 정밀 감시: `SENTINELAI_MONITOR_INTERVAL_MIN`(30, 0이면 끔)분마다 생각하는 판정 모델로 같은 구간을 다시 판정해 확정. 확정된 구간의 1차 판정은 목록에서 빠짐 (`monitor_runs.stage` = fast · final)
 - 흐름: 지난 감시 이후 로그 → 사용자별 묶음 → `event_chain`(조항 · 규칙 검색) → `Verdict`. 읽은 가장 늦은 로그 시각이 다음 시작점
 
-**사용자 기록** (11/3) — 사용자가 관여한 판정(권한 신청 · 보유 권한 재검토 · 정밀 감시 · 위협 예측)에 그 사람의 기록을 함께 넣음. 빠른 감시는 속도 때문에 넣지 않음
-- 만드는 곳: `Engine.user_records` — 로그 · 운영자 결정은 한 번만 읽고 사람마다 (사용자 기록, 위협 기록) 두 칸. 계정 ↔ 로그 사용자는 `log_id`로 이음
-- 사용자 기록(`pipeline.user_record_text`): 계정(부서 · 직무 · 활성 · 퇴사일) · 이동 · 지금 가진 권한 · 권한 신청(건수 + 최근 10건, 결재 · 반려 의견 · 회수 사유) · 로그 집계 · 행동 신호. 판정할 신청 자신과 그 뒤 신청은 뺌
-- 최근 위협 기록 15건: 운영자가 [조치]로 정한 로그 감시 판정을 먼저, 남은 자리는 코드가 고른 로그(`data.suspect.threat_lines` — 예외 승인 · 민감 문서 · 근무 시간 밖, 같은 종류가 몰리지 않게 돌아가며 최근 것부터)
+**사용자 기록** (11/3, 11/5 맥락 빌더로 옮김) — 사용자가 관여한 판정(권한 신청 · 보유 권한 재검토 · 정밀 감시 · 위협 예측)에 그 사람의 기록을 한 칸(`person`)으로 넣음. 빠른 감시는 속도 때문에 계정 · 지금 가진 권한만
+- 만드는 곳: `context.People` — 작업 한 번에 로그 · 계정 · 운영자 결정을 한 번만 읽고, `get(계정 id 또는 로그 사용자 ID)`이 사람마다 `Person`. 계정 ↔ 로그 사용자는 `log_id`로 이음
+- 담는 것: 계정(부서 · 직무 · 활성 · 퇴사일) · 이동 전부 · 지금 가진 권한(권한 목록의 시스템 · 분류 · 설명 · 끝나는 날) · 권한 신청 전부(결재 · 반려 의견 · 회수 사유, 예산이 모자라면 오래된 것부터 뺌) · 로그 집계 · 행동 신호 · 최근 위협 기록
+- 권한 신청 판정은 신청 시각까지로 자름 — 그 뒤의 이동 · 신청 · 로그 · 운영자 결정을 뺌 (11/5 전에는 신청만 잘랐음). 보유 권한은 신청할 때 남긴 칸(`current_access`)을 씀
+- 최근 위협 기록 15건: 운영자가 로그 감시 판정에 정한 것([조치] · [이상 없음], 11/5부터 이상 없음도)을 먼저, 남은 자리는 코드가 고른 로그(`sources.logs.threat_lines` — 예외 승인 · 민감 문서 · 근무 시간 밖, 같은 종류가 몰리지 않게 돌아가며 최근 것부터). 정밀 감시는 지금 판정하는 묶음의 로그를 뺌 (같은 줄을 두 번 넣지 않게)
 - **예전 AI 등급은 넣지 않음** (사람이 정한 것만) — 한 번 위험으로 찍힌 사람이 계속 위험으로 나오는 되먹임을 막으려고. 감사 기록도 넣지 않음
-- 웹이 뜨자마자 한 번 (꺼져 있던 동안 쌓인 로그를 따라잡음), 그 뒤 간격마다 (`JobRunner.every`). 다른 작업이 돌면 1분 뒤 다시 시도
+- 웹이 뜨자마자 한 번 (꺼져 있던 동안 쌓인 로그를 따라잡음), 그 뒤 간격마다 (`JobQueue.every`). 다른 작업이 돌면 큐에서 차례를 기다림
 - 판정은 모두 쌓지만 운영자 검토(목록 · 건수 · 종)에는 **주의 이상**만 올림
 - 1차 판정은 운영자 결정 · 통계 · 의심 점수 기록에 넣지 않음 (종 배지에는 뜸)
 
@@ -226,9 +240,9 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 |---|---|
 | `POST /api/auth/login` · `logout` · `GET /api/auth/me` · `POST /api/auth/password` | 로그인 (쿠키 HttpOnly · SameSite=Strict, 2일). 첫 로그인 비밀번호 변경 전에는 다른 API 403 |
 | `GET /api/results` | 마지막 정책 관리 검토(정책 문제 · 서버 점검) · 쌓인 로그 감시 판정 → 화면용 dict + 운영자 결정. 보안 총책임자에게는 결정 기록 전부(`decision_log`, 취소 포함) |
-| `GET /api/jobs` | 도는 작업 · 단계 · 진행(done/total) · 작업별 마지막 실패. 빠른 감시는 `fast`(간격 · 다음 시각 · 마지막 실행) |
-| `POST /api/jobs/{kind}` | `policies` · `nodes` · `suspects` 백그라운드 시작 (202). 한 번에 하나 — 돌고 있으면 409. `events`는 자동으로만 돌아 404 |
-| `POST /api/jobs/reset` | 돌고 있는 작업(작업 큐 · 빠른 감시)을 강제로 끝냄 (보안 총책임자, 감사 기록 `jobs_reset`). `{rerun: true}`면 같은 작업을 바로 다시 시작. 돌던 판정 한 건은 끝날 때까지 이어지고 결과는 버림 (`JobRunner.reset`). 도는 작업이 없으면 409 |
+| `GET /api/jobs` | 도는 작업(`running` — 없으면 기다리는 첫 작업, 그때 `queued: true`) · 진행(done/total) · 작업별 마지막 실패 · 기다리는 일(`waiting`, 신청 판정 · 기준 문서 적재 포함). 빠른 감시는 `fast`(간격 · 다음 시각 · 마지막 실행) |
+| `POST /api/jobs/{kind}` | `policies` · `nodes` · `suspects`를 큐에 넣음 (202, 다른 작업이 돌면 그 뒤에). 같은 작업이 이미 기다리거나 돌고 있으면 409. `events`는 자동으로만 돌아 404 |
+| `POST /api/jobs/reset` | 돌고 있는 작업(작업 큐 · 빠른 감시)을 강제로 끝냄 (보안 총책임자, 감사 기록 `jobs_reset`). `{rerun: true}`면 같은 작업을 다시 넣음. 돌던 판정 한 건은 끝날 때까지 이어지고 결과는 버림 (`JobQueue.reset`). 도는 작업이 없으면 409 |
 | `POST /api/decisions` | 정책 문제 · 서버 점검 · 로그 판정에 대한 운영자 결정 · 취소 (보안 운영자 이상). 지금 결정은 `/api/results`의 `decisions`로 옴 — 다시 판정됐지만 결과가 그대로인 서버 점검 · 정책 문제는 지난 결정을 이어받아 `carried_from`(이어받은 판정 key)과 함께 옴 (`view.carry_decisions`) |
 | `POST /api/nodes/snapshots` | **수집 노드 전용** — 로그인 대신 `Authorization: Bearer 노드 키`. 본문 = 노드가 읽은 원문(`format: sentinel-node 1`, 2MB까지). 모르는 키 401 · 꺼진 노드 403 · 형식 400. 같은 노드 · 수집 시각은 한 번만 쌓음(`stored`) |
 | `POST /api/nodes` · `POST /api/nodes/{이름}/key` · `GET /api/nodes` · `GET /api/nodes/{이름}` · `PATCH /api/nodes/{이름}` | 등록(+ 키) · 키 다시 발급(예전 키 무효) · 목록(상태 · 끊김 · 마지막 판정) · 하나(키 · 최근 수집 · 바뀐 것 · 판정 기록 · 모듈 상태) · 켜기/끄기. 보안 운영자 이상, 감사 기록 |
@@ -238,7 +252,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `GET /api/stats?period=week\|month\|quarter\|all` | 보안 통계 (기본 한 달, 모델 없이 셈, `results.threat_stats`) — `logs`(기간 안 로그 수 · 날짜별, 비율의 분모) · `events`(주의 · 위험 판정에 묶인 로그 줄 · 날짜별) · `servers`(노드별 등급 · 위험 · 주의 항목, 모듈별 위협 항목, 걸린 조항 — 노드마다 기간 안 마지막 점검) · `safety`(시스템 안전 점수, 아래) |
 | `GET /api/user-stats?period=` | 사용자 위협 — `suspects`(사람마다 마지막 의심 점수 · 등급 · 이유 · 확인할 점 · 행동 신호 · 흐름 · 지금 가진 권한 `held`, 계정 미연결은 null, 기간과 무관) · `safety`(사용자 안전 점수) · `events.users`(사용자별 위협 로그 줄 · 판정 수 · 로그 사용자 ID) · `requests`(신청 수 · AI 등급별 · AI와 결재가 엇갈린 수) |
 | `GET /api/health` | 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` (보안 운영자 이상) |
-| `GET /api/regulations` · `POST /api/regulations` · `PUT /api/regulations/{이름}` · `DELETE /api/regulations/{이름}` | `docs/` 원문 · 고친 시각(보안 운영자 이상) · 올리기 · 고치기 · 지우기(보안 총책임자). 지우기는 `{reason}` → 파일을 지우고 그 문서의 조각만 RAG 에서 뺌(`Engine.remove_document`), 지운 원문 · 사유는 감사 기록(`regulation_remove`)에. 마지막 문서는 400. 올리기는 `{name, content}`(.md · .txt, 1MB, 같은 이름 400 — 덮어쓰지 않음) → 바뀐 파일만 적재. 고치기는 `{content, reason}`(없는 문서 404, 같은 내용 400) → 그 문서만 다시 적재, 고치기 전 원문 · 사유는 감사 기록(`regulation_edit`)에. 다른 작업이 돌면 끝나기를 기다렸다가 적재(10분 넘으면 409), AI 엔진(임베딩)에 닿지 않으면 바로 503 |
+| `GET /api/regulations` · `POST /api/regulations` · `PUT /api/regulations/{이름}` · `DELETE /api/regulations/{이름}` | `docs/` 원문 · 고친 시각(보안 운영자 이상) · 올리기 · 고치기 · 지우기(보안 총책임자). 지우기는 `{reason}` → 파일을 지우고 그 문서의 조각만 RAG 에서 뺌(`Engine.remove_document`), 지운 원문 · 사유는 감사 기록(`regulation_remove`)에. 마지막 문서는 400. 올리기는 `{name, content}`(.md · .txt, 1MB, 같은 이름 400 — 덮어쓰지 않음) → 바뀐 파일만 적재. 고치기는 `{content, reason}`(없는 문서 404, 같은 내용 400) → 그 문서만 다시 적재, 고치기 전 원문 · 사유는 감사 기록(`regulation_edit`)에. 파일 쓰기 · 적재를 한 일로 큐에 넣고 차례를 기다림(10분 넘거나 기다리는 중에 화면이 끊으면 빼고 409), AI 엔진(임베딩)에 닿지 않으면 바로 503 |
 | `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 (보안 총책임자). `PATCH`로 로그 사용자 ID(`log_id`, 계정마다 하나, 겹치면 400) · 직무(`job`) · 퇴사일(`left_on`, YYYY-MM-DD) · 이메일(`email`, 결재 결과 알림용, 만들 때도 받음, 빈 값이면 안 보냄, 형식이 틀리면 400). 부서 · 직무가 바뀌면 이동 기록 + 보유 권한 재검토를 판정 큐에. 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿈 |
 | `GET /api/access-catalog` · `POST /api/access-catalog` · `PATCH /api/access-catalog/{코드}` | 권한 목록 — 보기(일반 사용자 · 보안 운영자는 켜진 것만) · 등록 · 고치기 · 끄기(보안 총책임자, 감사 기록) |
 | `POST /api/requests` · `GET /api/requests[?stage=&mine=]` | 신청(일반 사용자, 본문 `access_code` · `reason`(필수, 비면 400) — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400, 현재 보유 권한은 서버가 채움) · 목록(일반 사용자는 자기 것만). 신청 · 1차 승인 뒤 응답을 보내고 Slack 채널에 결재 대기 알림, 결재가 끝나면 신청자 이메일로 결과 메일(실패해도 신청 · 결재는 그대로). 응답에 `ai_verdict` · `judging` · `grant_review`(유효 권한의 재검토 — 퇴사 `leave` · 이동 `move`, 일반 사용자에게는 뺌) |
@@ -384,7 +398,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 8. **내부 상태 API** — 10/20에 `/internal/status`로 작업 큐 · 예약 · 판정 대기열을 화면과 분리했음. 남은 것: `/api/health`도 옮길지, 자동 감시가 연달아 실패하면 알릴지
 9. **보안 대시보드** (10/21 TODO) — 권한 신청 · 정책 관리 · 서버 점검 · 로그 감시를 한눈에. 통계 메뉴(10/21)와 겹치지 않게, 운영자가 무엇을 결정하는 데 쓰는지부터 정함
 10. **위협 미리 판정** (10/21 TODO) — 사고 전에 먼저 판정해 알림. 사용자 쪽은 의심 점수(10/22)를 만들었음. 남은 것: 의심 점수가 오를 때 알리기(3번과 함께) · 서버 쪽 예측. 입력(서버 점검의 바뀐 설정 · 로그 감시 추이 · 권한 신청 등)과 알림과의 관계는 아직 안 정함
-11. **이번 범위 밖** — 실제 솔루션 API 수집(`sentinelai.data`에 RowSource로 추가). 로그가 외부 DB(Microsoft Sentinel 등)에 쌓이면 읽기만 하고 우리 DB에 안 쌓음. 그때 로그 질의 조건을 그 DB 쿼리(KQL 등)로 넘기고 로그 전체를 메모리에 읽는 `ask_logs`를 바꿈
+11. **이번 범위 밖** — 실제 솔루션 API 수집(`sentinelai.sources`에 RowSource로 추가). 로그가 외부 DB(Microsoft Sentinel 등)에 쌓이면 읽기만 하고 우리 DB에 안 쌓음. 그때 로그 질의 조건을 그 DB 쿼리(KQL 등)로 넘기고 로그 전체를 메모리에 읽는 `ask_logs`를 바꿈
 12. **감사 기록 분석** (11/3 TODO) — 지금 감사 기록(로그인 · 결재 · 로그 조회 · 기준 문서 · 계정 · 노드 변경)은 쌓기만 하고 아무도 다시 읽지 않음. 이 기록을 전방위로 분석해 사람이 놓친 위협(예: 로그인 실패 몰림 · 한 사람의 몰아서 로그 조회 · 기준 문서 수정 직후 판정 변화 · 결재 패턴)을 찾아 알림(3번과 함께). 중간발표 보안 설계 슬라이드 5번 카드에서 나왔음. 구현 전까지 발표 · 문서에서는 "남김"까지만 말함
 13. **퇴사 · 이직 · DLP 로그 묶기** (11/3 TODO) — 계정에 필드를 더함
     - ~~퇴사 · 이직(부서 이동)한 사람의 정보~~ → 11/3에 직무 · 퇴사일 · 이동 기록(`user_moves`)을 넣고 판정에 씀 (`main.sql`). 남은 것: 의심 점수 · 로그 감시에도 퇴사 · 이동을 넣을지, 퇴사일이 지나면 계정을 알아서 정지할지
@@ -557,7 +571,7 @@ ExecStartPre=+/usr/bin/nvidia-smi
 ### 사용자 의심 점수 (10/22)
 
 - **목적**: 앞으로 위협이 될 사람을 먼저 고름. 이미 받은 판정만 세면 판정 모델이 정상으로 놓친 사람(10/20 시나리오 B 주말 새벽 대량 출력 · D 처음 보는 외주 계정)은 끝내 안 걸림
-- **방법**: 로그 원본의 행동 변화를 코드가 세고(`data/suspect.py`), 판정 모델이 그 신호와 판정 · 신청 기록을 함께 보고 0~100을 냄
+- **방법**: 로그 원본의 행동 변화를 코드가 세고(`sources/logs.py`), 판정 모델이 그 신호와 판정 · 신청 기록을 함께 보고 0~100을 냄
 - **같은 날 바꾼 것**: 처음엔 100점에서 깎는 규칙 신뢰 수치(`data/trust.py`)였음. 이미 받은 판정을 세는 과거형이라 예측 목적에 맞지 않아 의심 점수로 바꿨음 (감점표 · 구간은 `71b6b33`, 바꾼 것은 `96b0ecc`)
 - **행동 신호** (최근 7일 vs 앞 4주, 서버 현지 시각)
   - 하루 양(숫자 칸 합 — 출력 장수 등, 없으면 건수)의 배율
@@ -638,7 +652,7 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - 신청 판정(`ACCESS_REVIEW`): [신청 사유] · [사용 기간] 칸을 더하고, 신청자 칸에 직무 · 신청 전 90일 안의 이동을 적음. 사유가 직무에 맞는지, 기간이 사유에 비해 길거나 끝이 없지 않은지, 옮긴 사람이 예전 업무 권한을 이어 가려는지 보게 함. 직무 · 사유가 비면 이유에 밝히게 함
 - 이직 = 사내 부서 · 직무 이동으로 정했음. 회사를 떠나는 것은 퇴사로 따로
 - 퇴사: 퇴사일이 지난 사람의 보유 권한은 모델 없이 코드가 바로 위험 · 회수 권고. 남은 권한이 있다는 사실만으로 판단이 끝나서 모델이 할 일이 없음
-- 이동: 권한마다 모델 판정(`GRANT_REVIEW` — 새 업무에 필요하면 정상, 불분명하면 주의, 예전 업무에만 필요하면 위험). 권한 신청 판정 큐(`VerdictWorker`)에 `grant:신청번호:이동 id`로 들어감 — 판정 큐가 하나라 정책 관리 · 로그 감시와 섞이지 않음
+- 이동: 권한마다 모델 판정(`GRANT_REVIEW` — 새 업무에 필요하면 정상, 불분명하면 주의, 예전 업무에만 필요하면 위험). `grant:신청번호:이동 id`로 큐에 들어감 (11/5부터 통합 잡 큐, 권한 신청과 같은 우선순위)
 - 재검토는 신청 행의 AI 칸에 쓰지 않고 `grant_reviews`에 쌓음 — AI 칸은 1차 결재 뒤 트리거로 굳고, 결재자가 본 판정을 바꾸면 안 돼서
 - 비어 있던 부서 · 직무를 처음 채우는 것은 이동으로 치지 않음 — 직무 칸이 새로 생겨 기존 계정이 모두 빈 값이라, 채울 때마다 전 권한이 재검토되면 안 돼서
 - 회수는 자동으로 하지 않음 (★ 원칙: AI는 근거와 등급만)
@@ -663,3 +677,23 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - 화면 표시라 예전 AI 판정도 씀 — 판정 입력에서 AI 등급을 뺀 것(11/3 "판정에 사용자 기록")과 다름. 사람이 보고 정하는 목록이라 되먹임이 없음
 - 지난 퇴사 · 이동은 90일(`WATCH_DAYS`) 뒤에는 남은 권한 · 활성 계정이 있을 때만 남김 — 지난 일이 쌓여 목록이 묻히지 않게
 - 승인 때 AI 위험 · 주의였던 보유 권한도 넣음 — 사람이 승인했어도 "가진 권한이 위험"에 해당해서. 많아지면 빼거나 거르기를 둘지 다시 봄
+
+### 코어 리팩토링 — 소스 · 맥락 빌더 · 통합 잡 큐 (11/5)
+
+- **이유**: 레코드 타입 · 컬럼 매퍼 · 읽기가 `data/`의 세 파일에 흩어졌고, 판정 입력을 판정마다 다른 곳(`permissions.judge_input` · `Engine.user_records` · `pipeline.user_record_text` · `events.event_review_input` · `servers.server_review_input`)에서 모았음. RAG 검색은 체인 안에 숨어 모델이 무엇을 봤는지 코드에서 안 보였음. 큐는 셋(`JobRunner` · 빠른 감시용 `JobRunner` · `VerdictWorker`)이 서로를 몰라 모델 · 벡터 DB를 동시에 쳤음
+- **sources/**: 데이터 종류별(로그 · 정책 규칙 · 서버 현황 · 노드 스냅샷)로 구조체 · 컬럼 · 읽기 · 글을 한 파일에. 솔루션(DLP · SecureMark)별 차이는 로그 소스 안의 컬럼 설정. 쓰지 않던 `AccessRequest` · `AccessRequestMapper` · `load_requests`를 지웠음. 옮긴 뒤 판정 입력 27건이 옮기기 전과 글자까지 같았음
+- **context/**: 판정마다 빌더 하나. 사람 맥락에 예전 AI 등급 · 의심 점수는 계속 넣지 않음 (11/3 결정 유지, 사용자 결정). 새로 넣은 것: 지금 가진 권한의 시스템 · 분류 · 설명, 이동 · 신청 전부(예전엔 이동 5 · 신청 10), 운영자 [이상 없음] 결정, 위협 예측의 기준 조항, 서버 점검 · 정책 관리 검토의 운영자 결정, 빠른 감시의 계정 · 지금 가진 권한
+- 화면 파일 수를 줄이려 빌더 여섯은 `builders.py` 한 파일에 둠 (계획에서는 판정마다 한 파일)
+- **입력 예산**: `qwen3:14b`로 잰 판정 입력은 토큰당 1.52자 → 1.4자로 셈. 예전에는 `NUM_CTX` 8192 · `NUM_PREDICT` 4096에서 판정 입력이 9천 자(약 6천 토큰)까지 가 Ollama가 말없이 앞을 잘랐을 수 있음 — 지금은 빌더가 정한 순서로 자르고 그 사실을 입력에 적음
+- **`NUM_CTX` 16384**: 계획은 32768이었으나 팀 서버에서 `qwen3:14b`가 16384에 10.0 GiB · 32768에 14.0 GiB(`/api/ps`)라 RTX 5070 12GB에 다 올라가는 16384로 정했음. 16384면 판정 입력 약 1만 6천 자 — 11/5 시험 DB의 가장 긴 입력(정밀 감시 48줄 묶음) 7.4천 자가 자르지 않고 들어감
+- **통합 잡 큐**: 일꾼 하나 · 우선순위 · 진행 보고 때 급한 일에 자리 내주기(§2). 기준 문서 적재도 큐의 일이라 웹이 2초마다 엿보던 것을 없앴고, 파일 쓰기와 적재가 다른 작업 사이에 끼지 않음. 바깥 API 모양(`/api/jobs` · `/internal/status` · `judging`)은 그대로 두고 `queued` · `waiting`만 더해 화면 코드는 안 바꿨음
+- 강제 중지 뒤 응답 없는 모델 호출에 묶인 스레드는 남음 (밖에서 멈출 수 없음). 새 일꾼을 띄워 큐는 바로 풀리고, 옛 스레드는 호출이 돌아오면 쓰지 않고 끝남. 서버 점검 · 위협 예측은 진행 보고 전에 한 건을 쌓으므로 그 한 건은 남을 수 있음 (11/3과 같음)
+- `results.save_policy_review`가 쓰던 옛 `server_findings`(정책 관리 검토 시절 서버 점검)는 지웠음 — 10/20 뒤로 아무도 넘기지 않았음. 표와 읽는 쪽은 그대로
+- **11/5 시험** (시험 DB · 시험 웹, 팀 서버가 CPU로만 돌던 때 — `/api/ps` VRAM 0)
+  - 가짜 모델로 6종 판정 입력을 옮기기 전과 견줘 늘어난 정보만 있음을 봄. DB · 소스 · 맥락 · 큐 시험 38건, 화면 시험 144건 통과
+  - 신청 → `judging: true` → 3분 30초 뒤 위험 판정 저장 (CPU). 그동안 [지금 예측] · [지금 점검]은 `queued`, 같은 작업 다시 누르면 409
+  - 판정 중 기준 문서 고치기 → 신청 판정이 끝난 뒤 바로 적용(3분 25초 기다림). 위협 예측 중 고치기 → 첫 사람(1/8) 뒤 끼어들어 적용
+  - 강제 중지 · 다시 돌리기 → 기다리던 서버 점검 뒤 위협 예측이 처음부터 다시. 다시 돌리지 않고 끝내기 · 도는 작업 없을 때 409 확인
+  - 끌 때 위협 예측이 돌던 중이면 5초 기다린 뒤 벡터 DB를 닫고 끝남
+- 팀 서버가 11/5에 다시 CPU로만 돌고 있었음 (§6 · 위 "팀 서버 GPU"). 판정 한 건 3~7분 — 재부팅 뒤 `ollama ps`를 확인할 것
+
