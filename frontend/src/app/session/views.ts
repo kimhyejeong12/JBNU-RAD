@@ -2,7 +2,7 @@ import type { Role } from "@/shared/api/types";
 import type { StageFilter } from "@/app/ui/state/uiReducer";
 
 export type MainTab = "queue" | "nodes" | "logs" | "ask" | "stats" | "ustats" | "engine";
-export type View = "requests" | "policies" | "stats" | "qa" | "events" | "mine" | "users" | "access" | "docs" | "settings";
+export type View = "requests" | "policies" | "stats" | "qa" | "events" | "mine" | "users" | "access" | "docs" | "jobs";
 export type ItemType = "req" | "person" | "server" | "user" | "access" | "policy" | "event" | "doc";
 
 export type NavGroup = "결재" | "보안 운영";
@@ -37,16 +37,16 @@ export const VIEWS: Record<View, ViewMeta> = {
             tabs: ["queue"], cols: ["권한 (코드) · 시스템", "분류 · 설명", "고친 시각", "상태"], search: "권한 이름 · 코드 · 시스템으로 검색" },
   docs: { title: "기준 문서", label: "기준 문서", icon: "book", tip: "기준 문서",
           tabs: ["queue"], cols: ["문서", "파일", "고친 시각", "조항"], search: "문서 이름 · 내용으로 검색" },
-  settings: { title: "설정", label: "설정", icon: "sliders", tip: "설정",
+  jobs: { title: "큐", label: "큐", icon: "list", tip: "큐",
               tabs: ["engine"], cols: [], search: "" },
 };
 
 export const ROLE_VIEWS: Record<Role, View[]> = {
   user: ["mine"],
   manager: ["requests", "policies", "events", "stats", "qa", "docs"],
-  top: ["requests", "policies", "events", "stats", "qa", "access", "users", "docs", "settings"],
+  top: ["requests", "policies", "events", "stats", "qa", "access", "users", "docs", "jobs"],
 };
-const ADMIN_VIEWS: readonly View[] = ["access", "users", "docs"];
+const ADMIN_VIEWS: readonly View[] = ["access", "users", "docs", "jobs"];
 export const isAdminView = (v: View | null): boolean => v !== null && ADMIN_VIEWS.includes(v);
 export const RESULT_VIEWS: ReadonlySet<View> = new Set<View>(["policies", "events"]);
 export const LEVEL_VIEWS: ReadonlySet<View> = new Set<View>(["requests", "policies", "events"]);

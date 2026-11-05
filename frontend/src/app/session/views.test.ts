@@ -17,7 +17,7 @@ test("사이드바 구역 — 역할 메뉴 순서대로 묶고, 관리 메뉴�
   const groups = [["결재", ["requests"]], ["보안 운영", ["policies", "events", "stats", "qa"]]];
   expect(navGroups(ROLE_VIEWS.manager)).toEqual(groups);
   expect(navGroups(ROLE_VIEWS.top)).toEqual(groups);
-  expect(ROLE_VIEWS.top.filter(isAdminView)).toEqual(["access", "users", "docs"]);
+  expect(ROLE_VIEWS.top.filter(isAdminView)).toEqual(["access", "users", "docs", "jobs"]);
 });
 
 test("사이드바 처음 모양 — 1440px 이상은 펼치고, 그보다 좁으면 접는다", () => {

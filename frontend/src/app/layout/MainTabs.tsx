@@ -33,7 +33,7 @@ export function MainTabs() {
     return (
       <nav className={BAR} role="tablist" aria-label="관리">
         {views.filter(isAdminView).map((v) => (
-          <button key={v} role="tab" className={TAB} data-view={v} aria-selected={ui.view === v} aria-controls="view-queue" onClick={() => navigate(v)}>
+          <button key={v} role="tab" className={TAB} data-view={v} aria-selected={ui.view === v} aria-controls={v === "jobs" ? "view-engine" : "view-queue"} onClick={() => navigate(v)}>
             <Icon name={VIEWS[v].icon} small />{VIEWS[v].label}
           </button>
         ))}
