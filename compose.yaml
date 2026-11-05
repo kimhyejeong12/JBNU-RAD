@@ -1,7 +1,4 @@
-# SentinelAI 웹(app) + PostgreSQL. `make up` 이 둘 다, `make db-up` 은 PostgreSQL 만 띄웁니다 (venv 로 make web · make test 할 때).
-# 설정은 .env 를 그대로 읽고, DB 주소만 컨테이너끼리 닿는 이름(postgres)으로 바꿉니다. AI 모델 서버(Ollama)는 .env 주소 그대로.
-# 비밀번호는 .env 의 SENTINELAI_DB_PASSWORD 로 바꿉니다 (없으면 개발용 기본값 — SENTINELAI_DB_PATH · SENTINELAI_RESULTS_DB_PATH 와 맞춰 주세요).
-# 둘 다 이 컴퓨터(127.0.0.1)에서만 열고, 웹을 다른 컴퓨터에서 보려면 .env 에 SENTINELAI_WEB_BIND=0.0.0.0.
+# SentinelAI 웹(app) + PostgreSQL + Milvus(벡터 DB) — DB 비밀번호는 .env 의 SENTINELAI_DB_PASSWORD (없으면 개발용 기본값).
 services:
   postgres:
     image: postgres:18
@@ -9,18 +6,42 @@ services:
       POSTGRES_USER: sentinelai
       POSTGRES_PASSWORD: ${SENTINELAI_DB_PASSWORD:-sentinelai-dev}
       POSTGRES_DB: sentinelai
-      # 문자열 비교 · 정렬이 SQLite 때(바이트 순)와 같게 C 로캘로 만듭니다.
+      # 문자열 정렬을 바이트 순으로 맞춥니다.
       POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql
-      - ./scripts/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./sentinelai/db/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro,z
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sentinelai -d sentinelai"]
       interval: 5s
       timeout: 3s
       retries: 10
+
+  milvus:
+    image: milvusdb/milvus:v3.0.3
+    command: ["milvus", "run", "standalone"]
+    # etcd · 저장소를 따로 띄우지 않고 컨테이너 하나로 돕니다.
+    environment:
+      ETCD_USE_EMBED: "true"
+      ETCD_DATA_DIR: /var/lib/milvus/etcd
+      ETCD_CONFIG_PATH: /milvus/configs/embedEtcd.yaml
+      COMMON_STORAGETYPE: local
+      DEPLOY_MODE: STANDALONE
+    security_opt:
+      - seccomp:unconfined
+    ports:
+      - "127.0.0.1:19530:19530"
+    volumes:
+      - milvus-data:/var/lib/milvus
+      - ./milvus/embedEtcd.yaml:/milvus/configs/embedEtcd.yaml:ro,z
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 10s
+      timeout: 5s
+      start_period: 90s
+      retries: 6
 
   app:
     build: .
@@ -29,18 +50,20 @@ services:
     environment:
       SENTINELAI_DB_PATH: postgresql://sentinelai:${SENTINELAI_DB_PASSWORD:-sentinelai-dev}@postgres:5432/sentinelai
       SENTINELAI_RESULTS_DB_PATH: postgresql://sentinelai:${SENTINELAI_DB_PASSWORD:-sentinelai-dev}@postgres:5432/sentinelai
+      SENTINELAI_MILVUS_URI: http://milvus:19530
     ports:
       - "${SENTINELAI_WEB_BIND:-127.0.0.1}:8000:8000"
     volumes:
-      # 벡터 DB · 기준 문서는 컨테이너를 다시 만들어도 남게 볼륨에 둡니다. 검토 대상 데이터는 이 폴더의 data/ 를 읽기만 합니다.
-      - milvus:/app/.milvus
+      # 기준 문서는 볼륨, 검토 대상 data/ 는 읽기만 합니다.
       - docs:/app/docs
-      - ./data:/app/data:ro
-    # Ollama 가 이 컴퓨터에 있으면 .env 에 http://host.docker.internal:11434 로 적습니다 (컨테이너 안의 localhost 는 컨테이너 자신).
+      - ./data:/app/data:ro,z
+    # 같은 컴퓨터의 Ollama 는 http://host.docker.internal:11434 로 닿습니다.
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
+        condition: service_healthy
+      milvus:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/internal/status', timeout=3)"]
@@ -52,5 +75,5 @@ services:
 
 volumes:
   pgdata:
-  milvus:
+  milvus-data:
   docs:

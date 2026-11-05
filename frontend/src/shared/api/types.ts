@@ -1,4 +1,4 @@
-// 서버 응답의 모양 — 서버는 dict 를 돌려주므로 화면이 쓰는 칸만 적습니다 (FRONTEND_GUIDE §4).
+// 서버는 dict 를 돌려주므로 화면이 쓰는 칸만 적습니다.
 
 export type Role = "user" | "manager" | "top";
 export type Level = "정상" | "주의" | "위험";
@@ -28,7 +28,7 @@ export interface Health {
 export interface Regulation {
   name: string;
   content: string;
-  updated_at?: string;   // 파일을 고친 시각
+  updated_at?: string;
 }
 
 export type Stage = "manager" | "top" | "approved" | "rejected" | "withdrawn" | "revoked";
@@ -76,11 +76,10 @@ export interface RequestRow {
   ai_verdict?: Verdict | null;   // 일반 사용자에게는 없습니다
   judging?: boolean;
   approvals?: Approval[];
-  grant_review?: GrantReview | null;   // 지금 가진 권한의 재검토 (퇴사 · 사내 이동). 일반 사용자에게는 없습니다
+  grant_review?: GrantReview | null;   // 퇴사 · 이동 재검토. 일반 사용자에게는 없습니다
   revocation?: Revocation | null;
 }
 
-// 확인할 사람 (GET /api/people) — 퇴사 · 이동, 위험 · 주의인 신청 · 보유 권한. 코드가 셉니다.
 export interface WatchFlag {
   kind: "leave" | "move" | "grant" | "request";
   level: Level;
@@ -147,16 +146,6 @@ export interface UserRow {
   created_at: string;
 }
 
-export interface PolicyRow {
-  policy_id: string;
-  solution: string;
-  source: string;
-  destination: string;
-  service: string;
-  action: string;
-  expires_at: string | null;
-}
-
 export interface PolicyIssue {
   key: string;
   kind: string;
@@ -167,7 +156,6 @@ export interface PolicyIssue {
   sources?: string[];
 }
 
-// 수집 노드가 읽어 온 모듈 상태 — 모듈별 사실(키 · 값)과 직전 수집과 달라진 설정.
 export interface Snapshot {
   collected_at?: string | null;
   collected_by?: string | null;
@@ -175,7 +163,6 @@ export interface Snapshot {
   changes?: string[];
 }
 
-// 서버 점검의 "정책과 다른 곳" 한 곳 — 지금 · 기준 · 바꿀 것 · 근거 조항.
 export interface ServerGap {
   level: Level;
   item: string;
@@ -191,12 +178,12 @@ export interface ServerFinding {
   title: string;
   level: Level;
   reason: string;
-  recommendation?: string | null;   // 10/14 전 결과에만 있음 — 있으면 예전 칸으로 보입니다
+  recommendation?: string | null;   // 10/14 전 결과에만 있음
   sources?: string[];
   gaps: ServerGap[];
   unjudged: string[];
   failed?: boolean;
-  detail?: { state?: Record<string, string | null>; snapshot?: Snapshot | null; matched?: string };
+  detail?: { snapshot?: Snapshot | null };
 }
 
 export interface EventFinding {
@@ -225,13 +212,12 @@ export interface Decision {
   decided_at: string;
   comment: string | null;
   ai_level: string | null;
-  carried_from?: string;   // 다시 판정됐지만 결과가 그대로라 지난 판정의 결정을 이어받았으면 그 판정의 key (서버가 붙임)
+  carried_from?: string;   // 결정을 이어받았으면 그 지난 판정의 key
 }
 
 export interface Results {
   summary: { failed: number } & Partial<Record<Level, number>>;
   sections: Record<string, Section | null>;
-  policies: PolicyRow[];
   servers: ServerFinding[];
   events: EventFinding[];
   policy_review: { issues: PolicyIssue[] } | null;
@@ -252,9 +238,6 @@ export interface Jobs {
   fast?: { every_min: number; next_at: string | null; last: Record<string, { finished_at?: string | null }>; running?: string | null };
 }
 
-export type AskKind = "policy" | "servers" | "logs";
-
-// 서버 질의의 집계 — 서버가 센 값을 그대로 보여줍니다 (키도 서버의 것).
 export interface ServerFacts {
   "노드 수": number;
   "마지막 판정 등급별 노드 수"?: Record<string, number>;
@@ -263,20 +246,44 @@ export interface ServerFacts {
   "노드별"?: Record<string, { "수집": number; "바뀐 설정": number; "판정": Record<string, number> }>;
 }
 
-export interface AskAnswer {
-  answer: string;
-  sources?: string[];
-  criteria?: Record<string, string> | null;
+// 질의 에이전트가 부른 도구 한 번 — 화면의 근거 칩 · 패널이 됩니다.
+export interface AskStep {
+  tool: string;
+  args: Record<string, unknown>;
+  summary: string;
   facts?: LogFacts | ServerFacts | null;
   evidence?: string[];
+  sources?: string[];
+  criteria?: Record<string, string>;
+  error?: string;
+}
+
+export interface AskAnswer {
+  answer: string;
+  steps?: AskStep[];
+  sources?: string[];
+  checks?: string[];
+  restarts?: number;
   failed?: boolean;
+  error?: string | null;
+  elapsed_sec?: number | null;
+  conversation_id?: string;
 }
 
 export interface QaRecord extends AskAnswer {
+  id: number;
   question: string;
+  asked_at: string;
 }
 
-// 화면의 질의 한 건 — 기록(/api/qa)과 지금 보낸 질의를 한 목록에 둡니다. started 가 있으면 답을 기다리는 중.
+export interface Conversation {
+  conversation_id: string;
+  question: string;
+  turns: number;
+  asked_at: string;
+}
+
+// started 가 있으면 답을 기다리는 중입니다.
 export interface AskItem extends Partial<AskAnswer> {
   id: string;
   q: string;
@@ -361,7 +368,7 @@ export interface LogsPage {
   options: { users: string[]; solutions: string[]; how: string[] };
 }
 
-// 안전 점수 — 대상마다 마지막 등급의 비율(서버가 셉니다). items 는 시스템 안전 점수에만.
+// items 는 시스템 안전 점수에만 있습니다.
 export interface SafetyScore {
   score: number | null;
   items?: { node: string; level: Level | null; stale: boolean }[];
@@ -397,7 +404,7 @@ export interface Stats {
 
 export type SuspectLevel = "높음" | "보통" | "낮음";
 
-// 행동 신호 — 최근 7일을 그 앞 4주와 견준 값 (서버가 셉니다).
+// 최근 7일을 그 앞 4주와 견준 값입니다.
 export interface SuspectSignals {
   subject?: string | null;
   first_seen?: string | null;

@@ -1,42 +1,18 @@
-"""SentinelAI 엔진 — 정책을 RAG 에 쌓고 정책 이해 · 로그 감시를 판정하는 코어.
-
-    engine.py    Settings · Engine(모델 · RAG · 두 DB · 기능 · 작업 큐)
-    pipeline.py  체인과 판정 흐름
-    rag.py       DocumentStore · 종류별 검색
-    prompt.py    프롬프트
-    types.py     출력 타입 · Notifier
-
-    from sentinelai.engine import Engine
-
-    engine = Engine()
-    engine.index()                                        # docs/ 적재 (바뀐 파일만)
-    engine.rag_chain().invoke("급여 정보 접근 승인은 누가?")
-"""
-
-from .engine import KINDS, MANUAL, Engine, Settings
-from .prompt import Prompts
-from .rag import DocumentStore, IndexReport
-from .types import Answer, LogFilter, Notifier, PolicyIssue, PolicyReview, RiskLevel, ServerFilter, ServerGap, ServerReview, Verdict
+"""SentinelAI 엔진 — 자원 · 이슈어 · 종류별 큐 · 워커를 인터페이스(Engine) 하나로 엮습니다."""
 
 from .. import __version__
+from ..context import Prompts
+from .interface import Engine
+from .issue import Issuer
+from .queue import KINDS, MANUAL, Batch, Job, Queues
+from .rag import DocumentStore, IndexReport
+from .resource import Resources
+from .settings import Settings
+from .worker import (JUDGMENTS, Notifier, PolicyIssue, PolicyReview, RiskLevel, ServerGap, ServerReview, SuspectScore, Verdict,
+                     Worker)
 
 __all__ = [
-    "KINDS",
-    "MANUAL",
-    "Answer",
-    "DocumentStore",
-    "Engine",
-    "IndexReport",
-    "LogFilter",
-    "Notifier",
-    "PolicyIssue",
-    "PolicyReview",
-    "Prompts",
-    "RiskLevel",
-    "ServerFilter",
-    "ServerGap",
-    "ServerReview",
-    "Settings",
-    "Verdict",
-    "__version__",
+    "JUDGMENTS", "KINDS", "MANUAL", "Batch", "DocumentStore", "Engine", "IndexReport", "Issuer", "Job", "Notifier", "PolicyIssue",
+    "PolicyReview", "Prompts", "Queues", "Resources", "RiskLevel", "ServerGap", "ServerReview", "Settings", "SuspectScore",
+    "Verdict", "Worker", "__version__",
 ]

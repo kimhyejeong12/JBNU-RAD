@@ -11,7 +11,7 @@
 | `pam` | `/etc/pam.d/{common-auth, common-password, system-auth, password-auth, sshd, su, sudo}` · `faillock.conf` · `pwquality.conf` |
 | `accounts` | UID 0 계정 · sudo/wheel/admin 그룹 · `/etc/sudoers` · `/etc/sudoers.d/*` (root 필요) |
 
-- 원문을 그대로 보냄. 무엇을 뽑아 판정할지는 서버(`sentinelai/data/collected.py`)가 정함
+- 원문을 그대로 보냄. 무엇을 뽑아 판정할지는 서버(`sentinelai/sources/snapshots.py`)가 정함
 
 ## 설치
 
@@ -39,22 +39,22 @@ journalctl -u sentinel-node -f                                        # 데몬 �
 sudo sh install.sh --uninstall [--purge]                              # 제거
 ```
 
-- 망이 막힌 서버에서 `export`한 파일은 SentinelAI 서버에서 `python -m sentinelai import-snapshots <폴더> --node <이름>`으로 넣음
+- 망이 막힌 서버에서 `export`한 파일은 SentinelAI 서버에서 `./sentinel import-snapshots <폴더> --node <이름>`으로 넣음
 
 ## 시험
 
 - SentinelAI 저장소에서 실행 (진짜 DB를 건드리지 않는 `.dev/` 시험 환경)
 
 ```sh
-make dev-setup && make dev            # 시험용 웹 http://127.0.0.1:8001 (계정 dev-op / dev-pass-1234)
-make dev-targets                      # 점검 대상 컨테이너 2대(weak · strict) 올리기 — 진짜 노드가 root 로 수집해 보냄
-make dev-sim                          # 흉내 노드 3대 — 설정을 조금씩 바꿔 가며 보냄
-make dev-targets-stop                 # 내리기
+.venv/bin/python -m sentinelai.dev setup     # 시험 환경 (계정 dev-op / dev-pass-1234)
+.venv/bin/python -m sentinelai.dev web       # 시험용 웹 http://127.0.0.1:8001
+.venv/bin/python -m sentinelai.dev targets   # 점검 대상 컨테이너 2대(weak · strict) 올리기 — 진짜 노드가 root 로 수집해 보냄
+.venv/bin/python -m sentinelai.dev targets down   # 내리기
 ```
 
 - 점검 대상: `testenv/compose.yaml` (podman compose)
-- 값: 옵션 파일 `testenv/targets.env`. 처음에는 `make dev-targets`가 시험 환경 키로 만들어 줌
-- 화면에서 발급한 키나 다른 서버로 바꾸려면 이 파일을 고친 뒤 다시 `make dev-targets`
+- 값: 옵션 파일 `testenv/targets.env`. 처음에는 `python -m sentinelai.dev targets`가 시험 환경 키로 만들어 줌
+- 화면에서 발급한 키나 다른 서버로 바꾸려면 이 파일을 고친 뒤 다시 `python -m sentinelai.dev targets`
 
 ```sh
 SERVER=http://host.containers.internal:8001    # 컨테이너에서 본 SentinelAI (호스트의 127.0.0.1). 진짜 웹이면 :8000

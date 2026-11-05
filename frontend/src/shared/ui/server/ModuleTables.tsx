@@ -5,7 +5,6 @@ import type { Snapshot } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { MODULE_LABEL } from "@/shared/lib/labels";
 
-// 수집 노드가 읽어 온 모듈 상태. 직전 수집과 달라진 설정을 먼저 보여줍니다.
 export function ModuleState({ snap }: { snap?: Snapshot | null }) {
   if (!snap?.modules) return null;
   return (

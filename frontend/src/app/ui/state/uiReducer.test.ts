@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { initialUi, uiReducer, type UiState } from "./uiReducer";
+import { initialUi, newConversation, uiReducer, type UiState } from "./uiReducer";
 
 const at = (patch: Partial<UiState>): UiState => ({ ...initialUi, ...patch });
 
@@ -37,6 +37,12 @@ test("SELECT: 다른 항목을 고르면 메시지를 지우고, SELECT_SILENT �
 test("SELECT: 다른 메뉴의 항목이면 메뉴를 바꾸고 검토 현황 탭으로", () => {
   const s = uiReducer(at({ view: "stats", mainTab: "ustats", filter: "위험" }), { type: "SELECT", key: "event:3", view: "events" });
   expect(s).toMatchObject({ view: "events", mainTab: "queue", selected: "event:3", filter: "전체" });
+});
+
+test("SET_CONVERSATION: 대화를 바꾸면 근거 패널 선택을 푼다", () => {
+  const s = uiReducer(at({ view: "qa", mainTab: "ask", askSource: { i: 0, n: 1 } }), { type: "SET_CONVERSATION", id: "a".repeat(32) });
+  expect(s).toMatchObject({ conversation: "a".repeat(32), askSource: null });
+  expect(newConversation()).toMatch(/^[0-9a-f]{32}$/);
 });
 
 test("SET_MAIN_TAB: 탭을 바꾸면 인용 조항을 닫고, 통계 종류가 바뀌면 선택을 푼다", () => {
@@ -84,10 +90,9 @@ test("TOGGLE_CHIP: 펼친 칩을 넣고 뺀다", () => {
   expect(uiReducer(s, { type: "TOGGLE_CHIP", key: "req:1:0" }).expanded.has("req:1:0")).toBe(false);
 });
 
-// 옛 화면(setView)처럼 지금 탭이 새 메뉴에도 있으면 그대로 두고, 없으면 그 메뉴의 첫 탭으로 갑니다.
 test("NAVIGATE: 지금 탭이 새 메뉴에도 있으면 탭을 유지한다", () => {
-  expect(uiReducer(at({ view: "policies", mainTab: "ask" }), { type: "NAVIGATE", view: "events", nextSelected: null }).mainTab).toBe("ask");
-  expect(uiReducer(at({ view: "qa", mainTab: "ask" }), { type: "NAVIGATE", view: "policies", nextSelected: null }).mainTab).toBe("ask");
+  expect(uiReducer(at({ view: "stats", mainTab: "ustats" }), { type: "NAVIGATE", view: "stats", nextSelected: null }).mainTab).toBe("ustats");
+  expect(uiReducer(at({ view: "qa", mainTab: "ask" }), { type: "NAVIGATE", view: "policies", nextSelected: null }).mainTab).toBe("queue");
   expect(uiReducer(at({ view: "policies", mainTab: "nodes" }), { type: "NAVIGATE", view: "events", nextSelected: null }).mainTab).toBe("queue");
 });
 

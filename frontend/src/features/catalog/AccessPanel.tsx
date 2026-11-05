@@ -15,7 +15,6 @@ import { actionButton, field, formActions, formGrid, input, meta, panelBody, pri
 import { Switch } from "@/shared/ui/base/parts";
 import { ask } from "@/app/ui/confirm/ask";
 
-// 두 칸을 다 쓰는 칸 · 버튼 줄.
 const WIDE_FIELD = cn(field, "col-span-full");
 const WIDE_ACTIONS = cn(formActions, "col-span-full");
 
@@ -28,7 +27,7 @@ const Fields = ({ v }: { v?: AccessItem }) => (
   </>
 );
 
-// 권한 목록 패널 (보안 총책임자) — 선택 없음 = 권한 등록. 지난 신청이 코드를 가리키므로 코드는 못 바꾸고, 지우지 않고 끕니다.
+// 지난 신청이 코드를 가리키므로 코드는 못 바꾸고, 지우지 않고 끕니다.
 export function AccessPanel({ a }: { a: AccessItem | null }) {
   return a ? <EditAccess a={a} /> : <NewAccess />;
 }
@@ -45,7 +44,7 @@ function NewAccess() {
   return (
     <>
       <PanelHead title="권한 등록" />
-      {/* 패널 높이를 채우는 격자라 줄이 남는 높이를 나눠 벌어지지 않게 위에서부터 붙여 쌓습니다(content-start). */}
+      {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓습니다(content-start). */}
       <form className={cn(panelBody, formGrid, "content-start px-4.5 py-4")} id="access-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <label className={field}>코드 (바꿀 수 없음)<input className={input} name="code" required maxLength={64} pattern="[A-Za-z0-9_.\-]+" title="영문 · 숫자 · _ . - 만" autoComplete="off" placeholder="예: HR_SALARY_READ" /></label>
         <Fields />
@@ -59,7 +58,7 @@ function EditAccess({ a }: { a: AccessItem }) {
   const update = useUpdateAccess();
   const { setPanelMsg } = useUi();
   const requests = useRequests();
-  // 저장 뒤 서버 값으로 다시 그립니다 (폼은 uncontrolled).
+  // 폼이 uncontrolled 라 저장 뒤 서버 값으로 다시 그립니다.
   const formKey = `${a.code}:${useQuery(catalogQuery()).dataUpdatedAt}`;
   const used = requests.filter((r) => r.access_code === a.code);
   const active = used.filter((r) => isActive(r)).length;
@@ -71,7 +70,7 @@ function EditAccess({ a }: { a: AccessItem }) {
     const f = new FormData(e.currentTarget);
     update.mutate({ code: a.code, patch: { name: f.get("name"), system: f.get("system"), category: f.get("category"), description: f.get("description") } });
   }
-  // 켜고 끄기는 저장과 따로 바로 적용합니다. 끌 때만 묻습니다 — 새 신청이 바로 막혀서. 켜기는 해가 없고 되돌리기 쉬워 묻지 않습니다.
+  // 끄면 새 신청이 바로 막혀서 끌 때만 묻습니다.
   async function onToggle(on: boolean) {
     if (!on && !(await ask({
       title: "권한 끄기", confirm: "끄기", danger: true,

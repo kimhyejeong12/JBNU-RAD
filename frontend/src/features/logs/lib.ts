@@ -1,9 +1,9 @@
 import type { LogPeriod } from "@/shared/api/types";
 
-// 자주 쓰는 넷만 둡니다 (11/2 — 일곱이면 머리줄을 다 차지했음). 서버는 3개월 · 6개월 · 1년도 받습니다.
+// 자주 쓰는 넷만 둡니다 (서버는 3개월 · 6개월 · 1년도 받습니다).
 export const PERIOD_LABEL: Record<LogPeriod, string> = { day: "하루", week: "일주일", month: "한 달", all: "전체" };
 
-// 버튼으로 거르는 칸 — [조건 이름, 칸 id, 이름, 응답 options 의 키, 집계(facts)의 키]. 사용자는 사람이 많아 검색 칸으로 따로 둡니다.
+// [조건 이름, 칸 id, 이름, options 의 키, facts 의 키]
 export const LOG_FILTERS: [key: "solution" | "how", id: string, label: string, opt: "solutions" | "how", fact: "by_solution" | "by_how"][] = [
   ["solution", "log-solution", "솔루션", "solutions", "by_solution"],
   ["how", "log-how", "행위", "how", "by_how"],
@@ -11,14 +11,12 @@ export const LOG_FILTERS: [key: "solution" | "how", id: string, label: string, o
 
 export interface FilterChoice { value: string; count?: number }
 
-// 거르기 버튼 — 값마다 기간 안 건수를 붙입니다. 그 칸을 거르는 중이면 집계가 걸러진 결과라(다른 값이 0) 건수를 붙이지 않습니다.
-// 고른 값이 이 기간 로그에 없더라도(판정에서 넘어온 사용자 등) 버튼에서 사라지지 않게 앞에 둡니다.
+// 그 칸을 거르는 중이면 다른 값이 0 으로 나와 건수를 붙이지 않습니다.
 export function filterChoices(values: string[], selected: string, counts: Record<string, number> | undefined): FilterChoice[] {
   const all = selected && !values.includes(selected) ? [selected, ...values] : values;
   return all.map((value) => (!selected && counts && value in counts ? { value, count: counts[value] } : { value }));
 }
 
-// 로그 줄의 항목(Attachments=… · PrintCount=…) 한 줄.
 export const logAttrs = (e: { attributes?: Record<string, string | number> | null }): string =>
   Object.entries(e.attributes || {}).map(([k, v]) => `${k}=${v}`).join(" · ");
 

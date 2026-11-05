@@ -12,7 +12,6 @@ type PersonItem = Extract<QueueItem, { type: "person" }>;
 
 const KIND: Record<WatchFlag["kind"], string> = { leave: "퇴사", move: "이동", grant: "보유 권한", request: "결재 중 신청" };
 
-// 확인할 사람 패널 — 퇴사 · 이동, 위험 · 주의인 신청 · 보유 권한을 한 사람 아래 모아 봅니다. 결재 · 회수는 [신청 보기]로 그 신청 패널에서 합니다.
 export function PersonPanel({ it }: { it: PersonItem }) {
   const { setStageFilter, select } = useUi();
   const p = it.raw;

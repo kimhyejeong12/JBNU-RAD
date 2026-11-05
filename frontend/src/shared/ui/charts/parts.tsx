@@ -14,7 +14,6 @@ export function Legend({ items, round }: { items: [cls: MarkKey, label: string][
   );
 }
 
-// 비율 막대 — 조각 너비 = 값 / 전체.
 export function Meter({ segs, total }: { segs: [cls: MarkKey, value: number][]; total: number }) {
   return (
     <div className="mt-1.5 flex h-2 gap-0.5 overflow-hidden rounded-sm bg-canvas">
@@ -23,8 +22,7 @@ export function Meter({ segs, total }: { segs: [cls: MarkKey, value: number][]; 
   );
 }
 
-// 차트 카드마다 [차트 · 표] — 색을 못 보는 사람 · 인쇄 · 정확한 값. 표는 차트 자리에 바꿔 보입니다
-// (차트 아래에 펼치면 카드가 두 배로 길어지고, 차트가 둘인 카드는 표 둘이 한꺼번에 열렸습니다).
+// 표는 차트 자리에 바꿔 보여 카드가 길어지지 않게 합니다.
 export function ViewSwitch({ id, table, onChange }: { id: string; table: boolean; onChange: (table: boolean) => void }) {
   return <Periods<"chart" | "table"> id={id} label="보기" labels={[["chart", "차트"], ["table", "표"]]} value={table ? "table" : "chart"} onChange={(k) => onChange(k === "table")} />;
 }
@@ -36,10 +34,8 @@ export interface DataRow {
   onSelect?: () => void;
 }
 
-// 통계 표 — 고를 수 있는 줄은 키보드로도 고릅니다. numCols 는 오른쪽 정렬(숫자) 칸의 번호.
-// scroll — 기간만큼 줄이 늘어나는 표(날짜별)는 높이를 정해 안에서 넘기고, 머리줄은 위에 붙여 둡니다.
+// numCols 는 오른쪽 정렬(숫자) 칸의 번호입니다.
 export function DataTable({ head, rows, empty, numCols = [], scroll }: { head: string[]; rows: DataRow[]; empty: string; numCols?: number[]; scroll?: boolean }) {
-  // 통계 화면에서만 쓰여 빈 문구는 그 화면의 설명 줄과 같은 모양입니다.
   if (!rows.length) return <p className="m-0 px-4.5 pt-0 pb-2.5 text-[12.5px] text-ink-dim">{empty}</p>;
   return (
     <div className={cn(ltableWrap, scroll && "max-h-80 overflow-y-auto")}>
@@ -58,7 +54,6 @@ export function DataTable({ head, rows, empty, numCols = [], scroll }: { head: s
   );
 }
 
-// 꺾은선 하나 — 점은 호출한 쪽이 계산합니다.
 export function Sparkline({ points, width, height, stroke, round, style, ariaLabel }: {
   points: [number, number][]; width: number; height: number; stroke: string; round?: boolean; style?: CSSProperties; ariaLabel?: string;
 }) {

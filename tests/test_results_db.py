@@ -1,4 +1,4 @@
-"""AI 결과 DB — 정책 관리 검토 · 로그 감시 · 수집 · 노드 점검 · 의심 점수 · 질의 기록이 쌓이고 그대로 읽히는지 봅니다."""
+"""AI 결과 DB — 쌓은 것이 그대로 읽히는지 봅니다."""
 from __future__ import annotations
 
 import pytest
@@ -10,16 +10,13 @@ GAP = {"source": "6.2 PAM", "level": "위험", "item": "[SSH] root 로그인", "
 
 def test_policy_review(results_db):
     rid = results.save_policy_review(results_db, {
-        "source": "data/policies", "load_issues": [], "rules": [{"id": "FW-001"}], "summary": "충돌 1건", "failed": False,
+        "source": "RAG 기준 문서", "load_issues": [], "rules": [], "summary": "충돌 1건", "failed": False,
         "elapsed_sec": 12.5,
         "issues": [{"kind": "충돌", "level": "위험", "policy_ids": ["SWG-001", "DLP-001"], "reason": "업로드", "recommendation": "차단"}],
-        "servers": {"source": "data/servers", "load_issues": [], "findings": [
-            {"host": "web-01", "ip": "10.0.0.5", "level": "위험", "summary": "root 로그인", "gaps": [GAP], "failed": False}]},
     }, "qwen3:14b")
     review = results.latest_policy_review(results_db)
     assert review["id"] == rid and review["elapsed_sec"] == 12.5
     assert review["issues"][0]["policy_ids"] == ["SWG-001", "DLP-001"]
-    assert review["servers"]["findings"][0]["sources"] == ["6.2 PAM"]
     key = review["issues"][0]["key"]
     assert results.findings_by_key(results_db, [key, "policy_issues/x", "other/1"])[key]["kind"] == "충돌"
     with pytest.raises(Denied, match="AI 결과는 고칠 수 없습니다"), results_db.transaction() as conn:
@@ -42,7 +39,7 @@ def test_monitor_runs(results_db):
     assert [(f["user"], f["stage"]) for f in shown["findings"]] == [("kim.hj", "final"), ("kim.hj", "fast")]
     assert shown["findings"][0]["id"] == "kim.hj@2026-11-02T11:00:00+00:00"
 
-    # 통계 · 의심 점수는 정밀 감시만 셉니다. "user" 칸이 PostgreSQL 의 current_user 로 바뀌지 않았는지도 봅니다.
+    # "user" 칸이 PostgreSQL 의 current_user 로 바뀌지 않았는지도 봅니다.
     stats = results.threat_stats(results_db)
     assert stats["events"]["lines"]["위험"] == 2
     assert stats["events"]["users"][0]["log_id"] == "kim.hj"
@@ -91,3 +88,17 @@ def test_suspects_and_qa(results_db, people):
     mine = results.my_qa(results_db, people["manager"], "logs")
     assert mine[0]["facts"] == {"n": 3} and mine[0]["failed"] is False
     assert results.my_qa(results_db, people["user"], "logs") == []
+
+
+def test_agent_conversations(results_db, people):
+    me, other = people["manager"], people["top"]
+    step = {"tool": "find_logs", "summary": "로그 48건", "facts": {"count": 48}}
+    for q in ("정다은 출력 몇 번?", "그중 근무 시간 밖은?"):
+        results.save_qa(results_db, "agent", q, {"answer": "48회", "steps": [step], "checks": ["x"]}, "m", me, "a" * 32)
+    results.save_qa(results_db, "agent", "새 대화", {"answer": "?"}, "m", me, "b" * 32)
+    convs = results.my_conversations(results_db, me)
+    assert [(c["conversation_id"], c["question"], c["turns"]) for c in convs] == [("b" * 32, "새 대화", 1), ("a" * 32, "정다은 출력 몇 번?", 2)]
+    turns = results.my_conversation(results_db, me, "a" * 32)
+    assert [t["question"] for t in turns] == ["정다은 출력 몇 번?", "그중 근무 시간 밖은?"] and turns[0]["steps"] == [step]
+    assert turns[0]["checks"] == ["x"]
+    assert results.my_conversation(results_db, other, "a" * 32) == [] and results.my_conversations(results_db, other) == []

@@ -1,6 +1,5 @@
 import type { Health, Jobs, Results } from "@/shared/api/types";
 
-// 헤더 경고의 원인 — 정상일 때는 아무것도 띄우지 않고, 문제가 있을 때만 알립니다.
 export function engineProblems(h: Health | null | undefined): string[] {
   if (!h) return ["서버에서 엔진 상태를 받지 못했습니다"];
   const out: string[] = [];
@@ -14,7 +13,6 @@ export function engineProblems(h: Health | null | undefined): string[] {
   return out;
 }
 
-// 판정 실패 · 읽지 못한 행 · 작업 실패는 문제가 있을 때만 알립니다.
 export function footerWarnings(r: Results, jobs: Jobs | null | undefined): string[] {
   const warns: string[] = [];
   if (r.summary.failed) warns.push(`판정 실패 ${r.summary.failed}건 — 해당 건은 '주의'로 기록되었습니다. 수동 검토가 필요합니다`);

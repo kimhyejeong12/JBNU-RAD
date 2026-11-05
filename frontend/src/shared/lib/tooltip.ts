@@ -9,7 +9,6 @@ export interface RectLike {
 
 const GAP = 8;
 
-// 툴팁 자리 — 아래 공간이 없으면 위로, 화면 가장자리 안쪽으로 막습니다.
 export function placeTip(r: RectLike, pos: "bottom" | "right", tw: number, th: number, vw: number, vh: number): { left: number; top: number } {
   let x: number, y: number;
   if (pos === "right") {

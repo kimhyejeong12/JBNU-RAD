@@ -1,4 +1,4 @@
-// 세션이 끊기면(401) 어느 요청에서든 로그인 화면으로 돌아갑니다. 오류 문장은 서버가 준 것을 그대로 씁니다.
+// 오류 문장은 서버가 준 것을 그대로 씁니다.
 
 export class ApiError extends Error {
   readonly status: number;

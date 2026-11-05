@@ -1,0 +1,20 @@
+#!/bin/sh
+# 떠 있는 컨테이너 안에서 `python -m sentinelai 명령`을 부릅니다 (예: ./sentinel create-root --login 아이디 --name 이름).
+set -eu
+cd "$(dirname "$0")"
+DOCKER=${DOCKER:-docker}
+
+# 터미널이 없으면(cron) -T 로 붙습니다.
+tty=-T
+if [ -t 0 ] && [ -t 1 ]; then tty=; fi
+
+# 컨테이너는 이 폴더를 못 보므로 넣을 폴더를 먼저 복사합니다.
+if [ "${1:-}" = import-snapshots ] && [ -d "${2:-}" ]; then
+  dir=$2
+  shift 2
+  $DOCKER compose exec -T app rm -rf /tmp/import-snapshots
+  $DOCKER compose cp "$dir" app:/tmp/import-snapshots
+  set -- import-snapshots /tmp/import-snapshots "$@"
+fi
+
+exec $DOCKER compose exec $tty app python -m sentinelai "$@"

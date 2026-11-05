@@ -7,7 +7,7 @@
 .milvus
 *.pdf
 Dockerfile
-Makefile
+sentinel
 README.md
 frontend
 data

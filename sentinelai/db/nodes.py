@@ -1,9 +1,4 @@
-"""수집 노드 등록부 (권한 DB).
-
-보안 운영자 · 보안 총책임자가 화면에서 노드(서버)를 등록하면 그 노드만의 키가 나옵니다. 내부망 서비스라 키를 그대로도 두어
-화면에서 언제든 다시 볼 수 있습니다 (10/20 결정). 새어 나가면 다시 발급합니다 (예전 키는 그때 못 쓰게 됨).
-노드는 이름 없이 키만 보내고, 서버가 키의 해시로 어느 노드인지 찾습니다.
-"""
+"""수집 노드 등록부 — 노드는 키만 보내고 서버가 키의 해시로 노드를 찾습니다."""
 from __future__ import annotations
 
 import hashlib
@@ -18,11 +13,11 @@ from .core import Database, Denied, audit, now
 
 
 class Unauthorized(Denied):
-    """키가 맞지 않음 (401)."""
+    """키가 맞지 않습니다 (401)."""
 
 
 NAME = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
-# 수집 받기 주소(/api/nodes/snapshots)와 겹치지 않게 쓰지 못하는 이름입니다.
+# /api/nodes/snapshots 와 겹치지 않게 막는 이름입니다.
 RESERVED = {"snapshots"}
 
 
@@ -36,14 +31,11 @@ def _row(r: Any) -> dict[str, Any]:
 
 
 def authenticate(db: Database, presented: str, info: dict[str, Any]) -> dict[str, Any]:
-    """노드가 보낸 키로 노드를 찾습니다. 없는 키는 Unauthorized, 꺼진 노드는 Denied.
-
-    info = 본문의 host · ip · agent_version · interval_min (등록부에 마지막 값을 둡니다).
-    """
+    """없는 키는 Unauthorized, 꺼진 노드는 Denied 입니다."""
     fields = {"host": str(info.get("host", "")), "ip": str(info.get("ip", "")),
               "agent_version": str(info.get("agent_version", "")), "interval_min": int(info.get("interval_min") or 0)}
     with db.transaction() as conn:
-        # 키는 32바이트 무작위 값이라 해시를 그대로 찾아도 됩니다 (비밀번호처럼 느린 해시가 필요 없음).
+        # 키가 32바이트 무작위 값이라 느린 해시가 필요 없습니다.
         row = conn.execute("SELECT * FROM nodes WHERE key_hash = %s", (_hash(presented),)).fetchone()
         if row is None:
             raise Unauthorized("등록되지 않은 키입니다 — 정책 관리 → [노드]에서 발급한 키를 node.conf 에 넣으세요")
@@ -55,7 +47,7 @@ def authenticate(db: Database, presented: str, info: dict[str, Any]) -> dict[str
 
 
 def create(db: Database, by: User, name: str) -> tuple[dict[str, Any], str]:
-    """노드를 등록하고 키를 발급합니다. → (노드, 키). 키는 지금 한 번만 돌려주고 해시만 남깁니다."""
+    """→ (노드, 키)."""
     _require_analyst(by)
     if not NAME.match(name) or name in RESERVED:
         raise Denied("노드 이름은 영문 · 숫자 · . _ - 1~64자입니다" + (" (쓸 수 없는 이름)" if name in RESERVED else ""))
@@ -69,13 +61,13 @@ def create(db: Database, by: User, name: str) -> tuple[dict[str, Any], str]:
 
 
 def reissue_key(db: Database, by: User, name: str) -> tuple[dict[str, Any], str]:
-    """키를 다시 발급합니다. 예전 키는 바로 못 쓰게 됩니다. → (노드, 새 키)"""
+    """예전 키는 바로 무효입니다. → (노드, 새 키)"""
     key = secrets.token_urlsafe(32)
     return _change(db, by, name, "UPDATE nodes SET key_hash = %s, key = %s WHERE name = %s", (_hash(key), key), "node_key_issue", {}), key
 
 
 def key_of(db: Database, by: User, name: str) -> str | None:
-    """화면에 보여줄 노드 키. 10/20 오후 전에 발급해 해시만 있는 키는 None (다시 발급하면 보임)."""
+    """해시만 남은 예전 키는 None 입니다."""
     _require_analyst(by)
     with db.connection() as conn:
         row = conn.execute("SELECT key FROM nodes WHERE name = %s", (name,)).fetchone()
@@ -83,7 +75,7 @@ def key_of(db: Database, by: User, name: str) -> str | None:
 
 
 def ensure(db: Database, name: str, info: dict[str, Any]) -> None:
-    """손으로 넣은 수집(import-snapshots)의 노드를 등록부에 둡니다. 키는 주지 않습니다 — 그 노드가 직접 보내려면 화면에서 키를 발급합니다."""
+    """import-snapshots 의 노드를 키 없이 등록부에 둡니다."""
     with db.transaction() as conn:
         if conn.execute("SELECT 1 FROM nodes WHERE name = %s", (name,)).fetchone() is None:
             conn.execute("INSERT INTO nodes (name, host, ip, registered_at) VALUES (%s,%s,%s,%s)",
@@ -128,7 +120,7 @@ def set_enabled(db: Database, by: User, name: str, enabled: bool) -> dict[str, A
 
 
 def is_stale(node: dict[str, Any], at: datetime | None = None) -> bool:
-    """노드가 정한 간격의 세 배가 넘도록 소식이 없으면 끊긴 것으로 봅니다."""
+    """정한 간격의 세 배가 넘도록 소식이 없으면 끊긴 것으로 봅니다."""
     if not node["last_seen_at"] or not node["interval_min"]:
         return False
     seen = datetime.fromisoformat(node["last_seen_at"])

@@ -1,1 +1,1 @@
-"""SentinelAI 웹 계층 — sentinelai.engine.Engine 을 호출해 판정 결과를 대시보드로 보여줍니다."""
+"""웹 계층 — Engine 을 불러 판정 결과를 화면으로 보여줍니다."""

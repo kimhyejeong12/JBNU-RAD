@@ -1,4 +1,4 @@
-"""권한 DB — 계정 · 로그인 · 권한 목록 · 신청 · 결재 · 회수 · 운영자 결정 · 노드. 규칙은 트리거가 막는지까지 봅니다."""
+"""권한 DB — 규칙은 트리거가 막는지까지 봅니다."""
 from __future__ import annotations
 
 import re
@@ -26,7 +26,7 @@ def request_no(main_db, people, item):
     return permissions.submit(main_db, people["user"], item["code"], "급여 정산 업무")["request_no"]
 
 
-# --- 계정 · 로그인 --------------------------------------------------------------
+# --- 계정 · 로그인 ---
 
 
 def test_only_top_creates_accounts(main_db, people):
@@ -87,7 +87,7 @@ def test_root_is_guarded(main_db, people):
         auth.reset_password(main_db, people["top"], people["root"].id, "temp-pass")
 
 
-# --- 권한 목록 ---------------------------------------------------------------
+# --- 권한 목록 ---
 
 
 def test_catalog_rules(main_db, people, item):
@@ -108,7 +108,7 @@ def test_catalog_rules(main_db, people, item):
         permissions.submit(main_db, people["user"], item["code"])
 
 
-# --- 신청 · 결재 · 회수 -----------------------------------------------------------
+# --- 신청 · 결재 · 회수 ---
 
 
 def test_full_approval_and_revoke(main_db, people, item, request_no):
@@ -191,7 +191,7 @@ def test_ai_verdict_freezes_at_first_decision(main_db, people, request_no):
 
 
 def test_same_db_is_opened_once(url, schemas, main_db):
-    # 엔진의 cached_property 는 스레드 사이에 잠기지 않습니다. 동시에 처음 열어도 같은 Database(연결 풀 하나)여야 합니다.
+    # cached_property 는 스레드 사이에 잠기지 않아, 동시에 처음 열어도 연결 풀이 하나여야 합니다.
     opened = []
     threads = [threading.Thread(target=lambda: opened.append(open_main_db(url, schemas[0]))) for _ in range(5)]
     for t in threads:
@@ -222,7 +222,7 @@ def test_concurrent_submits_get_distinct_numbers(main_db, people):
     assert sorted(n[-3:] for n in numbers) == [f"{n:03d}" for n in range(1, 7)]
 
 
-# --- 운영자 결정 · 노드 -----------------------------------------------------------
+# --- 운영자 결정 · 노드 ---
 
 
 def test_review_decisions(main_db, people):
@@ -257,7 +257,7 @@ def test_nodes(main_db, people):
     assert new_key != key
 
 
-# --- 직무 · 이동 · 퇴사 (11/3) ------------------------------------------------------
+# --- 직무 · 이동 · 퇴사 ---
 
 
 def _approve(main_db, people, request_no):

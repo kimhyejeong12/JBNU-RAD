@@ -12,23 +12,19 @@ import { LevelDot } from "@/shared/ui/base/parts";
 import { cn } from "@/shared/lib/cn";
 import { card, cardCount, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton } from "@/shared/ui/base/styles";
 
-// 수집 노드 — 서버마다 도는 node/sentinel_node 가 보낸 수집. 새 수집은 서버가 주기적으로 점검해 검토 현황에 올립니다.
-// 탭에 들어올 때마다 마운트되어 목록을 다시 받습니다.
 export function NodesTab() {
   const { ui, pickNode, addNode, dispatch } = useUi();
-  // 고른 노드를 다시 누르면 선택을 풉니다 (패널은 상태 집계로).
   const onPick = (name: string) => (name === ui.nodes.selected ? dispatch({ type: "PICK_NODE", name: null }) : pickNode(name));
   const nodes = useQuery(nodesQuery());
   const jobs = useJobs();
   const start = useStartJob();
   const list = nodes.data ?? [];
-  // 노드 탭의 [지금 점검]도 같은 작업 큐를 씁니다. 다른 작업이 돌면 기다립니다.
   const checking = jobs?.running === "nodes";
   return (
     <section className={cn(card, "flex min-h-80 flex-col")} id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes">
       <div className={cardHead}>
         <h3 className={cardTitle}>수집 노드</h3>
-        {/* 건수는 제목 옆, 버튼은 오른쪽 끝 — 건수와 버튼이 둘 다 오른쪽으로 밀면 남는 자리를 나눠 버튼이 가운데로 떠서. */}
+        {/* 건수와 버튼이 둘 다 오른쪽으로 밀면 버튼이 가운데로 떠서 버튼만 오른쪽 끝에 둡니다. */}
         <span className={cn(cardCount, "ml-0")} id="node-count">{nodes.data ? `${list.length}대` : ""}</span>
         <button className={toolButton} id="check-now" disabled={!jobs || !!jobs.running || start.isPending} onClick={() => start.mutate("nodes")}>
           <Icon name="activity" small />

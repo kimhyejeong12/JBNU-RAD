@@ -13,11 +13,9 @@ import { Sparkline } from "@/shared/ui/charts/parts";
 import { cn } from "@/shared/lib/cn";
 import { box, boxPre, levelText, note, panelBody, recLine, subject as subjectCls, toolButton } from "@/shared/ui/base/styles";
 
-// 지금 가진 권한 한 줄 — 이름 · 시스템은 왼쪽, 기한은 첫 줄 오른쪽.
 const HELD_ROW = "grid cursor-pointer grid-cols-[1fr_auto] gap-x-2.5 gap-y-0.5 rounded-lg border border-line bg-surface px-2.5 py-2 text-left text-[13px] font-[inherit] [font-weight:inherit] leading-[inherit] hover:border-ink-dim";
 const HELD_SUB = "text-[12px] text-ink-dim";
 
-// 통계 패널 — 고른 막대 · 줄의 자세한 내용과 운영자가 이어 볼 곳(노드 탭 · 로그 조회 · 결재함 · 로그 감시 판정).
 export function StatsPanel() {
   const { ui } = useUi();
   const { kind, sys, usr } = useStatsData();
@@ -42,8 +40,7 @@ function NodePanel({ d, node }: { d: Stats; node: string }) {
   const { gotoNode } = useUi();
   const clauses = useClauses();
   const n = d.servers.nodes.find((x) => x.node === node);
-  // 끊김은 안전 점수의 노드 목록에만 있습니다. 이 기간에 점검이 없는 노드(안전 점수 옆 "판정 없음" 등)도 막다른 곳이 되지 않게
-  // 지금 상태와 [노드 탭에서 보기]를 둡니다.
+  // 이 기간에 점검이 없는 노드도 막다른 곳이 되지 않게 지금 상태와 [노드 탭에서 보기]를 둡니다.
   const now = d.safety?.items?.find((i) => i.node === node);
   const stale: [string, string][] = now?.stale ? [["수집", "끊김"]] : [];
   const go = <div className="mt-4.5"><button className={toolButton} id="stat-go" onClick={() => gotoNode(node)}><Icon name="server" small />노드 탭에서 보기</button></div>;

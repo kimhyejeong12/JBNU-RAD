@@ -1,7 +1,4 @@
-"""로그인 · 계정 · 권한 목록 · 권한 신청 · 결재 · 회수 · 정책 · 로그 결정 API (권한 DB).
-
-세션 토큰은 HttpOnly · SameSite=Strict 쿠키로만 주고받습니다. 화면 스크립트는 토큰을 볼 수 없습니다.
-"""
+"""권한 DB API — 세션 토큰은 화면 스크립트가 볼 수 없게 HttpOnly 쿠키로만 주고받습니다."""
 from __future__ import annotations
 
 from typing import Annotated, Any
@@ -33,7 +30,7 @@ def _session_user(request: Request) -> User:
 
 
 def logged_in(request: Request) -> User:
-    """로그인했고, 비밀번호를 바꿔야 하는 상태가 아닌 사용자."""
+    """비밀번호를 바꿔야 하는 상태면 403 입니다."""
     user = _session_user(request)
     if user.must_change_password:
         raise HTTPException(status_code=403, detail="비밀번호를 먼저 바꾸세요")
@@ -52,7 +49,7 @@ Approver = Annotated[User, Depends(role("manager", "top"))]
 Anyone = Annotated[User, Depends(logged_in)]
 
 
-# --- 로그인 -----------------------------------------------------------------
+# --- 로그인 ---
 
 
 class LoginBody(BaseModel):
@@ -99,7 +96,7 @@ def change_password(body: PasswordBody, request: Request) -> dict[str, Any]:
     return _session_user(request).public()
 
 
-# --- 계정 (보안 총책임자) ------------------------------------------------------------
+# --- 계정 (보안 총책임자) ---
 
 
 class NewUser(BaseModel):
@@ -153,9 +150,9 @@ def update_user(user_id: int, body: UserChange, request: Request, user: Anyone) 
         changed = auth.update_user(request.app.state.main_db, user, user_id, **changes)
     except Denied as exc:
         raise _denied(exc) from None
-    # 부서 · 직무를 옮겼으면 예전 업무로 받은 권한을 다시 판정합니다 (권한마다 한 건, 백그라운드).
+    # 부서 · 직무를 옮겼으면 예전 업무로 받은 권한을 다시 판정합니다.
     if "department" in changes or "job" in changes:
-        request.app.state.verdicts.enqueue_grants(user_id)
+        request.app.state.engine.enqueue_grants(user_id)
     return changed.public()
 
 
@@ -168,7 +165,7 @@ def reset_password(user_id: int, body: PasswordReset, request: Request, user: An
     return {"ok": True}
 
 
-# --- 권한 목록 (관리는 보안 총책임자) ---------------------------------------------
+# --- 권한 목록 (관리는 보안 총책임자) ---
 
 
 class NewAccess(BaseModel):
@@ -208,26 +205,22 @@ def update_access(code: str, body: AccessChange, request: Request, user: Annotat
         raise _denied(exc) from None
 
 
-# --- 권한 신청 · 결재 · 회수 -------------------------------------------------
+# --- 권한 신청 · 결재 · 회수 ---
 
 
 def _with_verdict(request: Request, req: dict, user: User) -> dict:
-    """판정 중이면 judging = True 를 붙입니다.
-
-    AI 판정은 결재자를 위한 것이라 일반 사용자에게는 AI 칸(결재 기록의 그때 AI 등급까지)을 아예 빼고 줍니다.
-    """
+    """판정 중이면 judging = True 를 붙이고, 일반 사용자에게는 AI 칸을 모두 뺍니다."""
     if user.role == "user":
         return {**{k: v for k, v in req.items() if k not in ("ai_verdict", "grant_review")},
                 "approvals": [{k: v for k, v in a.items() if k != "ai_level"} for a in req["approvals"]]}
     review = req.get("grant_review")
     if review and review["cause"] == "move":
-        review = {**review, "judging": request.app.state.verdicts.pending(f"grant:{req['request_no']}:{review['move']['id']}")}
-    return {**req, "grant_review": review, "judging": request.app.state.verdicts.pending(req["request_no"])}
+        review = {**review, "judging": request.app.state.engine.pending(f"grant:{req['request_no']}:{review['move']['id']}")}
+    return {**req, "grant_review": review, "judging": request.app.state.engine.pending(req["request_no"])}
 
 
 @router.get("/people", dependencies=[Depends(role("manager", "top"))])
 def people(request: Request) -> list[dict[str, Any]]:
-    """확인할 사람 — 퇴사 · 이동이 있거나 신청 · 보유 권한이 위험 · 주의인 일반 사용자 (코드가 셈)."""
     return permissions.watch_people(request.app.state.main_db)
 
 
@@ -241,14 +234,14 @@ class NewRequest(BaseModel):
 @router.post("/requests", status_code=201)
 def submit(body: NewRequest, request: Request, background: BackgroundTasks,
            user: Annotated[User, Depends(role("user"))]) -> dict[str, Any]:
-    # 업무상 필요한지는 AI 가 아니라 결재자가 사유를 보고 판단하므로(AI 판정은 부서 · 권한 · 보유 권한만 봄) 비면 받지 않습니다.
+    # 업무상 필요한지는 결재자가 사유를 보고 판단하므로 비면 받지 않습니다.
     if not body.reason:
         raise HTTPException(status_code=400, detail="신청 사유를 적으세요 — 결재자가 업무상 필요한지 판단하는 근거입니다")
     try:
         req = permissions.submit(request.app.state.main_db, user, **body.model_dump())
     except Denied as exc:
         raise _denied(exc) from None
-    request.app.state.verdicts.enqueue(req["request_no"])
+    request.app.state.engine.enqueue_request(req["request_no"])
     background.add_task(notify.notify_waiting, request.app.state.slack_url, req)
     return _with_verdict(request, req, user)
 
@@ -306,12 +299,12 @@ def rejudge(request_no: str, request: Request, user: Approver) -> dict[str, Any]
         raise HTTPException(status_code=404, detail=str(exc)) from None
     if not permissions.rejudgeable(request.app.state.main_db, request_no):
         raise HTTPException(status_code=400, detail="1차 결재 뒤에는 다시 판정할 수 없습니다")
-    request.app.state.verdicts.enqueue(request_no)
+    request.app.state.engine.enqueue_request(request_no)
     return {"request_no": request_no, "judging": True}
 
 
 
-# --- 정책 관리 · 로그 감시 결정 -----------------------------------------------
+# --- 정책 관리 · 로그 감시 결정 ---
 
 
 class ReviewDecision(BaseModel):
@@ -325,7 +318,7 @@ class ReviewDecision(BaseModel):
 
 @router.post("/decisions")
 def record_decision(body: ReviewDecision, request: Request, user: Approver) -> dict[str, Any]:
-    """정책 문제 · 로그 판정에 대한 운영자 결정. 취소(cancel)도 기록으로 남깁니다. 응답은 지금 결정(취소면 null)."""
+    """응답은 지금 결정입니다 (취소면 null)."""
     try:
         decision = decisions.record(request.app.state.main_db, user, **body.model_dump())
     except Denied as exc:

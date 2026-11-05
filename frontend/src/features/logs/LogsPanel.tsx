@@ -8,7 +8,6 @@ import { Icon } from "@/shared/ui/base/Icon";
 import { KvTable, Section } from "@/shared/ui/base/parts";
 import { empty, meta, note, panelBody, subject, toolButton } from "@/shared/ui/base/styles";
 
-// 패널: 고른 줄이 있으면 그 로그의 원본, 없으면 지금 조건의 집계. 숫자는 모두 서버가 센 값입니다.
 export function LogsPanel() {
   const { ui, closePanel } = useUi();
   const L = ui.logs;

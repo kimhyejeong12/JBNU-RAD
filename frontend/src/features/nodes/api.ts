@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePanelAction, useUi } from "@/app/ui/state/UiContext";
 import { send } from "@/shared/api/http";
 
-// 노드 등록 — 키를 발급하고 그 노드를 고릅니다.
 export function useCreateNode() {
   const qc = useQueryClient();
   const { pickNode, setPanelMsg } = useUi();
@@ -19,7 +18,6 @@ export function useCreateNode() {
 
 export type NodeAct = "key" | "on" | "off";
 
-// 키 다시 발급(예전 키는 바로 무효) · 켜기 · 끄기.
 export function useNodeAction() {
   return usePanelAction(async ({ name, action }: { name: string; action: NodeAct }) => {
     const base = `/api/nodes/${encodeURIComponent(name)}`;

@@ -29,7 +29,7 @@ export default function App() {
 function Root() {
   const auth = useAuth();
   const me = useQuery(meQuery());
-  // 첫 로그인 · 비밀번호 초기화 뒤에는 비밀번호부터 바꾸고, 그 전에는 다른 API 가 403 이라 껍데기를 띄우지 않습니다.
+  // 비밀번호를 바꾸기 전에는 다른 API 가 403 이라 껍데기를 띄우지 않습니다.
   const mode = auth.gate ?? (me.data?.must_change_password ? "password-forced" : null);
   const shell = me.data && mode !== "login" && mode !== "password-forced" ? <AppShell me={me.data} /> : null;
   return (

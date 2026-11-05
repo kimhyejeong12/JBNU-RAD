@@ -1,9 +1,4 @@
-"""AI 결과 DB — 정책 관리 검토 · 로그 감시 판정 · 질의 기록.
-
-pipeline 이 돌려준 dict 를 그대로 받아 쌓습니다. 행은 고치지 않습니다 (트리거).
-수집 노드가 보낸 수집(server_snapshots, 노드 · 수집 시각이 같으면 한 번만)과 노드 점검 판정(node_findings)도 여기 쌓습니다.
-권한 DB의 운영자 결정은 여기 행을 `policy_issues/{id}` · `node_findings/{id}` · `event_findings/{id}` 로 가리킵니다.
-"""
+"""AI 결과 DB — pipeline 이 돌려준 dict 를 그대로 쌓기만 합니다."""
 from __future__ import annotations
 
 import json
@@ -20,7 +15,7 @@ def _json(value: Any) -> str:
 
 
 def _utc(stamp: str | None) -> str | None:
-    """시각을 UTC ISO 문자열로 맞춥니다. 문자열 비교가 곧 시각 비교가 되도록 합니다. 시간대가 없으면 UTC 로 봅니다."""
+    """문자열 비교가 곧 시각 비교가 되게 UTC ISO 문자열로 맞춥니다 (시간대가 없으면 UTC)."""
     if not stamp:
         return None
     moment = datetime.fromisoformat(stamp)
@@ -29,30 +24,18 @@ def _utc(stamp: str | None) -> str | None:
     return moment.astimezone(timezone.utc).isoformat(timespec="seconds")
 
 
-# --- 정책 관리 검토 -----------------------------------------------------------
+# --- 정책 관리 검토 ---
 
 
 def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
-    """pipeline.review_policies 결과 1회를 쌓습니다. → policy_reviews.id"""
+    """→ policy_reviews.id"""
     with db.transaction() as conn:
-        servers = review.get("servers") or {}
         rid = conn.execute(
-            "INSERT INTO policy_reviews (source, load_issues, rules, summary, failed, error, model, elapsed_sec, created_at,"
-            " servers_source, servers_load_issues) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            "INSERT INTO policy_reviews (source, load_issues, rules, summary, failed, error, model, elapsed_sec, created_at)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (str(review.get("source", "")), _json(review.get("load_issues", [])), _json(review.get("rules", [])),
-             review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now(),
-             str(servers.get("source", "")), _json(servers.get("load_issues", []))),
+             review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now()),
         ).fetchone()[0]
-        # 서버 점검은 차이(gaps)마다 근거 조항 · 바꿀 것을 따로 둡니다. reason 에는 요약, sources 에는 차이들의 조항을 모읍니다.
-        conn.cursor().executemany(
-            "INSERT INTO server_findings (review_id, seq, host, ip, state, matched, level, reason, recommendation, sources,"
-            " failed, error, elapsed_sec, gaps, unjudged, snapshot) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            [(rid, n, f["host"], f.get("ip", ""), _json(f.get("state", {})), f.get("matched", ""), f.get("level"),
-              f.get("summary", ""), "", _json(list(dict.fromkeys(g["source"] for g in f.get("gaps", []) if g.get("source")))),
-              int(f["failed"]), f.get("error"), f.get("elapsed_sec"), _json(f.get("gaps", [])), _json(f.get("unjudged", [])),
-              _json(f.get("snapshot") or {}))
-             for n, f in enumerate(servers.get("findings", []), start=1)],
-        )
         conn.cursor().executemany(
             "INSERT INTO policy_issues (review_id, seq, kind, level, policy_ids, reason, recommendation) VALUES (%s,%s,%s,%s,%s,%s,%s)",
             [(rid, n, i["kind"], i["level"], _json(i.get("policy_ids", [])), i.get("reason", ""), i.get("recommendation", ""))
@@ -62,7 +45,7 @@ def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
 
 
 def findings_by_key(db: Database, keys: Any) -> dict[str, dict[str, Any]]:
-    """`policy_issues/{id}` · `node_findings/{id}` key → 그 판정 행. 운영자 결정을 다시 판정된 같은 결과로 이어받을지 볼 때 지난 판정 내용을 읽습니다."""
+    """`policy_issues/{id}` · `node_findings/{id}` key → 그 판정 행 (결정 이어받기용)."""
     ids: dict[str, list[int]] = {"policy_issues": [], "node_findings": []}
     for key in keys:
         table, _, num = str(key).partition("/")
@@ -70,7 +53,7 @@ def findings_by_key(db: Database, keys: Any) -> dict[str, dict[str, Any]]:
             ids[table].append(int(num))
     out: dict[str, dict[str, Any]] = {}
     with db.connection() as conn:
-        for table, nums in ids.items():   # 표 이름은 위의 정해진 둘뿐
+        for table, nums in ids.items():   # 표 이름은 위의 정해진 둘뿐이라 SQL 에 넣어도 됩니다
             if nums:
                 rows = conn.execute(f"SELECT * FROM {table} WHERE id = ANY(%s)", (nums,)).fetchall()
                 out.update({f"{table}/{r['id']}": dict(r) for r in rows})
@@ -78,7 +61,7 @@ def findings_by_key(db: Database, keys: Any) -> dict[str, dict[str, Any]]:
 
 
 def latest_policy_review(db: Database) -> dict[str, Any] | None:
-    """마지막 정책 관리 검토 — 정책 문제 목록과 서버 점검. 항목마다 운영자 결정이 가리킬 key 를 붙입니다."""
+    """마지막 정책 관리 검토 — 항목마다 운영자 결정이 가리킬 key 를 붙입니다."""
     with db.connection() as conn:
         row = conn.execute("SELECT * FROM policy_reviews ORDER BY id DESC LIMIT 1").fetchone()
         if row is None:
@@ -116,7 +99,7 @@ def latest_policy_review(db: Database) -> dict[str, Any] | None:
     }
 
 
-# --- 수집 노드 -----------------------------------------------------------------
+# --- 수집 노드 ---
 
 
 def _snapshot(r: Any) -> dict[str, Any]:
@@ -125,14 +108,14 @@ def _snapshot(r: Any) -> dict[str, Any]:
 
 
 def latest_snapshot(db: Database, node: str) -> dict[str, Any] | None:
-    """이 노드의 가장 늦은 수집 — 다음 수집의 바뀐 것을 셀 때 견줍니다."""
+    """다음 수집의 바뀐 것을 셀 때 견줄 가장 늦은 수집입니다."""
     with db.connection() as conn:
         r = conn.execute("SELECT * FROM server_snapshots WHERE node = %s ORDER BY collected_at DESC LIMIT 1", (node,)).fetchone()
     return _snapshot(r) if r else None
 
 
 def save_snapshot(db: Database, snap: dict[str, Any]) -> tuple[int | None, bool]:
-    """pipeline.snapshot_row 가 만든 수집 기록 한 건. 같은 노드 · 수집 시각이 이미 있으면 넣지 않습니다. → (id, 넣었는지)"""
+    """같은 노드 · 수집 시각이 이미 있으면 넣지 않습니다. → (id, 넣었는지)"""
     with db.transaction() as conn:
         cur = conn.execute(
             "INSERT INTO server_snapshots (node, host, ip, collected_at, collected_by, file, modules, sections, changes, loaded_at)"
@@ -149,7 +132,7 @@ def save_snapshot(db: Database, snap: dict[str, Any]) -> tuple[int | None, bool]
 
 
 def pending_snapshots(db: Database, nodes: set[str]) -> list[dict[str, Any]]:
-    """점검할 차례 — 노드마다 가장 늦은 수집 중 아직 판정하지 않은 것. 그사이 여러 번 왔어도 마지막 것만 봅니다."""
+    """노드마다 아직 판정하지 않은 가장 늦은 수집 하나입니다."""
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT s.* FROM server_snapshots s WHERE s.node <> ''"
@@ -160,7 +143,6 @@ def pending_snapshots(db: Database, nodes: set[str]) -> list[dict[str, Any]]:
 
 
 def save_node_finding(db: Database, f: dict[str, Any], model: str) -> int:
-    """pipeline.check_nodes 의 판정 한 건. 쌓기만 합니다."""
     with db.transaction() as conn:
         return conn.execute(
             "INSERT INTO node_findings (node, snapshot_id, host, ip, state, matched, level, summary, gaps, unjudged, sources,"
@@ -173,7 +155,7 @@ def save_node_finding(db: Database, f: dict[str, Any], model: str) -> int:
 
 
 def latest_node_findings(db: Database) -> list[dict[str, Any]]:
-    """노드마다 마지막 판정과 그때 본 수집 — 정책 관리 화면의 서버 점검. 운영자 결정은 `node_findings/{id}` 를 가리킵니다."""
+    """노드마다 마지막 판정과 그때 본 수집입니다."""
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT f.*, s.collected_at, s.collected_by, s.modules, s.changes FROM node_findings f"
@@ -190,7 +172,7 @@ def latest_node_findings(db: Database) -> list[dict[str, Any]]:
 
 
 def node_history(db: Database, node: str, limit: int = 20) -> dict[str, Any]:
-    """노드 화면 — 최근 수집(바뀐 것) · 판정 등급 기록과 가장 늦은 수집의 모듈 상태."""
+    """최근 수집 · 판정 기록과 가장 늦은 수집의 모듈 상태입니다."""
     with db.connection() as conn:
         snaps = conn.execute("SELECT * FROM server_snapshots WHERE node = %s ORDER BY collected_at DESC LIMIT %s", (node, limit)).fetchall()
         findings = conn.execute("SELECT f.id, f.snapshot_id, f.level, f.failed, f.summary, f.created_at FROM node_findings f"
@@ -204,7 +186,7 @@ def node_history(db: Database, node: str, limit: int = 20) -> dict[str, Any]:
 
 
 def server_history(db: Database, nodes: list[str], since: str | None = None, until: str | None = None) -> dict[str, Any]:
-    """서버 질의 — 고른 노드들의 기간 안 수집(바뀐 것) · 판정 기록, 오래된 것부터. 기간이 없으면 처음부터 끝까지입니다."""
+    """기간 안 수집 · 판정 기록, 오래된 것부터 (기간이 없으면 전체)."""
     if not nodes:
         return {"snapshots": [], "findings": []}
     where, args = "node = ANY(%s)", [list(nodes)]
@@ -224,12 +206,11 @@ def server_history(db: Database, nodes: list[str], since: str | None = None, unt
     }
 
 
-# --- 보안 통계 ---------------------------------------------------------------
-# 모델 없이 쌓인 판정을 셉니다. 날짜는 화면과 같은 서버 현지 날짜(KST)로 묶습니다.
+# --- 보안 통계 (날짜는 서버 현지 날짜 KST 로 묶음) ---
 
 LEVEL_ORDER = {"정상": 0, "주의": 1, "위험": 2}
 _FINAL = "run_id IN (SELECT id FROM monitor_runs WHERE stage = 'final')"
-# 판정에 묶인 로그 한 줄 (SecurityEvent.describe). 판정 하나가 몇 주에 걸친 로그를 묶으므로 줄마다 자기 시각으로 셉니다.
+# 판정 하나가 몇 주에 걸친 로그를 묶으므로 줄마다 자기 시각으로 셉니다.
 _EVENT_LINE = re.compile(r"^- (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) UTC", re.M)
 _MODULE = re.compile(r"^\[([^\]]+)\]")
 
@@ -239,11 +220,10 @@ def _day(stamp: str) -> str:
 
 
 def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
-    """보안 통계 — 로그 감시(주의 · 위험 판정에 묶인 로그 줄 · 날짜별 빈도 · 반복 사용자)와
-    서버 점검(노드별 등급 변화 · 모듈별 위협 항목 · 걸린 조항). since 가 없으면 전체."""
+    """로그 감시 · 서버 점검 통계입니다. since 가 없으면 전체입니다."""
     at = _utc(since)
     with db.connection() as conn:
-        # 통계 · 의심 점수는 정밀 감시(확정)만 셉니다. 빠른 감시의 1차 판정은 같은 로그를 다시 판정하기 전의 값이라 세면 겹칩니다.
+        # 빠른 감시의 1차 판정은 같은 로그와 겹치므로 정밀 감시만 셉니다.
         events = conn.execute(f"SELECT id, \"user\", subject, level, failed, events, last_event_at FROM event_findings WHERE {_FINAL}"
                               + (" AND last_event_at >= %s" if at else "") + " ORDER BY last_event_at", (at,) if at else ()).fetchall()
         findings = conn.execute("SELECT id, node, level, failed, gaps, created_at FROM node_findings"
@@ -251,7 +231,7 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
         snaps = conn.execute("SELECT node, count(*) AS n, count(*) FILTER (WHERE changes <> '[]') AS changed FROM server_snapshots WHERE node <> ''"
                              + (" AND collected_at >= %s" if at else "") + " GROUP BY node", (at,) if at else ()).fetchall()
 
-    # 판정 실패는 화면과 같이 "주의"로 셉니다 (확인하지 못한 것을 정상으로 두지 않습니다).
+    # 확인하지 못한 것을 정상으로 두지 않게 판정 실패는 "주의"로 셉니다.
     level = lambda r: "주의" if r["failed"] else r["level"]  # noqa: E731
     users: dict[str, dict[str, Any]] = {}
     days: dict[str, dict[str, int]] = {}
@@ -289,7 +269,7 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
         diff = LEVEL_ORDER[last] - LEVEL_ORDER[first] if first else 0
         n["trend"] = "판정 없음" if not first else "나빠짐" if diff > 0 else "좋아짐" if diff < 0 else "그대로"
         n["level"] = last
-        # 위협 항목 · 조항은 노드마다 기간 안 마지막 판정만 셉니다. 자주 점검한 노드가 건수를 부풀리지 않게 합니다.
+        # 자주 점검한 노드가 건수를 부풀리지 않게 노드마다 마지막 판정만 셉니다.
         n["threats"] = {"주의": 0, "위험": 0}
         for g in n.pop("gaps", []):
             item = g.get("item", "")
@@ -315,7 +295,7 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
     }
 
 
-# 안전 점수 — 대상(노드 · 사람)마다 마지막 등급을 값으로 바꿔 평균 × 100. 감점식 대신 등급 비율이라 무엇이 점수를 깎았는지 그대로 보입니다.
+# 안전 점수 = 대상마다 마지막 등급 값의 평균 × 100 (무엇이 깎았는지 보이게 감점식을 쓰지 않음).
 SERVER_SAFETY = {"정상": 1.0, "주의": 0.5, "위험": 0.0}
 USER_SAFETY = {"낮음": 1.0, "보통": 0.5, "높음": 0.0}
 
@@ -325,7 +305,7 @@ def _score(values: list[float]) -> int | None:
 
 
 def _daily_scores(rows: list[tuple[str, str, float]], since: str | None) -> list[dict[str, Any]]:
-    """(시각, 대상, 값) → 날짜(서버 현지)마다 그날이 끝날 때 대상별 마지막 값의 안전 점수. since 가 없으면 첫 기록 날부터."""
+    """(시각, 대상, 값) → 날짜마다 그날 끝 기준 안전 점수입니다. since 가 없으면 첫 기록 날부터."""
     if not rows:
         return []
     first = datetime.fromisoformat(since or rows[0][0]).astimezone().date()
@@ -345,8 +325,7 @@ def _daily_scores(rows: list[tuple[str, str, float]], since: str | None) -> list
 
 
 def server_safety(db: Database, enabled: list[str], stale: set[str], since: str | None = None) -> dict[str, Any]:
-    """시스템 안전 점수 — 켜 둔 노드마다 마지막 서버 점검 등급(판정 실패는 주의). 끊긴 노드는 지금 상태를 확인할 수 없어 주의보다 높게 치지 않습니다.
-    판정이 아직 없는 노드는 점수에서 빼고 따로 셉니다. 흐름은 날짜마다 그날까지의 마지막 등급으로 다시 셉니다 (끊김은 지금 값에만)."""
+    """끊긴 노드는 주의보다 높게 치지 않고, 판정이 없는 노드는 빼고 따로 셉니다."""
     with db.connection() as conn:
         rows = conn.execute("SELECT node, level, failed, created_at FROM node_findings ORDER BY created_at, id").fetchall()
     on = set(enabled)
@@ -365,7 +344,7 @@ def server_safety(db: Database, enabled: list[str], stale: set[str], since: str 
 
 
 def user_safety(db: Database, since: str | None = None) -> dict[str, Any]:
-    """사용자 안전 점수 — 의심 점수를 받은 사람마다 마지막 의심 등급 (예측 실패는 빼고 그 앞 것). 흐름은 날짜마다 그날까지의 마지막 등급으로."""
+    """사람마다 마지막 의심 등급으로 셉니다 (예측 실패는 빼고 그 앞 것)."""
     with db.connection() as conn:
         rows = conn.execute("SELECT person, level, created_at FROM suspect_scores WHERE failed = 0 ORDER BY created_at, id").fetchall()
     history = [(r["created_at"], r["person"], USER_SAFETY[r["level"]]) for r in rows if r["level"] in USER_SAFETY]
@@ -374,7 +353,7 @@ def user_safety(db: Database, since: str | None = None) -> dict[str, Any]:
 
 
 def user_findings(db: Database, since: str | None = None) -> list[dict[str, Any]]:
-    """의심 점수 — 기간 안 로그 감시 판정을 로그 사용자 ID(user)별로. 묶인 로그 줄 수와 판정 시각(마지막 로그)을 함께 줍니다."""
+    """기간 안 로그 감시 판정을 로그 사용자 ID 별로 묶습니다."""
     at = _utc(since)
     with db.connection() as conn:
         rows = conn.execute(f"SELECT id, \"user\", subject, level, failed, reason, events, last_event_at FROM event_findings WHERE {_FINAL}"
@@ -385,7 +364,7 @@ def user_findings(db: Database, since: str | None = None) -> list[dict[str, Any]
 
 
 def finding_users(db: Database, ids: list[int]) -> dict[int, dict[str, Any]]:
-    """로그 감시 판정 id → 로그 사용자 ID · 마지막 로그 시각. 운영자 결정(event_findings/{id})이 누구의 로그인지 찾을 때 씁니다."""
+    """로그 감시 판정 id → 로그 사용자 ID · 마지막 로그 시각입니다."""
     if not ids:
         return {}
     with db.connection() as conn:
@@ -394,7 +373,6 @@ def finding_users(db: Database, ids: list[int]) -> dict[int, dict[str, Any]]:
 
 
 def save_suspect(db: Database, person: dict[str, Any], result: dict[str, Any], model: str) -> int:
-    """사용자 한 명의 의심 점수 한 건 (pipeline.predict_suspect). 쌓기만 하고 화면은 사람마다 마지막 것과 흐름을 봅니다."""
     records = {"로그 위험": sum(f["level"] == "위험" for f in person["findings"]), "로그 주의": sum(f["level"] == "주의" for f in person["findings"]),
                "신청": len(person["requests"]), "신청 위험": sum(r["ai"] == "위험" for r in person["requests"]),
                "반려": sum(bool(r["rejected_by"]) for r in person["requests"]), "회수": sum(r["stage"] == "revoked" for r in person["requests"])}
@@ -409,7 +387,7 @@ def save_suspect(db: Database, person: dict[str, Any], result: dict[str, Any], m
 
 
 def latest_suspects(db: Database, history: int = 12) -> list[dict[str, Any]]:
-    """사람마다 마지막 의심 점수와 그 앞 점수 흐름(오래된 것부터 history 개), 높은 순."""
+    """사람마다 마지막 의심 점수와 앞 점수 흐름(history 개), 높은 순입니다."""
     with db.connection() as conn:
         rows = conn.execute("SELECT * FROM suspect_scores ORDER BY person, id").fetchall()
     people: dict[str, list[Any]] = {}
@@ -426,12 +404,12 @@ def latest_suspects(db: Database, history: int = 12) -> list[dict[str, Any]]:
     return sorted(out, key=lambda p: (-(p["score"] or 0), p["subject"]))
 
 
-# --- 로그 감시 ---------------------------------------------------------------
+# --- 로그 감시 ---
 
 
 def save_monitor_run(db: Database, run: dict[str, Any], model: str,
                      since: str | None = None, until: str | None = None, stage: str = "final") -> int:
-    """pipeline.monitor 결과 1회를 쌓습니다. stage = final(정밀 감시, 생각 켬) · fast(빠른 감시, 1차 판정). → monitor_runs.id"""
+    """stage = final(정밀 감시) · fast(빠른 감시). → monitor_runs.id"""
     with db.transaction() as conn:
         rid = conn.execute(
             "INSERT INTO monitor_runs (source, load_issues, since, until, last_event_at, model, created_at, stage) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
@@ -450,10 +428,7 @@ def save_monitor_run(db: Database, run: dict[str, Any], model: str,
 
 
 def next_monitor_since(db: Database, stage: str = "final") -> datetime | None:
-    """다음 로그 감시의 시작점 — 그 단계가 지금까지 읽은 로그 중 가장 늦은 시각. 감시한 적이 없으면 None.
-
-    빠른 감시는 정밀 감시보다 뒤로 가지 않습니다 (정밀 감시가 이미 확정한 구간을 1차 판정으로 다시 띄우지 않게).
-    """
+    """읽은 로그 중 가장 늦은 시각(없으면 None) — 빠른 감시는 정밀 감시보다 뒤로 가지 않습니다."""
     with db.connection() as conn:
         last = conn.execute("SELECT max(last_event_at) FROM monitor_runs WHERE stage = %s", (stage,)).fetchone()[0]
         if stage == "fast":
@@ -463,10 +438,7 @@ def next_monitor_since(db: Database, stage: str = "final") -> datetime | None:
 
 
 def monitor_findings(db: Database) -> dict[str, Any] | None:
-    """정밀 감시(확정) 판정 전부 + 정밀 감시가 아직 닿지 않은 구간의 빠른 감시 1차 판정. 감시한 적이 없으면 None.
-
-    정밀 감시가 그 구간을 다시 판정하면 1차 판정은 목록에서 빠집니다 (AI 결과 DB 에는 남습니다).
-    """
+    """정밀 감시 판정 전부 + 아직 확정되지 않은 구간의 1차 판정입니다. 감시한 적이 없으면 None."""
     with db.connection() as conn:
         run = conn.execute("SELECT * FROM monitor_runs ORDER BY id DESC LIMIT 1").fetchone()
         if run is None:
@@ -492,38 +464,62 @@ def monitor_findings(db: Database) -> dict[str, Any] | None:
     }
 
 
-# --- 질의 기록 ---------------------------------------------------------------
+# --- 질의 기록 ---
 
-QA_KINDS = ("policy", "logs", "servers")
+QA_KINDS = ("policy", "logs", "servers", "agent")
 
 
-def save_qa(db: Database, kind: str, question: str, result: dict[str, Any], model: str, asker: User) -> int:
-    """정책 질의(rag_chain 의 Answer) · 로그 질의(pipeline.ask_logs) 1건을 남깁니다."""
+def save_qa(db: Database, kind: str, question: str, result: dict[str, Any], model: str, asker: User,
+            conversation_id: str | None = None) -> int:
     if kind not in QA_KINDS:
         raise ValueError(f"kind 는 {', '.join(QA_KINDS)} 중 하나입니다")
     with db.transaction() as conn:
         return conn.execute(
             "INSERT INTO qa_records (kind, question, answer, sources, criteria, facts, evidence, failed, error, model,"
-            " elapsed_sec, asker_id, asker_name, asker_department, asked_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            " elapsed_sec, asker_id, asker_name, asker_department, asked_at, conversation_id, steps, checks)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (kind, question, result.get("answer", ""), _json(result.get("sources", [])), _json(result.get("criteria", {})),
              _json(result["facts"]) if result.get("facts") is not None else None, _json(result.get("evidence", [])),
              int(bool(result.get("failed"))), result.get("error"), model, result.get("elapsed_sec"),
-             asker.id, asker.display_name, asker.department, now()),
+             asker.id, asker.display_name, asker.department, now(), conversation_id,
+             _json(result.get("steps", [])), _json(result.get("checks", []))),
         ).fetchone()[0]
 
 
+def _qa(r: Any) -> dict[str, Any]:
+    record = dict(r)
+    for k in ("sources", "criteria", "evidence", "steps", "checks"):
+        record[k] = json.loads(record[k])
+    record["facts"] = json.loads(record["facts"]) if record["facts"] is not None else None
+    record["failed"] = bool(record["failed"])
+    return record
+
+
 def my_qa(db: Database, asker: User, kind: str, limit: int = 50) -> list[dict[str, Any]]:
-    """내 질의 기록 (최근 것부터). 다른 사람의 기록은 돌려주지 않습니다."""
+    """다른 사람의 기록은 돌려주지 않습니다."""
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT * FROM qa_records WHERE asker_id = %s AND kind = %s ORDER BY id DESC LIMIT %s", (asker.id, kind, limit)
         ).fetchall()
-    out = []
-    for r in rows:
-        record = dict(r)
-        for k in ("sources", "criteria", "evidence"):
-            record[k] = json.loads(record[k])
-        record["facts"] = json.loads(record["facts"]) if record["facts"] is not None else None
-        record["failed"] = bool(record["failed"])
-        out.append(record)
-    return out
+    return [_qa(r) for r in rows]
+
+
+def my_conversations(db: Database, asker: User, limit: int = 30) -> list[dict[str, Any]]:
+    """내 대화 — 최근 것부터, 첫 질문 · 턴 수 · 마지막 시각."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT conversation_id, (array_agg(question ORDER BY id))[1] AS question, count(*) AS turns,"
+            " max(asked_at) AS asked_at FROM qa_records WHERE asker_id = %s AND kind = 'agent' AND conversation_id IS NOT NULL"
+            " GROUP BY conversation_id ORDER BY max(id) DESC LIMIT %s", (asker.id, limit)
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def my_conversation(db: Database, asker: User, conversation_id: str) -> list[dict[str, Any]]:
+    """한 대화의 턴 — 처음 것부터. 다른 사람의 대화면 빈 목록입니다."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM qa_records WHERE asker_id = %s AND kind = 'agent' AND conversation_id = %s ORDER BY id",
+            (asker.id, conversation_id)
+        ).fetchall()
+    return [_qa(r) for r in rows]

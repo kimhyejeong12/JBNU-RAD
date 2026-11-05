@@ -3,9 +3,7 @@ import { registerConfirm, type Ask } from "./ask";
 import { cn } from "@/shared/lib/cn";
 import { actionButton, dangerButton, primaryButton } from "@/shared/ui/base/styles";
 
-// 확인 창 — 브라우저 기본 confirm()(서버 주소 · 영어 버튼, 브라우저마다 다른 모양) 대신 화면 디자인에 맞춘 가운데 창. 띄우기는 ask.ts 의 ask().
-// 버튼 순서는 확인 창 관례대로 [취소]가 왼쪽 · 실행이 오른쪽 (결정 버튼 [승인 · 반려]처럼 대등한 두 선택과는 다름).
-// 화면 뿌리(App)에 하나만 둡니다. Esc · 바깥 누르기 = 취소.
+// 버튼 순서는 확인 창 관례대로 [취소] 왼쪽 · 실행 오른쪽입니다.
 export function ConfirmLayer() {
   const [cur, setCur] = useState<{ a: Ask; done: (ok: boolean) => void } | null>(null);
   useEffect(() => {

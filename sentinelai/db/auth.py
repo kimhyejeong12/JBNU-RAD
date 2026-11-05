@@ -1,8 +1,4 @@
-"""사용자 · 로그인 · 세션 (권한 DB).
-
-계정은 보안 총책임자가 만듭니다(트리거가 강제). 초기 루트만 웹 밖에서 create_root 로 만듭니다.
-루트 계정은 루트 자신만 고칠 수 있습니다.
-"""
+"""사용자 · 로그인 · 세션 — 계정은 보안 총책임자가, 초기 루트만 create_root 로 만듭니다."""
 from __future__ import annotations
 
 import hashlib
@@ -24,7 +20,7 @@ MAX_FAILED_LOGINS = 5
 LOCK_TIME = timedelta(minutes=15)
 ROLES = ("top", "manager", "user")
 
-# 없는 ID 로 로그인할 때도 같은 시간이 걸리게 대신 검증할 해시입니다. 응답 시간으로 계정 유무가 드러나지 않습니다.
+# 응답 시간으로 계정 유무가 드러나지 않게 없는 ID 에도 검증할 해시입니다.
 _DUMMY_HASH = HASHER.hash(secrets.token_urlsafe(16))
 
 
@@ -57,7 +53,7 @@ def _check_password(password: str) -> None:
 
 
 def _check_email(email: str) -> str:
-    """빈 값(알림 안 받음)이나 주소 하나. 실제로 받는지는 보내 봐야 알아 모양만 봅니다."""
+    """빈 값(알림 안 받음)이나 주소 하나 — 모양만 봅니다."""
     email = email.strip()
     if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
         raise Denied("이메일 주소 형식이 아닙니다")
@@ -117,14 +113,7 @@ def create_user(db: Database, by: User, login_id: str, password: str, display_na
 
 
 def update_user(db: Database, by: User, user_id: int, **changes: object) -> User:
-    """역할 · 부서 · 이름 · 활성 여부 · 로그 사용자 ID · 이메일을 바꿉니다. 정지하면 그 사람의 세션도 끊습니다.
-
-    이메일은 결재 결과를 신청자 본인에게 알리는 주소입니다. 비우면 보내지 않습니다.
-
-    로그 사용자 ID 는 보안 솔루션 로그의 UserID 입니다. 사용자 위협의 의심 점수가 로그 감시 판정 · 행동 신호와 권한 신청을 이 값으로 한 사람에 모읍니다.
-    부서 · 직무가 실제로 바뀌면 이동 기록(user_moves)을 남깁니다 — 이동 전에 받은 권한을 새 업무에 맞는지 다시 판정하는 기준입니다.
-    퇴사일(left_on, YYYY-MM-DD 또는 빈 값)이 지나면 남은 권한을 코드가 바로 위험으로 올립니다 (permissions.grant_review).
-    """
+    """정지하면 세션을 끊고, 부서 · 직무가 바뀌면 이동 기록(user_moves)을 남깁니다."""
     _require_top(by)
     allowed = {"display_name", "department", "job", "role", "is_active", "log_id", "left_on", "email"}
     fields = {k: v for k, v in changes.items() if k in allowed and v is not None}
@@ -149,11 +138,11 @@ def update_user(db: Database, by: User, user_id: int, **changes: object) -> User
         _guard_target(by, target)
         if target["is_root"] and ("role" in fields or fields.get("is_active") in (0, False)):
             raise Denied("루트의 역할을 바꾸거나 정지할 수 없습니다")
-        # 자기 역할을 낮추거나 정지하면 계정 관리 화면에서 바로 밀려나 되돌릴 수 없습니다.
+        # 자기 역할을 낮추거나 정지하면 되돌릴 수 없게 됩니다.
         if target["id"] == by.id and ("role" in fields or fields.get("is_active") in (0, False)):
             raise Denied("자기 계정의 역할을 바꾸거나 정지할 수 없습니다")
         conn.execute(f"UPDATE users SET {', '.join(f'{k} = %s' for k in fields)} WHERE id = %s", (*fields.values(), user_id))
-        # 비어 있던 칸을 처음 채우는 것은 이동이 아닙니다 (직무 칸은 11/3에 생겨 기존 계정이 모두 빈 값).
+        # 비어 있던 칸을 처음 채우는 것은 이동이 아닙니다.
         moved = [k for k in ("department", "job") if k in fields and fields[k] != target[k] and target[k]]
         if moved:
             conn.execute(
@@ -169,7 +158,7 @@ def update_user(db: Database, by: User, user_id: int, **changes: object) -> User
 
 
 def reset_password(db: Database, by: User, user_id: int, temporary_password: str) -> None:
-    """임시 비밀번호로 바꾸고 다음 로그인에 바꾸게 합니다. 기존 세션은 끊습니다."""
+    """다음 로그인에 바꾸게 하고 기존 세션은 끊습니다."""
     _require_top(by)
     _check_password(temporary_password)
     with db.transaction() as conn:
@@ -197,21 +186,21 @@ def list_users(db: Database, by: User) -> list[dict]:
 
 
 def email_of(db: Database, user_id: int) -> str:
-    """알림 받을 이메일. 없는 계정이거나 비어 있으면 빈 값."""
+    """없는 계정이거나 비어 있으면 빈 값입니다."""
     with db.connection() as conn:
         row = conn.execute("SELECT email FROM users WHERE id = %s", (user_id,)).fetchone()
     return row["email"] if row else ""
 
 
 def accounts_brief(db: Database) -> list[dict]:
-    """사용자 위협 — 의심 점수를 사람별로 모을 때 쓰는 계정 요약 (이름 · 부서 · 역할 · 로그 사용자 ID). 비밀번호 칸은 읽지 않습니다."""
+    """의심 점수용 계정 요약 — 비밀번호 칸은 읽지 않습니다."""
     with db.connection() as conn:
         return [dict(r) for r in conn.execute(
             "SELECT id, login_id, display_name, department, job, role, is_active, log_id, left_on FROM users ORDER BY id")]
 
 
 def _login_failed(db: Database, user_id: int | None, login_id: str, ip: str | None, reason: str) -> bool:
-    """실패를 기록합니다. 이번 실패로 잠겼으면 True"""
+    """이번 실패로 잠겼으면 True 입니다."""
     with db.transaction() as conn:
         locked = False
         if reason == "password":
@@ -226,7 +215,7 @@ def _login_failed(db: Database, user_id: int | None, login_id: str, ip: str | No
 
 
 def login(db: Database, login_id: str, password: str, ip: str | None = None, user_agent: str | None = None) -> tuple[str, User]:
-    """성공하면 (세션 토큰, 사용자). 토큰은 쿠키로만 주고 DB에는 해시만 둡니다."""
+    """(세션 토큰, 사용자). DB 에는 토큰 해시만 둡니다."""
     failure = Denied("아이디 또는 비밀번호가 맞지 않습니다")
     with db.connection() as conn:
         row = conn.execute("SELECT * FROM users WHERE lower(login_id) = lower(%s)", (login_id,)).fetchone()
@@ -265,7 +254,7 @@ def login(db: Database, login_id: str, password: str, ip: str | None = None, use
 
 
 def session_user(db: Database, token: str | None) -> User | None:
-    """유효한 세션의 사용자. 만료 · 회수됐거나 계정이 정지됐으면 None"""
+    """만료 · 회수됐거나 계정이 정지됐으면 None 입니다."""
     if not token:
         return None
     with db.connection() as conn:
@@ -291,7 +280,7 @@ def logout(db: Database, token: str | None) -> None:
 
 
 def change_password(db: Database, user: User, current: str, new: str, token: str | None = None) -> None:
-    """비밀번호를 바꾸고 지금 세션 말고는 모두 끊습니다."""
+    """지금 세션 말고는 모두 끊습니다."""
     _check_password(new)
     if new == current:
         raise Denied("새 비밀번호가 지금과 같습니다")
@@ -310,7 +299,7 @@ def change_password(db: Database, user: User, current: str, new: str, token: str
 
 
 def record_log_view(db: Database, by: User, criteria: dict, ip: str | None = None) -> None:
-    """로그 조회를 감사 기록에 남깁니다. 특정 사람의 로그를 꺼내 본 것 자체가 남아야 할 일입니다."""
+    """특정 사람의 로그를 꺼내 본 것 자체를 감사 기록에 남깁니다."""
     with db.transaction() as conn:
         audit(conn, "log_view", by.id, target_type="logs", target_id=criteria.get("user") or None,
               detail=json.dumps(criteria, ensure_ascii=False), ip=ip)

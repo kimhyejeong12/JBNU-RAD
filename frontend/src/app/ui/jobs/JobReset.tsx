@@ -5,8 +5,7 @@ import { busyJob, useResetJobs } from "@/shared/api/jobs";
 import { cn } from "@/shared/lib/cn";
 import { toolButton } from "@/shared/ui/base/styles";
 
-// 작업 강제 중지 후 다시 돌리기 — 보안 총책임자에게만, 작업이 돌고 있을 때만 작업 버튼 옆에 뜹니다.
-// 모델 서버가 응답하지 않아 작업이 끝나지 않으면 다른 작업(정책 관리 검토 · 서버 점검 · 기준 문서 적재)이 모두 막혀서 둡니다.
+// 모델 서버가 응답하지 않으면 다른 작업이 모두 막혀서 강제 중지를 둡니다.
 export function JobReset() {
   const me = useMe();
   const jobs = useJobs();

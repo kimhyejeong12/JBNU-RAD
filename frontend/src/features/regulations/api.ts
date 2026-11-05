@@ -5,7 +5,6 @@ import { getJSON, send } from "@/shared/api/http";
 import { regulationsQuery } from "@/shared/api/queries";
 import type { Regulation } from "@/shared/api/types";
 
-// 기준 문서 올리기 — 파일 글자를 읽어 보내고, 목록을 다시 받은 뒤 새 문서를 고릅니다.
 export function useUploadRegulation() {
   const qc = useQueryClient();
   const { selectSilent, setPanelMsg } = useUi();
@@ -20,8 +19,7 @@ export function useUploadRegulation() {
   });
 }
 
-// 기준 문서 고치기 — 사유와 함께 보내고, 그 문서만 다시 적재된 뒤 목록을 다시 받습니다 (고친 문서가 그대로 골라져 있음).
-// 서버가 AI 작업이 끝나기를 기다리는 동안 cancel() 로 요청을 끊으면 서버도 멈춥니다.
+// cancel() 로 요청을 끊으면 서버도 기다리기를 멈춥니다.
 export function useEditRegulation() {
   const qc = useQueryClient();
   const { setPanelMsg } = useUi();
@@ -39,7 +37,7 @@ export function useEditRegulation() {
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ["regulations"] }),
   });
-  // 끊은 뒤 문서를 다시 받아 실제 결과를 알립니다 — 서버가 이미 적재를 시작했으면 끊어도 고쳐집니다. 고쳐졌으면 true.
+  // 서버가 이미 적재를 시작했으면 끊어도 고쳐지므로 문서를 다시 받아 확인합니다.
   async function cancel(before: Regulation): Promise<boolean> {
     ctrl.current?.abort();
     const now = (await qc.fetchQuery({ ...regulationsQuery(), staleTime: 0 })).find((r) => r.name === before.name);
@@ -50,7 +48,6 @@ export function useEditRegulation() {
   return { ...mutation, cancel };
 }
 
-// 기준 문서 지우기 — 사유와 함께 보내고, 그 문서만 RAG 에서 빠진 뒤 목록을 다시 받고 선택을 풉니다.
 export function useRemoveRegulation() {
   const qc = useQueryClient();
   const { selectSilent, setPanelMsg } = useUi();

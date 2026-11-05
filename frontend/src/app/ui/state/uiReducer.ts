@@ -1,28 +1,31 @@
 import type { Level, LogPeriod, StatPeriod } from "@/shared/api/types";
 import { VIEWS, isAdminView, type MainTab, type SavedPage, type View } from "@/app/session/views";
 
-// 화면(UI) 상태 — 서버 데이터는 TanStack Query 에 있고, 여기에는 어느 메뉴 · 탭 · 항목을 보고 있는지만 둡니다.
+// 서버 데이터는 TanStack Query 에 있고 여기에는 보고 있는 메뉴 · 탭 · 항목만 둡니다.
 
-// 관리 메뉴의 등록 창 — [+ 새 계정] · [권한 등록] · [문서 업로드]를 누르면 고른 항목 자리에 이 값을 둡니다 (안 고른 상태는 다른 메뉴처럼 안내만).
+// 대화 id 는 화면이 만듭니다 (서버는 기록이 없는 id 를 새 대화로 봅니다).
+export const newConversation = (): string => crypto.randomUUID().replaceAll("-", "");
+
 export const NEW_ITEM = "new";
 
 export type StageFilter = "pending" | "active" | "people" | "all";
 export type StatKind = "stats" | "ustats";
 export type LevelFilter = "전체" | Level;
-export interface AskSource { i: number; n: number }   // 패널에 띄운 인용 조항 { 질의 순번, sources 순번 }
+export interface AskSource { i: number; n: number }   // 근거 { 질의 순번, 도구 단계 순번 }
 export interface StatSelection { kind: string; key: string }
 
 export interface UiState {
   view: View | null;
-  lastAdmin: View | null;         // 관리에서 마지막으로 본 탭 — [관리]를 누르면 여기로 돌아옵니다
+  lastAdmin: View | null;
   mainTab: MainTab;
   filter: LevelFilter;
   stageFilter: StageFilter;
   query: string;
-  selected: string | null;        // 큐 항목 key
-  panelMsg: string;               // 패널 동작 결과 (오류 · 완료)
-  expanded: ReadonlySet<string>;  // 펼친 근거 칩
+  selected: string | null;
+  panelMsg: string;
+  expanded: ReadonlySet<string>;
   askSource: AskSource | null;
+  conversation: string;
   drawerOpen: boolean;
   nodes: { selected: string | null; adding: boolean };
   logs: { period: LogPeriod; user: string; solution: string; how: string; page: number; selected: number | null };
@@ -31,7 +34,7 @@ export interface UiState {
 
 export const initialUi: UiState = {
   view: null, lastAdmin: null, mainTab: "queue", filter: "전체", stageFilter: "pending", query: "", selected: null, panelMsg: "",
-  expanded: new Set(), askSource: null, drawerOpen: false,
+  expanded: new Set(), askSource: null, conversation: newConversation(), drawerOpen: false,
   nodes: { selected: null, adding: false },
   logs: { period: "week", user: "", solution: "", how: "", page: 1, selected: null },
   stats: { period: "month", kind: null, selected: null },
@@ -57,21 +60,21 @@ export type UiAction =
   | { type: "ADD_NODE" }
   | { type: "SET_LOGS"; patch: Partial<UiState["logs"]> }
   | { type: "SET_STATS"; patch: Partial<UiState["stats"]> }
-  | { type: "SET_ASK_SOURCE"; src: AskSource | null };
+  | { type: "SET_ASK_SOURCE"; src: AskSource | null }
+  | { type: "SET_CONVERSATION"; id: string };
 
 export const isStatTab = (t: MainTab): t is StatKind => t === "stats" || t === "ustats";
-// 질의 · 통계 탭은 근거 칩 · 줄을 골랐을 때만 패널을 엽니다 — 그 전에는 비어 있는 패널 대신 질의 · 표 · 차트가 전체 폭 (통계는 11/2).
 export const panelOnDemand = (tab: MainTab): boolean => tab === "ask" || isStatTab(tab);
-export const panelIdle = (s: UiState): boolean => panelOnDemand(s.mainTab) && !(s.mainTab === "ask" ? s.askSource : s.stats.selected);
+// 관리의 큐 탭은 오른쪽 패널 없이 넓게 씁니다.
+export const panelIdle = (s: UiState): boolean =>
+  s.mainTab === "engine" || (panelOnDemand(s.mainTab) && !(s.mainTab === "ask" ? s.askSource : s.stats.selected));
 
-// 탭을 떠나면 열어 둔 인용 조항도 닫습니다. 통계 종류가 바뀌면 고른 막대를 풉니다.
 function withTab(s: UiState, tab: MainTab): UiState {
   const askSource = tab !== s.mainTab ? null : s.askSource;
   const stats = isStatTab(tab) && s.stats.kind !== tab ? { ...s.stats, kind: tab, selected: null } : s.stats;
   return { ...s, mainTab: tab, askSource, stats };
 }
 
-// 메뉴가 바뀌면 거르기 · 메시지 · 인용을 초기화합니다. 질의 탭도 메뉴를 따르므로 열어 둔 근거는 다른 질의의 것입니다.
 function withView(s: UiState, view: View): UiState {
   if (view === s.view) return s;
   return { ...s, view, lastAdmin: isAdminView(view) ? view : s.lastAdmin, filter: "전체", panelMsg: "", askSource: null };
@@ -79,12 +82,10 @@ function withView(s: UiState, view: View): UiState {
 
 export function uiReducer(s: UiState, a: UiAction): UiState {
   switch (a.type) {
-    // 옛 화면처럼 지금 탭이 새 메뉴에도 있으면(질의 · 검토 현황) 그대로 두고, 없으면 그 메뉴의 첫 탭으로 갑니다.
     case "NAVIGATE": {
       const tabs = VIEWS[a.view].tabs;
       return { ...withTab(withView(s, a.view), tabs.includes(s.mainTab) ? s.mainTab : tabs[0]), selected: a.nextSelected };
     }
-    // 새로고침 뒤 마지막 화면 — 메뉴 · 탭 · 결재 단계 · 관리의 마지막 탭을 한 번에 (값은 views.restorable 이 걸러서 옵니다).
     case "RESTORE": {
       const base = { ...s, stageFilter: a.stageFilter, lastAdmin: a.lastAdmin };
       return { ...withTab(withView(base, a.view), a.mainTab), selected: a.nextSelected };
@@ -136,5 +137,7 @@ export function uiReducer(s: UiState, a: UiAction): UiState {
       return { ...s, stats: { ...s.stats, ...a.patch } };
     case "SET_ASK_SOURCE":
       return { ...s, askSource: a.src };
+    case "SET_CONVERSATION":
+      return { ...s, conversation: a.id, askSource: null };
   }
 }

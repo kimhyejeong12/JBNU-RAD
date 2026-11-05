@@ -22,7 +22,6 @@ export function TopBar() {
   const [popOpen, setPopOpen] = useState(false);
   const pop = useRef<HTMLDivElement>(null);
 
-  // 정상일 때는 아무것도 띄우지 않고, 문제가 있을 때만 경고 1개를 띄웁니다. 일반 사용자에게는 AI 가 보이지 않으므로 엔진 경고도 없습니다.
   const problems = me.role === "user" || health.isPending || health.data?.ok ? [] : engineProblems(health.data);
 
   useEffect(() => {
@@ -35,7 +34,6 @@ export function TopBar() {
   }, [popOpen]);
 
   return (
-    // 툴팁이 곧바로 뜨는 구역입니다 (data-tip-instant).
     <header data-tip-instant className="col-span-full flex items-center gap-4.5 bg-ink px-5 py-0 text-white narrow:flex-wrap narrow:gap-y-2 narrow:px-4 narrow:py-2.5">
       <div className="flex items-center gap-2.25 text-[17px] font-extrabold tracking-[-0.3px]"><Icon name="shield" className="size-6 stroke-risk stroke-[2.2]" />SentinelAI</div>
       <div className="ml-auto flex items-center gap-2">
@@ -44,7 +42,7 @@ export function TopBar() {
           <LevelDot level="위험" />AI 엔진 점검 필요
         </span>
         <div className="flex items-center gap-1.5 text-[12.5px] text-bar-ink" id="who">
-          {/* 이름은 숨기지 않습니다 — 누구로 로그인했는지는 다른 곳에 없어서 (좁으면 위쪽 바가 줄바꿈됨). */}
+          {/* 누구로 로그인했는지는 다른 곳에 없어 이름을 숨기지 않습니다. */}
           <span id="who-name">{me.display_name} · {ROLE_LABEL[me.role]}{me.is_root ? " (루트)" : ""}</span>
           <button className={TOP_BTN} id="btn-password" onClick={() => auth.showPassword(false)}>비밀번호 변경</button>
           <button className={TOP_BTN} id="btn-logout" onClick={() => void logout()}>로그아웃</button>
@@ -61,10 +59,8 @@ export function TopBar() {
   );
 }
 
-// 검은 바 위의 작은 버튼 — 흰 글자, hover 때 테두리가 밝아집니다.
 const TOP_BTN = "rounded-[7px] border border-bar-line bg-transparent px-2.5 py-1 text-[12px] text-bar-ink hover:border-bar-line-hover hover:text-white";
 
-// 종을 누르면 뜨는 위험 알림 목록 — 미결 위험 건을 누르면 그 항목으로 갑니다.
 function AlertPop({ ref, open, risks, onPick }: { ref: Ref<HTMLDivElement>; open: boolean; risks: QueueItem[]; onPick: (key: string) => void }) {
   return (
     <div id="alert-pop" ref={ref}

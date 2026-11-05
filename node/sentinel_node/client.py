@@ -1,7 +1,4 @@
-"""SentinelAI 서버로 보내기 — 못 보낸 수집은 쌓아 두었다가 다음 차례에 먼저 보냅니다.
-
-노드는 이름을 보내지 않고, SentinelAI 화면에서 발급한 키만 보냅니다. 서버가 키로 어느 노드인지 찾습니다.
-"""
+"""SentinelAI 서버로 보내기 — 못 보낸 수집은 쌓아 두었다가 다음 차례에 먼저 보냅니다."""
 from __future__ import annotations
 
 import json

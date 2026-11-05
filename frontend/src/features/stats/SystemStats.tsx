@@ -11,16 +11,13 @@ import { cardHead, cardTitle, mark, markTone, type MarkKey } from "@/shared/ui/b
 
 interface Props { d: Stats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
 
-// 세로 막대 — 막대 칸에 올리거나 고르면(focus) 조각이 조금 밝아지고, 맨 위 조각만 위를 둥글게.
 const MK = "last:rounded-t-sm group-hover:brightness-[1.12] group-focus:brightness-[1.12]";
-// 날짜 글자는 그 자리 가운데 정렬 — 처음 글자는 왼쪽 끝, 마지막 글자는 오른쪽 끝에 맞춥니다.
 const TICK = "absolute top-1 -translate-x-1/2 whitespace-nowrap first:translate-x-0 last:-translate-x-full";
 
 const threatOf = (d: Stats) => ({ threat: d.events.lines["주의"] + d.events.lines["위험"], logs: d.logs.count });
 const gapsOf = (d: Stats) => d.servers.nodes.reduce((a, n) => ({ "위험": a["위험"] + n.threats["위험"], "주의": a["주의"] + n.threats["주의"] }), { "위험": 0, "주의": 0 });
 
-// 보안 통계의 머리 — 지금의 시스템 안전 점수와 기간 안 타일 둘. 숫자는 한 곳에만 둡니다 (11/2 — 타일 넷이 아래 카드 · 다른 타일과 겹쳤음).
-// 위협 로그는 건수를 앞에 둡니다. 비율은 주의 판정 묶음의 줄을 모두 세어 크게 나오므로 작은 글씨로만 씁니다.
+// 비율은 주의 판정 묶음의 줄을 모두 세어 크게 나오므로 작은 글씨로만 씁니다.
 export function SystemHead({ d, onSelect }: Props) {
   const L = d.events.lines;
   const { threat, logs } = threatOf(d);
@@ -46,7 +43,6 @@ export function SystemHead({ d, onSelect }: Props) {
   );
 }
 
-// 위협 로그(날짜별 세로 막대)와 노드별 위협 항목(표).
 export function SystemSections(p: Props) {
   return (
     <>
@@ -56,12 +52,10 @@ export function SystemSections(p: Props) {
   );
 }
 
-// 날짜별 세로 막대 — 높이 = 그날 로그 건수(빈도), 색 조각 = 위험 · 주의 · 그 외 로그(비율). 시간 흐름이라 차트로 보고, [표]는 정확한 값을 볼 때.
 function ThreatLogs({ d }: Props) {
   const [table, setTable] = useState(false);
   const { keys, byDay } = mergeDays(d.logs.days, d.events.days);
   const dayMax = niceMax(Math.max(1, ...keys.map((k) => Math.max(byDay[k].total, byDay[k]["위험"] + byDay[k]["주의"]))));
-  // 날짜 글자는 그 막대 칸 가운데에 둡니다 (처음 · 가운데 · 끝).
   const at = (n: number) => `${((n + 0.5) / keys.length) * 100}%`;
   const ticks = [...new Set([0, Math.floor(keys.length / 2), keys.length - 1])];
   return (
@@ -100,9 +94,7 @@ function ThreatLogs({ d }: Props) {
   );
 }
 
-// 노드별 위협 항목 — 노드마다 한 줄 (11/2, 모듈별 · 노드별 가로 막대 둘 대신). 값이 1~3이라 막대 길이에 뜻이 적고,
-// 모듈별은 같은 항목을 다시 나눈 것이라 "걸린 모듈" 칸으로 둡니다. 마지막 등급과 항목 수는 칸을 나눕니다 —
-// "2건 · 정상"처럼 붙이면 어긋나 보였습니다 (모델이 전체 등급과 항목 등급을 따로 냄). 줄을 누르면 패널(등급 변화 · 걸린 조항 · 노드 탭).
+// 모델이 전체 등급과 항목 등급을 따로 내 붙이면 어긋나 보여서 칸을 나눕니다.
 function NodeThreats({ d, selected, onSelect }: Props) {
   const sv = d.servers;
   const modulesOf = (node: string) => sv.modules.filter((m) => m.nodes.includes(node)).map((m) => m.module).join(", ") || "—";
@@ -111,7 +103,7 @@ function NodeThreats({ d, selected, onSelect }: Props) {
       <div className={cardHead}><h3 className={cardTitle}>노드별 위협 항목</h3></div>
       {sv.nodes.length ? (
         <>
-          {/* 패널은 고를 때만 열려, 누를 수 있다는 것을 여기서 알립니다 (줄은 마우스를 올려야 손 모양이 뜸). */}
+          {/* 줄은 마우스를 올려야 손 모양이 떠서 누를 수 있다는 것을 여기서 알립니다. */}
           <p className={statSub}>줄을 누르면 오른쪽에 등급 변화 · 걸린 조항이 열립니다.</p>
           <DataTable head={["노드", "마지막 등급", "위험 항목", "주의 항목", "걸린 모듈", "설정이 바뀐 수집"]} empty="" numCols={[2, 3]}
           rows={sv.nodes.map((n) => ({

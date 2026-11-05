@@ -11,9 +11,7 @@ import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
 import { empty, levelText } from "@/shared/ui/base/styles";
 
-// 검토 현황 목록 — 행과 머리줄은 같은 4칸(대상 · 상세 · 시각 · 판정) 그리드입니다. 대상은 짧고 상세는 길어 1 : 2 로 나누고, 시각은 한 줄에 들어가는 폭으로 둡니다.
-// 4칸이 들어가지 않는 폭(약 560px)이면 상세 · 시각을 숨깁니다 (패널에 있음). 창 폭이 아니라 목록 폭으로 봅니다 —
-// 넓은 창도 메뉴 · 패널을 펼치면 목록이 좁아지고(13인치에서 약 600px), 좁은 창은 패널이 서랍으로 빠져 자리가 남습니다.
+// 창 폭이 아니라 목록 폭(약 560px)으로 상세 · 시각을 숨깁니다 — 메뉴 · 패널을 펼치면 목록이 좁아져서.
 const GRID = "grid grid-cols-[minmax(120px,1fr)_minmax(140px,2fr)_120px_104px] items-center gap-3 px-4.5 @max-[560px]:grid-cols-[minmax(0,1fr)_100px]";
 const SLIM_HIDE = new Set([1, 2]);
 const SLIM = "@max-[560px]:hidden";
@@ -26,7 +24,6 @@ export function QueueTable() {
   const cols = view === "requests" && ui.stageFilter === "people" ? PEOPLE_COLS : view ? VIEWS[view].cols : [];
   const rows = view ? visible(items, { view, stageFilter: ui.stageFilter, role: me.role, filter: ui.filter, query: ui.query }) : [];
   const anyInView = !!view && items.some((it) => inView(it, view, ui.stageFilter, me.role));
-  // 고른 줄을 다시 누르면 선택을 풉니다 (패널은 안내만, 관리 메뉴도 같음 — 등록 창은 [+ …] 버튼으로만 엶).
   const onRow = (key: string) => (key === ui.selected ? dispatch({ type: "DESELECT" }) : select(key));
   return (
     <div className="@container border-t border-line">
@@ -42,9 +39,6 @@ export function QueueTable() {
   );
 }
 
-// 줄 — 누르면 오른쪽 패널에 내용을 엽니다 (일반 사용자의 내 신청은 features/requests/MineList).
-// 대상 아래 흐린 줄에 분류 · 번호를 씁니다 — 줄마다 다른 것만. 메뉴 이름을 되풀이하는 분류(권한 신청 · 로그 감시)와
-// 대상에 이미 있는 번호(서버 점검의 노드 이름 · 계정의 아이디)는 뺍니다. 정책 관리는 정책 문제 · 서버 점검이 섞여 분류를 둡니다.
 const MIXED = new Set<ItemType>(["policy", "server"]);
 const ROW = "min-h-14 w-full border-0 border-b border-l-[3px] border-b-line border-l-transparent bg-surface py-2 pr-4.5 pl-3.75 text-left";
 function Row({ it, current, onSelect }: { it: QueueItem; current: boolean; onSelect: () => void }) {
@@ -68,7 +62,6 @@ function Row({ it, current, onSelect }: { it: QueueItem; current: boolean; onSel
     </>
   );
   return (
-    // 고른 행은 hover 보다 고른 색이 이깁니다. 왼쪽 3px 띠는 고른 행에서만 빨간색.
     <button aria-current={current} onClick={onSelect}
       className={cn(GRID, ROW, current ? "border-l-risk bg-risk-tint" : "hover:bg-row-hover")}>
       {cells}

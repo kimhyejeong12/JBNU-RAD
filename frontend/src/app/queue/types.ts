@@ -1,6 +1,5 @@
 import type { AccessItem, Decision, EventFinding, Level, PolicyIssue, Regulation, RequestRow, ServerFinding, UserRow, WatchPerson } from "@/shared/api/types";
 
-// 큐 항목 — 메뉴마다 다른 데이터를 한 목록 형식으로. raw 는 종류별 원본 행입니다.
 interface Base {
   key: string;
   itemKey?: string;      // 운영자 결정의 item_key (정책 · 서버 · 로그)

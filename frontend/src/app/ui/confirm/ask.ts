@@ -1,11 +1,9 @@
-// 확인 창 띄우기 — 브라우저 기본 confirm() 대신 화면 디자인에 맞춘 가운데 창(ConfirmLayer)을 띄우고, 실행을 누르면 true.
-// 버튼에는 하는 일을 그대로 씁니다([취소] [철회]). danger 면 실행 버튼이 빨강이고 처음 초점이 [취소]에 갑니다 (엔터로 바로 실행되지 않게).
+// danger 면 처음 초점을 [취소]에 두어 엔터로 바로 실행되지 않게 합니다.
 export interface Ask { title: string; message: string; confirm: string; danger?: boolean }
 
 type Show = (a: Ask, done: (ok: boolean) => void) => void;
 let show: Show | null = null;
 
-// ConfirmLayer 가 그려질 때 등록합니다.
 export function registerConfirm(fn: Show | null): void {
   show = fn;
 }

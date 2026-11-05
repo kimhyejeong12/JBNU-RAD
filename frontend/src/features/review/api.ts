@@ -9,8 +9,7 @@ export type ReviewItem = Extract<QueueItem, { type: "policy" | "server" | "event
 
 interface DecideArgs { it: ReviewItem; action: string; comment: string }
 
-// 정책 문제 · 서버 점검 · 로그 판정에 대한 운영자 결정 · 취소. 지금 결정은 캐시에 바로 반영하고,
-// 보안 총책임자(결정 기록 전부를 받는 사람)는 기록도 다시 받습니다.
+// 보안 총책임자는 결정 기록 전부를 받으므로 기록도 다시 받습니다.
 export function useDecide() {
   const qc = useQueryClient();
   const { setPanelMsg } = useUi();

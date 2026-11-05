@@ -15,11 +15,10 @@ import { actionButton, field, formActions, formGrid, input, meta, panelBody, pri
 import { Switch } from "@/shared/ui/base/parts";
 import { ask } from "@/app/ui/confirm/ask";
 
-// 두 칸을 다 쓰는 칸 · 버튼 줄.
 const WIDE_FIELD = cn(field, "col-span-full");
 const WIDE_ACTIONS = cn(formActions, "col-span-full");
 
-// 역할 고르기 — 세 역할을 버튼으로 늘어놓습니다 (고르기 칸은 눌러 봐야 무엇이 있는지 보여서). 폼이 이름(role)으로 읽는 라디오는 글자로만 숨깁니다.
+// 폼이 이름(role)으로 읽으므로 라디오는 글자로만 숨깁니다.
 const ROLES: Role[] = ["user", "manager", "top"];
 const RoleSelect = ({ value, disabled }: { value: Role; disabled?: boolean }) => (
   <div className="flex flex-wrap gap-0.5 self-start rounded-lg bg-canvas p-0.75" role="radiogroup" aria-label="역할">
@@ -32,7 +31,6 @@ const RoleSelect = ({ value, disabled }: { value: Role; disabled?: boolean }) =>
   </div>
 );
 
-// 계정 관리 패널 (보안 총책임자) — 선택 없음 = 새 계정. 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿉니다.
 export function UserPanel({ u }: { u: UserRow | null }) {
   return u ? <EditUser u={u} /> : <NewUser />;
 }
@@ -49,7 +47,7 @@ function NewUser() {
   return (
     <>
       <PanelHead title="새 계정" />
-      {/* 패널 높이를 채우는 격자라 줄이 남는 높이를 나눠 벌어지지 않게 위에서부터 붙여 쌓습니다(content-start). */}
+      {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓습니다(content-start). */}
       <form className={cn(panelBody, formGrid, "content-start px-4.5 py-4")} id="user-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <label className={field}>아이디<input className={input} name="login_id" required maxLength={100} autoComplete="off" /></label>
         <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
@@ -67,7 +65,7 @@ function EditUser({ u }: { u: UserRow }) {
   const me = useMe();
   const { setPanelMsg } = useUi();
   const action = useUserAction();
-  // 저장 뒤 서버 값으로 다시 그리고 초기화 칸을 비웁니다 (폼은 uncontrolled).
+  // 폼이 uncontrolled 라 저장 뒤 서버 값으로 다시 그립니다.
   const formKey = `${u.id}:${useQuery(usersQuery()).dataUpdatedAt}`;
   const self = u.id === me.id;
   const locked = u.is_root && !me.is_root;
@@ -83,7 +81,7 @@ function EditUser({ u }: { u: UserRow }) {
     const patch: Record<string, unknown> = {
       display_name: f.get("display_name"), department: f.get("department"), job: f.get("job"), log_id: f.get("log_id"), left_on: f.get("left_on"),
     };
-    // 부서 · 직무를 옮기면 이동 기록이 남고 지금 가진 권한을 AI 가 하나씩 다시 판정합니다. 비어 있던 칸을 처음 채우는 것은 이동이 아닙니다.
+    // 부서 · 직무를 옮기면 지금 가진 권한을 AI 가 다시 판정합니다 (빈 칸을 처음 채우는 것은 이동이 아님).
     const moved = (["department", "job"] as const).filter((k) => (u[k] ?? "") !== "" && String(f.get(k) ?? "").trim() !== (u[k] ?? ""));
     if (moved.length && !(await ask({
       title: "부서 · 직무 이동", confirm: "저장",
@@ -96,7 +94,7 @@ function EditUser({ u }: { u: UserRow }) {
     }))) return;
     if (!fixed) {
       const role = f.get("role") as Role;
-      // 역할이 바뀔 때만 묻습니다 — 저장하면 권한이 바로 오르내려서. 이름 · 부서만 고칠 때는 묻지 않습니다.
+      // 저장하면 권한이 바로 오르내려서 역할이 바뀔 때만 묻습니다.
       if (role !== u.role && !(await ask({
         title: "역할 바꾸기", confirm: "바꾸기", danger: true,
         message: `${u.display_name} (${u.login_id})의 역할을 바꿉니다: ${ROLE_LABEL[u.role]} → ${ROLE_LABEL[role]}. 저장하면 바로 그 역할의 메뉴와 권한이 적용됩니다.`,
@@ -105,7 +103,7 @@ function EditUser({ u }: { u: UserRow }) {
     }
     action.mutate({ id: u.id, patch });
   }
-  // 활성 · 정지는 저장과 따로 바로 적용합니다. 정지할 때만 묻습니다 — 로그인이 막히고 세션이 끊겨서. 활성은 해가 없어 묻지 않습니다.
+  // 정지는 로그인을 막고 세션을 끊어서 정지할 때만 묻습니다.
   async function onToggle(on: boolean) {
     if (!on && !(await ask({
       title: "계정 정지", confirm: "정지", danger: true,
@@ -113,7 +111,6 @@ function EditUser({ u }: { u: UserRow }) {
     }))) return;
     action.mutate({ id: u.id, patch: { is_active: on }, done: on ? "✓ 활성으로 바꿨습니다" : "✓ 정지했습니다" });
   }
-  // 비밀번호 초기화 — 다른 사람의 비밀번호가 바로 바뀌어 한 번 묻습니다.
   async function onReset(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const problem = formProblem(e.currentTarget);

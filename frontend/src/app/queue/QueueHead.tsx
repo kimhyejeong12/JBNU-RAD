@@ -15,9 +15,7 @@ import type { Level } from "@/shared/api/types";
 import { useQueue } from "./useQueue";
 import { levelCounts } from "./select";
 
-// 대기열 머리 — 첫 줄은 제목 · 검색 · 실행 버튼, 둘째 줄은 등급 거르기 버튼(권한 신청의 결재 단계는 위 탭 줄에). 버튼은 빼지 않고 hidden 으로 숨깁니다.
-// 검색 칸이 오른쪽으로 밀고 버튼은 그 옆에 붙입니다 (버튼도 밀면 남는 자리를 나눠 검색 칸이 가운데로 뜹니다).
-// 등급 거르기는 예전 요약 카드(큰 숫자 카드 3장)를 대신합니다 — 카드는 누르면 거른다는 게 안 읽혀서, 누르는 버튼 모양에 건수를 붙였습니다.
+// 버튼도 밀면 남는 자리를 나눠 검색 칸이 가운데로 뜨므로 검색 칸만 오른쪽으로 밉니다.
 const Count = ({ n }: { n: number }) => <span className="ml-1.5 tabular-nums text-ink-faint">{n}</span>;
 
 export function QueueHead() {
@@ -30,10 +28,9 @@ export function QueueHead() {
   const title = ui.view === "requests"
     ? `${meta?.label} — ${me.role === "manager" ? "1차" : "최종"} 결재함`
     : meta?.title ?? "현황";
-  // 분석 실행은 정책 관리만 합니다. 수 분 걸리므로 진행 상황을 버튼에 띄웁니다.
   const run = runButton(jobs, ui.view, start.isPending);
   const view = ui.view;
-  // 로그 감시는 주의 이상만 검토에 올라오므로 정상 버튼을 두지 않습니다.
+  // 로그 감시는 주의 이상만 올라와 정상 버튼을 두지 않습니다.
   const levels: Level[] = view === "events" ? ["주의", "위험"] : ["정상", "주의", "위험"];
   const byLevel = view && LEVEL_VIEWS.has(view) ? levelCounts(items, view, ui.stageFilter, me.role) : null;
   return (
@@ -54,7 +51,6 @@ export function QueueHead() {
       </div>
       {byLevel && (
         <div className="flex flex-wrap items-center gap-2">
-          {/* 등급 거르기 — 권고 문구(승인 · 추가 검토 · 반려 권고)는 등급 이름의 툴팁에 둡니다. */}
           <Periods<LevelFilter> id="level-filter" label="AI 판정 등급" value={ui.filter} onChange={setFilter}
             labels={[["전체", <>전체<Count n={byLevel["전체"]} /></>], ...levels.map((l): [LevelFilter, ReactNode] => [l, <span key={l} data-tip={LEVEL_TIP[l]}><LevelDot level={l} />{l}<Count n={byLevel[l]} /></span>])]} />
         </div>
