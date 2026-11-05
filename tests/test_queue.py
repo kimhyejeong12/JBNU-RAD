@@ -94,3 +94,18 @@ def test_job_status_shape():
     status = q.status({})
     assert status["jobs"]["running"] == "policies" and not status["jobs"]["queued"] and status["jobs"]["total"] == 1
     assert status["verdicts"] == {"current": None, "waiting": []}
+
+
+def test_clear_drops_everything_and_retires_idle_worker():
+    q = Queues()
+    batch = q.open("suspects")
+    q.fill(batch, [("suspects:a", 1)])
+    q.submit(Job("request", "REQ-1"))
+    old = q.generation
+    running = q.take(old)
+    stopped = q.clear()
+    assert {u.kind for u in stopped} == {"suspects", "request"} and running.status == "cancelled"
+    assert batch.status == "cancelled" and not q.pending("suspects") and q.take(old) is None
+    detail = q.detail()
+    assert detail["current"] is None and all(not lane["jobs"] for lane in detail["lanes"])
+    assert detail["last"]["suspects"]["error"] == "강제로 끝냈습니다"

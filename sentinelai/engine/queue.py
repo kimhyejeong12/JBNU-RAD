@@ -19,6 +19,9 @@ VERDICTS = {"request", "grant"}
 # 화면의 작업 막대에 보이는 작업입니다. 빠른 감시는 fast 칸에 따로 둡니다.
 MAIN = set(KINDS) - {"events_fast"}
 STOPPED = "강제로 끝냈습니다"
+# 설정 화면에서 큐를 그대로 보여줄 때 쓰는 이름입니다.
+LABELS = {**KINDS, "request": "권한 신청 판정", "grant": "보유 권한 재검토", "index": "기준 문서 적재"}
+LANE_NAMES = {URGENT: "판정 · 적재", FAST: "빠른 감시", NORMAL: "정기 작업"}
 
 Progress = Callable[[int, int, dict[str, Any]], None]
 
@@ -238,6 +241,27 @@ class Queues:
             self.cond.notify_all()
             return [stopped]
 
+    def clear(self) -> list[Batch | Job]:
+        """돌던 잡 · 기다리던 잡 · 열린 묶음을 모두 끝내고 세대를 올립니다. 쉬던 워커도 물러납니다. → 끝낸 묶음 또는 단독 잡"""
+        with self.cond:
+            jobs = [*([self._running] if self._running else []), *self._waiting()]
+            self._running = None
+            self.generation += 1
+            stopped: list[Batch | Job] = []
+            for batch in list(self._batches):
+                self._close_batch(batch, "cancelled", STOPPED)
+                stopped.append(batch)
+            for job in jobs:
+                job.status, job.error, job.finished_at = "cancelled", STOPPED, _now()
+                job.finished.set()
+                if job.batch is None:
+                    self._remember(job.kind, job.finished_at, STOPPED, job.auto)
+                    stopped.append(job)
+            for lane in self._lanes.values():
+                lane.clear()
+            self.cond.notify_all()
+            return stopped
+
     def stop(self) -> None:
         with self.cond:
             self.stopping = True
@@ -284,6 +308,16 @@ class Queues:
                                "last": {k: dict(v) for k, v in self._last.items() if k == "events_fast"}, **schedule["events_fast"]}
             return out
 
+    def detail(self) -> dict[str, Any]:
+        """설정 화면용 — 도는 잡과 길마다 기다리는 잡 전부, 열린 묶음, 종류마다 마지막 실행."""
+        def row(j: Job) -> dict[str, Any]:
+            return {**j.brief(), "lane": j.priority, "close": j.close, "batch": j.batch.id if j.batch else None}
+        with self.cond:
+            return {"generation": self.generation, "current": row(self._running) if self._running else None,
+                    "lanes": [{"lane": n, "name": LANE_NAMES[n], "jobs": [row(j) for j in jobs]} for n, jobs in self._lanes.items()],
+                    "batches": [b.brief() for b in self._batches], "last": {k: dict(v) for k, v in self._last.items()},
+                    "labels": LABELS}
+
     def status(self, schedule: dict[str, dict[str, Any]]) -> dict[str, Any]:
         """작업 큐 · 자동 실행 예약 · 권한 신청 판정 대기열 (/internal/status)."""
         jobs = {**self.job_status(schedule), "kinds": KINDS}
@@ -295,4 +329,4 @@ class Queues:
 
 IDLE = {"running": None, "auto": False, "done": 0, "total": 0, "started_at": None, "queued": False, "last": {}, "waiting": []}
 
-__all__ = ["FAST", "IDLE", "KINDS", "LANES", "MAIN", "MANUAL", "NORMAL", "URGENT", "Batch", "Job", "Progress", "Queues"]
+__all__ = ["FAST", "IDLE", "KINDS", "LABELS", "LANE_NAMES", "LANES", "MAIN", "MANUAL", "NORMAL", "URGENT", "Batch", "Job", "Progress", "Queues"]

@@ -106,6 +106,19 @@ class Engine:
                 self.queues.submit(Job(unit.kind, unit.key, work=unit.work))
         return [unit.kind for unit in stopped]
 
+    def clear_queue(self) -> list[str]:
+        """기다리던 잡까지 모두 끝내고 새 워커를 띄운 뒤, 뜰 때처럼 기준 문서 적재 · 판정 못한 신청을 다시 쌓습니다. 예약은 그대로. → 끝낸 작업의 종류"""
+        stopped = self.queues.clear()
+        if self._started:
+            self.worker.start()
+            self.exclusive(self._reindex)
+            self.issuer.resume()
+        return [unit.kind for unit in stopped]
+
+    def queue_detail(self) -> dict[str, Any]:
+        """설정 화면 — 화면용 상태 · 예약 · 판정 대기열에 길마다 기다리는 잡 전부를 더합니다."""
+        return {**self.status(), **self.queues.detail()}
+
     def job_status(self) -> dict[str, Any]:
         return self.queues.job_status(self.issuer.schedule()) if self._started else dict(IDLE)
 

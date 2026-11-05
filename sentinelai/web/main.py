@@ -106,6 +106,21 @@ def reset_jobs(body: ResetJobs, request: Request, user: Annotated[User, Depends(
     return jobs(request)
 
 
+@app.get("/api/queue")
+def queue_detail(request: Request, _user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
+    return _engine(request).queue_detail()
+
+
+@app.post("/api/queue/clear")
+def clear_queue(request: Request, user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
+    """돌던 판정 한 건은 끝날 때까지 이어지고 결과는 버립니다. 도는 작업이 없어도 워커를 새로 띄웁니다."""
+    cleared = _engine(request).clear_queue()
+    with request.app.state.main_db.transaction() as conn:
+        audit(conn, "queue_clear", user.id, login_id=user.login_id, target_type="jobs", target_id=",".join(sorted(set(cleared))),
+              detail=json.dumps({"count": len(cleared)}, ensure_ascii=False), ip=request.client.host if request.client else None)
+    return _engine(request).queue_detail()
+
+
 @app.post("/api/jobs/{kind}", status_code=202, dependencies=analyst)
 def start_job(kind: str, request: Request) -> dict[str, Any]:
     """큐에 넣습니다 (다른 작업이 돌면 그 뒤에). 같은 작업이 이미 기다리거나 돌고 있으면 409 입니다."""
