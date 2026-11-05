@@ -1,7 +1,6 @@
 # SentinelAI
 PY := .venv/bin/python
 DOCKER ?= docker
-IMAGE := sentinelai:0.6.0
 DOCS ?= docs
 DEV_PORT ?= 8001
 DEV_CHECK_MIN ?= 5
@@ -15,11 +14,14 @@ DEV_ENV := SENTINELAI_DB_PATH=$(DEV_DATABASE_URL) SENTINELAI_RESULTS_DB_PATH=$(D
 PODMAN ?= podman
 TARGETS := cd node/testenv && $(PODMAN) compose --env-file targets.env
 
-.PHONY: db-up db-down test dev-setup dev dev-node dev-sim dev-targets dev-targets-stop front-install front front-test front-build front-check help install health index review-policies check-nodes monitor import-snapshots create-root web docker-build docker-run clean
+.PHONY: db-up db-down test dev-setup dev dev-node dev-sim dev-targets dev-targets-stop front-install front front-test front-build front-check help install health index review-policies check-nodes monitor import-snapshots create-root web up down logs docker-root docker-build clean
 
 help:
+	@echo "up · down · logs               웹 + PostgreSQL 을 컨테이너로 (venv 없이, http://localhost:8000) · 내리기 · 웹 로그 보기"
+	@echo "docker-root LOGIN=아이디 NAME=이름 [DEPT=부서]  컨테이너 안에서 첫 루트 계정 만들기 (make up 뒤 한 번)"
+	@echo "--- venv 로 돌릴 때 ---"
 	@echo "install                        venv 생성 + 의존성 설치 + .env 준비"
-	@echo "db-up · db-down                PostgreSQL 컨테이너 (compose.yaml) 올리기 · 내리기 — 처음 한 번 db-up"
+	@echo "db-up · db-down                PostgreSQL 컨테이너만 올리기 · 내리기 — 처음 한 번 db-up"
 	@echo "test                           DB 시험 (트리거 · 쿼리를 시험 DB sentinelai_test 에서)"
 	@echo "web                            대시보드 (http://localhost:8000) — 로그 감시 · 서버 점검은 웹이 스스로 돌림"
 	@echo "health                         Ollama · 모델 · 벡터 DB 확인"
@@ -45,7 +47,7 @@ help:
 	@echo "front-test                     화면 단위 시험 · 타입 검사 · 린트"
 	@echo "front-build                    화면 빌드 → sentinelai/web/static/ (결과를 커밋한다, 서버에 Node 불필요)"
 	@echo "front-check                    깨끗이 설치해 빌드한 결과가 커밋된 것과 같은지 확인"
-	@echo "docker-build · docker-run · clean"
+	@echo "docker-build · clean"
 
 install:
 	python3 -m venv .venv
@@ -54,10 +56,22 @@ install:
 	@test -f .env || (cp .env.example .env && echo ".env 생성됨")
 
 db-up:
-	$(DOCKER) compose up -d --wait
+	$(DOCKER) compose up -d --wait postgres
 
 db-down:
+	$(DOCKER) compose stop postgres
+
+up:
+	$(DOCKER) compose up -d --build --wait
+
+down:
 	$(DOCKER) compose down
+
+logs:
+	$(DOCKER) compose logs -f app
+
+docker-root:
+	$(DOCKER) compose exec app python -m sentinelai create-root --login "$(LOGIN)" --name "$(NAME)" $(if $(DEPT),--department "$(DEPT)")
 
 test:
 	SENTINELAI_TEST_DATABASE_URL=$(TEST_DATABASE_URL) $(PY) -m pytest tests
@@ -129,10 +143,7 @@ dev-targets-stop:
 	$(TARGETS) down
 
 docker-build:
-	$(DOCKER) build -t $(IMAGE) .
-
-docker-run:
-	$(DOCKER) run --rm --env-file .env $(IMAGE) health
+	$(DOCKER) compose build app
 
 clean:
 	rm -rf .venv .index

@@ -29,7 +29,7 @@ SK쉴더스 산학협력 문제 제안서(2026. 8.)가 이 과제의 기준.
 | 로컬 LLM · RAG — 보안정책 · 접근통제 · 권한 부여 기준 · 운영 가이드를 Vector DB에 | Ollama · Milvus Lite · `docs/` 기준 문서 2개 | 운영 가이드 · 사내 원문 pptx · pdf (§8 6) |
 | 정책 검토 — 공통 형식으로 표준화, 충돌 · 중복 · 과도한 허용 · 기준 위반과 개선안 | `sentinelai/data/` → `review_policies` | 실제 정책 샘플 (§8 1) |
 | 권한 적정성 — 부서 · 직무 · 기존 권한 · 신청 권한 → 승인 · 추가 검토 · 반려 권고 | `judge_request` (정상 → 승인 권고 · 주의 → 추가 검토 · 위험 → 반려 권고). 직무 · 신청 사유 · 사용 기간 · 최근 이동을 봄 (11/3). 받은 뒤 이동하면 `judge_grant`로 다시, 퇴사하면 코드가 위험 | 직무 기준 문서 (직무별 필요 권한) |
-| 대시보드 · 알림 — 정상 · 주의 · 위험, 위험이면 운영자 알림(이메일 · 메신저 포함), 고칠 것 설명 | 웹 대시보드 · 종 배지 | 알림 보내기 (§8 3). 이메일 · 메신저는 §8 11에서 범위 밖이라 범위를 정할 때 함께 봄 |
+| 대시보드 · 알림 — 정상 · 주의 · 위험, 위험이면 운영자 알림(이메일 · 메신저 포함), 고칠 것 설명 | 웹 대시보드 · 종 배지 · 결재 대기 Slack 채널 알림 · 결재 결과 신청자 메일(11/04) | 위험 판정 알림 (§8 3) |
 | 수집 인터페이스 모듈화 — 실제 솔루션 API · Export, 계정 관리 시스템 · AD 연동 대비 | `RowSource` · 수집 노드 | 실제 연동 (§8 11) |
 | 위험도 · 신뢰도 평가 (구조도) | 사용자 의심 점수 · 안전 점수 | 정책 위험도 점수 · AI 판단 신뢰도 (§8 7) |
 
@@ -71,6 +71,7 @@ JBNU-RAD/
 │   ├── db/                     권한 DB · AI 결과 DB (PostgreSQL 스키마 main · results). 엔진 · 데이터 계층은 모름. 설계는 design/db-schema.md · design/results-db.md
 │   │   ├── core.py               연결 풀 · 스키마 적용(schema_version) · 쓰기 차례(advisory lock) · 트리거 · 제약 위반 → Denied
 │   │   ├── main.sql              권한 DB — 사용자 · 세션 · 감사 기록 · 신청(1건 = 1행: 신청 · AI 판정 · 1차 · 최종 결재 · 회수) · 권한 목록 · 운영자 결정 · 수집 노드 · 직무 · 퇴사일 · 이동 기록 · 보유 권한 재검토(11/3). 결재 순서 · 역할은 트리거가 강제 (11/03 SQLite 마이그레이션 11개를 하나로)
+│   │   ├── main_email.sql        main.sql 뒤에 적용 — 계정에 알림 받을 이메일 칸 (11/04)
 │   │   ├── results.sql           AI 결과 DB — 정책 관리 검토 · 로그 감시 판정 · 서버 점검 · 수집 기록 · 의심 점수 · 질의 기록 (쌓기만, 로그 자체는 안 쌓음)
 │   │   ├── auth.py               Argon2id · 로그인 잠금 · 세션 2일 · 계정 관리는 보안 총책임자 (루트 계정은 루트만)
 │   │   ├── permissions.py        신청(권한 목록 코드로, 현재 보유 권한은 승인된 유효 신청에서 읽어 남김) · AI 판정 저장(1차 결재 전까지만) · 철회 · 결재 · 회수
@@ -84,6 +85,7 @@ JBNU-RAD/
 │       ├── api_regulations.py    기준 문서 API — 보기 · 올리기 · 고치기(보안 총책임자, 감사 기록). 엔진의 공개 기능(index)만 씀 (/api/regulations)
 │       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 줌
 │       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
+│       ├── notify.py             결재 대기 → Slack 채널 (새 신청 = 1차 결재 대기, 1차 승인 = 최종 결재 대기). `SENTINELAI_SLACK_WEBHOOK_URL`, 비우면 끔. 신청 번호 · 부서 · 권한만, 결과(승인 · 반려)는 채널에 안 보냄. 결재 결과(1차 반려 · 최종 승인 · 최종 반려) → 신청자 계정 이메일(`users.email`), SMTP `SENTINELAI_SMTP_*`, 비우면 끔, 신청 번호 · 권한 · 결과만 (11/04)
 │       └── static/               화면 빌드 결과 — frontend/ 에서 `make front-build` 로 만들어 커밋. 서버는 그대로 서빙
 ├── frontend/                 React 화면 소스 (김혜정) — TypeScript · Vite · TanStack Query · Vitest · Tailwind v4. 10/29에 옛 index.html 을 기능 · 모양 그대로 옮기고 10/30에 CSS를 Tailwind로 바꿨음 (화면 그대로, 리디자인은 다음)
 │   └── src/
@@ -110,9 +112,9 @@ JBNU-RAD/
 ├── NOTES.md                  작업 메모 — 설정 값의 이유 · 서버 이슈 경위 · 모델 비교 (설정 파일 · 코드에 설명 주석 대신 여기에)
 ├── .dev/ · .milvus/          로컬 시험 환경 파일 · 벡터 DB 파일 (git 제외)
 ├── .env · .env.example       설정. .env 는 git 제외, make install 이 예시에서 만듦
-├── compose.yaml              PostgreSQL 18 컨테이너 (make db-up). DB sentinelai · sentinelai_dev · sentinelai_test
+├── compose.yaml              웹(app) + PostgreSQL 18 (make up, DB만은 make db-up). DB sentinelai · sentinelai_dev · sentinelai_test. 벡터 DB · 기준 문서 · PostgreSQL은 볼륨, data/는 읽기만
 ├── Makefile · requirements.txt · requirements-dev.txt
-└── Dockerfile · README.md    코어 컨테이너(엔진 · data · db, 웹 없음) · 저장소 소개
+└── Dockerfile · README.md    컨테이너 이미지(웹 · 엔진 · data · db · CLI, 11/04에 웹을 넣음) · 저장소 소개
 ```
 
 ### 검토 대상 데이터
@@ -238,9 +240,9 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `GET /api/user-stats?period=` | 사용자 위협 — `suspects`(사람마다 마지막 의심 점수 · 등급 · 이유 · 확인할 점 · 행동 신호 · 흐름 · 지금 가진 권한 `held`, 계정 미연결은 null, 기간과 무관) · `safety`(사용자 안전 점수) · `events.users`(사용자별 위협 로그 줄 · 판정 수 · 로그 사용자 ID) · `requests`(신청 수 · AI 등급별 · AI와 결재가 엇갈린 수) |
 | `GET /api/health` | 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` (보안 운영자 이상) |
 | `GET /api/regulations` · `POST /api/regulations` · `PUT /api/regulations/{이름}` · `DELETE /api/regulations/{이름}` | `docs/` 원문 · 고친 시각(보안 운영자 이상) · 올리기 · 고치기 · 지우기(보안 총책임자). 지우기는 `{reason}` → 파일을 지우고 그 문서의 조각만 RAG 에서 뺌(`Engine.remove_document`), 지운 원문 · 사유는 감사 기록(`regulation_remove`)에. 마지막 문서는 400. 올리기는 `{name, content}`(.md · .txt, 1MB, 같은 이름 400 — 덮어쓰지 않음) → 바뀐 파일만 적재. 고치기는 `{content, reason}`(없는 문서 404, 같은 내용 400) → 그 문서만 다시 적재, 고치기 전 원문 · 사유는 감사 기록(`regulation_edit`)에. 다른 작업이 돌면 끝나기를 기다렸다가 적재(10분 넘으면 409), AI 엔진(임베딩)에 닿지 않으면 바로 503 |
-| `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 (보안 총책임자). `PATCH`로 로그 사용자 ID(`log_id`, 계정마다 하나, 겹치면 400) · 직무(`job`) · 퇴사일(`left_on`, YYYY-MM-DD). 부서 · 직무가 바뀌면 이동 기록 + 보유 권한 재검토를 판정 큐에. 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿈 |
+| `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 (보안 총책임자). `PATCH`로 로그 사용자 ID(`log_id`, 계정마다 하나, 겹치면 400) · 직무(`job`) · 퇴사일(`left_on`, YYYY-MM-DD) · 이메일(`email`, 결재 결과 알림용, 만들 때도 받음, 빈 값이면 안 보냄, 형식이 틀리면 400). 부서 · 직무가 바뀌면 이동 기록 + 보유 권한 재검토를 판정 큐에. 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿈 |
 | `GET /api/access-catalog` · `POST /api/access-catalog` · `PATCH /api/access-catalog/{코드}` | 권한 목록 — 보기(일반 사용자 · 보안 운영자는 켜진 것만) · 등록 · 고치기 · 끄기(보안 총책임자, 감사 기록) |
-| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` | 신청(일반 사용자, 본문 `access_code` · `reason`(필수, 비면 400) — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400, 현재 보유 권한은 서버가 채움) · 목록(일반 사용자는 자기 것만). 응답에 `ai_verdict` · `judging` · `grant_review`(유효 권한의 재검토 — 퇴사 `leave` · 이동 `move`, 일반 사용자에게는 뺌) |
+| `POST /api/requests` · `GET /api/requests[?stage=&mine=]` | 신청(일반 사용자, 본문 `access_code` · `reason`(필수, 비면 400) — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400, 현재 보유 권한은 서버가 채움) · 목록(일반 사용자는 자기 것만). 신청 · 1차 승인 뒤 응답을 보내고 Slack 채널에 결재 대기 알림, 결재가 끝나면 신청자 이메일로 결과 메일(실패해도 신청 · 결재는 그대로). 응답에 `ai_verdict` · `judging` · `grant_review`(유효 권한의 재검토 — 퇴사 `leave` · 이동 `move`, 일반 사용자에게는 뺌) |
 | `GET /api/people` | 확인할 사람 (보안 운영자 이상, 코드가 셈) — 퇴사 · 최근 90일 이동 · 위험 · 주의인 결재 중 신청 · 보유 권한(이동 뒤 재검토 · 승인 때 AI 판정)이 걸린 일반 사용자. 사람마다 `flags`(kind · level · at · text · request_no) · `level` (`permissions.watch_people`) |
 | `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(보안 운영자 = 1차, 보안 총책임자 = 최종) · 회수 · 다시 판정 |
 | `GET /internal/status` | **서버 자신(127.0.0.1)만** — 작업 큐 · 자동 실행 예약 · 권한 신청 판정 대기열. 로그인 없음, 밖에서 오거나 전달 헤더(`X-Forwarded-For` 등)가 붙으면 404. `curl -s localhost:8000/internal/status` |
@@ -267,8 +269,10 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 
 | 명령 | 하는 일 |
 |---|---|
+| `make up` · `make down` · `make logs` | **컨테이너로** 웹 + PostgreSQL 올리기 (venv 없이, http://localhost:8000) · 내리기(볼륨은 남음) · 웹 로그. 다른 컴퓨터에서 보려면 `.env`에 `SENTINELAI_WEB_BIND=0.0.0.0` (11/04) |
+| `make docker-root LOGIN=아이디 NAME=이름 [DEPT=부서]` | 컨테이너 안에서 첫 루트 계정 (`make up` 뒤 한 번). CLI는 `docker compose exec app python -m sentinelai 명령` |
 | `make install` | venv · 의존성 · `.env` 준비 (처음 한 번) |
-| `make db-up` · `make db-down` | PostgreSQL 컨테이너 올리기 · 내리기 (데이터는 볼륨에 남음). 팀 서버처럼 PostgreSQL 이 따로 있으면 `.env` 주소만 |
+| `make db-up` · `make db-down` | PostgreSQL 컨테이너만 올리기 · 내리기 (venv로 돌릴 때) (데이터는 볼륨에 남음). 팀 서버처럼 PostgreSQL 이 따로 있으면 `.env` 주소만 |
 | `make test` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움 |
 | `make web` | 대시보드 http://localhost:8000. 로그 감시 · 서버 점검은 웹이 스스로, 정책 관리 검토는 화면 버튼 |
 | `make health` | 서버 · 모델 · 벡터 DB · 두 DB 위치 확인 |
@@ -380,7 +384,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 
 1. **데이터를 다시 정하고 `qwen3:14b`로 전 건 판정해 §5와 대조** — 권한 신청 CSV는 지웠고 정책 · 서버 현황 폴더는 비어 있음 (연습용은 10/20에 지움). 서버 현황은 점검 도구 · 자산관리에서 내보내는 컬럼부터 정함
 2. **DB · 로그인 · 권한 신청** — 구현 끝 (10/11~10/12). 권한 DB(신청 1건 = 1행: AI 판정 · 1차 · 최종 결재 · 회수), ID/PW 로그인, 계정 생성은 보안 총책임자, AI 결과 DB 분리(`design/results-db.md`), 질의 기록(자기 것만). 보안 총책임자는 결정 기록 전부 · 1차 결재 의견을 봄. 남은 질문은 `design/db-schema.md` §5
-3. **알림(Notifier)** — 로그 감시의 주의 · 위험 판정을 운영자에게 보냄. 자리(`Notifier`)만 `sentinelai/engine/types.py`에 있고 `pipeline.py`의 `monitor`에 부를 곳을 표시했음
+3. **알림(Notifier)** — 로그 감시의 주의 · 위험 판정을 운영자에게 보냄. 자리(`Notifier`)만 `sentinelai/engine/types.py`에 있고 `pipeline.py`의 `monitor`에 부를 곳을 표시했음. 결재 대기 알림은 11/04에 웹(`web/notify.py`)에서 Slack 채널로 보냄 (11/04 팀 결정: 채널, Slack 먼저) — 같은 채널을 쓰면 됨. 결재 결과는 같은 날 신청자 이메일로 (SMTP, 시연은 Gmail · 사내 이전 때 사내 SMTP). 계정 관리 화면의 이메일 칸은 리디자인 때 (그 전에는 `PATCH /api/users/{id}`)
 4. **출력 · 매체 반출 조항 없음** — 로그 감시가 근거 없이 판정함. 절차서 14 · 17번(예외처리 · 매체 반출입) 원문 필요. 10/20 시나리오 B · D가 이 때문에 "정상"으로 나와 검토에서 빠졌음. **코드 규칙(출력량 · 시간대 · 새 계정)으로 올리지 않고 절차서 원문을 RAG에 넣기로 했음 (10/20).** 원문을 받으면 6번 경로로 넣고 시나리오로 다시 확인
 5. **로그 감시 이력 화면** — 같은 사용자의 반복 주의 · 위험, 솔루션 · 행위별 추이, 마지막 감시 시각 · 판정 못한 로그. 데이터가 쌓이고 4번 조항이 들어온 뒤에 만듦
 6. **문서 데이터 읽기** — 지금 `DocumentStore`는 `.md` · `.txt`만 적재. 사내 정책 원문(pptx · pdf · docx 등)을 기준 조항으로 넣음. `docs/보안 정책 관리 업무 프로세스.pptx`는 글자 없는 이미지 4장이라 OCR 필요. 4번 절차서도 이 경로로
@@ -388,7 +392,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 8. **내부 상태 API** — 10/20에 `/internal/status`로 작업 큐 · 예약 · 판정 대기열을 화면과 분리했음. 남은 것: `/api/health`도 옮길지, 자동 감시가 연달아 실패하면 알릴지
 9. **보안 대시보드** (10/21 TODO) — 권한 신청 · 정책 관리 · 서버 점검 · 로그 감시를 한눈에. 통계 메뉴(10/21)와 겹치지 않게, 운영자가 무엇을 결정하는 데 쓰는지부터 정함 (10/8에 옛 통계 대시보드를 뺀 이유 — `FRONTEND_GUIDE.md` §7)
 10. **위협 미리 판정** (10/21 TODO) — 사고 전에 먼저 판정해 알림. 사용자 쪽은 의심 점수(10/22)를 만들었음. 남은 것: 의심 점수가 오를 때 알리기(3번과 함께) · 서버 쪽 예측. 입력(서버 점검의 바뀐 설정 · 로그 감시 추이 · 권한 신청 등)과 알림과의 관계는 아직 안 정함
-11. **이번 범위 밖** — 이메일 · 메신저 알림 채널, 실제 솔루션 API 수집(`sentinelai.data`에 RowSource로 추가). 로그가 외부 DB(Microsoft Sentinel 등)에 쌓이면 읽기만 하고 우리 DB에 안 쌓음. 그때 로그 질의 조건을 그 DB 쿼리(KQL 등)로 넘기고 로그 전체를 메모리에 읽는 `ask_logs`를 바꿈 (`design/results-db.md` §0)
+11. **이번 범위 밖** — 실제 솔루션 API 수집(`sentinelai.data`에 RowSource로 추가). 로그가 외부 DB(Microsoft Sentinel 등)에 쌓이면 읽기만 하고 우리 DB에 안 쌓음. 그때 로그 질의 조건을 그 DB 쿼리(KQL 등)로 넘기고 로그 전체를 메모리에 읽는 `ask_logs`를 바꿈 (`design/results-db.md` §0)
 12. **감사 기록 분석** (11/3 TODO) — 지금 감사 기록(로그인 · 결재 · 로그 조회 · 기준 문서 · 계정 · 노드 변경)은 쌓기만 하고 아무도 다시 읽지 않음. 이 기록을 전방위로 분석해 사람이 놓친 위협(예: 로그인 실패 몰림 · 한 사람의 몰아서 로그 조회 · 기준 문서 수정 직후 판정 변화 · 결재 패턴)을 찾아 알림(3번과 함께). 중간발표 보안 설계 슬라이드 5번 카드에서 나왔음. 구현 전까지 발표 · 문서에서는 "남김"까지만 말함
 13. **퇴사 · 이직 · DLP 로그 묶기** (11/3 TODO) — 계정에 필드를 더함
     - ~~퇴사 · 이직(부서 이동)한 사람의 정보~~ → 11/3에 직무 · 퇴사일 · 이동 기록(`user_moves`)을 넣고 판정에 씀 (`design/db-schema.md` §2). 남은 것: 의심 점수 · 로그 감시에도 퇴사 · 이동을 넣을지, 퇴사일이 지나면 계정을 알아서 정지할지

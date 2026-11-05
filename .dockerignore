@@ -3,10 +3,13 @@
 **/__pycache__
 **/*.py[cod]
 .env
+.dev
 .milvus
 *.pdf
 Dockerfile
 Makefile
 README.md
-sentinelai/web
 frontend
+data
+tests
+node

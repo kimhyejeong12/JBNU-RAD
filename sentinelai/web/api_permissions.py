@@ -6,10 +6,12 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, StringConstraints
 
 from sentinelai.db import Denied, User, auth, catalog, decisions, permissions
+
+from . import notify
 
 COOKIE = "sentinelai_session"
 
@@ -106,6 +108,7 @@ class NewUser(BaseModel):
     display_name: Name
     department: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = ""
     job: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = ""
+    email: Annotated[str, StringConstraints(strip_whitespace=True, max_length=254)] = ""
     role: str
 
 
@@ -117,6 +120,7 @@ class UserChange(BaseModel):
     is_active: bool | None = None
     log_id: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] | None = None
     left_on: Annotated[str, StringConstraints(strip_whitespace=True, max_length=10)] | None = None
+    email: Annotated[str, StringConstraints(strip_whitespace=True, max_length=254)] | None = None
 
 
 class PasswordReset(BaseModel):
@@ -135,7 +139,7 @@ def list_users(request: Request, user: Anyone) -> list[dict]:
 def create_user(body: NewUser, request: Request, user: Anyone) -> dict[str, Any]:
     try:
         return auth.create_user(request.app.state.main_db, user, body.login_id, body.password,
-                                body.display_name, body.department, body.role, body.job).public()
+                                body.display_name, body.department, body.role, body.job, body.email).public()
     except Denied as exc:
         raise _denied(exc) from None
 
@@ -235,7 +239,8 @@ class NewRequest(BaseModel):
 
 
 @router.post("/requests", status_code=201)
-def submit(body: NewRequest, request: Request, user: Annotated[User, Depends(role("user"))]) -> dict[str, Any]:
+def submit(body: NewRequest, request: Request, background: BackgroundTasks,
+           user: Annotated[User, Depends(role("user"))]) -> dict[str, Any]:
     # 업무상 필요한지는 AI 가 아니라 결재자가 사유를 보고 판단하므로(AI 판정은 부서 · 권한 · 보유 권한만 봄) 비면 받지 않습니다.
     if not body.reason:
         raise HTTPException(status_code=400, detail="신청 사유를 적으세요 — 결재자가 업무상 필요한지 판단하는 근거입니다")
@@ -244,6 +249,7 @@ def submit(body: NewRequest, request: Request, user: Annotated[User, Depends(rol
     except Denied as exc:
         raise _denied(exc) from None
     request.app.state.verdicts.enqueue(req["request_no"])
+    background.add_task(notify.notify_waiting, request.app.state.slack_url, req)
     return _with_verdict(request, req, user)
 
 
@@ -270,11 +276,13 @@ class DecisionBody(BaseModel):
 
 
 @router.post("/requests/{request_no}/decision")
-def decide(request_no: str, body: DecisionBody, request: Request, user: Approver) -> dict[str, Any]:
+def decide(request_no: str, body: DecisionBody, request: Request, background: BackgroundTasks, user: Approver) -> dict[str, Any]:
     try:
         req = permissions.decide(request.app.state.main_db, user, request_no, body.action, body.comment)
     except Denied as exc:
         raise _denied(exc) from None
+    background.add_task(notify.notify_waiting, request.app.state.slack_url, req)
+    background.add_task(notify.notify_result, request.app.state.mail, request.app.state.main_db, req)
     return _with_verdict(request, req, user)
 
 
