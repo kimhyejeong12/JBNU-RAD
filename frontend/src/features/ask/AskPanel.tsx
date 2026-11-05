@@ -7,7 +7,6 @@ import { stamp } from "@/shared/lib/format";
 import { KvTable, Section } from "@/shared/ui/base/parts";
 import { boxPre, clause, meta, note, panelBody, subject } from "@/shared/ui/base/styles";
 
-// 질의 탭의 패널 — 근거 칩을 눌렀을 때만 보입니다 (인용 조항 원문 · 근거 로그 · 근거 기록).
 export function AskPanel() {
   const { ui } = useUi();
   const mode = askMode(ui.view);

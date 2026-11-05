@@ -6,7 +6,6 @@ export type RequestAct = "approve" | "reject" | "revoke" | "withdraw" | "rejudge
 
 interface ActionArgs { no: string; act: RequestAct; comment?: string; reason?: string }
 
-// 결재 · 회수 · 철회 · 다시 판정 — 결과 문구는 패널 메시지로, 끝나면 목록을 다시 받습니다.
 export function useRequestAction() {
   return usePanelAction(async ({ no, act, comment, reason }: ActionArgs) => {
     const base = `/api/requests/${encodeURIComponent(no)}`;
@@ -27,7 +26,6 @@ export function useRequestAction() {
   }, ["requests"]);
 }
 
-// 신청 — 끝나면 목록을 다시 받습니다 (결과 문구는 신청서가 띄웁니다).
 export function useCreateRequest() {
   const qc = useQueryClient();
   return useMutation({

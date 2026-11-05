@@ -5,7 +5,7 @@ import { cn } from "@/shared/lib/cn";
 import { boxPre, note, toolButton } from "@/shared/ui/base/styles";
 import { nodeActions } from "./lib";
 
-// 내부망 서비스라 노드 키를 언제든 다시 보여줍니다. 해시만 남은 예전 키는 다시 발급해야 보입니다.
+// 내부망 서비스라 노드 키를 언제든 다시 보여줍니다.
 export function NodeKey({ n, d }: { n: NodeRow; d?: NodeDetail }) {
   const input = useRef<HTMLInputElement>(null);
   const [labels, setLabels] = useState<Record<string, string>>({});
@@ -13,7 +13,7 @@ export function NodeKey({ n, d }: { n: NodeRow; d?: NodeDetail }) {
   if (!d.key) return <Section icon="lock" title="노드 키"><p className={note}>예전 방식으로 발급해 볼 수 없는 키입니다. [키 다시 발급]을 하면 여기에 보입니다.</p></Section>;
   const cmd = `sudo sh node/install.sh --server ${location.origin} --key ${d.key}`;
 
-  // 사내망의 http 화면에서는 클립보드 API 를 못 쓸 수 있어, 그때는 키 칸을 골라 둡니다 (Ctrl+C).
+  // 사내망 http 화면에서는 클립보드 API 를 못 쓸 수 있어 키 칸을 골라 둡니다.
   async function copy(which: string, text: string) {
     try {
       await navigator.clipboard.writeText(text);

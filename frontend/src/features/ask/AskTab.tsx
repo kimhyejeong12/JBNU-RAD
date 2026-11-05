@@ -8,15 +8,11 @@ import { useNow } from "@/shared/lib/hooks";
 import { cn } from "@/shared/lib/cn";
 import { box, card, empty, note } from "@/shared/ui/base/styles";
 
-// 답 상자는 줄바꿈을 지킵니다. 기다리는 동안은 회색, 실패는 주의 색.
 const ANSWER = cn(box, "whitespace-pre-wrap");
 const ANSWER_WAIT = cn(ANSWER, "text-ink-dim");
 const ANSWER_FAIL = cn(ANSWER, "bg-warn-tint text-warn");
-// 예시 질문 — 둥근 알약. 보내는 동안(disabled)은 흐리게.
 const EXAMPLE = "rounded-[99px] border border-line bg-surface px-3 py-1 text-left text-[12px] text-ink-dim hover:border-ink-dim hover:text-ink disabled:cursor-progress disabled:border-line disabled:text-ink-dim disabled:opacity-50";
 
-// 질의 — 정책 질의(Answer)도 로그 질의도 등급이 없으므로 등급 배지를 달지 않습니다.
-// 내 지난 질의가 먼저 보이고 새 질의는 아래에 붙습니다. 보내는 동안 입력을 막고 경과 시간을 띄웁니다.
 export function AskTab() {
   const { ui, setAskSource, openDrawer, dispatch } = useUi();
   const mode = askMode(ui.view);
@@ -25,9 +21,8 @@ export function AskTab() {
   const now = useNow(1000, busy);
   const log = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
-  const [hint, setHint] = useState("");   // 빈 질문을 보내려 하면 안내
+  const [hint, setHint] = useState("");
 
-  // 새 질의가 붙거나 답이 오면 맨 아래로
   useLayoutEffect(() => {
     const el = log.current;
     if (el) el.scrollTop = el.scrollHeight;

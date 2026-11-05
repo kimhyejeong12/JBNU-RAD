@@ -8,7 +8,6 @@ import { Icon } from "@/shared/ui/base/Icon";
 import { actionButton, field, formActions, formMsg, input, note, primaryButton } from "@/shared/ui/base/styles";
 import { forgetPages } from "@/app/session/lastPage";
 
-// 로그인 화면은 앱 위를 덮는 카드 하나입니다.
 const CARD = "flex w-[min(380px,100%)] flex-col gap-3 rounded-[14px] border border-line bg-surface px-6 pt-6.5 pb-4.5";
 
 export function Gate({ mode }: { mode: Exclude<GateMode, null> }) {
@@ -31,7 +30,7 @@ function LoginForm() {
     const f = new FormData(e.currentTarget);
     try {
       await login(String(f.get("login_id")), String(f.get("password")));
-      forgetPages();   // 로그인 직후에는 첫 메뉴로 (새로고침과 같은 reload 라 여기서 지웁니다)
+      forgetPages();   // 새로고침과 같은 reload 라 여기서 마지막 화면을 지웁니다
       location.reload();
     } catch (err) {
       setMsg(errorText(err));
@@ -50,7 +49,6 @@ function LoginForm() {
   );
 }
 
-// 첫 로그인 · 비밀번호 초기화 뒤에는 강제(취소 없음), 상단 바에서 열면 자발적 변경.
 function PasswordForm({ forced }: { forced: boolean }) {
   const auth = useAuth();
   const [msg, setMsg] = useState("");
@@ -85,7 +83,6 @@ function PasswordForm({ forced }: { forced: boolean }) {
       <div className={formActions}>
         <span className={formMsg} id="pw-msg">{msg}</span>
         <button type="button" id="pw-cancel" hidden={forced} onClick={auth.hideGate} className={actionButton}>취소</button>
-        {/* 로그인 카드의 주 버튼이라 높이 40px · 테두리 없음 */}
         <button type="submit" className={cn(actionButton, primaryButton, "h-10 border-none")}>바꾸기</button>
       </div>
     </form>

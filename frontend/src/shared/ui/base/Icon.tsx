@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/shared/lib/cn";
 
-// 인라인 SVG 아이콘 — 외부망이 없으므로 번들에 둡니다. 선은 글자색을 따르고, small 이면 15px.
+// 외부망이 없어 SVG 아이콘을 번들에 둡니다.
 const ICONS: Record<string, ReactNode> = {
   shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></>,
   lock: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,

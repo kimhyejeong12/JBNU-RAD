@@ -4,12 +4,10 @@ import { cn } from "@/shared/lib/cn";
 import { Icon } from "./Icon";
 import { box, kvTable, kvTd, kvTh, levelDot } from "./styles";
 
-// 등급 점 — 8px 점 + 같은 색 반투명 링. 등급이 없으면 회색.
 export function LevelDot({ level, className }: { level?: Level | null; className?: string }) {
   return <i className={cn("mr-1.5 inline-block size-2 flex-none rounded-full align-[1px]", levelDot[level ?? "none"], className)} />;
 }
 
-// 패널 안의 작은 구역 — 아이콘 + 제목 + 내용.
 export function Section({ icon, title, className, children }: { icon: string; title: ReactNode; className?: string; children: ReactNode }) {
   return (
     <div className={cn("mt-4.5", className)}>
@@ -36,7 +34,6 @@ export function KvTable({ rows }: { rows: [label: string, value: ReactNode][] })
   );
 }
 
-// 버튼 묶음 — 기간(로그 조회 · 통계)이나 결재함 거르기처럼 몇 가지 중 하나를 고릅니다. 이름 옆에 건수 등을 붙일 수 있게 이름은 ReactNode.
 export function Periods<K extends string>({ id, labels, value, onChange, label = "기간" }: { id: string; labels: [K, ReactNode][]; value: K; onChange: (k: K) => void; label?: string }) {
   return (
     <div className="flex flex-wrap gap-0.5 rounded-lg bg-canvas p-0.75" id={id} role="group" aria-label={label}>
@@ -57,7 +54,7 @@ export interface HistoryStep {
   say?: string | null;
 }
 
-// 결재 · 결정 기록 — 인라인 요소 사이의 공백을 지킵니다 (옛 화면의 줄바꿈이 공백으로 보였습니다).
+// 줄바꿈이 공백으로 보이던 모양대로 인라인 요소 사이 공백을 지킵니다.
 export function History({ steps }: { steps: HistoryStep[] }) {
   return (
     <div className={cn(box, "flex flex-col gap-2")}>
@@ -72,8 +69,7 @@ export function History({ steps }: { steps: HistoryStep[] }) {
   );
 }
 
-// 켜기 · 끄기 — 누르면 바로 적용합니다(저장 버튼과 따로). 보이는 값은 서버 값이라, 확인 창에서 취소하면 그대로 남습니다.
-// 켜면 검은 바탕(빨강은 위험 표시에만 씁니다). 이름은 지금 상태, 아래 흐린 글자는 바꾸면 어떻게 되는지.
+// 보이는 값은 서버 값이라 확인 창에서 취소하면 그대로 남습니다.
 export function Switch({ checked, disabled, label, hint, onChange, className }: {
   checked: boolean; disabled?: boolean; label: string; hint: string; onChange: (next: boolean) => void; className?: string;
 }) {

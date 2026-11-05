@@ -1,4 +1,4 @@
-/* 화면 CSS 의 시작점 — Tailwind(기본 스타일 초기화 preflight · 유틸리티)와 색 토큰 · 화면 틀. 모양은 모두 컴포넌트의 클래스에 둡니다. */
+/* 화면 CSS — Tailwind · 색 토큰 · 화면 틀만 두고 모양은 컴포넌트 클래스에 둡니다. */
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/preflight.css" layer(base);
@@ -7,7 +7,7 @@
 @source not "../**/*.test.ts";
 
 
-/* 색 토큰 — 값은 지금 화면 그대로. static 이라 쓰지 않은 토큰도 CSS 변수로 나와 인라인 스타일(차트 선 색 등)에서 쓸 수 있습니다. */
+/* 색 토큰 — static 이라 쓰지 않은 토큰도 CSS 변수로 나와 인라인 스타일에서 쓸 수 있습니다. */
 @theme static {
   --color-ink: #111111;
   --color-ink-dim: #666666;
@@ -34,21 +34,19 @@
   --color-bar-line-hover: #888888;
   --color-bar-hover: #262626;
   --color-tip-dim: #CFCFCF;
-  /* 간격(p · m · gap · h · size …)의 단위는 px — 옛 CSS 처럼 브라우저 기본 글자 크기를 키워도 여백은 그대로 (리디자인에서 rem 으로 바꿀지 정함). */
+  /* 브라우저 기본 글자 크기를 키워도 여백이 그대로이게 간격 단위는 px 입니다. */
   --spacing: 4px;
-  /* 둥근 모서리 기준 — shadcn 의 --radius 를 테마에도 둡니다 (Tailwind 기본 테마의 0.25rem 대신, 편집기 확장 · 유틸리티가 같은 값을 보게). */
   --radius: 8px;
   --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }
 
-/* 반응형 — 큰 화면 기준이라 max-width 그대로. narrow 는 JS 의 NARROW(app/ui/state/UiContext.ts)와 같은 쿼리입니다.
-   phone 을 뒤에 둬야 둘 다 걸리는 폭에서 phone 이 이깁니다. */
+/* 반응형 — narrow 는 UiContext 의 NARROW 와 같은 쿼리이고, phone 이 뒤에 있어야 둘 다 걸리는 폭에서 이깁니다. */
 @custom-variant narrow (@media (max-width: 1150px));
 @custom-variant phone (@media (max-width: 760px));
-/* hover 는 옛 :hover 그대로 터치 기기에서도 (Tailwind 기본은 @media (hover: hover) 안에서만). */
+/* hover 를 터치 기기에서도 씁니다 (Tailwind 기본은 @media (hover: hover) 안에서만). */
 @custom-variant hover (&:hover);
 
-/* shadcn/ui 색 변수 — 2단계에서 넣을 부품이 씁니다. 값은 지금 색에 맞춰 둡니다. */
+/* shadcn/ui 색 변수 */
 :root {
   --background: #F5F5F6;
   --foreground: #111111;
@@ -96,8 +94,7 @@
 }
 
 @layer base {
-  /* 커서 — 버튼은 손가락(preflight 는 기본 커서로 둡니다), 툴팁이 있는 요소는 물음표, 툴팁이 있는 버튼은 다시 손가락.
-     선택자 구체성으로 정해지고, 요소에 준 클래스(cursor-pointer 등)가 늘 이깁니다. */
+  /* 커서 — 버튼은 손가락, 툴팁이 있는 요소는 물음표. */
   button {
     cursor: pointer;
   }
@@ -107,8 +104,7 @@
   button[data-tip] {
     cursor: pointer;
   }
-  /* preflight 가 바꾸는 브라우저 기본 동작 중 화면 · 손맛에 드러나는 것은 기본값으로 되돌립니다 (리디자인에서 다시 정함).
-     고르기 칸 묶음 이름의 굵기, 안내 글자(placeholder) 색 · 흐림, 쓸 수 없는 칸의 흐림, 날짜 칸 안쪽 여백, 글상자 크기 조절 방향, 탭 강조(iOS), 초점 · 잘못된 값 표시(Firefox). */
+  /* preflight 가 바꾼 브라우저 기본 동작 중 화면에 드러나는 것은 되돌립니다. */
   optgroup {
     font-weight: revert;
   }
@@ -155,10 +151,9 @@
     box-shadow: revert;
   }
 
-  /* 화면 틀 — body 가 그리드(상단 바 · 사이드바 · 작업 공간)라 React 뿌리(#root)는 투명하게 둡니다.
-     메뉴가 하나뿐인 일반 사용자는 사이드바 칸이 없고(data-solo), 좁은 화면은 세로로 쌓고 서랍이 열리면 뒤를 스크롤하지 않습니다(data-drawer-open). */
+  /* 화면 틀 — body 가 그리드라 #root 는 display: contents 로 둡니다. */
   body {
-    /* 큰 화면 확대(app/layout/pageScale.ts) 때는 화면 높이 ÷ 배율 — vh 는 확대와 함께 커져 넘쳐서. */
+    /* vh 는 큰 화면 확대(pageScale)와 함께 커져 넘치므로 --page-h 를 씁니다. */
     height: var(--page-h, 100vh);
     overflow: hidden;
     display: grid;
@@ -174,7 +169,6 @@
   body[data-solo] {
     grid-template-columns: minmax(0, 1fr);
   }
-  /* 사이드바를 펼치면 첫 칸이 메뉴 이름까지 들어가는 184px. */
   body[data-nav-wide] {
     grid-template-columns: 184px minmax(0, 1fr);
   }

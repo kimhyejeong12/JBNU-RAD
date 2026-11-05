@@ -10,12 +10,9 @@ import { Periods } from "@/shared/ui/base/parts";
 import { card, empty, formMsg, formMsgOk, linkButton } from "@/shared/ui/base/styles";
 import { ask } from "@/app/ui/confirm/ask";
 
-// 머리줄과 줄이 같은 칸 — 신청일 · 신청 권한 · 사유 · 상태 · 번호 · [철회 · 사유 보기]. 사용자는 언제 · 무엇으로 신청을 가려내므로 날짜 · 권한이 앞이고,
-// 번호(날짜가 들어 있고 문의할 때 쓰는 값)는 뒤에 흐리게. 사유는 같은 권한을 여러 번 신청했을 때 어느 건인지 가려 줍니다 (길면 한 줄에서 자름).
-// 휴대폰 폭(760px 이하, styles.css 의 phone)은 칸을 숨기지 않고 접습니다 — 윗줄 권한 · 상태, 둘째 줄 번호 · 신청일 · 버튼, 셋째 줄 사유 (일반 사용자는 패널이 없어 숨기면 볼 곳이 없음).
+// 일반 사용자는 패널이 없어 휴대폰 폭에서도 칸을 숨기지 않고 접습니다.
 const GRID = "grid grid-cols-[64px_minmax(0,1fr)_minmax(0,1.3fr)_150px_150px_96px] items-center gap-x-4 px-4.5 phone:grid-cols-[minmax(0,1fr)_auto] phone:gap-y-0.5";
 
-// 보기 — 세 묶음과 전체 (결재함 탭 [결재 대기 · 유효 권한 · 전체]와 같은 순서).
 type MineView = MineGroup | "all";
 const GROUPS: [MineView, string][] = [["pending", "결재 중"], ["active", "사용 중"], ["done", "끝난 것"], ["all", "전체"]];
 const EMPTY: Record<MineView, string> = {
@@ -25,8 +22,7 @@ const EMPTY: Record<MineView, string> = {
   all: "아직 신청한 권한이 없습니다.",
 };
 
-// 내 신청 현황 (일반 사용자) — 결재 중 · 사용 중 · 끝난 것으로 나눠 처음에는 결재 중만 보여줍니다 (지난 기록이 섞이면 지금 볼 것이 묻혀서).
-// 머리줄 아래 줄마다 한 줄 — 신청일 · 신청 권한 · 사유 · 상태 · 번호 · [철회] · [사유 보기].
+// 지난 기록이 섞이면 지금 볼 것이 묻혀서 처음에는 결재 중만 보여줍니다.
 export function MineList() {
   const mine = useMine();
   const { ui, toggleChip } = useUi();
@@ -58,7 +54,6 @@ export function MineList() {
   );
 }
 
-// 신청 한 줄 — 반려 사유는 반려 직후 한 번 보면 되는 정보라 접어 두고 [사유 보기]로 엽니다.
 function MineRow({ r, on, open, onNote }: { r: RequestRow; on: string; open: boolean; onNote: () => void }) {
   const note = rejectNote(r);
   return (
@@ -77,7 +72,6 @@ function MineRow({ r, on, open, onNote }: { r: RequestRow; on: string; open: boo
   );
 }
 
-// [철회] — 1차 결재 전에만 보입니다. 결과 문구는 목록 제목 줄에 뜹니다.
 function WithdrawButton({ r }: { r: RequestRow }) {
   const action = useRequestAction();
   if (!canWithdraw(r)) return null;

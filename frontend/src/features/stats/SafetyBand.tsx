@@ -9,13 +9,10 @@ import { levelText, note } from "@/shared/ui/base/styles";
 
 const SCORE = "flex flex-col gap-0.5";
 const BIG = "text-[34px] leading-[1.1] font-extrabold tracking-[-1px]";
-// 흐름 아래 처음 · 끝 점수는 양 끝에.
 const TREND_NOTE = cn(note, "mt-0.5 flex justify-between");
 
 export type SafetyGroup = [name: string, list: { key: string; label: string }[], kind: string, dot: Level | "none"];
 
-// 안전 점수 — 대상마다 마지막 등급의 비율(서버가 셉니다). 옆 묶음은 점수를 깎은 대상이고, 이름을 누르면 그 대상의 패널을 엽니다.
-// 묶음마다 한 줄 — 이름은 앞의 names 개만 두고 나머지는 "외 n" (11/2, 다 늘어놓으면 화면이 길어졌음). 0이면 수만 (아래 표에 대상이 다 있을 때).
 export function SafetyBand({ label, safety, groups, onSelect, names = 3 }: { label: string; safety: SafetyScore | null | undefined; groups: SafetyGroup[]; onSelect: (kind: string, key: string) => void; names?: number }) {
   if (!safety || safety.score == null) {
     return <div className={SCORE}><span className={statLabel}>{label}</span><span className={BIG}>—</span><p className={note}>아직 점검한 대상이 없습니다.</p></div>;
@@ -27,7 +24,7 @@ export function SafetyBand({ label, safety, groups, onSelect, names = 3 }: { lab
       <div className={SCORE}><span className={statLabel}>{label}</span><span className={cn(BIG, levelText[safetyTone(safety.score)])}>{safety.score}점</span></div>
       <div className="grid min-w-0 gap-1.5 text-[13px]">
         {shown.length ? shown.map(([name, list, kind, dot]) => (
-          // 이름은 묶음 이름 아래 줄 — 옆에 두면 13인치에서 이름 칸이 좁아 거의 다 잘렸습니다.
+          // 옆에 두면 13인치에서 이름 칸이 좁아 잘려서 묶음 이름 아래 줄에 둡니다.
           <div key={name} className="min-w-0">
             <b className="font-bold"><LevelDot level={dot === "none" ? null : dot} />{name} {list.length}</b>
             {names > 0 && (

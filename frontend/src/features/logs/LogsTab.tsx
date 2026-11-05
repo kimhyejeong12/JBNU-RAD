@@ -13,12 +13,10 @@ import { card, cardCount, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd
 
 const PERIODS = Object.entries(PERIOD_LABEL) as [LogPeriod, string][];
 type LogCond = UiState["logs"];
-// 표 폭이 560px 아래면 솔루션 · 위치 · 행위 칸을 숨깁니다 — 창 폭이 아니라 표 폭으로 봅니다 (검토 현황 목록과 같음,
-// 창 폭으로 보던 때는 패널이 서랍으로 빠져 자리가 남는 좁은 창에서도 숨겼습니다). 짧은 값이라 줄을 바꾸지 않습니다.
+// 창 폭이 아니라 표 폭(560px)으로 솔루션 · 위치 · 행위 칸을 숨깁니다.
 const WIDE_TH = cn(lth, "@max-[560px]:hidden");
 const WIDE_TD = cn(ltd, "whitespace-nowrap @max-[560px]:hidden");
 
-// 로그 조회 — 거르기 · 세기는 서버가 합니다. 화면은 조건을 넘기고 받은 그대로 보여줍니다. 조건이 바뀔 때만 다시 받습니다.
 export function LogsTab() {
   const { ui, setLogs, openDrawer } = useUi();
   const L = ui.logs;
@@ -32,7 +30,6 @@ export function LogsTab() {
     change({ page });
     section.current?.scrollIntoView({ block: "start" });
   };
-  // 고른 줄을 다시 누르면 선택을 풉니다 (패널은 집계로).
   const pick = (n: number) => {
     if (n === L.selected) return setLogs({ selected: null });
     setLogs({ selected: n });
@@ -45,7 +42,6 @@ export function LogsTab() {
         <h3 className={cardTitle}>로그 조회</h3>
         <Periods id="log-periods" labels={PERIODS} value={L.period} onChange={(period) => { if (period !== L.period) change({ period }); }} />
         <span className={cn(cardCount, "ml-0")} id="log-count">{logs.isFetching ? "불러오는 중…" : d ? `${d.total.toLocaleString()}건` : ""}</span>
-        {/* 사용자 찾기는 머리줄 오른쪽 끝(검토 현황의 검색 칸과 같은 자리, 건수는 기간 바로 뒤) — 거르기 줄에 솔루션 · 행위만 남아 13인치에서도 한 줄입니다. */}
         <PickInput key={L.user} id="log-user" label="사용자" values={filterChoices(d?.options.users ?? [], L.user, undefined).map((c) => c.value)}
           value={L.user} onPick={(v) => change({ user: v })} />
       </div>
@@ -79,8 +75,7 @@ export function LogsTab() {
   );
 }
 
-// 거르기 — 솔루션 · 행위는 버튼 줄로 늘어놓고 건수를 붙입니다 (사용자는 머리줄의 검색 칸).
-// 값이 하나뿐이거나 없어도 무엇으로 거를 수 있는지 보이게 늘 둡니다. 값은 응답의 options, 건수는 facts 에서.
+// 값이 하나뿐이거나 없어도 무엇으로 거를 수 있는지 보이게 늘 둡니다.
 function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChange: (patch: Partial<LogCond>) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4.5 pb-3">
@@ -98,8 +93,7 @@ function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChan
   );
 }
 
-// 사용자 찾기 — 입력하면 후보가 뜨고, 목록에 있는 이름과 똑같아지거나 비우면 거릅니다 (서버는 완전 일치로 거름).
-// 이름은 짧아 200px 이면 충분합니다 (휴대폰은 한 줄 전체).
+// 서버는 완전 일치로 거르므로 목록의 이름과 같아지거나 비울 때만 거릅니다.
 function PickInput({ id, label, values, value, onPick }: { id: string; label: string; values: string[]; value: string; onPick: (v: string) => void }) {
   return (
     <label className={cn(searchBox, "ml-auto w-50 phone:w-full")}>

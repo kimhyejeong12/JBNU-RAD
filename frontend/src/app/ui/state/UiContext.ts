@@ -9,7 +9,7 @@ import { useMediaQuery } from "@/shared/lib/hooks";
 
 export const NARROW = "(max-width: 1150px)";
 
-// 완료(✓) 안내가 저절로 사라지기까지 — 오류 안내는 고칠 때까지 봐야 해서 다음 동작까지 남깁니다.
+// 오류 안내는 고칠 때까지 봐야 해서 완료(✓) 안내만 저절로 지웁니다.
 export const DONE_MSG_MS = 4000;
 
 export interface UiStore {
@@ -35,7 +35,6 @@ export interface UiStore {
   setLogs(patch: Partial<UiState["logs"]>): void;
   setStats(patch: Partial<UiState["stats"]>): void;
   setAskSource(src: AskSource | null): void;
-  // 다른 메뉴로 이어 보기 (통계 패널 · 노드 패널에서)
   gotoNode(name: string): void;
   gotoActiveGrant(no: string): void;
   gotoEvent(key: string): void;
@@ -49,7 +48,6 @@ export function useUi(): UiStore {
   return store;
 }
 
-// 상태와 동작을 한 곳에서 만듭니다. 메뉴 · 거르기를 바꿀 때 고를 첫 항목은 큐에서 셉니다.
 export function useUiStore(): UiStore {
   const me = useMe();
   const items = useQueue();
@@ -59,10 +57,8 @@ export function useUiStore(): UiStore {
   return useMemo<UiStore>(() => {
     const role = me.role;
     const current = items.find((i) => i.key === ui.selected);
-    // 패널도 메뉴를 따릅니다. 다른 메뉴의 항목이 남아 있으면 이 메뉴의 첫 항목으로 바꿉니다.
     const keepOrFirst = (view: View, stage: StageFilter) =>
       current && inView(current, view, stage, role) ? current.key : firstKeyInView(items, view, stage, role);
-    // 작은 화면에서만 패널을 서랍으로 띄웁니다.
     const openDrawer = () => {
       if (narrow) dispatch({ type: "OPEN_DRAWER" });
     };
@@ -70,7 +66,6 @@ export function useUiStore(): UiStore {
       ui, dispatch, openDrawer,
       navigate: (view) => dispatch({ type: "NAVIGATE", view, nextSelected: keepOrFirst(view, ui.stageFilter) }),
       restore: (page) => dispatch({ type: "RESTORE", ...page, nextSelected: firstKeyInView(items, page.view, page.stageFilter, role) }),
-      // 관리는 마지막으로 보던 탭으로 엽니다 (처음에는 첫 탭).
       openAdmin: () => {
         const view = ui.lastAdmin ?? ROLE_VIEWS[role].find(isAdminView);
         if (view) dispatch({ type: "NAVIGATE", view, nextSelected: keepOrFirst(view, ui.stageFilter) });
@@ -88,7 +83,6 @@ export function useUiStore(): UiStore {
       },
       setMainTab: (tab) => dispatch({ type: "SET_MAIN_TAB", tab }),
       closePanel: () => dispatch({ type: "CLOSE_PANEL" }),
-      // 다른 화면(로그 감시 판정)에서 조건을 정해 엽니다 — 옛 화면처럼 그때 다시 받습니다.
       openLogs: (cond) => {
         qc.removeQueries({ queryKey: ["logs"] });
         dispatch({ type: "OPEN_LOGS", cond });
@@ -130,7 +124,6 @@ export function useUiStore(): UiStore {
   }, [ui, items, me.role, narrow, qc]);
 }
 
-// 패널에서 하는 동작 — 성공 문구는 동작이 돌려주고, 오류는 서버 문장을 그대로 띄웁니다. 끝나면 그 목록을 다시 받아 서버 값으로 그립니다.
 export function usePanelAction<V>(run: (v: V) => Promise<string>, refresh: QueryKey) {
   const qc = useQueryClient();
   const { setPanelMsg } = useUi();

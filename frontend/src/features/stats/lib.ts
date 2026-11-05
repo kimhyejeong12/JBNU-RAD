@@ -5,10 +5,8 @@ import { card } from "@/shared/ui/base/styles";
 export const STAT_PERIODS: [StatPeriod, string][] = [["week", "일주일"], ["month", "한 달"], ["quarter", "3개월"], ["all", "전체"]];
 export const STAT_TITLES: Record<StatKind, string> = { stats: "보안 통계", ustats: "사용자 위협" };
 
-// 의심 등급 → 막대 색 (등급 색을 빌려 씁니다 — 높음 = 위험 색)
 export const SUSPECT_COLOR: Record<SuspectLevel, Level> = { "높음": "위험", "보통": "주의", "낮음": "정상" };
 
-// 직전 예측보다 10점 넘게 오르내리면 막대 옆에 화살표로 알립니다.
 export function trendMark(trend?: { score: number; at?: string; day?: string }[] | null): string {
   const t = trend || [];
   if (t.length < 2) return "";
@@ -18,7 +16,7 @@ export function trendMark(trend?: { score: number; at?: string; day?: string }[]
 
 export const safetyTone = (score: number): Level => (score >= 80 ? "정상" : score >= 50 ? "주의" : "위험");
 
-// 위협 로그 빈도의 분모 — 전체 기간이면 첫 로그 날부터 오늘까지.
+// 전체 기간이면 첫 로그 날부터 오늘까지를 분모로 씁니다.
 export function periodDays(period: StatPeriod, days: Record<string, number>, now: number = Date.now()): number {
   if (period !== "all") return { week: 7, month: 30, quarter: 90 }[period];
   const keys = Object.keys(days).sort();
@@ -27,7 +25,6 @@ export function periodDays(period: StatPeriod, days: Record<string, number>, now
 
 export interface DayCount { "위험": number; "주의": number; total: number }
 
-// 날짜별 — 위험 · 주의 · 그 외 로그를 쌓은 세로 막대. 높이 = 그날 로그 건수(빈도), 색 조각 = 위협 비율.
 export function mergeDays(logDays: Record<string, number>, eventDays: { day: string; "주의": number; "위험": number }[]): { keys: string[]; byDay: Record<string, DayCount> } {
   const byDay: Record<string, DayCount> = {};
   for (const [day, n] of Object.entries(logDays)) byDay[day] = { "위험": 0, "주의": 0, total: n };
@@ -35,18 +32,15 @@ export function mergeDays(logDays: Record<string, number>, eventDays: { day: str
   return { keys: Object.keys(byDay).sort(), byDay };
 }
 
-// 사람마다 35일 안 로그 감시 판정 수.
 export function verdictsText(p: Suspect): string {
   const r = p.records || {};
   return ([["위험", r["로그 위험"]], ["주의", r["로그 주의"]]] as [string, number | undefined][])
     .filter(([, n]) => n).map(([k, n]) => `${k} 판정 ${n}`).join(" · ");
 }
 
-// 보안 통계 · 사용자 위협이 같이 쓰는 모양 — 카드는 세로로 쌓고, 안전 점수 띠는 받기 전(비었을 때) 접힙니다.
 export const statCard = `${card} flex flex-col`;
 export const statSub = "m-0 px-4.5 pb-2.5 text-[12.5px] text-ink-dim";
 export const statChart = "px-4.5 pt-1 pb-1.5";
 export const statLabel = "text-[12px] font-semibold text-ink-dim";
-// 타일 수가 탭마다 달라(보안 통계 둘 · 사용자 위협 셋) 폭에 맞춰 나눕니다.
 export const statTiles = "grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2.5 px-4.5 pb-4";
 export const statSafety = "mx-4.5 mb-3 grid grid-cols-[auto_minmax(0,1fr)_minmax(140px,220px)] items-center gap-4.5 rounded-[10px] border border-line px-4 py-3.5 empty:hidden phone:grid-cols-[auto_minmax(0,1fr)]";

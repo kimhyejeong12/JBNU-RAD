@@ -1,7 +1,5 @@
 import type { PolicyRow, Regulation } from "@/shared/api/types";
 
-// 근거 조항 전문 — 판정의 sources 한 줄을 기준 문서 원문이나 솔루션 정책 원본 행으로 바꿉니다.
-
 const docOf = (source: string, regulations: Regulation[]) => regulations.find((r) => source.includes(r.name));
 
 // 모델이 ID 에 줄바꿈 없는 하이픈(FW‑002, U+2011) 같은 변형 문자를 쓰기도 해서 맞춰 비교합니다.
@@ -12,7 +10,7 @@ const clauseNums = (source: string) => [...new Set(source.match(/\d+\.\d+/g) || 
 export const ruleIds = (source: string, policies: PolicyRow[]): string[] =>
   policies.map((p) => p.policy_id).filter((id) => plainDash(source).includes(id));
 
-// 솔루션 정책 규칙 근거는 "rules:policies.csv (DLP-001, FW-001)" 처럼 옵니다. 언급된 정책 ID 의 원본 행을 보여줍니다.
+// 솔루션 정책 근거는 "rules:policies.csv (DLP-001, FW-001)" 처럼 옵니다.
 export function ruleText(source: string, policies: PolicyRow[]): string {
   const ids = ruleIds(source, policies);
   const hit = policies.filter((p) => ids.includes(p.policy_id));

@@ -17,12 +17,11 @@ import {
   box, boxPre, input, kvTable, kvTd, kvTh, levelText, note, panelBody, panelFoot, panelFootTitle, recLine, subject, toolButton,
 } from "@/shared/ui/base/styles";
 
-// 정책 문제 · 서버 점검 · 로그 감시 판정의 근거와 운영자 결정.
 export function ReviewPanel({ it }: { it: ReviewItem }) {
   const { openLogs } = useUi();
   const results = useResults();
   const r = it.raw;
-  // 10/14부터 서버 점검은 다른 곳마다 지금 · 기준 · 바꿀 것을 따로 받습니다. 그 전 결과(recommendation 이 있음)는 예전 칸으로 보입니다.
+  // 10/14 전 서버 점검 결과(recommendation 이 있음)는 예전 칸으로 보입니다.
   const gapped = it.type === "server" && !it.raw.failed && !it.raw.recommendation;
   const title = it.type === "policy" ? `${it.who} · ${it.raw.kind}` : it.raw.title;
 
@@ -33,12 +32,11 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
         <p className={subject}>{title}</p>
         <div className={cn(recLine, it.level && levelText[it.level])}><Icon name={(it.level && LEVEL_ICON[it.level]) || "warn"} className="size-5" />{it.level}</div>
 
-        {/* 결론(판단 · 권고 · 근거)을 먼저, 판정에 쓴 원자료(로그 · 모듈 상태 · 정책 원본)는 그 아래 — 원자료가 길어 결론이 밀려나지 않게. */}
+        {/* 원자료가 길어 결론이 밀려나지 않게 결론을 먼저 둡니다. */}
         {gapped && it.type === "server" ? <GapSections itemKey={it.key} f={it.raw} /> : (
           <>
             <Section icon="activity" title="판단 이유"><div className={box}>{r.reason}</div></Section>
             <Section icon="ok" title="권고 조치"><div className={box}>{r.recommendation}</div></Section>
-            {/* 정책 문제는 근거 조항이 판단 이유 글에 함께 있어 따로 두지 않습니다. */}
             {it.type !== "policy" && <Section icon="db" title="근거 조항"><SourceChips itemKey={it.key} sources={r.sources} /></Section>}
           </>
         )}
@@ -59,7 +57,6 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
   );
 }
 
-// 운영자 결정 — 의견과 함께 권한 DB 에 남고, 지금 결정과 [취소]를 보여줍니다. 결정 버튼은 종류마다 다릅니다.
 function DecisionFoot({ it }: { it: ReviewItem }) {
   const decide = useDecide();
   const [comment, setComment] = useState("");
@@ -70,10 +67,8 @@ function DecisionFoot({ it }: { it: ReviewItem }) {
     <div className={panelFoot}>
       <h4 className={panelFootTitle}>의사결정</h4>
       <textarea className={cn(input, "min-h-14 resize-y")} id="review-comment" maxLength={2000} placeholder="결정 의견 (선택)" value={comment} onChange={(e) => setComment(e.target.value)} />
-      {/* 버튼 수(정책 3 · 서버 점검 · 로그 감시 2)만큼 한 줄을 고르게 나눕니다 — 권한 신청의 [승인 · 반려]와 같은 모양. 허용 쪽이 왼쪽. */}
       <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${choices.length}, minmax(0, 1fr))` }}>
         {choices.map(([a, color]) => (
-          // 지금 결정은 검은 테두리로 알립니다.
           <button key={a} aria-pressed={decision?.action === a} onClick={() => act(a)}
             className={cn("h-9 rounded-lg border border-solid text-[13.5px] font-bold hover:brightness-[0.97] aria-pressed:outline-2 aria-pressed:outline-offset-1 aria-pressed:outline-ink", decisionTone[color])}>
             {DECISIONS[a]}
@@ -103,7 +98,6 @@ function ServerSections({ f }: { f: ServerFinding }) {
   return (
     <>
       {state.length > 0 && <Section icon="server" title="서버 현황"><KvTable rows={state} /></Section>}
-      {/* 달라진 설정이 없으면 구역 제목 없이 한 줄만. */}
       {snap?.modules && (
         <>
           {snap.changes?.length ? <ModuleChanges snap={snap} /> : <p className={cn(note, "mt-3.5")}>직전 수집과 달라진 설정 없음</p>}
@@ -115,9 +109,8 @@ function ServerSections({ f }: { f: ServerFinding }) {
   );
 }
 
-// 판정한 로그 — 줄마다 같은 사람 · 솔루션은 머리에 한 번만 두고, 최근 5줄만 보입니다 (원문 전체는 로그 조회에서도 봄).
 const RECENT_LOGS = 5;
-// 모듈 상태 — 판정에 쓴 원자료이고 노드 탭 패널에도 같은 표가 있어 접어 둡니다.
+// 노드 탭 패널에도 같은 표가 있어 모듈 상태는 접어 둡니다.
 function ModuleFold({ snap }: { snap: Snapshot }) {
   const [open, setOpen] = useState(false);
   return (
@@ -162,7 +155,6 @@ function PolicySection({ issue, policies }: { issue: PolicyIssue; policies: Poli
   );
 }
 
-// 서버 점검 — 기준 문서와 다른 곳마다 지금 · 기준 · 바꿀 것 · 근거 조항. 이름 칸은 짧아 좁게 둡니다.
 const GAP_TH = "w-13";
 function GapSections({ itemKey, f }: { itemKey: string; f: ServerFinding }) {
   return (

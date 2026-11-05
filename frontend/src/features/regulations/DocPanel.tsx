@@ -13,8 +13,7 @@ import { useEditRegulation, useRemoveRegulation, useUploadRegulation } from "./a
 import { docItem, editProblem, removeProblem, uploadProblem } from "./lib";
 import { ask } from "@/app/ui/confirm/ask";
 
-// 기준 문서 패널 — 고르면 원문(보안 총책임자는 [수정] · [지우기]도), d 가 없으면 [문서 업로드]로 연 올리기 창(보안 총책임자만).
-// 보안 운영자는 읽기만. 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둡니다.
+// 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둡니다.
 export function DocPanel({ d }: { d: Regulation | null }) {
   const top = useMe().role === "top";
   return d ? <DocView key={d.name} d={d} canEdit={top} /> : <UploadDoc />;
@@ -83,8 +82,7 @@ function DocView({ d, canEdit }: { d: Regulation; canEdit: boolean }) {
   );
 }
 
-// 고치기 — 판정의 근거가 바뀌므로 사유를 적고 파일 이름을 똑같이 입력해야 버튼이 켜지고, 누르면 한 번 더 묻습니다.
-// 결과 · 오류는 패널 아래 칸에 뜹니다.
+// 판정의 근거가 바뀌므로 사유와 파일 이름을 입력해야 버튼이 켜집니다.
 function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
   const edit = useEditRegulation();
   const busy = busyJob(useJobs());
@@ -92,7 +90,7 @@ function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
   const [reason, setReason] = useState("");
   const [typed, setTyped] = useState("");
   const problem = editProblem(d, { content, reason, typed });
-  const [tried, setTried] = useState(false);   // [고치기]를 눌렀는데 빠진 게 있으면 안내를 빨갛게
+  const [tried, setTried] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -103,7 +101,7 @@ function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
       + "· 고치기 전 원문과 사유는 감사 기록에 남습니다.";
     if (await ask({ title: "기준 문서 고치기", confirm: "고치기", message })) edit.mutate({ name: d.name, content, reason }, { onSuccess: onClose });
   }
-  // 보내기 전이면 고치던 글을 버리고 닫습니다. 기다리는 중이면 고치기를 멈추고, 쓰던 글은 남깁니다 (이미 고쳐졌으면 닫음).
+  // 기다리는 중이면 고치기를 멈추고 쓰던 글은 남깁니다.
   async function onCancel() {
     if (!edit.isPending) return onClose();
     if (await edit.cancel(d)) onClose();
@@ -121,7 +119,6 @@ function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
         <input className={input} value={typed} autoComplete="off" onChange={(e) => setTyped(e.target.value)} placeholder={d.name} />
       </label>
       {problem && <p className={cn(note, tried && "text-risk")}>{problem}</p>}
-      {/* AI 작업이 도는 동안에는 서버가 끝나기를 기다렸다가 바로 적용합니다 (다시 누르지 않아도 됨). */}
       {busy && !problem && <p className={note}>지금 AI 작업({busy})이 돌고 있어, 고치기를 누르면 끝나는 대로 바로 적용합니다.</p>}
       <div className={formActions}>
         <button type="button" className={actionButton} onClick={() => void onCancel()}>취소</button>
@@ -131,7 +128,6 @@ function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
   );
 }
 
-// 지우기 — 판정의 근거가 빠지므로 고치기처럼 사유 · 파일 이름 입력 · 확인 창을 거칩니다. 지운 원문 · 사유는 감사 기록에 남습니다.
 function RemoveDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
   const remove = useRemoveRegulation();
   const busy = busyJob(useJobs());

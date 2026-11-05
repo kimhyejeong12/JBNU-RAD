@@ -21,7 +21,6 @@ import {
 type RequestItem = Extract<QueueItem, { type: "req" }>;
 interface Draft { comment: string; reason: string }
 
-// 권한 신청 패널 (결재자) — 신청 내용 · AI 판정 · 결재 기록, 아래 칸에서 결재 · 회수. 신청자에게는 패널이 없습니다 (철회는 내 신청 목록 줄에서).
 // key 를 항목 key 로만 두어 폴링으로 다시 그려도 입력 중인 의견이 남습니다.
 export function RequestPanel({ it }: { it: RequestItem }) {
   const me = useMe();
@@ -82,7 +81,6 @@ export function RequestPanel({ it }: { it: RequestItem }) {
   );
 }
 
-// AI 판정 — 판정 중 · 없음 · 실패도 깨지지 않게 글자로 적습니다.
 function AiVerdict({ it }: { it: RequestItem }) {
   const v = it.raw.ai_verdict;
   if (it.raw.judging) return <Section icon="activity" title="AI 판정"><div className={box}>AI가 판정하고 있습니다… (수십 초)</div></Section>;
@@ -98,7 +96,6 @@ function AiVerdict({ it }: { it: RequestItem }) {
   );
 }
 
-// 보유 권한 재검토 — 받은 뒤 퇴사했거나 부서 · 직무를 옮겼을 때. 회수는 아래 칸에서 사람이 합니다.
 function GrantReview({ it }: { it: RequestItem }) {
   const g = it.raw.grant_review!;
   const v = g.verdict;
@@ -117,7 +114,6 @@ function GrantReview({ it }: { it: RequestItem }) {
   );
 }
 
-// 아래 칸 — 내 단계면 결재, 유효 권한이면 회수, 그 밖에는 상태만.
 function RequestFoot({ r, role, draft, onDraft, act }: { r: RequestRow; role: Role; draft: Draft; onDraft: (d: Draft) => void; act: (a: RequestAct) => void }) {
   if (r.stage === STEP[role]) {
     return (

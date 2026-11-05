@@ -13,7 +13,6 @@ import { cn } from "@/shared/lib/cn";
 
 interface Props { d: UserStats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
 
-// 사용자 위협의 머리 — 지금의 사용자 안전 점수와 기간 안 타일 셋. "위협 예측 높음" 타일은 안전 점수 옆 이름 묶음과 같아 뺐습니다 (11/2).
 export function UserHead({ d, onSelect }: Props) {
   const ev = d.events;
   const rq = d.requests;
@@ -25,7 +24,6 @@ export function UserHead({ d, onSelect }: Props) {
   return (
     <>
       <div className={statSafety} id="stat-safety">
-        {/* 사람은 바로 아래 의심 점수 표에 점수순으로 다 있어 여기는 수만 둡니다. */}
         <SafetyBand label="사용자 안전 점수 · 지금" safety={d.safety} onSelect={onSelect} names={0}
           groups={[["의심 높음", susGroup("높음"), "suspect", "위험"], ["의심 보통", susGroup("보통"), "suspect", "주의"]]} />
       </div>
@@ -40,8 +38,7 @@ export function UserHead({ d, onSelect }: Props) {
   );
 }
 
-// 위협 예측 — 행동 신호 · 판정 · 신청 기록으로 판정 모델이 낸 의심 점수 (높은 순). 먼저 볼 사람을 고르는 순위 목록이라 표 하나로 둡니다
-// (11/2 — 막대 ⇄ 표였을 때는 판단에 쓰는 신호 · 판정 칸이 [표]를 눌러야 보였음). 의심 점수는 기간과 무관한 마지막 예측입니다.
+// 의심 점수는 기간과 무관한 마지막 예측입니다.
 export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jobs | null }) {
   const start = useStartJob();
   const sus = d.suspects || [];
@@ -51,7 +48,7 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
     <section className={statCard} id="stat-suspects">
       <div className={cardHead}>
         <h3 className={cardTitle}>위협 예측 — 의심 점수</h3>
-        {/* 건수는 제목 옆, 버튼은 오른쪽 끝 (둘 다 오른쪽으로 밀면 버튼이 가운데로 뜸). */}
+        {/* 둘 다 오른쪽으로 밀면 버튼이 가운데로 떠서 버튼만 오른쪽 끝에 둡니다. */}
         <span className={cn(cardCount, "ml-0")}>{sus.length ? `${sus.length}명 · ${stamp(latest)} 예측` : ""}</span>
         <button className={toolButton} id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
           <Icon name="activity" small />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
@@ -70,7 +67,6 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
   );
 }
 
-// 의심 점수 칸 — 작은 막대(0~100, 색은 의심 등급) · 점수 · 등급, 직전보다 10점 넘게 바뀌면 ▲ · ▼.
 function ScoreCell({ p }: { p: Suspect }) {
   return (
     <span className="flex items-center gap-2 whitespace-nowrap">

@@ -5,7 +5,6 @@ import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
 import { chip, chipTone, chips, clause, note } from "@/shared/ui/base/styles";
 
-// 근거 칩 — 누르면 기준 문서의 그 조항(또는 솔루션 정책 원본 행)을 아래에 펼칩니다. 펼친 상태는 항목 key 별로 둡니다.
 export function SourceChips({ itemKey, sources, className }: { itemKey: string; sources?: string[] | null; className?: string }) {
   const { ui, toggleChip } = useUi();
   const clauses = useClauses();

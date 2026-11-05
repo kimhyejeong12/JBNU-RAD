@@ -4,7 +4,7 @@ import { useQa } from "@/app/session/data";
 import { errorText, send } from "@/shared/api/http";
 import type { AskAnswer, AskItem, AskKind } from "@/shared/api/types";
 
-// 질의 보내기 — 기다리는 항목을 먼저 캐시에 넣어 탭을 떠나도 남고, 답이 오면 같은 항목을 바꿉니다.
+// 기다리는 항목을 먼저 캐시에 넣어 탭을 떠나도 남게 합니다.
 export function useAsk(kind: AskKind) {
   const qc = useQueryClient();
   const list = useQa(kind);
@@ -21,7 +21,6 @@ export function useAsk(kind: AskKind) {
     qc.setQueryData<AskItem[]>(key, (old = []) => old.map((m) => (m.id === id ? { ...m, ...result } : m)));
   }
 
-  // 받아들였으면 바로 true 를 돌려주어 입력 칸을 비울 수 있게 합니다. 답은 캐시로 옵니다.
   function ask(text: string): boolean {
     const q = text.trim();
     if (!q || busy) return false;

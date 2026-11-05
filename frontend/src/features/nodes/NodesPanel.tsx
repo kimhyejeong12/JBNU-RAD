@@ -20,7 +20,6 @@ import {
   actionButton, box, empty, field, formActions, formGrid, formMsg, input, meta, note, panelBody, primaryButton, recLine, subject, toolButton,
 } from "@/shared/ui/base/styles";
 
-// 노드 탭의 패널 — 고르지 않으면 상태 집계와 까는 법, [노드 등록]이면 등록 폼, 고르면 노드 정보 · 키 · 기록.
 export function NodesPanel() {
   const { ui } = useUi();
   const list = useQuery(nodesQuery()).data ?? [];
@@ -28,7 +27,7 @@ export function NodesPanel() {
   if (!ui.nodes.selected) return <SummaryPanel list={list} />;
   const n = list.find((x) => x.name === ui.nodes.selected);
   if (!n) return <><PanelHead title="수집 노드" /><div className={panelBody}><div className={empty}>없는 노드입니다.</div></div></>;
-  // key 로 노드마다 새로 그려 복사 버튼 글자 같은 상태가 다른 노드로 넘어가지 않게 합니다.
+  // key 로 노드마다 새로 그려 복사 버튼 상태가 다른 노드로 넘어가지 않게 합니다.
   return <NodePanel key={n.name} n={n} />;
 }
 
@@ -77,7 +76,7 @@ function NodePanel({ n }: { n: NodeRow }) {
   const action = useNodeAction();
   const [cls, label, tip] = nodeState(n);
 
-  // 감시가 멈추는 끄기 · 수집이 끊기는 키 다시 발급만 묻습니다 (켜기 · 처음 키 발급은 해가 없어 묻지 않음).
+  // 감시가 멈추는 끄기 · 수집이 끊기는 키 다시 발급만 묻습니다.
   const act = async (a: NodeAct) => {
     const q = a === "off"
       ? { title: "노드 끄기", confirm: "끄기", danger: true, message: `${n.name} 노드를 끕니다. 이 서버가 보내는 수집을 받지 않고 주기 점검에서도 빠져, 이 서버의 감시가 멈춥니다.` }
@@ -117,7 +116,6 @@ function NodePanel({ n }: { n: NodeRow }) {
   );
 }
 
-// 마지막 서버 점검(→ 검토 현황의 그 항목) · 최근 수집(달라진 설정) · 모듈 상태.
 function NodeRecords({ d }: { d: NodeDetail }) {
   const { select } = useUi();
   const items = useQueue();

@@ -9,7 +9,6 @@ import { chip, chipTone, chips, note } from "@/shared/ui/base/styles";
 
 interface Props { m: AskItem; i: number; pressed: (n: number) => boolean; onToggle: (n: number) => void }
 
-// 질의 기록의 칩은 가로로 늘어놓고 글자 폭만 차지합니다.
 const ROW = cn(chips, "flex-row flex-wrap");
 
 function Chip({ icon, on, open, onClick, children }: { icon: string; on: boolean; open: string; onClick: () => void; children: ReactNode }) {
@@ -20,7 +19,6 @@ function Chip({ icon, on, open, onClick, children }: { icon: string; on: boolean
   );
 }
 
-// 답 아래의 근거 — 정책 질의는 조항 칩, 로그 · 서버 질의는 서버가 조건으로 찾은 기록 한 칩.
 export function Evidence({ kind, ...p }: Props & { kind: AskKind }) {
   if (kind === "logs") return <LogEvidence {...p} />;
   if (kind === "servers") return <ServerEvidence {...p} />;

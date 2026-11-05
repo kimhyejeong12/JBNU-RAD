@@ -4,17 +4,14 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { cn } from "./cn";
 
-// Tailwind 는 소스의 글자에서 클래스를 찾으므로 `bg-${tone}` 처럼 조각으로 만든 이름은 CSS 가 생기지 않습니다.
-// 1) 유틸리티 앞부분에 값을 이어 붙이는 꼴은 어디서든(상수 포함) 잡습니다 — `h-${n}` · "text-" + x
+// Tailwind 는 소스 글자에서 클래스를 찾으므로 `bg-${tone}` 처럼 조각으로 만든 이름은 CSS 가 생기지 않습니다.
 const PREFIX = "(?:bg|text|border|shadow|fill|stroke|ring|outline|decoration|from|to|h|w|size|min-w|max-w|min-h|max-h|p[xytrbl]?|m[xytrbl]?"
   + "|gap(?:-[xy])?|space-[xy]|rounded(?:-[a-z]+)?|top|left|right|bottom|inset(?:-[xy])?|z|opacity|font|leading|tracking"
   + "|grid-cols|grid-rows|col-span|row-span|col-start|row-start|translate-[xy]|lv|mk)";
 const FRAGMENT = new RegExp(`\\b${PREFIX}-(?:\\$\\{|["'\`]\\s*\\+)`);
-// 2) className · cn(…) 값 안에서는 앞부분이 무엇이든 — `aspect-${r}`, 변형을 변수로 `${v}:block`, 이어 붙이기 "x-" + y
 const IN_CLASS = [/[a-z]-\$\{/g, /\$\{[\w.]+\}:[a-z[]/g, /-["'`]\s*\+/g];
 const CLOSE: Record<string, string> = { "{": "}", "(": ")" };
 
-// className="…" · className={…} · cn(…) 의 값을 [시작 위치, 글자] 로 — 여러 줄에 걸친 값도 괄호 짝으로 끝까지 읽습니다.
 function classValues(src: string): [number, string][] {
   const out: [number, string][] = [];
   for (const m of src.matchAll(/className=|\bcn\(/g)) {
@@ -34,7 +31,6 @@ function classValues(src: string): [number, string][] {
   return out;
 }
 
-// 소스 한 파일에서 조각 클래스가 있는 줄 번호(1부터)를 돌려줍니다.
 function fragmentsIn(src: string): number[] {
   const lineAt = (pos: number) => src.slice(0, pos).split("\n").length;
   const found = new Set<number>();

@@ -8,7 +8,6 @@ interface AskConfig {
   examples: string[];
 }
 
-// 질의 탭은 메뉴의 기능을 따릅니다. 예시 질문도 여기 한 곳에서 정하고, 누르면 직접 입력과 똑같이 답을 만듭니다.
 export const ASK: Record<AskKind, AskConfig> = {
   policy: {
     label: "정책 질의", url: "/api/ask", placeholder: "정책 · 접근 권한에 대해 질문하세요",
