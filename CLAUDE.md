@@ -105,7 +105,7 @@ JBNU-RAD/
 │       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · SourceChips) · confirm/(확인 창 — ask · ConfirmLayer)
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
 │       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
-│       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(예시 질문은 config.ts) · stats · catalog · accounts · regulations(기준 문서). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
+│       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(예시 질문은 config.ts) · stats · catalog · accounts · regulations(기준 문서) · engine(설정 — 작업 큐). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
 ├── docs/                     판정 근거 기준 문서(.md · .txt) — 보안 총책임자가 화면에서 올리고(10/30) 고치고(11/2) 지움(11/3), 코드 작업으로는 고치지 않음 (CLI `index` · 정책 관리 검토가 RAG에 적재)
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
@@ -233,6 +233,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `GET /api/results` | 마지막 정책 관리 검토(정책 문제 · 서버 점검) · 쌓인 로그 감시 판정 → 화면용 dict + 운영자 결정. 보안 총책임자에게는 결정 기록 전부(`decision_log`, 취소 포함) |
 | `GET /api/jobs` | 도는 작업(`running` — 없으면 기다리는 첫 작업, 그때 `queued: true`) · 진행(done/total) · 작업별 마지막 실패 · 기다리는 일(`waiting`, 신청 판정 · 기준 문서 적재 포함). 빠른 감시는 `fast`(간격 · 다음 시각 · 마지막 실행) |
 | `POST /api/jobs/{kind}` | `policies` · `nodes` · `suspects`를 큐에 넣음 (202, 다른 작업이 돌면 그 뒤에). 같은 작업이 이미 기다리거나 돌고 있으면 409. `events`는 자동으로만 돌아 404 |
+| `GET /api/queue` · `POST /api/queue/clear` | 설정 화면 (보안 총책임자) — 도는 잡 · 길마다 기다리는 잡 전부 · 열린 묶음 · 예약 · 종류마다 마지막 실행. 초기화는 도는 · 기다리는 잡을 모두 끝내고 워커를 새로 띄운 뒤 뜰 때처럼 기준 문서 적재 · 판정 못한 신청을 다시 쌓음 (예약은 그대로, 도는 작업이 없어도 됨, 감사 기록 `queue_clear`) |
 | `POST /api/jobs/reset` | 돌고 있는 작업(작업 큐 · 빠른 감시)을 강제로 끝냄 (보안 총책임자, 감사 기록 `jobs_reset`). `{rerun: true}`면 같은 작업을 다시 넣음. 돌던 판정 한 건은 끝날 때까지 이어지고 결과는 버림 (`JobQueue.reset`). 도는 작업이 없으면 409 |
 | `POST /api/decisions` | 정책 문제 · 서버 점검 · 로그 판정에 대한 운영자 결정 · 취소 (보안 운영자 이상). 지금 결정은 `/api/results`의 `decisions`로 옴 — 다시 판정됐지만 결과가 그대로인 서버 점검 · 정책 문제는 지난 결정을 이어받아 `carried_from`(이어받은 판정 key)과 함께 옴 (`view.carry_decisions`) |
 | `POST /api/nodes/snapshots` | **수집 노드 전용** — 로그인 대신 `Authorization: Bearer 노드 키`. 본문 = 노드가 읽은 원문(`format: sentinel-node 1`, 2MB까지). 모르는 키 401 · 꺼진 노드 403 · 형식 400. 같은 노드 · 수집 시각은 한 번만 쌓음(`stored`) |
@@ -265,7 +266,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 |---|---|
 | 일반 사용자 | 메뉴 · 오른쪽 패널 없이 내 신청 화면 하나 — 신청서 위 · 목록 아래 (반려 사유 · 철회는 목록 줄의 상태 칸에서). AI 흔적 없음 |
 | 보안 운영자 | 권한 신청(1차 결재함 · 확인할 사람) · 정책 관리 · 로그 감시 · 통계 · 정책 질의 · 기준 문서(읽기만) |
-| 보안 총책임자 | 위 + 최종 결재함 · 관리(권한 목록 · 계정 관리 · 기준 문서) |
+| 보안 총책임자 | 위 + 최종 결재함 · 관리(권한 목록 · 계정 관리 · 기준 문서) · 설정(작업 큐 보기 · 강제 초기화) |
 
 ---
 
@@ -719,6 +720,7 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - **질의는 지웠음** (사용자 결정) — 질의 통합 시스템으로 완전히 다시 만들 예정이라 흐름 · 질의 프롬프트(ANSWER · LOG_FILTER · LOG_ANSWER · SERVER_FILTER · SERVER_ANSWER) · 출력 타입(Answer · LogFilter · ServerFilter) · `server_digest` 를 지우고 API 자리만 남김 (§2 질의)
 - 화면 · API 모양은 그대로 — `/api/jobs` 의 running · done · total 은 묶음 기준, waiting 은 묶음 · 단독 잡 한 줄씩
 - 처음 띄운 컨테이너가 시작에서 죽었음 — `./data` 마운트에 SELinux 라벨(`z`)이 없어 로그를 못 읽었고, 이슈어가 시작 때 판정 못한 신청의 사람 기록을 읽다 예외가 웹까지 올라왔음. 라벨을 붙이고, 읽기 실패는 그 판정의 실패로만 남기게 했음 (예전엔 판정 작업 안에서 읽어 그랬음)
+- 설정 메뉴(보안 총책임자)에 작업 큐 화면을 붙였음 (사용자 요청) — 작업 버튼 옆 [강제 중지]는 도는 작업 하나만 끝내서, 기다리는 잡이 쌓였거나 워커가 멈췄을 때 큐 전체를 비우고 새로 시작할 곳이 없었음. 관리(목록 화면)와 달리 오른쪽 패널 없이 넓게 씀
 - 웹이 뜰 때마다 기준 문서를 적재함 (사용자 요청) — 새 볼륨으로 띄운 컨테이너가 인덱스가 빈 채로 판정하고 있었음. 적재를 판정과 같은 길(0)로 올렸음 — 빈 인덱스로 신청을 먼저 판정하지 않게, 화면에서 올린 문서도 다음 판정부터 보이게
 - `types.py`를 없앴음 (사용자 결정) — 타입은 쓰는 모듈에서 정의. 판정 출력 타입 · `Notifier`는 쓰는 곳이 워커뿐이라 `worker.py`로, `Job` · `Batch`는 `queue.py`, `Settings`는 `settings.py`. 출력 타입 docstring · 설명은 글자 그대로 옮겼음
 
