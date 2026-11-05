@@ -1,4 +1,4 @@
-"""AI 결과 DB — 정책 관리 검토 · 로그 감시 · 수집 · 노드 점검 · 의심 점수 · 질의 기록이 쌓이고 그대로 읽히는지 봅니다."""
+"""AI 결과 DB — 쌓은 것이 그대로 읽히는지 봅니다."""
 from __future__ import annotations
 
 import pytest
@@ -42,7 +42,7 @@ def test_monitor_runs(results_db):
     assert [(f["user"], f["stage"]) for f in shown["findings"]] == [("kim.hj", "final"), ("kim.hj", "fast")]
     assert shown["findings"][0]["id"] == "kim.hj@2026-11-02T11:00:00+00:00"
 
-    # 통계 · 의심 점수는 정밀 감시만 셉니다. "user" 칸이 PostgreSQL 의 current_user 로 바뀌지 않았는지도 봅니다.
+    # "user" 칸이 PostgreSQL 의 current_user 로 바뀌지 않았는지도 봅니다.
     stats = results.threat_stats(results_db)
     assert stats["events"]["lines"]["위험"] == 2
     assert stats["events"]["users"][0]["log_id"] == "kim.hj"

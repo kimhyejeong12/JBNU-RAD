@@ -1,7 +1,4 @@
-"""정책 관리(정책 문제 · 서버 점검) · 로그 감시의 운영자 결정 (권한 DB).
-
-결정은 고치거나 지우지 않고 쌓습니다. 항목마다 마지막 기록이 지금 결정이고, 취소도 cancel 기록으로 남깁니다.
-"""
+"""운영자 결정 — 쌓기만 하고, 항목마다 마지막 기록이 지금 결정입니다 (취소도 cancel 기록)."""
 from __future__ import annotations
 
 import json
@@ -31,7 +28,7 @@ def record(db: Database, by: User, kind: str, item_key: str, action: str, subjec
 
 
 def current(db: Database, kind: str) -> dict[str, dict]:
-    """항목 key → 지금 결정. 마지막 기록이 취소면 결정이 없는 것으로 봅니다."""
+    """항목 key → 지금 결정. 마지막 기록이 취소면 뺍니다."""
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT d.* FROM review_decisions d"
@@ -42,7 +39,7 @@ def current(db: Database, kind: str) -> dict[str, dict]:
 
 
 def history(db: Database, kind: str) -> dict[str, list[dict]]:
-    """항목 key → 결정 기록 전부 (오래된 것부터, 취소 포함). 보안 총책임자가 아래에서 올라온 판단을 읽을 때 씁니다."""
+    """항목 key → 결정 기록 전부 (오래된 것부터, 취소 포함)."""
     with db.connection() as conn:
         rows = conn.execute("SELECT * FROM review_decisions WHERE kind = %s ORDER BY id", (kind,)).fetchall()
     out: dict[str, list[dict]] = {}

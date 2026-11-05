@@ -1,9 +1,4 @@
-"""SentinelAI CLI — `python -m sentinelai <명령>`
-
-웹이 꺼져 있을 때 서버에서 쓰는 최소한의 명령만 둡니다. 판정은 웹과 같은 Engine 기능을 부르고 같은 DB 에 쌓습니다.
-웹이 떠 있으면 벡터 DB 를 웹이 쥐고 있어 health · index · review-policies · check-nodes · monitor 는 실패합니다 (Milvus Lite 는 한 프로세스만).
-대상 위치 · 모델 · DB 는 모두 .env 에서 나옵니다.
-"""
+"""웹이 꺼져 있을 때 쓰는 CLI — 웹이 떠 있으면 Milvus Lite 잠금 때문에 벡터 DB 를 쓰는 명령은 실패합니다."""
 from __future__ import annotations
 
 import argparse
@@ -17,7 +12,7 @@ from .engine import Engine
 
 
 def _show(item: dict[str, Any]) -> None:
-    """판정 한 건 (Verdict · ServerReview)."""
+    """Verdict · ServerReview 한 건을 출력합니다."""
     if item["failed"]:
         print(f"  판정 실패: {item['error']}")
         return

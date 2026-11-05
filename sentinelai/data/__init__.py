@@ -1,21 +1,4 @@
-"""검토 대상 데이터 계층 — 소스(어디서 읽나) × 매퍼(어떤 레코드로 바꾸나).
-
-엔진(sentinelai.engine)을 가져오지 않습니다. 엔진 · 웹 · 스크립트가 같은 레코드 타입을 나눠 씁니다.
-
-    from sentinelai.data import event_review_input, group_by_user, load_events, load_requests
-
-    for event in load_events("data/솔루션 별 Mock 데이터.csv").records:
-        print(event.describe())
-
-    request = load_requests("data/permissions.csv").records[0]
-    engine.review_chain().invoke(request.review_input())
-
-    events = load_events("data/솔루션 별 Mock 데이터.csv", since=last_run).records
-    for group in group_by_user(events).values():
-        engine.event_chain().invoke(event_review_input(group))
-
-새 환경은 name · rows() 를 갖춘 소스를 넘기고, 컬럼 이름만 다르면 매퍼의 columns 를 덮어씁니다.
-"""
+"""검토 대상 데이터 계층 — 소스 × 매퍼. 엔진을 가져오지 않습니다."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -32,12 +15,7 @@ from .types import AccessRequest, LoadIssue, LoadResult, PolicyRule, Record, Sec
 
 
 def load(target: Any, mapper: Mapper, strict: bool = False) -> LoadResult:
-    """target: 파일 경로 · 폴더 경로 또는 소스.
-
-    필수 컬럼이 없으면 파일을 잘못 고른 것이므로 바로 ValueError 를 냅니다.
-    행 오류는 issues 에 모으고, strict=True 면 첫 행 오류에서 멈춥니다.
-    폴더면 안의 파일(.csv · .json 등)을 모두 읽어 합칩니다. 비어 있으면 레코드 없이 돌려줍니다.
-    """
+    """필수 컬럼이 없으면 ValueError. 행 오류는 issues 에 모으고, strict 면 첫 행 오류에서 멈춥니다."""
     files = folder_files(target)
     if files is not None:
         return _load_folder(Path(str(target)), files, mapper, strict)
@@ -61,7 +39,7 @@ def load(target: Any, mapper: Mapper, strict: bool = False) -> LoadResult:
 
 
 def _load_folder(folder: Path, files: list[Path], mapper: Mapper, strict: bool) -> LoadResult:
-    # 솔루션마다 내보낸 파일을 한 폴더에 모으므로, 컬럼이 맞지 않는 파일 하나 때문에 나머지를 버리지 않습니다.
+    # 컬럼이 맞지 않는 파일 하나 때문에 폴더의 나머지 파일을 버리지 않습니다.
     result = LoadResult(source=folder.name)
     for path in files:
         try:
@@ -83,7 +61,7 @@ def load_events(
     since: datetime | None = None,
     until: datetime | None = None,
 ) -> LoadResult:
-    """since · until 은 between() 과 같습니다. 범위 밖 로그는 오류가 아니므로 issues 에 넣지 않습니다."""
+    """범위 밖 로그는 오류가 아니므로 issues 에 넣지 않습니다."""
     result = load(target, mapper or EventMapper(), strict)
     if since or until:
         result.records = between(result.records, since, until)

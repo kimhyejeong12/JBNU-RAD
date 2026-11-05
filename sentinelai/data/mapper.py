@@ -1,8 +1,4 @@
-"""원본 행을 레코드로 바꾸는 매퍼.
-
-같은 항목도 내보낸 환경마다 컬럼 이름이 다릅니다 (포털 CSV 는 "TimeGenerated [UTC]", 쿼리 결과는 "TimeGenerated").
-그래서 필드마다 후보 컬럼 이름을 여러 개 두고 앞에서부터 처음 있는 것을 씁니다.
-"""
+"""원본 행 → 레코드. 환경마다 컬럼 이름이 달라 필드마다 후보 이름을 앞에서부터 찾습니다."""
 from __future__ import annotations
 
 import re
@@ -43,7 +39,7 @@ def parse_datetime(value: str) -> datetime:
             parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError:
             raise ValueError(f"날짜 · 시각 형식이 아닙니다: {value!r}") from None
-    # Microsoft Sentinel 의 TimeGenerated 는 UTC 라서 시간대 표기가 없으면 UTC 로 봅니다.
+    # TimeGenerated 는 UTC 라서 시간대 표기가 없으면 UTC 로 봅니다.
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
@@ -53,7 +49,7 @@ Columns = Mapping[str, Sequence[str]]
 
 
 class ColumnMapper:
-    """COLUMNS(필드 → 후보 컬럼 이름)로 행을 읽는 바탕 클래스. REQUIRED 에 없는 필드는 비어 있어도 됩니다."""
+    """COLUMNS(필드 → 후보 컬럼 이름)로 행을 읽습니다. REQUIRED 밖의 필드는 비어도 됩니다."""
 
     COLUMNS: Columns = {}
     REQUIRED: frozenset[str] = frozenset()
@@ -89,10 +85,7 @@ _IGNORED = {"_ResourceId", "SourceSystem", "MG", "ManagementGroupName", "Compute
 
 
 class EventMapper(ColumnMapper):
-    """Microsoft Sentinel 사용자 지정 로그(<솔루션>_CL) → SecurityEvent.
-
-    WHO · WHERE · HOW 를 솔루션 공통 컬럼으로 보고 매퍼 하나로 모든 솔루션을 읽습니다.
-    """
+    """Microsoft Sentinel 사용자 지정 로그 → SecurityEvent. WHO · WHERE · HOW 를 공통 컬럼으로 봅니다."""
 
     COLUMNS = {
         "occurred_at": ["TimeGenerated [UTC]", "TimeGenerated"],
@@ -109,7 +102,7 @@ class EventMapper(ColumnMapper):
     REQUIRED = frozenset({"occurred_at", "solution"})
 
     def __init__(self, columns: Columns | None = None, solution: str | None = None) -> None:
-        """solution: Type 컬럼이 없는 파일(솔루션 콘솔에서 직접 내보낸 것 등)에 쓸 솔루션 이름."""
+        """solution: Type 컬럼이 없는 파일에 쓸 솔루션 이름."""
         super().__init__(columns)
         self.solution = solution
         if solution:
@@ -164,7 +157,7 @@ class PolicyRuleMapper(ColumnMapper):
 
 
 class ServerStateMapper(ColumnMapper):
-    """서버 현황 → ServerState. 호스트 이름과 IP 중 하나만 있어도 읽습니다. 나머지 컬럼은 attributes 로 갑니다."""
+    """호스트 이름과 IP 중 하나만 있어도 읽고, 나머지 컬럼은 attributes 로 보냅니다."""
 
     COLUMNS = {
         "host": ["host", "hostname", "server", "서버", "서버명", "호스트", "호스트명"],

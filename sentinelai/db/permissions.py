@@ -1,7 +1,4 @@
-"""권한 신청 · AI 판정 · 결재 · 회수 (권한 DB, 신청 1건 = 1행).
-
-순서 · 역할 규칙은 트리거가 강제합니다. 여기서는 트리거가 알 수 없는 것(신청자 본인인지, 볼 수 있는 범위)을 확인합니다.
-"""
+"""권한 신청 (1건 = 1행) — 트리거가 알 수 없는 것(신청자 본인 · 볼 수 있는 범위)만 여기서 확인합니다."""
 from __future__ import annotations
 
 import json
@@ -15,13 +12,13 @@ from .auth import User
 from .core import Database, Denied, Row, audit, now, today
 
 STAGES = ("manager", "top", "approved", "rejected", "withdrawn", "revoked")
-# 신청 판정에 "최근 이동"으로 넣는 기간입니다. 옮긴 지 얼마 안 된 사람이 예전 업무 권한을 이어 신청하는지 보게 합니다.
+# 신청 판정에 "최근 이동"으로 넣는 기간입니다.
 RECENT_MOVE_DAYS = 90
 STAGE_TEXT = {"manager": "1차 결재 대기", "top": "최종 결재 대기", "approved": "승인", "rejected": "반려", "withdrawn": "철회", "revoked": "회수"}
 
 
 def _next_request_no(conn: psycopg.Connection[Row]) -> str:
-    # 날짜는 사내 업무 기준인 서버 현지 시각(KST)으로 매깁니다.
+    # 사내 업무 기준인 서버 현지 날짜(KST)로 매깁니다.
     day = datetime.now().astimezone().strftime("%Y%m%d")
     last = conn.execute("SELECT max(request_no) FROM access_requests WHERE request_no LIKE %s", (f"REQ-{day}-%",)).fetchone()[0]
     seq = int(last[-3:]) + 1 if last else 1
@@ -32,7 +29,7 @@ def _next_request_no(conn: psycopg.Connection[Row]) -> str:
 
 
 def _held(conn: psycopg.Connection[Row], user_id: int) -> list[Row]:
-    """지금 가진 권한 = 이 시스템에서 최종 승인됐고 사용 기간이 남은 신청 (회수 · 만료는 빠집니다)."""
+    """지금 가진 권한 = 최종 승인됐고 사용 기간이 남은 신청입니다."""
     return conn.execute(
         "SELECT request_no, access_code, requested_access, period_end FROM access_requests"
         " WHERE requester_id = %s AND stage = 'approved' AND (period_end = '' OR period_end >= %s) ORDER BY submitted_at",
@@ -48,10 +45,7 @@ def _held_text(rows: list[Row]) -> str:
 
 
 def submit(db: Database, by: User, access_code: str, reason: str = "", period_start: str = "", period_end: str = "") -> dict:
-    """권한 목록의 켜진 권한만 신청합니다. 신청 때 이름을 requested_access 에 남겨, 목록 이름이 바뀌어도 기록은 그대로입니다.
-
-    현재 보유 권한은 신청자가 적지 않고 신청 때 가진 권한을 읽어 current_access 에 남깁니다 (AI 판정 · 결재자가 본 그대로).
-    """
+    """켜진 권한만 신청하고, 신청 때 이름 · 보유 권한을 행에 남겨 목록이 바뀌어도 기록은 그대로입니다."""
     with db.transaction() as conn:
         item = catalog.get(conn, access_code)
         if not item["is_active"]:
@@ -81,7 +75,7 @@ def _row(conn: psycopg.Connection[Row], request_no: str) -> Row:
 
 
 def _detail(conn: psycopg.Connection[Row], rid: int) -> dict:
-    """신청 한 행 → 화면용 dict. AI 판정 · 결재 · 회수 칸은 묶음으로 나눠 담습니다."""
+    """신청 한 행 → 화면용 dict (AI 판정 · 결재 · 회수는 묶음으로)."""
     row = dict(conn.execute("SELECT * FROM access_requests WHERE id = %s", (rid,)).fetchone())
     req = {k: v for k, v in row.items() if not k.startswith(("ai_", "manager_", "top_", "revoke"))}
     req["ai_verdict"] = None if row["ai_judged_at"] is None else {
@@ -89,7 +83,7 @@ def _detail(conn: psycopg.Connection[Row], rid: int) -> dict:
         "sources": json.loads(row["ai_sources"]), "failed": bool(row["ai_failed"]), "error": row["ai_error"],
         "model": row["ai_model"], "elapsed_sec": row["ai_elapsed_sec"], "judged_at": row["ai_judged_at"],
     }
-    # 1차 결재 뒤에는 AI 칸이 굳으므로, 두 결재자가 본 판정은 같은 AI 칸입니다.
+    # 1차 결재 뒤에는 AI 칸이 굳어 두 결재자가 본 판정이 같습니다.
     seen = row["ai_level"] if row["ai_judged_at"] and not row["ai_failed"] else None
     req["approvals"] = [
         {"step": step, "action": row[f"{step}_action"], "comment": row[f"{step}_comment"], "approver_id": row[f"{step}_id"],
@@ -105,7 +99,7 @@ def _detail(conn: psycopg.Connection[Row], rid: int) -> dict:
     return req
 
 
-# --- 받은 뒤 재검토 (퇴사 · 사내 이동) --------------------------------------------
+# --- 받은 뒤 재검토 (퇴사 · 사내 이동) ---
 
 LEAVE_VERDICT = {"level": "위험", "recommendation": "이 권한을 회수하십시오.", "sources": [], "failed": False, "error": None,
                  "model": "", "elapsed_sec": None, "judged_at": None, "by": "code"}
@@ -116,7 +110,7 @@ def _is_held(row: Any) -> bool:
 
 
 def _latest_move(conn: psycopg.Connection[Row], user_id: int, after: str) -> Row | None:
-    """after(신청 시각) 뒤에 기록된 마지막 이동. 신청 뒤에 업무가 바뀌었으면 그 권한은 예전 업무 기준으로 받은 것입니다."""
+    """after(신청 시각) 뒤에 기록된 마지막 이동입니다."""
     return conn.execute("SELECT * FROM user_moves WHERE user_id = %s AND recorded_at > %s ORDER BY id DESC LIMIT 1",
                         (user_id, after)).fetchone()
 
@@ -127,10 +121,7 @@ def _move(m: Row) -> dict[str, Any]:
 
 
 def _grant_review(conn: psycopg.Connection[Row], row: Any) -> dict[str, Any] | None:
-    """지금 가진 권한의 재검토. 퇴사일이 지났으면 코드가 바로 위험, 신청 뒤 이동했으면 그 이동에 대한 AI 판정 (아직이면 verdict None).
-
-    회수는 사람이 합니다 — 여기서는 권고만 냅니다.
-    """
+    """퇴사했으면 코드가 위험, 신청 뒤 이동했으면 그 이동의 AI 판정(아직이면 verdict None)입니다."""
     if not _is_held(row):
         return None
     user = conn.execute("SELECT left_on FROM users WHERE id = %s", (row["requester_id"],)).fetchone()
@@ -149,19 +140,12 @@ def _grant_review(conn: psycopg.Connection[Row], row: Any) -> dict[str, Any] | N
 
 
 LEVEL_RANK = {"정상": 0, "주의": 1, "위험": 2}
-# 확인할 사람에 이동 · 퇴사를 보여 주는 기간입니다. 지난 일은 이 기간이 지나면 남은 권한 · 신청이 있을 때만 남습니다.
+# 확인할 사람에 이동 · 퇴사를 보여 주는 기간입니다.
 WATCH_DAYS = 90
 
 
 def watch_people(db: Database) -> list[dict[str, Any]]:
-    """확인할 사람 — 퇴사 · 사내 이동이 있거나, 신청 · 보유 권한이 위험 · 주의인 일반 사용자. 코드가 셈 (모델 없음).
-
-    사람마다 걸린 것(flags)과 가장 높은 등급(level). 걸린 것:
-    - leave: 퇴사일이 있음 — 지났는데 권한이 남았으면 위험, 계정이 아직 활성이면 주의, 예정이면 주의
-    - move: 최근 WATCH_DAYS 안의 이동 (등급은 정상 — 권한별 재검토는 grant 로)
-    - grant: 지금 가진 권한 — 재검토(퇴사 · 이동)가 위험 · 주의 · 판정 전이거나, 승인 때 AI 판정이 위험 · 주의였던 것
-    - request: 결재 중인 신청의 AI 판정이 위험 · 주의
-    """
+    """퇴사 · 이동 · 위험하거나 주의인 신청 · 보유 권한이 걸린 일반 사용자와 flags(leave · move · grant · request)입니다."""
     day = today()
     since = (date.fromisoformat(day) - timedelta(days=WATCH_DAYS)).isoformat()
     out = []
@@ -202,7 +186,7 @@ def watch_people(db: Database) -> list[dict[str, Any]]:
                 out.append({"id": u["id"], "login_id": u["login_id"], "name": u["display_name"], "department": u["department"],
                             "job": u["job"], "is_active": bool(u["is_active"]), "left_on": u["left_on"],
                             "level": flags[0]["level"], "at": max(f["at"] for f in flags), "flags": flags})
-    # 등급이 높은 사람부터, 같은 등급은 최근 일이 있는 사람부터.
+    # 등급이 높은 사람부터, 같은 등급은 최근 일이 있는 사람부터 (안정 정렬 두 번).
     out.sort(key=lambda p: p["at"], reverse=True)
     out.sort(key=lambda p: -LEVEL_RANK[p["level"]])
     return out
@@ -214,7 +198,7 @@ def _move_text(m: Any) -> str:
 
 
 def pending_grant_reviews(db: Database, user_id: int | None = None) -> list[str]:
-    """이동 뒤 아직 성공한 재검토가 없는 보유 권한 — 판정 큐 작업 이름("grant:신청번호:이동 id"). 퇴사한 사람은 코드가 판정하므로 뺍니다."""
+    """이동 뒤 재검토가 없는 보유 권한의 작업 이름("grant:신청번호:이동 id") — 퇴사자는 뺍니다."""
     out = []
     with db.connection() as conn:
         rows = conn.execute(
@@ -231,7 +215,7 @@ def pending_grant_reviews(db: Database, user_id: int | None = None) -> list[str]
 
 
 def grant_input(db: Database, request_no: str, move_id: int) -> dict[str, Any] | None:
-    """재검토 입력 — 신청 행 · 권한 목록 설명 · 그 이동. 이미 회수 · 만료됐거나 더 늦은 이동이 있으면 None (판정할 필요 없음)."""
+    """회수 · 만료됐거나 더 늦은 이동이 있으면 None 입니다."""
     with db.connection() as conn:
         row = conn.execute(
             "SELECT r.*, c.system AS access_system, c.category AS access_category, c.description AS access_description"
@@ -246,7 +230,7 @@ def grant_input(db: Database, request_no: str, move_id: int) -> dict[str, Any] |
 
 
 def save_grant_review(db: Database, request_no: str, move_id: int, result: dict, model: str) -> bool:
-    """재검토 결과를 쌓습니다. 그사이 회수 · 만료됐으면 쓰지 않고 False"""
+    """그사이 회수 · 만료됐으면 쓰지 않고 False 입니다."""
     with db.transaction() as conn:
         row = _row(conn, request_no)
         if not _is_held(row):
@@ -273,7 +257,7 @@ def get(db: Database, by: User, request_no: str) -> dict:
 
 
 def list_requests(db: Database, by: User, stage: str | None = None, mine: bool = False) -> list[dict]:
-    """일반 사용자는 자기 신청만, 보안 운영자 · 보안 총책임자는 전부. stage 로 결재함을 거릅니다. 결재 · 회수 기록까지 담습니다."""
+    """일반 사용자는 자기 신청만 봅니다."""
     if stage is not None and stage not in STAGES:
         raise Denied(f"stage 는 {', '.join(STAGES)} 중 하나입니다")
     where, args = [], []
@@ -303,7 +287,7 @@ def _person(conn: psycopg.Connection[Row], by: User) -> Row:
 
 
 def decide(db: Database, by: User, request_no: str, action: str, comment: str = "") -> dict:
-    """결재. 단계는 결재자의 역할로 정합니다 (보안 운영자 = 1차, 보안 총책임자 = 최종). 결재자가 본 AI 판정은 신청 행의 AI 칸입니다."""
+    """단계는 결재자의 역할로 정합니다 (보안 운영자 = 1차, 보안 총책임자 = 최종)."""
     if action not in ("approve", "reject"):
         raise Denied("action 은 approve · reject 중 하나입니다")
     if by.role not in ("manager", "top"):
@@ -337,11 +321,11 @@ def revoke(db: Database, by: User, request_no: str, reason: str) -> dict:
         return _detail(conn, req["id"])
 
 
-# --- 보안 통계 ---------------------------------------------------------------
+# --- 보안 통계 ---
 
 
 def request_stats(db: Database, since: str | None = None) -> dict[str, Any]:
-    """사용자 위협 타일 — 신청 수 · AI 등급별 수 · AI 와 결재가 엇갈린 신청 수 (AI 위험인데 승인, AI 정상인데 반려). since(신청 시각)가 없으면 전체."""
+    """신청 수 · AI 등급별 수 · AI 와 결재가 엇갈린 수입니다. since 가 없으면 전체입니다."""
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT stage, ai_level, ai_failed, ai_judged_at FROM access_requests"
@@ -358,7 +342,7 @@ def request_stats(db: Database, since: str | None = None) -> dict[str, Any]:
 
 
 def user_requests(db: Database, since: str | None = None) -> list[dict[str, Any]]:
-    """의심 점수 — 기간 안 신청을 신청자 계정별로. AI 등급 · 결재 결과(반려 단계) · 회수를 함께 줍니다."""
+    """의심 점수용 — 기간 안 신청을 신청자 계정별로 묶습니다."""
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT request_no, requester_id, requested_access, stage, ai_level, ai_failed, ai_judged_at, manager_action, top_action,"
@@ -371,7 +355,7 @@ def user_requests(db: Database, since: str | None = None) -> list[dict[str, Any]
 
 
 def held_by_account(db: Database) -> dict[int, list[dict[str, Any]]]:
-    """사용자 위협 패널 — 계정마다 지금 가진 권한 (_held 와 같은 조건) + 권한 목록의 시스템 · 분류."""
+    """계정마다 지금 가진 권한 (_held 와 같은 조건)입니다."""
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT r.requester_id, r.request_no, r.access_code, r.requested_access, r.period_end, c.system, c.category"
@@ -384,11 +368,11 @@ def held_by_account(db: Database) -> dict[int, list[dict[str, Any]]]:
     return out
 
 
-# --- AI 판정 (신청 행의 AI 칸) --------------------------------------------------
+# --- AI 판정 (신청 행의 AI 칸) ---
 
 
 def save_ai_verdict(db: Database, request_no: str, result: dict, model: str) -> bool:
-    """pipeline.judge_request 의 결과를 신청 행에 씁니다. 그사이 1차 결재가 났으면 쓰지 않고 False"""
+    """그사이 1차 결재가 났으면 쓰지 않고 False 입니다."""
     with db.transaction() as conn:
         updated = conn.execute(
             "UPDATE access_requests SET ai_level = %s, ai_reason = %s, ai_recommendation = %s, ai_sources = %s, ai_failed = %s,"
@@ -402,11 +386,7 @@ def save_ai_verdict(db: Database, request_no: str, result: dict, model: str) -> 
 
 
 def account_record(db: Database, user_id: int, before: str | None = None) -> dict[str, Any] | None:
-    """판정에 넣는 계정 기록 — 계정 · 이동 · 지금 가진 권한 · 권한 신청 기록. 사람이 정한 것만 담고 AI 판정은 넣지 않습니다.
-
-    예전 AI 등급을 다시 넣으면 한 번 위험으로 찍힌 사람이 계속 위험으로 나오는 되먹임이 생깁니다 (CLAUDE.md §9, 11/3).
-    before(신청 시각)를 주면 그 신청과 그 뒤 신청은 빼고 봅니다 — 판정할 신청 자신이 기록에 섞이지 않게.
-    """
+    """사람이 정한 것만 담습니다 (예전 AI 등급의 되먹임 방지). before 가 있으면 그 신청부터 뺍니다."""
     with db.connection() as conn:
         user = conn.execute("SELECT id, display_name, department, job, role, is_active, left_on, log_id, created_at FROM users WHERE id = %s",
                             (user_id,)).fetchone()
@@ -429,7 +409,7 @@ def account_record(db: Database, user_id: int, before: str | None = None) -> dic
 
 
 def judge_input(db: Database, request_no: str) -> dict[str, Any] | None:
-    """신청 판정 입력 — 신청 행 · 권한 목록 설명 · 신청 전 90일 안의 사내 이동(없으면 None)."""
+    """신청 판정 입력 — 신청 행 · 권한 설명 · 신청 전 90일 안의 이동(없으면 None)입니다."""
     with db.connection() as conn:
         row = conn.execute(
             "SELECT r.*, c.system AS access_system, c.category AS access_category, c.description AS access_description"
@@ -449,7 +429,7 @@ def rejudgeable(db: Database, request_no: str) -> bool:
 
 
 def unjudged(db: Database) -> list[str]:
-    """1차 결재 전인데 성공한 판정이 없는 신청. 웹을 다시 띄웠을 때 밀렸거나 실패한 판정을 다시 돌립니다."""
+    """1차 결재 전인데 성공한 판정이 없는 신청입니다 (재시작 때 다시 돌림)."""
     with db.connection() as conn:
         return [r[0] for r in conn.execute(
             "SELECT request_no FROM access_requests WHERE stage = 'manager' AND (ai_judged_at IS NULL OR ai_failed = 1)"

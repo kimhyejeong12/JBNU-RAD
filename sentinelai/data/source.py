@@ -1,8 +1,4 @@
-"""원본 행을 꺼내 오는 소스.
-
-소스는 어디서 읽는지만 맡고, 행을 레코드로 바꾸는 일은 매퍼가 맡습니다.
-새 환경은 name 과 rows() 만 갖춘 객체를 만들어 load() 에 넘기면 됩니다.
-"""
+"""원본 행을 꺼내 오는 소스. 새 환경은 name 과 rows() 만 갖춘 객체를 넘기면 됩니다."""
 from __future__ import annotations
 
 import csv
@@ -20,7 +16,7 @@ class RowSource(Protocol):
     name: str
 
     def rows(self) -> Iterator[tuple[int, Row]]:
-        """(위치, 행). 위치는 오류를 원본에서 찾아갈 수 있는 번호입니다 — CSV 는 파일 행 번호, 나머지는 순번."""
+        """(위치, 행). 위치는 CSV 면 파일 행 번호, 나머지는 순번입니다."""
         ...
 
 
@@ -40,7 +36,7 @@ def _resolve(path: str | Path) -> Path:
 
 class CsvSource:
     def __init__(self, path: str | Path, encoding: str = "utf-8-sig", delimiter: str = ",") -> None:
-        # utf-8-sig: 엑셀 등에서 저장한 BOM 포함 파일도 첫 컬럼 이름이 깨지지 않습니다.
+        # utf-8-sig 라야 BOM 포함 파일의 첫 컬럼 이름이 깨지지 않습니다.
         self.path = _resolve(path)
         self.encoding = encoding
         self.delimiter = delimiter
@@ -102,12 +98,12 @@ _FACTORIES: dict[str, Any] = {
 
 
 def register_source(suffix: str, factory: Any) -> None:
-    """확장자에 소스를 연결합니다. factory 는 경로를 받아 소스를 돌려줍니다."""
+    """factory 는 경로를 받아 소스를 돌려줍니다."""
     _FACTORIES[suffix.lower()] = factory
 
 
 def folder_files(target: Any) -> list[Path] | None:
-    """target 이 폴더면 그 안의 읽을 수 있는 파일들 (이름 순, 하위 폴더 제외). 폴더가 아니면 None"""
+    """폴더 안의 읽을 수 있는 파일 (이름 순, 하위 폴더 제외). 폴더가 아니면 None"""
     if hasattr(target, "rows"):
         return None
     path = _resolve(target)
@@ -117,7 +113,6 @@ def folder_files(target: Any) -> list[Path] | None:
 
 
 def open_source(target: Any) -> RowSource:
-    """경로면 확장자로 소스를 고르고, 이미 소스면 그대로 돌려줍니다."""
     if hasattr(target, "rows"):
         return target
     path = _resolve(target)

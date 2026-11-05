@@ -31,18 +31,11 @@ class IndexReport:
 
 
 class DocumentStore:
-    """정책을 담는 Milvus 컬렉션. 두 종류를 한 곳에 쌓습니다.
-
-    - 조항(clause): 사내 기준 문서. 파일을 청크로 나눠 넣습니다.
-    - 규칙(rule): 방화벽 · DLP 같은 솔루션 정책. 한 건을 한 청크로 넣고, source 를 "rules:" 로 시작합니다.
-
-    두 종류가 한 top_k 를 나눠 가지면 규칙 건수에 조항이 밀려나므로 검색은 종류별로 합니다.
-    해시를 메타데이터로 함께 저장해, 다시 적재할 때 바뀐 것만 임베딩합니다.
-    """
+    """기준 조항(clause)과 솔루션 규칙(rule, source 가 "rules:" 로 시작)을 한 Milvus 컬렉션에 쌓습니다."""
 
     SUFFIXES = {".md", ".txt"}
     RULES_PREFIX = "rules:"
-    # 메타데이터 필드를 늘리면 기존 컬렉션 스키마와 맞지 않으므로 종류는 source 접두어로 가립니다.
+    # 메타데이터 필드를 늘리면 기존 컬렉션 스키마와 맞지 않아 종류는 source 접두어로 가립니다.
     KIND_EXPR = {
         "clause": f'not (source like "{RULES_PREFIX}%")',
         "rule": f'source like "{RULES_PREFIX}%"',
@@ -66,22 +59,21 @@ class DocumentStore:
 
     @property
     def store(self) -> Milvus:
-        # 처음 쓸 때 엽니다. 여러 스레드(자동 감시 · 화면 요청)가 동시에 열면 Milvus Lite 가 같은 프로세스에서
-        # 잠금을 두 번 잡으려다 "Open local milvus failed" 로 실패하므로 한 번에 하나만 엽니다.
+        # 여러 스레드가 동시에 열면 Milvus Lite 가 잠금을 두 번 잡아 실패하므로 한 번에 하나만 엽니다.
         with self._lock:
             if self._store is None:
                 self._store = self._open()
             return self._store
 
     def close(self) -> None:
-        """연결을 닫고 Milvus Lite 서버를 멈춰 DB 잠금을 풉니다. 다음에 쓰면 다시 엽니다."""
+        """연결을 닫고 Milvus Lite 서버까지 멈춰 DB 잠금을 풉니다."""
         with self._lock:
             if self._store is None:
                 return
             self._store.client.close()
             self._store = None
             if not self.settings.milvus_is_server:
-                # 클라이언트를 닫아도 같은 프로세스의 Milvus Lite 서버가 잠금을 쥐고 있어, 서버까지 멈춰야 풀립니다.
+                # 클라이언트만 닫으면 같은 프로세스의 Milvus Lite 서버가 잠금을 쥐고 있습니다.
                 from milvus_lite.server_manager import server_manager_instance
 
                 server_manager_instance.release_server(self.settings.milvus_target)
@@ -144,7 +136,7 @@ class DocumentStore:
         return splitter.split_documents(docs)
 
     def index(self, source: str | Path, rebuild: bool = False) -> IndexReport:
-        """기준 문서를 적재합니다. 바뀐 파일만 다시 임베딩하고, rebuild 면 컬렉션을 비우고 전부 새로 (규칙도 지워짐)."""
+        """바뀐 파일만 다시 임베딩합니다. rebuild 면 컬렉션을 비우고 새로 적재합니다 (규칙도 지워짐)."""
         documents = self.read(source)
         if rebuild:
             with self._lock:
@@ -156,11 +148,7 @@ class DocumentStore:
         return report
 
     def index_rules(self, name: str, rules: list[str]) -> IndexReport:
-        """솔루션 정책 규칙을 적재합니다. rules 는 한 건에 한 줄 (예: PolicyRule.describe()).
-
-        규칙은 몇 줄짜리라 나누지 않습니다. 묶음(name) 단위로 바뀌었는지 보고 통째로 바꿉니다.
-        규칙 묶음은 하나만 둡니다. 정책 파일 · 폴더를 바꾸면 예전 묶음의 규칙이 검색에 섞이지 않게 지웁니다.
-        """
+        """규칙 묶음은 하나만 두고, 바뀌었으면 통째로 바꾸며 다른 묶음의 규칙은 지웁니다."""
         source = self.RULES_PREFIX + name
         doc_hash = self._digest("\n".join(rules))
         chunks = [
@@ -175,14 +163,14 @@ class DocumentStore:
         return report
 
     def remove(self, name: str) -> bool:
-        """기준 문서 하나(파일 이름)의 조각을 모두 지웁니다. 규칙 묶음은 지우지 않습니다. 지운 게 있으면 True"""
+        """기준 문서 하나의 조각을 지웁니다 (규칙 묶음 제외). 지운 게 있으면 True"""
         if name.startswith(self.RULES_PREFIX) or not self.store.search_by_metadata(expr=self._expr(name), limit=1):
             return False
         self.store.delete(expr=self._expr(name))
         return True
 
     def clear_rules(self) -> bool:
-        """솔루션 정책 규칙을 모두 지웁니다 (정책 폴더가 비었을 때). 지운 게 있으면 True"""
+        """지운 게 있으면 True"""
         if not self.store.search_by_metadata(expr=self.KIND_EXPR["rule"], limit=1):
             return False
         self.store.delete(expr=self.KIND_EXPR["rule"])
@@ -227,16 +215,12 @@ class DocumentStore:
         return "\n\n".join(f"[{d.metadata.get('source', '?')}] {d.page_content}" for d in docs)
 
 
-# --- 체인이 쓰는 검색 단계 (질의 문자열 → 프롬프트에 넣을 근거 텍스트) ---------------------
-
-
 def lookup(engine: Engine, k: int | None, kind: str) -> Runnable[str, str]:
-    """한 종류(clause · rule)만 찾습니다."""
     return engine.documents.retriever(k, kind) | DocumentStore.format
 
 
 def lookup_all(engine: Engine, k: int | None) -> Runnable[str, str]:
-    """조항과 규칙을 따로 찾아 이어 붙입니다. 한 번에 찾으면 규칙에 조항이 밀려나기 때문입니다."""
+    """조항과 규칙을 따로 찾아 이어 붙입니다. 한 번에 찾으면 규칙에 조항이 밀려납니다."""
     both = RunnableParallel(clause=lookup(engine, k, "clause"), rule=lookup(engine, k, "rule"))
     return both | (lambda found: "\n\n".join(text for text in found.values() if text))
 

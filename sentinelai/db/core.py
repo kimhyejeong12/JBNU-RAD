@@ -14,7 +14,7 @@ from psycopg_pool import ConnectionPool
 
 HERE = Path(__file__).resolve().parent
 
-# 트리거는 한국어로 막습니다. 제약 조건 위반만 PostgreSQL 원문이라 화면에 보일 문장으로 바꿉니다 (제약 · 색인 이름 → 문장).
+# 제약 조건 위반은 PostgreSQL 원문이라 화면에 보일 문장으로 바꿉니다.
 _CONSTRAINT_TEXT = {
     "users_login_id": "이미 있는 아이디입니다",
     "users_single_root": "루트 계정이 이미 있습니다",
@@ -34,11 +34,11 @@ def _readable(exc: psycopg.IntegrityError) -> str:
 
 
 class Denied(Exception):
-    """규칙에 막힌 요청. 화면에 그대로 보여줄 수 있는 문장을 담습니다."""
+    """규칙에 막힌 요청 — 문장은 화면에 그대로 보여줄 수 있습니다."""
 
 
 class Row(dict):
-    """sqlite3.Row 처럼 이름(row["id"])과 순서(row[0]) 둘 다로 읽는 행. dict(row) 는 그대로 dict 입니다."""
+    """이름(row["id"])과 순서(row[0]) 둘 다로 읽는 행입니다."""
 
     def __getitem__(self, key: Any) -> Any:
         if isinstance(key, int):
@@ -52,7 +52,7 @@ def _rows(cursor: psycopg.Cursor[Any]) -> Callable[[Sequence[Any]], Row]:
 
 
 class _Flag(Dumper):
-    """True · False 를 1 · 0 으로 넣습니다. 켜짐 · 실패 같은 0/1 칸이 SQLite 때처럼 INTEGER 라 bool 을 그대로 받지 않습니다."""
+    """0/1 칸이 INTEGER 라 bool 을 1 · 0 으로 넣습니다."""
 
     oid = psycopg.postgres.types["int2"].oid
 
@@ -69,12 +69,12 @@ def now() -> str:
 
 
 def today() -> str:
-    # 사용 기간 · 퇴사일 · 이동일은 날짜만 적으므로 사내 업무 기준인 서버 현지 날짜(KST)로 봅니다.
+    # 날짜만 적는 칸은 사내 업무 기준인 서버 현지 날짜(KST)로 봅니다.
     return datetime.now().astimezone().strftime("%Y-%m-%d")
 
 
 def describe(url: str) -> str:
-    """화면 · 로그에 보일 DB 위치. 비밀번호는 빼고, 연결하지 않습니다."""
+    """비밀번호를 뺀 DB 위치입니다 (연결하지 않음)."""
     info = conninfo_to_dict(url)
     return f"postgresql://{info.get('host', 'localhost')}:{info.get('port', 5432)}/{info.get('dbname', '')}"
 
@@ -83,10 +83,7 @@ SCHEMA_NAME = re.compile(r"^[a-z_][a-z0-9_]*$")
 
 
 class Database:
-    """PostgreSQL 스키마 하나 (권한 DB = main, AI 결과 DB = results). 연결은 풀에서 빌려 쓰고 돌려줍니다.
-
-    연결마다 search_path 를 이 스키마로 두므로 쿼리에는 스키마 이름을 쓰지 않습니다.
-    """
+    """PostgreSQL 스키마 하나. 연결마다 search_path 를 두므로 쿼리에 스키마 이름을 쓰지 않습니다."""
 
     def __init__(self, url: str, schema: str, *schemas: str) -> None:
         if not SCHEMA_NAME.match(schema):
@@ -94,7 +91,7 @@ class Database:
         self.url = url
         self.schema = schema
         self.schemas = [HERE / s for s in schemas]
-        # 쓰기 트랜잭션은 이 키로 차례를 받습니다 (SQLite 의 BEGIN IMMEDIATE 처럼 스키마마다 한 번에 하나).
+        # 쓰기 트랜잭션은 이 키로 스키마마다 한 번에 하나씩 차례를 받습니다.
         self._lock = f"sentinelai.{schema}"
         self.pool = ConnectionPool(
             url, min_size=1, max_size=10, timeout=10, name=schema, open=True,
@@ -110,15 +107,14 @@ class Database:
         self.pool.close()
 
     def init(self) -> None:
-        """아직 적용하지 않은 스키마 파일을 차례로 적용합니다. n번째 파일을 적용하면 schema_version 이 n 입니다."""
+        """아직 적용하지 않은 스키마 파일을 차례로 적용합니다 (schema_version = 적용한 파일 수)."""
         with self.connection() as conn, conn.transaction():
-            # 웹이 뜰 때 자동 감시와 화면 요청이 동시에 처음 열 수 있습니다. 차례를 받은 뒤에 버전을 읽어야 같은 스키마를 두 번 적용하지 않습니다.
+            # 동시에 처음 열어도 같은 파일을 두 번 적용하지 않게 차례를 받은 뒤 버전을 읽습니다.
             conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (self._lock,))
             conn.execute(f"CREATE SCHEMA IF NOT EXISTS {self.schema}")
             conn.execute("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)")
             row = conn.execute("SELECT version FROM schema_version").fetchone()
             version = row["version"] if row else 0
-            # PostgreSQL 은 DDL 도 트랜잭션 안에서 돌아, 중간에 실패하면 앞의 파일까지 함께 되돌립니다.
             for schema in self.schemas[version:]:
                 conn.execute(schema.read_text(encoding="utf-8"))
             if len(self.schemas) > version:
@@ -132,11 +128,11 @@ class Database:
 
     @contextmanager
     def transaction(self) -> Iterator[psycopg.Connection[Row]]:
-        """쓰기 트랜잭션. 트리거 · 제약 조건이 막으면 Denied 로 바꿔 올립니다."""
+        """트리거 · 제약 조건이 막으면 Denied 로 바꿔 올립니다."""
         with self.connection() as conn:
             try:
                 with conn.transaction():
-                    # 번호 매기기처럼 읽고 나서 쓰는 일이 끼어들지 않게 처음부터 차례를 받습니다.
+                    # 읽고 나서 쓰는 일(번호 매기기 등)이 끼어들지 않게 처음부터 차례를 받습니다.
                     conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (self._lock,))
                     yield conn
             except psycopg.errors.RaiseException as exc:

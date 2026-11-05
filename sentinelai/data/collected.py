@@ -1,10 +1,4 @@
-"""수집 노드(node/sentinel_node)가 보낸 본문 → 모듈별 상태.
-
-노드는 명령 · 설정 파일을 그대로 옮겨 오기만 하고, 무엇을 뽑을지는 여기서 정합니다.
-뽑는 항목을 바꿔도 노드를 다시 깔 필요가 없고, 쌓아 둔 원문(sections)을 다시 읽으면 되기 때문입니다.
-판정에 쓰는 값은 원문을 줄인 문장입니다. 설치 안 됨 · 권한이 없어 못 읽음은 서로 다른 값으로 남겨
-모델이 "설정 없음"으로 잘못 읽지 않게 합니다.
-"""
+"""수집 노드가 보낸 원문 → 모듈별 상태. 무엇을 뽑을지는 노드가 아니라 여기서 정합니다."""
 from __future__ import annotations
 
 import json
@@ -23,14 +17,14 @@ UNREADABLE = "확인 못함 (읽을 권한 없음 — root 로 수집해야 함)
 NONE = "설정 없음"
 
 _FILE = re.compile(r"^==> (.+?) <==\s*$", re.M)
-# 유형 · 제어 · 모듈 · 인자. 제어 칸은 [success=1 default=ignore] 처럼 대괄호 안에 공백이 들어갈 수 있습니다.
+# 제어 칸은 [success=1 default=ignore] 처럼 대괄호 안에 공백이 들어갈 수 있습니다.
 _PAM_LINE = re.compile(r"^-?(\w+)\s+(\[[^\]]*\]|\S+)\s+(\S+)\s*(.*)$")
 _SSHD_KEYS = ("permitrootlogin", "passwordauthentication", "permitemptypasswords", "pubkeyauthentication",
               "kbdinteractiveauthentication", "maxauthtries", "port", "allowusers", "allowgroups", "usepam")
 
 
 def _blocks(text: str) -> dict[str, str]:
-    """"==> 이름 <==" 로 나뉜 묶음 → 이름 → 내용."""
+    """"==> 이름 <==" 로 나뉜 묶음 → {이름: 내용}."""
     parts = _FILE.split(text)
     return {parts[i].strip(): parts[i + 1].strip() for i in range(1, len(parts) - 1, 2)}
 
@@ -52,7 +46,6 @@ def ufw(text: str) -> dict[str, str]:
         return {"상태": "꺼짐"}
     facts = {"상태": "켜짐" if re.search(r"^Status: active", text, re.M) else text.strip().splitlines()[0]}
     if m := re.search(r"^Default: (.+)$", text, re.M):
-        # "deny (incoming), allow (outgoing), disabled (routed)" → "수신 deny · 송신 allow · 라우팅 disabled"
         names = {"incoming": "수신", "outgoing": "송신", "routed": "라우팅"}
         facts["기본 정책"] = " · ".join(f"{names.get(d, d)} {v}" for v, d in re.findall(r"(\w+) \((\w+)\)", m.group(1)))
     rules, anywhere = [], []
@@ -85,7 +78,7 @@ def sshd(text: str) -> dict[str, str]:
 
 
 def _pam_lines(blocks: dict[str, str]) -> list[tuple[str, str, str, list[str]]]:
-    """pam.d 파일의 (파일, 유형, 모듈, 인자). include · substack 줄은 다른 파일을 부르는 것이라 뺍니다."""
+    """→ (파일, 유형, 모듈, 인자). include · substack 줄은 다른 파일을 부르는 것이라 뺍니다."""
     out = []
     for path, body in blocks.items():
         if "/pam.d/" not in path or _unreadable(body):
@@ -161,11 +154,7 @@ PARSERS = {"ufw": ufw, "sshd": sshd, "pam": pam, "accounts": accounts}
 
 
 def snapshot_from_payload(payload: dict, node: str | None = None) -> ServerSnapshot:
-    """노드가 보낸 본문 하나 → ServerSnapshot. 형식이 맞지 않으면 ValueError.
-
-    node = 이 수집의 노드 이름 (수집 API 는 키로 찾은 노드, import 는 지정한 이름). 노드는 본문에 이름을 싣지 않으므로
-    주지 않으면 본문의 node(예전 형식 · 연습용 파일)를 씁니다.
-    """
+    """형식이 맞지 않으면 ValueError. node 를 주지 않으면 본문의 node 를 씁니다."""
     if not isinstance(payload, dict) or payload.get("format") != FORMAT:
         raise ValueError(f"수집 노드 본문이 아닙니다 (format 이 {FORMAT!r} 이어야 함)")
     name = node or payload.get("node", "")
@@ -184,8 +173,7 @@ def snapshot_from_payload(payload: dict, node: str | None = None) -> ServerSnaps
 
 
 def load_collected(target: Any, node: str | None = None) -> LoadResult:
-    """노드가 export 한 파일(*.json) 폴더 — 망이 막힌 서버의 수집을 손으로 넣을 때 씁니다. node = 이 파일들의 노드 이름.
-    폴더가 없으면 FileNotFoundError."""
+    """노드가 export 한 *.json 폴더를 읽습니다. 폴더가 없으면 FileNotFoundError."""
     folder = Path(target)
     if not folder.is_dir():
         raise FileNotFoundError(f"수집 폴더가 없습니다: {folder}")
@@ -199,26 +187,22 @@ def load_collected(target: Any, node: str | None = None) -> LoadResult:
 
 
 def changes(before: dict[str, dict[str, str]] | None, after: dict[str, dict[str, str]]) -> list[str]:
-    """지난 수집 대비 바뀐 항목 (예: "[UFW] 상태: 켜짐 → 꺼짐"). 인자는 ServerSnapshot.modules. 처음 수집이면 빈 목록."""
+    """지난 수집 대비 바뀐 항목 (예: "[UFW] 상태: 켜짐 → 꺼짐"). 처음 수집이면 빈 목록."""
     if before is None:
         return []
     out = []
     for module in dict.fromkeys([*before, *after]):
         old, new = before.get(module, {}), after.get(module, {})
         for key in dict.fromkeys([*old, *new]):
-            # 한쪽에만 "없음" 값이 있는 칸은 없는 칸과 같은 뜻이라 바뀐 것으로 세지 않습니다.
+            # 한쪽에만 "없음" 값이 있는 칸은 없는 칸과 같은 뜻입니다.
             if key == "읽은 파일" or old.get(key, "없음") == new.get(key, "없음"):
                 continue
             out.append(f"[{MODULE_LABELS.get(module, module)}] {key}: {old.get(key, '없음')} → {new.get(key, '없음')}")
     return out
 
 
-# --- 서버 질의 ------------------------------------------------------------------
-# 서버 질의도 로그 질의처럼 모델이 세지 않습니다. 건수 · 등급 분포 · 바뀐 설정은 여기서 세고, 모델은 그 결과로 답만 씁니다.
-
-
 def _stamp(at: str) -> str:
-    # 운영자가 읽는 답이라 화면과 같은 서버 현지 시각(KST)으로 적습니다. 판정 입력(describe)은 그대로 UTC 입니다.
+    # 운영자가 읽는 답이라 KST 로 적습니다. 판정 입력(describe)은 UTC 그대로입니다.
     if not at:
         return "없음"
     local = datetime.fromisoformat(at).astimezone()
@@ -226,19 +210,14 @@ def _stamp(at: str) -> str:
 
 
 def _in_module(item: str, module: str) -> bool:
-    """모듈을 고른 질문이면 그 모듈 항목만 봅니다. 모듈 표시([UFW] 등)가 없는 판정 항목은 어느 모듈인지 몰라 남깁니다."""
+    """모듈 표시([UFW] 등)가 없는 항목은 어느 모듈인지 몰라 남깁니다."""
     if not module:
         return True
     return item.startswith(f"[{module}]") or not item.startswith("[")
 
 
 def server_digest(current: list[dict[str, Any]], history: dict[str, Any], module: str = "") -> dict[str, Any]:
-    """노드별 지금 상태 · 기간 안 기록 → 서버 질의 답의 근거.
-
-    current = 노드마다 {node, host, ip, status, modules(가장 늦은 수집), finding(마지막 판정 또는 None)},
-    history = db.results.server_history, module = MODULE_LABELS 의 값 하나 또는 "" (전체).
-    → {facts: 코드가 센 값, state: 노드별 지금 상태 문장, lines: 기간 안 바뀐 설정 · 판정 기록 (오래된 것부터)}
-    """
+    """→ {facts: 코드가 센 값, state: 노드별 지금 상태, lines: 기간 안 기록 (오래된 것부터)}"""
     keys = {label: key for key, label in MODULE_LABELS.items()}
     state, latest_levels = [], {}
     for n in current:

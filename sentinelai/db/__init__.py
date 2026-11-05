@@ -1,9 +1,4 @@
-"""권한 DB(사용자 · 인증 · 권한 목록 · 신청 · AI 판정 · 결재 · 회수 · 정책 · 로그 결정)와 AI 결과 DB(정책 관리 검토 · 로그 감시 판정 · 질의 기록).
-
-둘 다 PostgreSQL 스키마입니다 (main · results). 주소는 SQLite 때 이름 그대로인 SENTINELAI_DB_PATH · SENTINELAI_RESULTS_DB_PATH 에 둡니다.
-엔진 · 데이터 계층은 DB를 모릅니다. pipeline · web · CLI 만 씁니다.
-설계 결정은 CLAUDE.md §9 에 있습니다.
-"""
+"""권한 DB(main)와 AI 결과 DB(results) — 둘 다 PostgreSQL 스키마이고 엔진 · 데이터 계층은 모릅니다."""
 from __future__ import annotations
 
 import atexit
@@ -13,7 +8,7 @@ from . import auth, catalog, decisions, nodes, permissions, results
 from .auth import User
 from .core import Database, Denied
 
-# 같은 주소 · 스키마는 한 번만 엽니다. 웹이 뜰 때 큐 · 자동 실행 스레드가 동시에 처음 열어도 연결 풀이 하나뿐입니다.
+# 여러 스레드가 동시에 처음 열어도 주소 · 스키마마다 연결 풀이 하나이게 합니다.
 _opened: dict[tuple[str, str], Database] = {}
 _lock = threading.Lock()
 
@@ -30,7 +25,7 @@ def _open(url: str, schema: str, *files: str) -> Database:
 
 @atexit.register
 def _close_all() -> None:
-    """프로세스가 끝날 때 연결 풀을 닫습니다. 연결을 끊지 않고 끝나면 풀 스레드가 경고를 남깁니다."""
+    """닫지 않고 끝나면 풀 스레드가 경고를 남깁니다."""
     with _lock:
         for db in _opened.values():
             db.close()
@@ -38,12 +33,12 @@ def _close_all() -> None:
 
 
 def open_main_db(url: str, schema: str = "main") -> Database:
-    """권한 DB. 처음이면 스키마를 만듭니다."""
+    """처음이면 스키마를 만듭니다."""
     return _open(url, schema, "main.sql", "main_email.sql")
 
 
 def open_results_db(url: str, schema: str = "results") -> Database:
-    """AI 결과 DB. 처음이면 스키마를 만듭니다."""
+    """처음이면 스키마를 만듭니다."""
     return _open(url, schema, "results.sql")
 
 

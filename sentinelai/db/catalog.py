@@ -1,7 +1,4 @@
-"""권한 목록 (권한 DB) — 일반 사용자는 여기 있는 켜진 권한만 신청합니다.
-
-보안 총책임자가 등록 · 고치기 · 끄기를 합니다. 지난 신청이 코드를 가리키므로 지우지 않고, 코드도 바꾸지 않습니다.
-"""
+"""권한 목록 — 지난 신청이 코드를 가리키므로 지우지 않고 코드도 바꾸지 않습니다."""
 from __future__ import annotations
 
 import json
@@ -25,7 +22,7 @@ def _item(row: Row) -> dict:
 
 
 def list_items(db: Database, by: User) -> list[dict]:
-    """보안 총책임자에게는 꺼진 권한까지, 다른 역할에는 켜진 권한만 줍니다."""
+    """보안 총책임자에게만 꺼진 권한까지 줍니다."""
     sql = "SELECT * FROM access_catalog" + ("" if by.role == "top" else " WHERE is_active = 1") + " ORDER BY system, name, code"
     with db.connection() as conn:
         return [_item(r) for r in conn.execute(sql)]
@@ -59,7 +56,7 @@ def create(db: Database, by: User, code: str, name: str, system: str = "", categ
 
 
 def update(db: Database, by: User, code: str, **changes) -> dict:
-    """이름 · 시스템 · 분류 · 설명 · 켜짐만 바꿉니다. 이미 낸 신청에는 신청 때 이름이 남아 있습니다."""
+    """이미 낸 신청에는 신청 때 이름이 남습니다."""
     _top(by)
     unknown = set(changes) - {*FIELDS, "is_active"}
     if unknown:

@@ -1,9 +1,4 @@
-"""사용자 의심 점수의 행동 신호 — 로그 원본에서 사용자별로 '평소와 다른 행동'을 셉니다.
-
-로그 감시 판정(정책 위반 여부)은 기준 문서로만 합니다. 여기 신호는 판정이 아니라 앞으로 위협이 될 사람을 먼저 고르는 데 씁니다
-(의심 점수 — 판정 모델이 이 신호를 보고 등급 · 이유를 냅니다). 숫자는 모두 코드가 셉니다.
-솔루션마다 다른 칸은 이름으로 찾습니다 — 숫자 칸 합계(PrintCount 등), 예외 칸(Exception=1), 파일 이름(Attachments 등).
-"""
+"""의심 점수의 행동 신호 — 사용자별로 평소와 다른 행동을 코드가 셉니다."""
 from __future__ import annotations
 
 from collections import defaultdict
@@ -13,11 +8,11 @@ from typing import Any
 from .events import _number, user_label
 from .types import SecurityEvent
 
-RECENT = timedelta(days=7)      # 최근 — 이 기간의 행동을
-BASELINE = timedelta(days=28)   # 평소 — 그 앞 4주와 견줍니다
-NEW_ACCOUNT = timedelta(days=7)  # 처음 로그가 이보다 최근이면 처음 보는 계정
+RECENT = timedelta(days=7)
+BASELINE = timedelta(days=28)
+NEW_ACCOUNT = timedelta(days=7)  # 처음 로그가 이보다 최근이면 처음 보는 계정입니다.
 BURST = timedelta(minutes=30)
-# 업무 시간 (서버 현지 시각 KST): 평일 8시~19시. 그 밖과 주말은 근무 시간 밖으로 셉니다.
+# 업무 시간은 KST 평일 8시~19시입니다.
 WORK_HOURS = range(8, 19)
 SENSITIVE = ("급여", "인사", "개인정보", "주민", "계약", "고객", "설계", "소스", "기밀", "salary", "hr_", "contract", "customer")
 EXCEPTION_KEYS = ("exception", "예외")
@@ -38,16 +33,13 @@ def _sensitive(e: SecurityEvent) -> list[str]:
 
 
 def _volume(events: list[SecurityEvent]) -> float:
-    """묶음의 양 — 숫자 칸(출력 장수 등)이 있으면 그 합, 없으면 건수."""
+    """숫자 칸(출력 장수 등)이 있으면 그 합, 없으면 건수."""
     total = sum(n for e in events for k, v in e.attributes.items() if k.lower() != "exception" and (n := _number(v)) is not None)
     return total or len(events)
 
 
 def behavior_signals(events: list[SecurityEvent], now: datetime | None = None) -> dict[str, dict[str, Any]]:
-    """로그 사용자 ID(없으면 이름)별 행동 신호. → {log_id: {subject, 신호들, highlights(사람이 읽는 한 줄 목록)}}
-
-    최근 = 지금부터 RECENT, 평소 = 그 앞 BASELINE. 최근 로그가 없는 사람도 처음 · 마지막 로그 시각은 남깁니다.
-    """
+    """최근 RECENT 를 그 앞 BASELINE 과 견줍니다. → {log_id: {subject, 신호들, highlights}}"""
     now = now or datetime.now(timezone.utc)
     recent_from, base_from = now - RECENT, now - RECENT - BASELINE
     by_user: dict[str, list[SecurityEvent]] = defaultdict(list)
@@ -70,7 +62,7 @@ def behavior_signals(events: list[SecurityEvent], now: datetime | None = None) -
             "first_seen": first.isoformat(), "last_seen": evs[-1].occurred_at.isoformat(),
             "recent_events": len(recent), "baseline_events": len(base),
             "recent_daily_volume": round(recent_daily, 1), "baseline_daily_volume": round(base_daily, 1),
-            # 평소가 없으면(새 계정 등) 늘어난 비율을 셀 수 없어 None 으로 둡니다.
+            # 평소가 없으면 늘어난 비율을 셀 수 없어 None 입니다.
             "volume_ratio": round(recent_daily / base_daily, 1) if base_daily else None,
             "off_hours_ratio": round(sum(map(_off_hours, recent)) / len(recent), 2) if recent else 0.0,
             "exception_ratio": round(sum(map(_exception, recent)) / len(recent), 2) if recent else 0.0,
@@ -84,7 +76,6 @@ def behavior_signals(events: list[SecurityEvent], now: datetime | None = None) -
 
 
 def _highlights(s: dict[str, Any]) -> list[str]:
-    """눈에 띄는 신호만 사람이 읽는 문장으로. 판정 모델 입력과 화면에 함께 씁니다."""
     h = []
     if s["new_account"]:
         h.append("처음 보는 계정 (첫 로그가 7일 안)")
@@ -105,7 +96,7 @@ THREAT_LIMIT = 15
 
 
 def threat_marks(e: SecurityEvent) -> list[str]:
-    """한 로그 줄의 위협 표시 — 코드가 정하는 사실(예외 승인 · 민감 문서 · 근무 시간 밖)만. AI 판정은 넣지 않습니다."""
+    """코드가 정하는 사실(예외 승인 · 민감 문서 · 근무 시간 밖)만 붙입니다."""
     marks = ["예외 승인"] if _exception(e) else []
     if words := _sensitive(e):
         marks.append(f"민감 문서({', '.join(words)})")
@@ -115,10 +106,7 @@ def threat_marks(e: SecurityEvent) -> list[str]:
 
 
 def threat_lines(events: list[SecurityEvent], limit: int = THREAT_LIMIT) -> list[str]:
-    """한 사람의 대표적인 최근 위협 기록 — 위협 표시가 붙은 로그 중 최근 것부터, 같은 종류(솔루션 · 행위 · 표시)가 몰리지 않게 골라 limit 줄.
-
-    같은 행위를 수십 번 한 사람도 다른 종류의 기록이 밀려나지 않게, 종류마다 가장 최근 것부터 돌아가며 뽑습니다. 고른 줄은 시간순으로 돌려줍니다.
-    """
+    """한 종류가 몰리지 않게 종류마다 최근 것부터 돌아가며 limit 줄을 뽑아 시간순으로 돌려줍니다."""
     kinds: dict[tuple, list[tuple[SecurityEvent, list[str]]]] = defaultdict(list)
     for e in sorted(events, key=lambda e: e.occurred_at, reverse=True):
         if marks := threat_marks(e):
@@ -136,17 +124,13 @@ BANDS = ((70, "높음"), (40, "보통"))
 
 
 def band(score: int) -> str:
-    """의심 점수 → 등급 (높음 70 이상 · 보통 40~69 · 낮음). 모델이 적은 등급 대신 점수로 정해 둘이 어긋나지 않게 합니다."""
+    """모델이 적은 등급 대신 점수로 정해 둘이 어긋나지 않게 합니다."""
     return next((name for floor, name in BANDS if score >= floor), "낮음")
 
 
 def suspect_people(accounts: list[dict[str, Any]], signals: dict[str, dict[str, Any]], findings: list[dict[str, Any]],
                    requests: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """의심 점수를 낼 사람과 그 사람의 근거 — 행동 신호(로그) + 판정 · 신청 기록.
-
-    accounts = db.auth.accounts_brief, signals = behavior_signals, findings = db.results.user_findings(정밀 감시),
-    requests = db.permissions.user_requests. 계정과 로그 사용자는 계정의 log_id 로 잇고, 잇지 못한 로그 사용자는 "계정 미연결"로 둡니다.
-    """
+    """계정과 로그 사용자는 log_id 로 잇고, 잇지 못한 로그 사용자는 "계정 미연결"로 둡니다."""
     people: dict[str, dict[str, Any]] = {}
     by_log: dict[str, str] = {}
     by_account: dict[int, str] = {}
@@ -154,7 +138,7 @@ def suspect_people(accounts: list[dict[str, Any]], signals: dict[str, dict[str, 
     def person(key: str, **info: Any) -> dict[str, Any]:
         return people.setdefault(key, {"key": key, **info, "signals": None, "findings": [], "requests": []})
 
-    # 신청할 수 있는 일반 사용자와 로그 사용자 ID 를 적은 계정만 사람으로 둡니다.
+    # 일반 사용자와 로그 사용자 ID 를 적은 계정만 사람으로 둡니다.
     for a in accounts:
         if a["role"] != "user" and not a["log_id"]:
             continue

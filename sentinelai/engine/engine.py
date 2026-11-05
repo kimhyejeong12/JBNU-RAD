@@ -1,12 +1,4 @@
-"""SentinelAI 엔진 — 설정 · 모델 · RAG 저장소 · 두 DB · 작업 큐를 한곳에서 엽니다.
-
-웹(sentinelai.web)과 CLI(sentinelai.cli)는 Engine 하나를 만들어 여기 기능을 부릅니다.
-판정 흐름(체인 · 데이터 → 체인)은 pipeline.py, 저장 형식은 sentinelai.db 에 있습니다.
-
-    engine = Engine()
-    engine.run_policies()                 # 정책 관리 검토 (문서 · 규칙 적재 포함)
-    engine.start() … engine.stop()        # 웹: 자동 로그 감시 · 서버 점검 · 권한 신청 판정 큐
-"""
+"""SentinelAI 엔진 — 설정 · 모델 · RAG 저장소 · 두 DB · 작업 큐를 한곳에서 엽니다."""
 from __future__ import annotations
 
 import logging
@@ -40,13 +32,10 @@ from .types import Answer
 log = logging.getLogger(__name__)
 
 CASTS = {"str": str, "int": int, "float": float}
-#: pymilvus 가 python-dotenv 로 .env 를 주입하기 전의 환경변수.
+# pymilvus 가 .env 를 주입하기 전의 환경변수입니다.
 BOOT_ENV = dict(os.environ)
 
 Progress = Callable[[int, int, dict[str, Any]], None]
-
-
-# --- 설정 --------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
@@ -76,8 +65,7 @@ class Settings:
     monitor_interval_min: int
     fast_interval_min: str
 
-    #: 비워 둬도 되는 설정. fast_interval_min 을 적으면 로그 감시가 둘이 됩니다 — 그 간격마다 생각 단계를 끈 판정 모델로
-    #: 빠른 감시(1차 판정), monitor_interval_min 마다 생각하는 판정 모델로 정밀 감시(확정).
+    # fast_interval_min 을 비우면 빠른 감시 없이 정밀 감시만 돕니다.
     OPTIONAL = frozenset({"fast_interval_min"})
 
     @staticmethod
@@ -143,19 +131,13 @@ class Settings:
         }
 
 
-# --- 엔진 --------------------------------------------------------------------
-
 KINDS = {"policies": "정책 관리 검토", "events": "로그 감시", "nodes": "서버 점검", "events_fast": "빠른 로그 감시", "suspects": "위협 예측"}
-# 화면에서 시작할 수 있는 작업. 서버 점검 · 위협 예측은 주기를 기다리지 않고 [지금 점검] · [지금 예측]으로도 돌립니다. 로그 감시는 서버가 스스로만 돌립니다.
+# 화면에서 시작할 수 있는 작업입니다. 로그 감시는 서버가 스스로만 돌립니다.
 MANUAL = {"policies", "nodes", "suspects"}
 
 
 class Engine:
-    """설정 · 모델 · RAG 저장소 · 두 DB · 작업 큐를 묶은 진입점.
-
-    체인 메서드는 LangChain Runnable 을 돌려주므로 그대로 .invoke() · .stream() 할 수 있습니다.
-    DB 는 처음 쓸 때 엽니다. 작업 큐(자동 로그 감시 · 서버 점검 · 권한 신청 판정)는 start() 로 켭니다 (웹).
-    """
+    """웹 · CLI 의 단일 진입점입니다. DB 는 처음 쓸 때 열고, 작업 큐는 start() 로 켭니다."""
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or Settings.load()
@@ -167,8 +149,6 @@ class Engine:
         self._fast_llm: ChatOllama | None = None
         self.verdicts: VerdictWorker | None = None
 
-    # --- 모델 ---------------------------------------------------------------
-
     @property
     def llm(self) -> ChatOllama:
         if self._llm is None:
@@ -177,7 +157,6 @@ class Engine:
 
     @property
     def qa_llm(self) -> ChatOllama:
-        """정책 · 로그 질의용 모델."""
         if self.settings.qa_model == self.settings.model:
             return self.llm
         if self._qa_llm is None:
@@ -186,7 +165,7 @@ class Engine:
 
     @property
     def fast_llm(self) -> ChatOllama:
-        """빠른 로그 감시용 — 판정 모델과 같은 모델에 생각 단계만 끕니다. 묶음당 수 초지만 정확도가 떨어져 1차 판정에만 씁니다 (CLAUDE.md §9)."""
+        """생각 단계를 끈 판정 모델입니다. 빠르지만 덜 정확해 1차 판정에만 씁니다."""
         if self._fast_llm is None:
             self._fast_llm = ChatOllama(**{**self.settings.llm_options, "reasoning": False})
         return self._fast_llm
@@ -208,8 +187,6 @@ class Engine:
         if schema is not None:
             return prompt | model.with_structured_output(schema)
         return prompt | model | StrOutputParser()
-
-    # 체인 본체는 pipeline.py 에 있습니다. engine.review_chain() 처럼 부를 수 있게 넘겨 줍니다.
 
     def review_chain(self, *args: Any, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
         return pipeline.review_chain(self, *args, **kwargs)
@@ -247,8 +224,6 @@ class Engine:
     def rag_chain(self, *args: Any, **kwargs: Any) -> Runnable[str, Any]:
         return pipeline.rag_chain(self, *args, **kwargs)
 
-    # --- DB ----------------------------------------------------------------
-
     @cached_property
     def main_db(self) -> Database:
         """권한 DB — 계정 · 신청 · 결재 · 운영자 결정 · 노드 등록부."""
@@ -256,10 +231,8 @@ class Engine:
 
     @cached_property
     def results_db(self) -> Database:
-        """AI 결과 DB — 정책 관리 검토 · 로그 감시 · 수집 · 서버 점검 · 질의 기록."""
+        """AI 결과 DB — 판정 · 수집 · 질의 기록."""
         return open_results_db(self.settings.results_db_path)
-
-    # --- 상태 ---------------------------------------------------------------
 
     def health(self) -> dict[str, Any]:
         """Ollama 연결 · 모델 · 인덱스 상태. 모두 준비되면 ok."""
@@ -278,34 +251,32 @@ class Engine:
         return info
 
     def status(self) -> dict[str, Any]:
-        """웹 안에서 도는 것 — 작업 큐(진행 · 마지막 결과) · 자동 실행 예약 · 권한 신청 판정 대기열."""
+        """작업 큐 · 자동 실행 예약 · 권한 신청 판정 대기열."""
         return {"jobs": {**self.job_status(), "kinds": KINDS},
                 "schedule": {**(self.jobs.schedule() if self.jobs else {}), **(self.fast.schedule() if self.fast else {})},
                 "verdicts": self.verdicts.snapshot() if self.verdicts else {}}
 
     def job_status(self) -> dict[str, Any]:
-        """화면의 작업 상태. 빠른 로그 감시는 따로 돌아 다른 작업을 막지 않으므로 fast 에 따로 둡니다."""
+        """빠른 로그 감시는 다른 작업을 막지 않으므로 fast 에 따로 둡니다."""
         return {**(self.jobs.status() if self.jobs else {"running": None, "last": {}}),
                 **({"fast": {**self.fast.status(), **self.fast.schedule().get("events_fast", {})}} if self.fast else {})}
 
-    # --- 기능 (CLI 와 웹의 작업 큐가 같은 것을 부릅니다) ------------------------------------
-
     def index(self, source: Any = None, rebuild: bool = False) -> IndexReport:
-        """기준 문서 적재 (바뀐 파일만, 기본 docs/). rebuild 면 컬렉션을 비우고 전부 새로 (규칙도 지워져 정책 관리 검토를 다시 돌려야 함)."""
+        """바뀐 파일만 적재합니다. rebuild 면 규칙까지 지우므로 정책 관리 검토를 다시 돌려야 합니다."""
         return pipeline.index_documents(self, source or pipeline.DOCS_DIR, rebuild)
 
     def remove_document(self, name: str) -> bool:
-        """기준 문서 하나를 RAG 에서 뺍니다 (docs/ 의 파일은 부르는 쪽이 지움). 지난 판정은 그대로라 근거가 바뀌면 정책 관리 검토를 다시 돌립니다."""
+        """RAG 에서만 뺍니다. docs/ 의 파일은 부르는 쪽이 지웁니다."""
         return self.documents.remove(name)
 
     def run_policies(self, progress: Progress | None = None) -> dict[str, Any]:
-        """정책 관리 검토 1회 — 기준 문서 · 정책 규칙 적재 + 정책 간 검토 → AI 결과 DB."""
+        """정책 관리 검토 1회 — 기준 문서 · 규칙 적재 후 정책 간 검토."""
         review = pipeline.review_policies(self, self.settings.policies_source, progress)
         results.save_policy_review(self.results_db, review, self.settings.model)
         return review
 
     def run_nodes(self, progress: Progress | None = None) -> dict[str, Any]:
-        """서버 점검 1회 — 켜 둔 노드 중 지난 점검 뒤 새 수집이 온 것만. 판정은 한 건씩 바로 쌓아 중간에 멈춰도 끝난 것은 남습니다."""
+        """새 수집이 온 노드만 판정하고, 한 건씩 바로 쌓아 중간에 멈춰도 남습니다."""
         s = self.settings
         pending = results.pending_snapshots(self.results_db, nodes.enabled_names(self.main_db))
 
@@ -317,12 +288,12 @@ class Engine:
         return pipeline.check_nodes(self, pending, s.policies_source, s.servers_source, save)
 
     def run_fast_events(self, progress: Progress | None = None) -> dict[str, Any]:
-        """빠른 로그 감시 1회 — 지난 빠른 감시(또는 정밀 감시) 이후 로그만, 생각 단계를 끈 판정 모델로 1차 판정."""
+        """지난 감시 이후 로그만 생각 단계를 끈 모델로 1차 판정합니다."""
         return self.run_events(progress=progress, stage="fast")
 
     def run_events(self, since: datetime | None = None, until: datetime | None = None, full: bool = False,
                    progress: Progress | None = None, stage: str = "final") -> dict[str, Any]:
-        """로그 감시 1회 — since 를 주지 않으면 지난 감시 이후 로그만 (full 이면 처음부터). → 결과에 since 를 붙여 돌려줍니다."""
+        """since 가 없으면 지난 감시 이후만, full 이면 처음부터 판정합니다."""
         if since is None and not full:
             since = results.next_monitor_since(self.results_db, stage)
         fast = stage == "fast"
@@ -338,7 +309,6 @@ class Engine:
         return self.rag_chain(structured=True)
 
     def ask(self, question: str, user: User) -> dict[str, Any]:
-        """정책 질의 — 기준 조항 · 솔루션 규칙을 검색해 답하고 질의 기록에 남깁니다."""
         answer, error, elapsed = pipeline.attempt(lambda: self._rag.invoke(question))
         if answer is None:
             answer = Answer(answer=f"답변 실패: {error}", sources=[])
@@ -347,13 +317,13 @@ class Engine:
         return result
 
     def ask_logs(self, question: str, user: User) -> dict[str, Any]:
-        """로그 질의 — 조건(모델) → 찾고 세기(코드) → 답(모델). 질의 기록에 남깁니다."""
+        """조건(모델) → 찾고 세기(코드) → 답(모델)."""
         result = pipeline.ask_logs(self, self.settings.events_source, question)
         results.save_qa(self.results_db, "logs", question, result, self.settings.qa_model, user)
         return result
 
     def ask_servers(self, question: str, user: User) -> dict[str, Any]:
-        """서버 질의 — 조건(모델) → 수집 · 서버 점검 기록을 고르고 세기(코드) → 답(모델). 질의 기록에 남깁니다."""
+        """조건(모델) → 기록 고르고 세기(코드) → 답(모델)."""
         registry = nodes.list_nodes(self.main_db)
         result = pipeline.ask_servers(self, registry, lambda names, since, until: self._server_records(registry, names, since, until),
                                       question)
@@ -362,7 +332,7 @@ class Engine:
 
     def _server_records(self, registry: list[dict[str, Any]], names: list[str], since: str | None,
                         until: str | None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-        """서버 질의의 근거 — 노드별 지금 상태(가장 늦은 수집 · 마지막 판정)와 기간 안 수집 · 판정 기록."""
+        """노드별 지금 상태(가장 늦은 수집 · 마지막 판정)와 기간 안 기록."""
         findings = {f["node"]: f for f in results.latest_node_findings(self.results_db)}
         current = []
         for n in (n for n in registry if n["name"] in names):
@@ -375,13 +345,10 @@ class Engine:
         return current, results.server_history(self.results_db, names, since, until)
 
     def stats(self, period: str) -> dict[str, Any]:
-        """보안 통계 — 지금부터 period(week · month · quarter · all 등) 안의 위협 로그 비율 · 빈도와 노드 위협 데이터를 셉니다. 모델은 쓰지 않습니다.
-
-        사용자별 위협 로그 · 권한 신청은 user_stats(사용자 위협)로 나눴습니다.
-        """
+        """위협 로그 비율 · 빈도와 노드 위협을 셉니다 (모델 없음)."""
         since = period_since(period, datetime.now(timezone.utc))
         at = since.isoformat(timespec="seconds") if since else None
-        # 위협 로그 비율의 분모 — 기간 안 로그 전체. 로그를 읽지 못하면 비율 없이 건수만 보여줍니다.
+        # 로그를 읽지 못하면 비율 없이 건수만 보여줍니다.
         try:
             logs = load_events(self.settings.events_source, since=since).records
             total = {"count": len(logs), "days": dict(Counter(e.occurred_at.astimezone().date().isoformat() for e in logs))}
@@ -394,22 +361,18 @@ class Engine:
                 "events": {k: v for k, v in found["events"].items() if k != "users"}, "servers": found["servers"]}
 
     def user_stats(self, period: str) -> dict[str, Any]:
-        """사용자 위협 — 의심 점수(사람마다 지금 가진 권한 포함) · 사용자별 위협 로그 판정 · 권한 신청 타일."""
         since = period_since(period, datetime.now(timezone.utc))
         at = since.isoformat(timespec="seconds") if since else None
         suspects = results.latest_suspects(self.results_db)
         held = permissions.held_by_account(self.main_db)
         for p in suspects:
-            # 의심 점수의 사람 키는 계정이면 account:{id} 입니다 (data.suspect.suspect_people). 계정 미연결은 권한을 알 수 없어 None.
+            # 사람 키가 account:{id} 가 아니면 계정 미연결이라 권한을 알 수 없습니다.
             p["held"] = held.get(int(p["key"].split(":", 1)[1]), []) if p["key"].startswith("account:") else None
         return {"period": period, "since": at, "events": {"users": results.threat_stats(self.results_db, at)["events"]["users"]},
                 "requests": permissions.request_stats(self.main_db, at), "suspects": suspects, "safety": results.user_safety(self.results_db, at)}
 
     def run_suspects(self, progress: Progress | None = None) -> dict[str, Any]:
-        """위협 예측 1회 — 사람마다 행동 신호(코드) · 사용자 기록 · 위협 기록으로 판정 모델이 의심 점수를 냅니다. 한 사람씩 바로 쌓습니다.
-
-        신호는 로그 전체에서 최근 7일을 그 앞 4주와 견줍니다. 지금부터 35일 안의 판정 · 신청 기록은 화면의 기록 칸에만 씁니다 (모델에는 AI 등급을 넣지 않음).
-        """
+        """사람마다 의심 점수를 내고 한 사람씩 바로 쌓습니다. 모델에는 예전 AI 등급을 넣지 않습니다."""
         now = datetime.now(timezone.utc)
         recent = (now - timedelta(days=35)).isoformat(timespec="seconds")
         events = load_events(self.settings.events_source).records
@@ -429,16 +392,13 @@ class Engine:
 
     def browse_logs(self, user: User, period: str, who: str = "", solution: str = "", how: str = "", page: int = 1,
                     ip: str | None = None) -> dict[str, Any]:
-        """로그 조회 — 모델 없이 거르고 셉니다. 누가 어떤 조건으로 봤는지 감사 기록에 남깁니다."""
+        """모델 없이 거르고 세며, 조회 조건을 감사 기록에 남깁니다."""
         result = pipeline.browse_logs(self.settings.events_source, period, who, solution, how, page)
         auth.record_log_view(self.main_db, user, {"period": period, **result["criteria"], "page": page}, ip)
         return result
 
     def receive_snapshot(self, presented: str, payload: dict[str, Any]) -> dict[str, Any]:
-        """수집 노드가 보낸 수집 한 건 — 노드는 키만 보내고, 키로 어느 노드인지 찾습니다.
-
-        형식이 틀리면 ValueError, 모르는 키는 nodes.Unauthorized, 꺼진 노드는 Denied. 형식을 먼저 봅니다 (등록부를 건드리기 전에).
-        """
+        """키로 노드를 찾습니다. 형식 오류 ValueError · 모르는 키 Unauthorized · 꺼진 노드 Denied."""
         pipeline.snapshot_row(payload, "_", None)
         name = nodes.authenticate(self.main_db, presented, payload)["name"]
         row = pipeline.snapshot_row(payload, name, results.latest_snapshot(self.results_db, name))
@@ -448,8 +408,7 @@ class Engine:
         return {"node": name, "stored": stored}
 
     def import_snapshots(self, folder: Any, node: str | None = None) -> tuple[LoadResult, int]:
-        """망이 막힌 노드가 export 한 수집 파일을 같은 규칙으로 넣습니다. node = 이 파일들의 노드 이름.
-        등록부에 없는 노드는 키 없이 등록해 둡니다. → (읽은 결과, 새로 넣은 수)"""
+        """등록부에 없는 노드는 키 없이 등록합니다. → (읽은 결과, 새로 넣은 수)"""
         loaded = load_collected(folder, node)
         stored = 0
         for snap in sorted(loaded.records, key=lambda x: x.collected_at):
@@ -463,7 +422,7 @@ class Engine:
         return loaded, stored
 
     def judge_request(self, request_no: str) -> dict[str, Any] | None:
-        """권한 신청 한 건의 AI 판정 (저장은 save_request_verdict). 신청이 없으면 None."""
+        """신청이 없으면 None. 저장은 save_request_verdict 가 합니다."""
         row = permissions.judge_input(self.main_db, request_no)
         if row is None:
             return None
@@ -471,11 +430,11 @@ class Engine:
         return pipeline.judge_request(self, row, record, threats)
 
     def save_request_verdict(self, request_no: str, result: dict[str, Any]) -> bool:
-        """판정을 신청 행의 AI 칸에 씁니다. 그사이 1차 결재가 났으면 버리고 False."""
+        """그사이 1차 결재가 났으면 버리고 False."""
         return permissions.save_ai_verdict(self.main_db, request_no, result, self.settings.model)
 
     def judge_grant(self, request_no: str, move_id: int) -> dict[str, Any] | None:
-        """이동 뒤 보유 권한 재검토 (저장은 save_grant_review). 회수 · 만료됐거나 더 늦은 이동이 있으면 None."""
+        """이동 뒤 보유 권한 재검토입니다. 회수 · 만료됐거나 더 늦은 이동이 있으면 None."""
         grant = permissions.grant_input(self.main_db, request_no, move_id)
         if grant is None:
             return None
@@ -483,11 +442,7 @@ class Engine:
         return pipeline.judge_grant(self, grant, record, threats)
 
     def user_records(self, events: list[SecurityEvent] | None = None) -> Callable[..., tuple[str, str]]:
-        """사용자 기록을 만드는 함수 — 로그 · 운영자 결정은 한 번만 읽고, 사람마다 (사용자 기록, 위협 기록) 두 칸을 돌려줍니다.
-
-        부르는 법: records(계정 id, 로그 사용자 ID, before=신청 시각, signals=행동 신호를 넣을지). 둘 중 하나만 줘도 계정의 log_id 로 잇습니다.
-        위협 기록은 운영자가 조치로 정한 로그 감시 판정을 먼저, 남은 자리는 코드가 고른 로그(threat_lines)로 채웁니다 (합쳐 15건).
-        """
+        """records(계정 id, 로그 사용자 ID, before, signals) → (사용자 기록, 위협 기록). 로그 · 결정은 한 번만 읽습니다."""
         events = load_events(self.settings.events_source).records if events is None else events
         by_user: dict[str, list[SecurityEvent]] = {}
         for e in events:
@@ -517,22 +472,20 @@ class Engine:
     def save_grant_review(self, request_no: str, move_id: int, result: dict[str, Any]) -> bool:
         return permissions.save_grant_review(self.main_db, request_no, move_id, result, self.settings.model)
 
-    # --- 작업 큐 (웹) ---------------------------------------------------------
-
     def start(self) -> None:
-        """권한 신청 판정 큐(밀린 것 이어서) · 자동 로그 감시 · 서버 점검을 켭니다. 둘 다 뜨자마자 한 번, 그 뒤 정한 간격마다."""
+        """권한 신청 판정 큐 · 자동 감시를 켭니다. 뜨자마자 한 번, 그 뒤 정한 간격마다 돕니다."""
         self.verdicts = VerdictWorker(self)
         self.verdicts.resume()
         self.jobs = JobRunner(self)
         for kind in ("events", "nodes", "suspects"):
             self.jobs.every(kind, self.settings.monitor_interval_min)
-        # 빠른 로그 감시는 따로 돌립니다. 정책 관리 검토 · 서버 점검 · 정밀 감시가 돌고 있어도 기다리지 않습니다.
+        # 빠른 감시는 다른 작업이 돌고 있어도 기다리지 않게 따로 돌립니다.
         if self.settings.fast_interval_min:
             self.fast = JobRunner(self)
             self.fast.every("events_fast", int(self.settings.fast_interval_min))
 
     def reset_jobs(self, rerun: bool = False) -> list[str]:
-        """돌고 있는 작업(작업 큐 · 빠른 감시)을 강제로 끝냅니다. rerun 이면 같은 작업을 곧바로 다시 시작합니다. → 끝낸 작업 종류"""
+        """돌고 있는 작업을 강제로 끝냅니다. rerun 이면 곧바로 다시 시작합니다. → 끝낸 작업 종류"""
         reset = []
         for runner in (self.jobs, self.fast):
             kind = runner.reset() if runner else None
@@ -543,7 +496,7 @@ class Engine:
         return reset
 
     def stop(self) -> None:
-        """큐를 멈추고 벡터 DB 잠금을 풉니다. --reload 로 새로 뜨는 프로세스 · CLI 가 벡터 DB 를 열 수 있게 합니다."""
+        """큐를 멈추고 벡터 DB 잠금을 풀어 다른 프로세스가 열 수 있게 합니다."""
         if self.jobs:
             self.jobs.stop()
         if self.fast:
@@ -554,16 +507,11 @@ class Engine:
 
 
 class JobCancelled(Exception):
-    """reset() 으로 끝낸 작업 — 다음 진행 보고 때 멈추고 결과를 남기지 않습니다."""
+    """reset() 으로 끝낸 작업 — 결과를 남기지 않습니다."""
 
 
 class JobRunner:
-    """정책 관리 검토 · 로그 감시 · 서버 점검을 백그라운드 스레드로 한 번에 하나씩 돌립니다.
-
-    판정 한 번에 수 분이 걸리므로 요청 안에서 기다리지 않고, 화면은 status() 로 진행 상황을 봅니다.
-    모델은 한 번에 한 판정만 하므로 작업도 한 번에 하나만 돌립니다. 자동 실행 차례에 다른 작업이 돌고 있으면 RETRY 뒤에 다시 시도합니다.
-    Milvus Lite 는 한 프로세스만 열 수 있어 웹이 떠 있는 동안에는 CLI 가 돌 수 없으므로 여기서 돌립니다.
-    """
+    """작업을 백그라운드 스레드로 한 번에 하나씩 돌립니다. 모델이 한 번에 한 판정만 하기 때문입니다."""
 
     RETRY = timedelta(minutes=1)
 
@@ -573,7 +521,7 @@ class JobRunner:
         self._stop = threading.Event()
         self._status: dict[str, Any] = {"running": None, "auto": False, "done": 0, "total": 0, "started_at": None, "last": {}}
         self._schedule: dict[str, dict[str, Any]] = {}
-        # 작업마다 번호를 매겨, reset() 뒤에도 돌던 스레드가 상태 · 결과를 덮어쓰지 못하게 합니다.
+        # reset() 뒤에도 돌던 스레드가 상태 · 결과를 덮어쓰지 못하게 작업마다 번호를 매깁니다.
         self._generation = 0
 
     def status(self) -> dict[str, Any]:
@@ -585,7 +533,7 @@ class JobRunner:
             return {k: dict(v) for k, v in self._schedule.items()}
 
     def start(self, kind: str, auto: bool = False) -> bool:
-        """작업을 시작합니다. 다른 작업이 돌고 있으면 False"""
+        """다른 작업이 돌고 있으면 False"""
         with self._lock:
             if self._status["running"]:
                 return False
@@ -596,12 +544,7 @@ class JobRunner:
         return True
 
     def reset(self) -> str | None:
-        """돌고 있는 작업을 강제로 끝냅니다. → 끝낸 작업 종류 (없으면 None)
-
-        스레드는 밖에서 멈출 수 없어, 큐를 바로 비우고 돌던 스레드는 다음 진행 보고(판정 한 건이 끝날 때)에 멈춥니다.
-        그때까지 모델 호출 한 건은 이어지고, 그 작업이 이미 쌓은 판정(서버 점검 · 위협 예측은 한 건씩 쌓음)은 남습니다.
-        로그 감시 · 정책 관리 검토는 끝에 한 번에 쌓으므로 남는 것이 없고, 다음 감시가 같은 구간을 다시 판정합니다.
-        """
+        """스레드는 밖에서 멈출 수 없어 다음 진행 보고 때 멈춥니다. → 끝낸 작업 종류 (없으면 None)"""
         with self._lock:
             kind = self._status["running"]
             if not kind:
@@ -612,10 +555,7 @@ class JobRunner:
             return kind
 
     def every(self, kind: str, minutes: int) -> None:
-        """kind 작업을 지금 한 번, 그 뒤 minutes 분마다 시작합니다 (0 이하면 끔).
-
-        웹이 꺼져 있던 동안 쌓인 것을 바로 따라잡게 합니다. 로그 감시 · 서버 점검은 지난번 이후만 판정하므로 다시 떠도 같은 것을 또 판정하지 않습니다.
-        """
+        """지금 한 번, 그 뒤 minutes 분마다 시작합니다 (0 이하면 끔)."""
         if minutes > 0:
             threading.Thread(target=self._every, args=(kind, timedelta(minutes=minutes)), daemon=True).start()
 
@@ -657,11 +597,7 @@ class JobRunner:
 
 
 class VerdictWorker:
-    """권한 신청이 들어오면 바로 AI 판정을 돌립니다 (백그라운드, 한 번에 한 건).
-
-    판정 한 건에 수십 초가 걸리므로 신청 응답을 기다리게 하지 않습니다. 결과는 신청 행의 AI 칸에 쓰고 결재 화면이 읽어 갑니다.
-    1차 결재가 먼저 나면 판정은 버립니다 (결재자가 본 판정이 바뀌지 않도록).
-    """
+    """권한 신청을 백그라운드에서 한 건씩 판정합니다. 1차 결재가 먼저 나면 판정은 버립니다."""
 
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
@@ -673,7 +609,7 @@ class VerdictWorker:
         threading.Thread(target=self._run, daemon=True).start()
 
     def stop(self) -> None:
-        """새 판정은 시작하지 않고, 돌던 판정은 결과를 남기지 않습니다 (다음 시작 때 다시 돕니다)."""
+        """돌던 판정은 결과를 남기지 않습니다 (다음 시작 때 다시 돕니다)."""
         self._stopping.set()
         self._queue.put("")
 
@@ -693,12 +629,11 @@ class VerdictWorker:
             return {"current": self._current, "waiting": sorted(self._pending - {self._current})}
 
     def resume(self) -> None:
-        """1차 결재 전인데 판정이 없거나 실패한 신청, 이동 뒤 재검토가 없는 보유 권한을 다시 줄 세웁니다 (웹을 다시 띄웠을 때)."""
+        """판정이 없거나 실패한 신청과 재검토가 없는 보유 권한을 다시 줄 세웁니다."""
         for task in permissions.unjudged(self.engine.main_db) + permissions.pending_grant_reviews(self.engine.main_db):
             self.enqueue(task)
 
     def enqueue_grants(self, user_id: int) -> None:
-        """부서 · 직무가 바뀐 사람의 보유 권한 재검토를 줄 세웁니다."""
         for task in permissions.pending_grant_reviews(self.engine.main_db, user_id):
             self.enqueue(task)
 
@@ -714,10 +649,10 @@ class VerdictWorker:
                     self._grant(request_no)
                     continue
                 result = self.engine.judge_request(request_no)
-                # 종료 중에 끝난 판정은 벡터 DB 가 먼저 닫혀 실패했을 수 있어 남기지 않습니다.
+                # 종료 중에 끝난 판정은 벡터 DB 가 먼저 닫혀 실패했을 수 있습니다.
                 if result is not None and not self._stopping.is_set() and not self.engine.save_request_verdict(request_no, result):
                     log.info("권한 신청 %s 은 판정 중에 1차 결재가 나서 판정을 버립니다", request_no)
-            except Exception:  # 한 건이 실패해도 다음 신청은 판정해야 합니다. LLM 실패는 judge_request 가 판정 실패로 남깁니다.
+            except Exception:  # 한 건이 실패해도 다음 신청은 판정해야 합니다.
                 log.exception("권한 신청 %s 판정을 저장하지 못했습니다", request_no)
             finally:
                 with self._lock:
@@ -726,7 +661,7 @@ class VerdictWorker:
 
 
     def _grant(self, task: str) -> None:
-        """grant:신청번호:이동 id — 이동 뒤 보유 권한 재검토. 그사이 회수 · 만료되면 남기지 않습니다."""
+        """grant:신청번호:이동 id. 그사이 회수 · 만료되면 남기지 않습니다."""
         _, request_no, move_id = task.split(":")
         result = self.engine.judge_grant(request_no, int(move_id))
         if result is not None and not self._stopping.is_set() and not self.engine.save_grant_review(request_no, int(move_id), result):

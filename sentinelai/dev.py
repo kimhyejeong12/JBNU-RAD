@@ -1,12 +1,4 @@
-"""로컬 시험 환경 — 진짜 DB · 벡터 DB 대신 시험 DB(sentinelai_dev) · .dev/ 를 씁니다 (모델 서버 주소 등 나머지는 .env 그대로).
-
-    python -m sentinelai.dev setup [--reset]        시험 계정 · 시험용 권한 목록 만들기 (모델 서버에 닿으면 기준 문서도 적재)
-    python -m sentinelai.dev web [--check-min 5]    시험 환경으로 웹 http://127.0.0.1:8001 (서버 점검 · 로그 감시 5분마다)
-    python -m sentinelai.dev test                   DB 시험 (시험 DB sentinelai_test, 시험마다 새 스키마)
-    python -m sentinelai.dev targets [up|down]      점검 대상 컨테이너 2대(weak · strict) — 그 안의 진짜 노드가 root 로 수집해 보냄 (podman compose)
-
-PostgreSQL 은 `docker compose up -d --wait postgres` 로 먼저 띄웁니다. targets 는 web 이 떠 있을 때.
-"""
+"""로컬 시험 환경 — 진짜 DB · 벡터 DB 대신 시험 DB(sentinelai_dev) · .dev/ 를 씁니다."""
 from __future__ import annotations
 
 import argparse
@@ -24,9 +16,9 @@ DEV_URL = os.environ.get("DEV_DATABASE_URL", "postgresql://sentinelai:sentinelai
 TEST_URL = os.environ.get("TEST_DATABASE_URL", "postgresql://sentinelai:sentinelai-dev@127.0.0.1:5432/sentinelai_test")
 TARGETS = ROOT / "node" / "testenv"
 PASSWORD = "dev-pass-1234"
-# 시험 계정 이름은 실제 사람 이름처럼 둡니다 (화면의 이름 자리를 알아보게, 합성 로그의 사용자 이름과 겹치지 않게).
+# 합성 로그의 사용자 이름과 겹치지 않게 골랐습니다.
 ACCOUNTS = [("dev-op", "양현성", "manager"), ("dev-user", "김혜정", "user")]
-# 일반 사용자가 고를 시험용 권한 목록 — 기준 문서의 조항(3.2 인사 · 3.3 급여 · 4.3 관리자 · 6.2 PAM)에 걸리게 골랐습니다.
+# 기준 문서의 조항(3.2 · 3.3 · 4.3 · 6.2)에 걸리게 골랐습니다.
 CATALOG = [
     ("HR_MASTER_READ", "인사정보 조회", "인사 시스템", "인사정보", "HR_MASTER 테이블 읽기"),
     ("HR_SALARY_READ", "급여 테이블 조회", "인사 시스템", "급여정보", "HR_SALARY 테이블 읽기"),
@@ -45,12 +37,12 @@ def dev_env(check_min: int = 5) -> dict[str, str]:
 
 
 def _use_dev() -> None:
-    """이 프로세스에서 시험 환경을 씁니다. sentinelai.engine · db 를 가져오기 전에 불러야 합니다 (pymilvus 가 .env 를 읽음)."""
+    """pymilvus 가 .env 를 읽으므로 sentinelai.engine · db 를 가져오기 전에 불러야 합니다."""
     os.environ.update(dev_env())
 
 
 def _reset_db(url: str, schema: str) -> None:
-    """시험 DB 의 스키마를 지웁니다. 진짜 DB 를 지우지 않게 이름에 dev 가 든 DB 만."""
+    """진짜 DB 를 지우지 않게 이름에 dev 가 든 DB 만 지웁니다."""
     import psycopg
     from psycopg.conninfo import conninfo_to_dict
 
@@ -107,7 +99,7 @@ def setup(reset: bool) -> int:
 
 
 def _node_key(name: str) -> str:
-    """시험 환경의 노드 키. 없으면 등록, 해시만 남은 예전 키면 다시 발급합니다."""
+    """없으면 등록하고, 해시만 남은 예전 키면 다시 발급합니다."""
     _use_dev()
     from .db import User, nodes, open_main_db
     from .engine import Settings

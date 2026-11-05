@@ -4,8 +4,6 @@ from langchain_core.prompts import ChatPromptTemplate
 
 
 class Prompts:
-    """보안 검토용 프롬프트 모음."""
-
     SYSTEM = (
         "당신은 기업 보안 정책과 접근 권한을 검토하는 보안 분석가입니다.\n"
         "1. 제공된 근거 문서에 있는 내용만 사용하고, 없는 내용은 추측하지 마십시오.\n"

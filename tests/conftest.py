@@ -1,7 +1,4 @@
-"""DB 시험 — 실제 PostgreSQL 에서 트리거 · 쿼리를 돌립니다.
-
-SENTINELAI_TEST_DATABASE_URL 이 없으면 건너뜁니다 (python -m sentinelai.dev test 가 넣음). 시험마다 이름이 겹치지 않는 스키마를 만들고 끝나면 지웁니다.
-"""
+"""실제 PostgreSQL 시험 — SENTINELAI_TEST_DATABASE_URL 이 없으면 건너뛰고, 시험마다 새 스키마를 씁니다."""
 from __future__ import annotations
 
 import os
@@ -51,7 +48,7 @@ def results_db(url, schemas):
 
 @pytest.fixture
 def people(main_db) -> dict[str, User]:
-    """루트(보안 총책임자) · 보안 총책임자 · 보안 운영자 · 일반 사용자 둘."""
+    """루트 · 보안 총책임자 · 보안 운영자 · 일반 사용자 둘입니다."""
     root = auth.create_root(main_db, "root", PASSWORD, "루트", "보안팀")
     return {
         "root": root,

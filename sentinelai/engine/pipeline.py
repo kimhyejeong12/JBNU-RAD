@@ -1,13 +1,4 @@
-"""판정 흐름 — 체인(프롬프트 + 검색 + 모델)과 그것을 데이터에 돌리는 흐름을 한곳에 둡니다.
-
-체인은 LangChain Runnable 을 돌려주는 함수입니다 (engine.review_chain() 처럼 Engine 이 넘겨 줍니다).
-흐름은 데이터 계층(sentinelai.data)에서 읽어 체인에 넣고 결과 dict 만 돌려줍니다. 저장 · 큐는 Engine(engine.py)이 합니다.
-데이터 계층은 엔진을 모릅니다. 둘을 잇는 일은 여기에만 둡니다.
-
-    정책 이해: review_chain(권한 신청) · policy_chain(정책 모순) · server_chain(서버 점검) · answer_chain · rag_chain(질의응답)
-    서버 질의: server_filter_chain · server_answer_chain (수집 · 서버 점검 기록으로 답함)
-    로그 감시: event_chain(로그 ↔ 정책) · log_filter_chain · log_answer_chain(로그 질의)
-"""
+"""판정 흐름 — 체인(프롬프트 + 검색 + 모델)과 데이터를 체인에 돌려 결과 dict 를 내는 흐름."""
 from __future__ import annotations
 
 import json
@@ -53,12 +44,11 @@ if TYPE_CHECKING:
     from .engine import Engine
 
 
-# --- 체인 --------------------------------------------------------------------
-# retrieve=False 면 검색하지 않으므로 context(· rules)도 입력으로 직접 넘겨야 합니다. k 는 종류별 검색 건수입니다.
+# retrieve=False 면 검색하지 않으므로 context(· rules)를 입력으로 넘겨야 합니다.
 
 
 def review_chain(engine: Engine, retrieve: bool = True, k: int | None = None, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-    """접근 권한 신청 검토 → Verdict. 입력: requester, requested_access, current_access"""
+    """입력: requester, requested_access, current_access"""
     reviewer = engine.chain(Prompts.ACCESS_REVIEW, Verdict, **kwargs)
     if not retrieve:
         return reviewer
@@ -67,7 +57,7 @@ def review_chain(engine: Engine, retrieve: bool = True, k: int | None = None, **
 
 
 def grant_chain(engine: Engine, k: int | None = None, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-    """부서 · 직무를 옮긴 사람이 예전에 받은 권한을 새 업무에 비춥니다 → Verdict. 입력: requester, move, requested_access, reason, period"""
+    """이동한 사람의 보유 권한 재검토. 입력: requester, move, requested_access, reason, period"""
     reviewer = engine.chain(Prompts.GRANT_REVIEW, Verdict, **kwargs)
     query = lambda x: f"{x['requester']} / {x['requested_access']}"  # noqa: E731
     return RunnablePassthrough.assign(context=query | lookup(engine, k, "clause")) | reviewer
@@ -75,8 +65,7 @@ def grant_chain(engine: Engine, k: int | None = None, **kwargs: Any) -> Runnable
 
 def policy_chain(engine: Engine, structured: bool = True, retrieve: bool = True, k: int | None = None,
                  **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-    """솔루션 정책 간 중복 · 충돌 · 과도한 허용 → PolicyReview. 입력: policies (한 줄에 한 건).
-    규칙은 입력으로 받으므로 기준 조항만 찾습니다."""
+    """입력: policies (한 줄에 한 건). 규칙은 입력으로 받으므로 조항만 찾습니다."""
     reviewer = engine.chain(Prompts.POLICY_CONFLICT, PolicyReview if structured else None, **kwargs)
     if not retrieve:
         return reviewer
@@ -84,11 +73,7 @@ def policy_chain(engine: Engine, structured: bool = True, retrieve: bool = True,
 
 
 def server_chain(engine: Engine, retrieve: bool = True, k: int | None = None, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-    """서버 한 대의 현황 · 모듈 상태와 그 서버에 걸린 규칙을 기준 문서에 비춥니다 → ServerReview(다른 곳 · 바꿀 것).
-
-    입력: subject(서버), state(현황, 한 줄에 한 항목), matched(코드가 IP · 대역 · 호스트 이름으로 찾은 규칙).
-    코드가 못 찾은 규칙(표기가 다른 것)은 rules 로 검색해 보탭니다.
-    """
+    """입력: subject, state, matched(코드가 찾은 규칙). 코드가 못 찾은 규칙은 검색해 보탭니다."""
     reviewer = engine.chain(Prompts.SERVER_REVIEW, ServerReview, **kwargs)
     if not retrieve:
         return reviewer
@@ -97,7 +82,7 @@ def server_chain(engine: Engine, retrieve: bool = True, k: int | None = None, **
 
 
 def event_chain(engine: Engine, retrieve: bool = True, k: int | None = None, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-    """로그 묶음(한 사용자)을 정책과 비교 → Verdict. 입력: subject(대상 사용자), events(한 줄에 한 건)"""
+    """입력: subject(대상 사용자), events(한 줄에 한 건)"""
     reviewer = engine.chain(Prompts.EVENT_REVIEW, Verdict, **kwargs)
     if not retrieve:
         return reviewer
@@ -105,51 +90,47 @@ def event_chain(engine: Engine, retrieve: bool = True, k: int | None = None, **k
     return RunnablePassthrough.assign(context=query | lookup(engine, k, "clause"), rules=query | lookup(engine, k, "rule")) | reviewer
 
 
-# 로그는 RAG 로 찾지 않습니다. "몇 번 · 언제부터 · 누가" 같은 질문은 집계라서, 비슷한 몇 줄만 찾아오면 건수가 틀립니다.
-# 모델은 질문을 조건으로 바꾸고(log_filter_chain) 코드가 센 결과로 답을 쓰기만 합니다(log_answer_chain). 둘을 잇는 것은 ask_logs 입니다.
+# 로그는 RAG 로 찾지 않습니다. 집계 질문은 비슷한 몇 줄만 찾으면 건수가 틀립니다.
 
 
 def log_filter_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-    """질문 → LogFilter. 입력: question, vocabulary(로그에 있는 값), now(현재 시각 UTC)"""
+    """입력: question, vocabulary, now(UTC)"""
     return engine.chain(Prompts.LOG_FILTER, LogFilter, **{"llm": engine.qa_llm, **kwargs})
 
 
 def log_answer_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-    """조건 · 집계 · 로그 → 답변 문자열. 입력: question, criteria, facts, lines"""
+    """입력: question, criteria, facts, lines"""
     return engine.chain(Prompts.LOG_ANSWER, None, **{"llm": engine.qa_llm, **kwargs})
 
 
 def server_filter_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-    """질문 → ServerFilter. 입력: question, vocabulary(등록된 노드 · 모듈), now(현재 시각 UTC)"""
+    """입력: question, vocabulary, now(UTC)"""
     return engine.chain(Prompts.SERVER_FILTER, ServerFilter, **{"llm": engine.qa_llm, **kwargs})
 
 
 def server_answer_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-    """조건 · 노드 상태 · 집계 · 기록 → 답변 문자열. 입력: question, criteria, state, facts, lines"""
+    """입력: question, criteria, state, facts, lines"""
     return engine.chain(Prompts.SERVER_ANSWER, None, **{"llm": engine.qa_llm, **kwargs})
 
 
 def suspect_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-    """사용자 한 명의 행동 신호 · 기록 → SuspectScore. 입력: subject, signals, records, lines"""
+    """입력: subject, signals, records, lines"""
     return engine.chain(Prompts.SUSPECT, SuspectScore, **kwargs)
 
 
 def answer_chain(engine: Engine, structured: bool = False, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
-    """근거를 직접 넘기는 질의응답. 입력: context, question"""
+    """입력: context, question"""
     return engine.chain(Prompts.ANSWER, Answer if structured else None, **{"llm": engine.qa_llm, **kwargs})
 
 
 def rag_chain(engine: Engine, structured: bool = False, k: int | None = None, **kwargs: Any) -> Runnable[str, Any]:
-    """저장소에서 근거(조항 · 규칙)를 찾아 답합니다. 입력: 질문 문자열"""
+    """입력: 질문 문자열"""
     return {"context": lookup_all(engine, k), "question": RunnablePassthrough()} | answer_chain(engine, structured, **kwargs)
 
 
-# --- 흐름 --------------------------------------------------------------------
-
-# 사내 기준 문서(정책 문서) 폴더. 정책 관리 검토를 돌릴 때마다 바뀐 파일만 RAG 에 다시 적재합니다.
 DOCS_DIR = ROOT / "docs"
 RETRIES = 2
-# 답변 프롬프트와 화면에 싣는 로그 줄 수. 건수 · 합계는 전체로 세므로 이 수에 묶이지 않습니다.
+# 건수 · 합계는 전체로 세므로 이 줄 수에 묶이지 않습니다.
 LOG_LINES = 50
 BROWSE_PAGE = 100
 
@@ -157,7 +138,7 @@ Progress = Callable[[int, int, dict[str, Any]], None]
 
 
 def attempt(call: Callable[[], Any], retries: int = RETRIES) -> tuple[Any | None, str | None, float]:
-    """call() 을 최대 retries+1 회 시도합니다. → (결과 또는 None, 마지막 실패 원인, 소요 초)"""
+    """→ (결과 또는 None, 마지막 실패 원인, 소요 초)"""
     started = time.time()
     error = None
     for _ in range(retries + 1):
@@ -177,27 +158,21 @@ def _loaded(result: LoadResult) -> dict[str, Any]:
 
 
 def _judged(verdict: Any, error: str | None, elapsed: float) -> dict[str, Any]:
-    """판정 결과는 엔진 타입 필드를 그대로 두고, 실패 여부와 소요 시간만 덧붙입니다."""
     base = {"failed": verdict is None, "error": error, "elapsed_sec": round(elapsed, 1)}
     return {**verdict.model_dump(), **base} if verdict is not None else base
 
 
-# --- 정책 이해 --------------------------------------------------------------
-
-
 def index_documents(engine: Engine, source: Any = DOCS_DIR, rebuild: bool = False) -> IndexReport:
-    """사내 기준 문서를 RAG 에 적재합니다 (바뀐 파일만). 서버 현황 · 정책 검증이 이 조항을 찾습니다."""
     return engine.documents.index(source, rebuild=rebuild)
 
 
-# 사용자 기록에 넣는 권한 신청 줄 수 (나머지는 건수로만).
 RECORD_REQUESTS = 10
 NO_RECORD = "기록 없음"
 FAST_RECORD = "빠른 감시라 넣지 않음 — 이 로그만으로 판단"
 
 
 def judge_request(engine: Engine, request: dict[str, Any], history: str = NO_RECORD, threats: str = NO_RECORD) -> dict[str, Any]:
-    """권한 DB의 신청 1건 → AI 판정 (신청 행의 AI 칸에 저장할 dict). 신청이 들어오면 바로 부릅니다."""
+    """신청 1건 → 신청 행의 AI 칸에 저장할 dict."""
     lines = [f"{request.get('requester_department', '')} {request['requester_name']}".strip(),
              f"직무: {request.get('requester_job') or '적지 않음'}"]
     if request.get("move"):
@@ -215,7 +190,7 @@ def judge_request(engine: Engine, request: dict[str, Any], history: str = NO_REC
 
 
 def judge_grant(engine: Engine, grant: dict[str, Any], history: str = NO_RECORD, threats: str = NO_RECORD) -> dict[str, Any]:
-    """이동 뒤 보유 권한 재검토 1건 → AI 판정 (grant_reviews 에 쌓을 dict). grant 는 신청 행 + move."""
+    """grant 는 신청 행 + move. → grant_reviews 에 쌓을 dict"""
     move = grant["move"]
     inputs = {
         "requester": f"{move['to_department']} {grant['requester_name']}\n직무: {move['to_job'] or '적지 않음'}".strip(),
@@ -240,7 +215,7 @@ def _period_text(request: dict[str, Any]) -> str:
 
 
 def _access_text(request: dict[str, Any]) -> str:
-    """신청 권한 이름에 권한 목록의 코드 · 시스템 · 분류 · 설명을 붙입니다. 분류(급여정보 등)가 조항 검색과 판정의 실마리가 됩니다."""
+    """분류(급여정보 등)가 조항 검색과 판정의 실마리라 권한 목록 정보를 붙입니다."""
     lines = [f"{request['requested_access']} ({request['access_code']})" if request.get("access_code") else request["requested_access"]]
     for label, key in (("시스템", "access_system"), ("분류", "access_category"), ("설명", "access_description")):
         if request.get(key):
@@ -249,7 +224,7 @@ def _access_text(request: dict[str, Any]) -> str:
 
 
 def _optional(loader: Callable[[Any], LoadResult], source: Any) -> LoadResult:
-    """폴더 · 파일이 없으면 그쪽 검토만 건너뜁니다. 없다는 사실은 읽기 실패로 남겨 화면에 보입니다."""
+    """폴더 · 파일이 없으면 건너뛰고, 그 사실은 읽기 실패로 남깁니다."""
     try:
         return loader(source)
     except FileNotFoundError as exc:
@@ -257,13 +232,7 @@ def _optional(loader: Callable[[Any], LoadResult], source: Any) -> LoadResult:
 
 
 def review_policies(engine: Engine, policies_source: Any, progress: Progress | None = None) -> dict[str, Any]:
-    """정책 관리 검토 1회 (화면의 [정책 관리 검토 실행]) → db.results.save_policy_review
-
-    0. 기준 문서(docs/) · 솔루션 정책 규칙을 RAG 에 맞춥니다 (바뀐 것만). 판정이 지금 문서 · 규칙을 찾게 합니다.
-    1. 솔루션 정책 규칙 전체 → policy_chain (정책 간 중복 · 충돌 · 과도한 허용)
-    서버 점검은 여기서 하지 않고, 수집 노드가 보낸 것을 check_nodes 가 주기적으로 봅니다.
-    정책 폴더가 비었으면 RAG 의 규칙을 지우고 빈 검토를 돌려줍니다 — 예전 규칙이 서버 점검 · 로그 감시 검색에 섞이지 않게 합니다.
-    """
+    """정책 폴더가 비면 RAG 의 규칙을 지웁니다 — 예전 규칙이 다른 검색에 섞이지 않게."""
     policies = _optional(load_policies, policies_source)
     index_documents(engine)
     if not policies.records:
@@ -281,14 +250,8 @@ def review_policies(engine: Engine, policies_source: Any, progress: Progress | N
     return {**_loaded(policies), "rules": [r.model_dump() for r in policies.records], **rules_part}
 
 
-# --- 수집 노드 · 서버 점검 -----------------------------------------------------
-
-
 def snapshot_row(payload: dict[str, Any], node: str, previous: dict[str, Any] | None) -> dict[str, Any]:
-    """노드가 보낸 본문 → db.results.save_snapshot 에 넣을 수집 기록. 형식이 틀리면 ValueError.
-
-    previous = db.results.latest_snapshot. 이번 수집이 그보다 늦을 때만 바뀐 것을 셉니다 (늦게 도착한 옛 수집은 앞뒤가 맞지 않음).
-    """
+    """형식이 틀리면 ValueError. 늦게 도착한 옛 수집은 바뀐 것을 세지 않습니다."""
     snap = snapshot_from_payload(payload, node)
     at = snap.collected_at.isoformat(timespec="seconds")
     newer = previous is None or at > previous["collected_at"]
@@ -298,11 +261,7 @@ def snapshot_row(payload: dict[str, Any], node: str, previous: dict[str, Any] | 
 
 def check_nodes(engine: Engine, snapshots: list[dict[str, Any]], policies_source: Any, servers_source: Any,
                 progress: Progress | None = None) -> dict[str, Any]:
-    """서버 점검 — 새 수집이 온 노드마다 server_chain → ServerReview. → db.results.save_node_finding
-
-    snapshots = db.results.pending_snapshots. 판정 입력은 노드의 모듈 상태 · 직전 수집과 달라진 설정에
-    서버 현황 표(호스트 이름 · IP 가 같은 행, 있으면)와 그 서버를 가리키는 솔루션 정책을 더한 것입니다.
-    """
+    """새 수집이 온 노드마다 server_chain 으로 판정합니다."""
     policies = _optional(load_policies, policies_source)
     servers = _optional(load_servers, servers_source)
     inventory = {}
@@ -327,9 +286,6 @@ def check_nodes(engine: Engine, snapshots: list[dict[str, Any]], policies_source
     return {"findings": findings, "load_issues": [str(i) for i in policies.issues + servers.issues]}
 
 
-# --- 로그 감시 --------------------------------------------------------------
-
-
 def monitor(
     engine: Engine,
     source: Any,
@@ -339,11 +295,7 @@ def monitor(
     fast: bool = False,
     history: Callable[[str], tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
-    """로그 감시 1회 — 읽기 → 시각 필터 → 사용자별 묶기 → event_chain 판정. → db.results.save_monitor_run
-
-    fast 면 판정 모델의 생각 단계를 끈 연결(engine.fast_llm)로 판정합니다 — 빠른 감시의 1차 판정 (묶음당 수 초).
-    history(로그 사용자 ID) → (사용자 기록, 위협 기록). 정밀 감시만 넘깁니다 — 빠른 감시는 수 초 안에 끝나야 해서 로그만 봅니다.
-    """
+    """history 는 정밀 감시만 넘깁니다 — 빠른 감시는 수 초 안에 끝나야 해서 로그만 봅니다."""
     loaded = load_events(source, since=since, until=until)
     findings = []
     groups = group_by_user(loaded.records)
@@ -354,7 +306,7 @@ def monitor(
         verdict, error, elapsed = attempt(lambda: chain.invoke({**inputs, "history": record, "threats": threats}))
         last = latest(events)
         finding = {
-            # 같은 사용자가 다음 실행에도 나올 수 있어 마지막 로그 시각을 붙여 구분합니다.
+            # 같은 사용자가 다음 실행에도 나올 수 있어 마지막 로그 시각을 붙입니다.
             "id": f"{user}@{last.isoformat()}",
             "user": user,
             "first_event_at": events[0].occurred_at.isoformat(),
@@ -363,7 +315,7 @@ def monitor(
             **_judged(verdict, error, elapsed),
         }
         findings.append(finding)
-        # 알림(types.py 의 Notifier)을 구축하면 주의 · 위험 판정을 여기서 보냅니다.
+        # 알림(Notifier)을 붙이면 여기서 보냅니다.
         if progress:
             progress(n, len(groups), finding)
     last_event = latest(loaded.records)
@@ -384,12 +336,7 @@ def browse_logs(
     page_size: int = BROWSE_PAGE,
     now: datetime | None = None,
 ) -> dict[str, Any]:
-    """로그 조회 — 지금부터 period(PERIODS) 안의 로그를 사용자 · 솔루션 · 행위로 고르고 셉니다.
-
-    거르기만 하므로 모델을 부르지 않습니다. 사용자는 화면이 고른 "부서 이름"과 같아야 합니다
-    (부분 일치면 다른 사람의 로그가 섞일 수 있습니다). 최신 로그부터 page_size 건씩 돌려줍니다.
-    options 는 거르기 칸에 띄울 값입니다. 고른 조건과 상관없이 로그 전체에서 뽑아 칸이 줄어들지 않게 합니다.
-    """
+    """사용자는 "부서 이름" 완전 일치입니다 (부분 일치면 다른 사람 로그가 섞임). options 는 로그 전체 기준."""
     now = now or datetime.now(timezone.utc)
     since = period_since(period, now)
     loaded = load_events(source)
@@ -414,10 +361,7 @@ def browse_logs(
 
 
 def ask_logs(engine: Engine, source: Any, question: str, now: datetime | None = None) -> dict[str, Any]:
-    """로그 질의 — 질문 → 조건(모델) → 찾고 세기(코드) → 답변(모델).
-
-    숫자는 모델이 세지 않고 summarize 가 셉니다. 근거 로그(evidence)도 코드가 고른 그대로 돌려줍니다.
-    """
+    """숫자는 모델이 아니라 summarize 가 셉니다."""
     started = time.time()
     events = load_events(source).records
     now = now or datetime.now(timezone.utc)
@@ -458,9 +402,7 @@ def ask_logs(engine: Engine, source: Any, question: str, now: datetime | None = 
     return done(error)
 
 
-# --- 서버 질의 ------------------------------------------------------------------
-# 서버 상태는 RAG 로 찾지 않습니다 (기준 문서에는 서버의 지금 상태가 없습니다). 로그 질의처럼 모델이 조건을 뽑고,
-# 코드가 수집 · 서버 점검 기록을 골라 세고(server_digest), 모델은 그 결과로 답만 씁니다.
+# 기준 문서에는 서버의 지금 상태가 없어 RAG 대신 수집 · 서버 점검 기록을 코드가 고릅니다.
 
 MODULE_HINTS = {"UFW": "방화벽", "SSH": "원격 접속 sshd 설정", "PAM": "로그인 · 비밀번호 인증", "계정 · sudo": "관리자 계정 · sudo 권한"}
 SERVER_LINES = 60
@@ -469,11 +411,7 @@ SERVER_LINES = 60
 def ask_servers(engine: Engine, registry: list[dict[str, Any]],
                 fetch: Callable[[list[str], str | None, str | None], tuple[list[dict[str, Any]], dict[str, Any]]],
                 question: str, now: datetime | None = None) -> dict[str, Any]:
-    """서버 질의 — 질문 → 조건(모델) → 고르고 세기(코드) → 답변(모델).
-
-    registry = 등록된 노드(db.nodes.list_nodes), fetch(노드 이름들, since, until) → (노드별 지금 상태, 기간 안 기록).
-    DB 는 Engine 이 읽어 fetch 로 넘깁니다 (pipeline 은 저장소를 모릅니다).
-    """
+    """fetch(노드 이름들, since, until) → (노드별 지금 상태, 기간 안 기록). DB 는 Engine 이 읽습니다."""
     started = time.time()
     now = now or datetime.now(timezone.utc)
     result: dict[str, Any] = {"question": question, "criteria": {}, "facts": None, "evidence": [], "answer": "", "sources": []}
@@ -500,9 +438,9 @@ def ask_servers(engine: Engine, registry: list[dict[str, Any]],
         return done(str(exc))
     known = {n["name"] for n in registry}
     asked = [x.strip() for x in criteria.get("nodes", "").split(",") if x.strip()]
-    # 모르는 노드 이름은 비슷한 노드로 바꾸지 않습니다. 그 이름만 물었으면 고른 노드가 없어 "없다"고 답하게 됩니다.
+    # 모르는 노드 이름은 비슷한 노드로 바꾸지 않습니다.
     names = [x for x in asked if x in known] if asked else sorted(known)
-    # 모델이 모듈 설명까지 옮겨 적거나 목록을 통째로 적기도 합니다. 모듈 이름이 하나만 들어 있으면 그것으로, 여럿이면 모든 모듈로 봅니다.
+    # 모델이 모듈 목록을 통째로 적기도 해서, 하나만 맞으면 그것으로 · 여럿이면 모든 모듈로 봅니다.
     named = [label for label, hint in MODULE_HINTS.items() if label in criteria.get("module", "") or hint in criteria.get("module", "")]
     module = named[0] if len(named) == 1 else "" if named else criteria.get("module", "")
     if "module" in criteria:
@@ -523,9 +461,6 @@ def ask_servers(engine: Engine, registry: list[dict[str, Any]],
     return done(error)
 
 
-# --- 사용자 의심 점수 ------------------------------------------------------------
-# 행동 신호는 코드가 세고(data.suspect.behavior_signals), 판정 모델은 그 신호와 판정 · 신청 기록을 보고 앞으로의 위협 가능성을 예측합니다.
-
 def _signals_text(s: dict[str, Any] | None) -> str:
     if s is None:
         return "로그 없음 (권한 신청 기록만 있음)"
@@ -538,15 +473,12 @@ def _signals_text(s: dict[str, Any] | None) -> str:
     return "\n".join(rows + [f"- 눈에 띔: {h}" for h in s["highlights"]])
 
 
-# --- 사용자 기록 (판정의 맥락) ------------------------------------------------------
-# 사용자가 관여한 판정(권한 신청 · 보유 권한 재검토 · 정밀 감시 · 위협 예측)에 그 사람의 기록을 함께 넣습니다.
-# 사람이 정한 사실(계정 · 이동 · 결재 · 회수 · 운영자 결정)과 코드가 고른 위협 기록만 담고 예전 AI 등급은 넣지 않습니다.
+# 예전 AI 등급은 넣지 않습니다 — 한 번 위험으로 찍힌 사람이 계속 위험으로 나오지 않게.
 
 
 
 def user_record_text(account: dict[str, Any] | None, log_id: str, facts: dict[str, Any] | None,
                      signals: dict[str, Any] | None, include_signals: bool = True) -> str:
-    """계정 기록(db.permissions.account_record) · 로그 집계(data.summarize) · 행동 신호 → 판정 입력 한 칸."""
     rows: list[str] = []
     if account:
         rows.append(f"- 계정: {account['department'] or '부서 없음'} · 직무 {account['job'] or '적지 않음'} · "
@@ -582,9 +514,9 @@ def user_record_text(account: dict[str, Any] | None, log_id: str, facts: dict[st
 
 
 def predict_suspect(engine: Engine, person: dict[str, Any], record: str, threats: str) -> dict[str, Any]:
-    """사용자 한 명의 의심 점수 (판정 모델). person = data.suspect_people 의 한 줄, lines = 그 사람의 최근 로그 (describe)."""
+    """person = data.suspect_people 의 한 줄."""
     who = f"{person['department']} {person['name']}".strip()
-    # 계정과 로그 사용자를 아직 잇지 않은 것은 운영 설정일 뿐이라 모델이 의심 근거로 삼지 않게 그렇게 적습니다.
+    # 계정 미연결은 운영 설정일 뿐이라 모델이 의심 근거로 삼지 않게 적습니다.
     account = person["login_id"] or "SentinelAI 계정과 아직 잇지 않음 — 의심 근거 아님"
     log_id = person["log_id"] or "로그 사용자 ID 를 아직 적지 않음 — 의심 근거 아님"
     inputs = {"subject": f"{who} (계정: {account} / 로그 사용자 ID: {log_id})",

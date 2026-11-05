@@ -1,7 +1,4 @@
-"""수집 노드 API — 노드가 보내는 수집 받기 · 화면의 노드 등록 · 키 발급 · 목록 · 끄기.
-
-수집 받기는 사람의 로그인이 아니라 노드의 키로 확인합니다 (Authorization: Bearer). 노드는 이름을 보내지 않고 키만 보냅니다.
-"""
+"""수집 노드 API — 수집 받기는 로그인이 아니라 노드 키(Authorization: Bearer)로 확인합니다."""
 from __future__ import annotations
 
 import json
@@ -28,7 +25,6 @@ def _known(name: str) -> str:
 
 @router.post("/snapshots", status_code=201)
 async def receive(request: Request) -> dict[str, Any]:
-    """노드가 한 번 읽은 수집을 받아 쌓습니다. 키로 어느 노드인지 찾습니다."""
     presented = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
     if not presented:
         raise HTTPException(status_code=401, detail="키가 없습니다")
@@ -51,7 +47,6 @@ class NewNode(BaseModel):
 
 @router.post("", status_code=201)
 def create_node(body: NewNode, request: Request, user: Approver) -> dict[str, Any]:
-    """노드(서버)를 등록하고 키를 발급합니다. 키는 노드 화면(GET /api/nodes/{이름})에서 다시 볼 수 있습니다."""
     try:
         node, key = nodes.create(request.app.state.main_db, user, body.name)
     except Denied as exc:
@@ -61,7 +56,6 @@ def create_node(body: NewNode, request: Request, user: Approver) -> dict[str, An
 
 @router.get("")
 def list_nodes(request: Request, user: Approver) -> list[dict[str, Any]]:
-    """노드 목록 — 등록부 + 끊김 여부 + 마지막 판정 등급."""
     latest = {f["node"]: f for f in results.latest_node_findings(request.app.state.results_db)}
     return [{**n, "stale": nodes.is_stale(n), "level": latest[n["name"]]["level"] if n["name"] in latest else None,
              "finding_failed": latest[n["name"]]["failed"] if n["name"] in latest else False}
@@ -70,7 +64,6 @@ def list_nodes(request: Request, user: Approver) -> list[dict[str, Any]]:
 
 @router.get("/{name}")
 def node_detail(name: str, request: Request, user: Approver) -> dict[str, Any]:
-    """노드 하나 — 등록부 · 키 · 가장 늦은 수집의 모듈 상태 · 최근 수집(바뀐 것) · 판정 기록."""
     found = [n for n in nodes.list_nodes(request.app.state.main_db) if n["name"] == _known(name)]
     if not found:
         raise HTTPException(status_code=404, detail="없는 노드입니다")
@@ -92,7 +85,7 @@ def change_node(name: str, body: NodeChange, request: Request, user: Approver) -
 
 @router.post("/{name}/key")
 def reissue_key(name: str, request: Request, user: Approver) -> dict[str, Any]:
-    """키를 다시 발급합니다. 예전 키는 바로 못 쓰게 됩니다."""
+    """예전 키는 바로 무효입니다."""
     try:
         node, key = nodes.reissue_key(request.app.state.main_db, user, _known(name))
     except Denied as exc:
