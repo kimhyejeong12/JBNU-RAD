@@ -32,7 +32,7 @@ services:
       # 벡터 DB · 기준 문서는 볼륨, 검토 대상 data/ 는 읽기만 합니다.
       - milvus:/app/.milvus
       - docs:/app/docs
-      - ./data:/app/data:ro
+      - ./data:/app/data:ro,z
     # 같은 컴퓨터의 Ollama 는 http://host.docker.internal:11434 로 닿습니다.
     extra_hosts:
       - "host.docker.internal:host-gateway"
