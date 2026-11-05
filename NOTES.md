@@ -1,7 +1,7 @@
 # 작업 메모
 
 - 설정 파일(`.env`) · 코드에는 설명 주석을 두지 않고 이유 · 경위 · 측정 결과를 여기에 적음
-- `docs/`에 두지 않는 이유: `make index`가 `docs/*.md`를 RAG에 적재함
+- `docs/`에 두지 않는 이유: `python -m sentinelai index`가 `docs/*.md`를 RAG에 적재함
 
 ---
 
@@ -12,7 +12,7 @@
 - `SENTINELAI_QA_MODEL` — 질답: `rag_chain` · `answer_chain`(정책 질의), `log_filter_chain` · `log_answer_chain`(로그 질의)
 - 나눈 이유: 판정은 오탐이 적어야 하고(정상을 정상으로), 질답은 빨리 답해야 함 — 요구가 달라 모델을 따로 고를 수 있게 했음
 - 둘이 같으면 `Engine.qa_llm`이 판정 모델 인스턴스를 그대로 씀. 체인에 `llm=`을 넘기면 그 모델이 우선
-- `make health` · `/api/health`는 두 모델을 모두 확인함
+- CLI `health` · `/api/health`는 두 모델을 모두 확인함
 - 지금은 둘 다 `qwen3:14b` (아래 모델 비교)
 
 ### `SENTINELAI_NUM_PREDICT` (10/11 4096 → 10/22 8192)
@@ -150,7 +150,7 @@ ExecStartPre=+/usr/bin/nvidia-smi
 ## 화면 React 이식 (10/29)
 
 - 옛 `index.html` 한 파일(2,751줄)을 `frontend/`(TypeScript · Vite · TanStack Query · Vitest)로 기능 · 모양 그대로 옮겼음. 옛 파일은 화면을 바꾼 커밋 `08b7d0f`의 바로 앞 (`git show 08b7d0f^:sentinelai/web/static/index.html`). 리디자인은 다음 단계
-- **빌드 결과를 커밋하는 이유**: 팀 서버에 Node가 없고 외부망도 막힐 수 있어 서버에서 빌드할 수 없음. `make web`은 커밋된 파일을 그대로 서빙. `make front-check`가 깨끗이 설치해 빌드한 결과와 커밋된 것을 견줌
+- **빌드 결과를 커밋하는 이유**: 팀 서버에 Node가 없고 외부망도 막힐 수 있어 서버에서 빌드할 수 없음. 웹은 커밋된 파일을 그대로 서빙. `npm ci && npm run build` 뒤 `git status sentinelai/web/static`이 비어 있으면 커밋된 것과 같음
 - **옮기며 정한 것**
   - 기능(메뉴)별 폴더 (FSD 아님 — 메뉴 하나가 폴더 하나라 찾기 쉬움)
   - 라우터 없음 (URL 상태가 없고 `StaticFiles`가 깊은 경로 새로고침을 404로 냄)

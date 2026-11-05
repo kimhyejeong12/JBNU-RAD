@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SentinelAI 계정 비교</title>
 <link rel="icon" href="data:,">
-<!-- 개발용 — `make front` 뒤 http://localhost:5173/compare.html. 칸마다 로그인은 vite.config.ts 가 따로 보관하고, 빌드에는 들어가지 않습니다 -->
+<!-- 개발용 — `npm run dev` 뒤 http://localhost:5173/compare.html. 칸마다 로그인은 vite.config.ts 가 따로 보관하고, 빌드에는 들어가지 않습니다 -->
 <style>
   body { margin: 0; height: 100vh; overflow: hidden; display: grid; grid-template-rows: auto 1fr; background: #d9d9d4; font: 13px/1.4 system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif; color: #111; }
   nav { display: flex; align-items: center; gap: 6px; padding: 6px 12px; }
@@ -25,7 +25,7 @@
 <nav id="nav"><b>개발용 계정 비교</b></nav>
 <main id="frames"></main>
 <script type="module">
-  // 칸 이름은 화면 주소(?as=)로 개발 서버에 넘어갑니다. 계정은 시험 환경(make dev-setup)의 것 — 칸마다 처음 한 번 로그인합니다.
+  // 칸 이름은 화면 주소(?as=)로 개발 서버에 넘어갑니다. 계정은 시험 환경(scripts/dev.py setup)의 것 — 칸마다 처음 한 번 로그인합니다.
   const SLOTS = [
     ["top", "보안 총책임자", "dev-root"],
     ["op", "보안 운영자", "dev-op"],

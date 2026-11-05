@@ -197,5 +197,5 @@ suspect_scores                        (사용자 의심 점수, 10/22)
    - 권한 신청은 DB로 들어옴 — 이 명령은 CLAUDE.md §8-1(전 건 판정해 기대와 대조)용 **평가 명령으로만 남기고 DB에 쓰지 않기로** 했음
    - 결과는 화면에 찍고, `--out 파일`이면 JSON으로도 남김
    - `/api/results`에서 `requests` 구역을 뺌
-3. **지금 `results.json`** (로그 감시 판정 2건)은 옮기지 않음 — 필요하면 `make monitor FULL=1`로 다시 판정
+3. **지금 `results.json`** (로그 감시 판정 2건)은 옮기지 않음 — 필요하면 `python -m sentinelai monitor --full`로 다시 판정
 4. **로그 감시 화면 범위** — 이번에는 쌓인 판정을 전부 보여줌. 기간은 로그 감시 이력 화면(CLAUDE.md §8-5)에서 정함

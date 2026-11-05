@@ -23,7 +23,7 @@
 | 제약 | 내용 |
 |---|---|
 | **외부망 없음** | CDN · 웹폰트 · 외부 이미지 · 외부 차트 서비스 없음. 라이브러리는 빌드 때 번들에 넣음. 차트는 HTML · CSS · 작은 SVG, 또는 번들에 들어가는 가벼운 라이브러리만 |
-| **같은 출처** | 서버가 CORS를 열지 않음. FastAPI가 `static/`을 그대로 서빙 (`sentinelai/web/main.py`의 `StaticFiles`). 개발 때는 Vite 프록시로 `/api`를 `http://127.0.0.1:8001`(`make dev`)에 넘김 |
+| **같은 출처** | 서버가 CORS를 열지 않음. FastAPI가 `static/`을 그대로 서빙 (`sentinelai/web/main.py`의 `StaticFiles`). 개발 때는 Vite 프록시로 `/api`를 `http://127.0.0.1:8001`(`scripts/dev.py web`)에 넘김 |
 | **쿠키 세션** | 로그인하면 `HttpOnly · SameSite=Strict` 쿠키(2일). 스크립트는 토큰을 보지도 저장하지도 않음 |
 | **결정은 사람이** | AI 판정을 보여주고 사람의 결재 · 결정만 받음. 자동 승인 · 자동 조치 버튼 없음 |
 | **일반 사용자에게 AI 흔적 없음** | 일반 사용자(`user`) 응답에는 AI 칸 자체가 없음. 화면에도 AI 판정 · 엔진 경고 · 모델 이야기 없음 (`/api/health`는 403) |
@@ -317,23 +317,25 @@
 - 간격(`p-*` · `gap-*` · `h-*` · `size-*` …) 단위는 px (`--spacing: 4px`). 브라우저 기본 글자 크기를 키워도 여백은 옛 화면처럼 그대로
 
 ```sh
-make install          # 처음 한 번 (Python venv · .env)
-make dev-setup        # .dev/ 에 시험 DB · 계정 · 권한 목록 (RESET=1 이면 새로)
-make dev              # API + 커밋된 화면: http://127.0.0.1:8001
-make front-install    # npm 의존성 (처음 한 번)
-make front            # 화면 개발 서버: http://localhost:5173 (/api 는 8001 로)
-make front-test       # 단위 시험 · 타입 검사 · 린트
-make front-build      # sentinelai/web/static/ 에 빌드 — 화면 소스와 같은 커밋에
-make front-check      # 깨끗이 설치해 빌드한 결과가 커밋된 것과 같은지
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && cp .env.example .env   # 처음 한 번
+docker compose up -d --wait postgres     # 시험 DB (PostgreSQL)
+.venv/bin/python scripts/dev.py setup    # .dev/ · 시험 DB 에 계정 · 권한 목록 (--reset 이면 새로)
+.venv/bin/python scripts/dev.py web      # API + 커밋된 화면: http://127.0.0.1:8001
+
+cd frontend
+npm ci                                   # npm 의존성 (처음 한 번)
+npm run dev                              # 화면 개발 서버: http://localhost:5173 (/api 는 8001 로)
+npm test && npm run typecheck && npm run lint   # 단위 시험 · 타입 검사 · 린트
+npm run build                            # sentinelai/web/static/ 에 빌드 — 화면 소스와 같은 커밋에
 ```
 
 - 시험 계정: `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`
-- 노드 · 서버 점검 화면을 채우려면 `make dev-sim`(흉내 노드). 로그 감시는 `.env`의 `SENTINELAI_EVENTS_SOURCE` 로그 파일
+- 노드 · 서버 점검 화면을 채우려면 `scripts/dev.py sim`(흉내 노드). 로그 감시는 `.env`의 `SENTINELAI_EVENTS_SOURCE` 로그 파일
 - 쿠키는 포트가 아니라 호스트별. 커밋된 화면은 `127.0.0.1:8001`, 개발 서버는 `localhost:5173`으로 열면 세션이 따로 감
-- 세 계정 비교: `make front` 뒤 http://localhost:5173/compare.html — 위 버튼으로 보안 총책임자 · 보안 운영자 · 일반 사용자 화면을 바꿈 ([나란히]는 11/2에 뺐음)
+- 세 계정 비교: `npm run dev` 뒤 http://localhost:5173/compare.html — 위 버튼으로 보안 총책임자 · 보안 운영자 · 일반 사용자 화면을 바꿈 ([나란히]는 11/2에 뺐음)
 - 비교 화면은 칸마다 처음 한 번 평소처럼 로그인함. 칸의 로그인은 개발 서버가 따로 보관(`vite.config.ts`)해 브라우저 세션과 섞이지 않고, 개발 서버를 다시 띄우면 다시 로그인
 - `compare.html`은 개발 서버 전용 — 빌드에 안 들어감. 로그인 · 로그아웃 코드는 그대로
-- `make front-check` 뒤에는 개발 서버를 다시 띄움 (의존성 캐시가 낡아 504)
+- 커밋된 빌드 확인: `npm ci && npm run build` 뒤 `git status sentinelai/web/static`이 비어 있으면 같음. 그 뒤에는 개발 서버를 다시 띄움 (의존성 캐시가 낡아 504)
 - 지원 브라우저: Chrome · Edge 111+, Safari 16.4+, Firefox 128+ (Tailwind v4 — cascade layer · `@property`). 더 오래된 브라우저에서는 스타일이 통째로 빠지고 `build.target`으로 낮출 수 없음
 
 ---

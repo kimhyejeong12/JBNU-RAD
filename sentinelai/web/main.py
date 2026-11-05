@@ -1,4 +1,4 @@
-"""FastAPI 백엔드 — `make web` 후 http://localhost:8000"""
+"""FastAPI 백엔드 — `docker compose up` 후 http://localhost:8000"""
 from __future__ import annotations
 
 import json

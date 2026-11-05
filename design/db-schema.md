@@ -248,7 +248,7 @@ users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 
 ---
 
-## 4. 검증한 것 (`schema.sql`을 SQLite로 실행 — PostgreSQL로 옮긴 뒤로는 `make test`의 `tests/test_main_db.py`)
+## 4. 검증한 것 (`schema.sql`을 SQLite로 실행 — PostgreSQL로 옮긴 뒤로는 `scripts/dev.py test`의 `tests/test_main_db.py`)
 
 - 준비: 루트 → 보안 총책임자 · 보안 운영자 2명(영업팀 · 인사팀) · 일반 사용자 생성 후 실행
 - 신청 → 인사팀 보안 운영자 1차 승인 → 다른 보안 총책임자 최종 승인 → `approved`. 결재자 이름 · 부서 · AI 등급 남음
@@ -288,7 +288,7 @@ DB가 거부한 **25가지**
 5. ~~루트 아닌 보안 총책임자의 계정 권한~~ → 보안 총책임자 누구나 계정을 만들고 고침. 루트 계정만 루트가 고침 (결정 18)
 6. **결재 이력 화면** — 보안 운영자는 자기 결재만 볼지, 전체를 볼지
 7. ~~정책 데이터 · 정책 검토 · 질의 기록 — 어디에 두나?~~ → 정책 검토 · 질의 기록은 AI 결과 DB ([`results-db.md`](results-db.md), 10/12). 정책 데이터(솔루션 정책 원본)는 아직 파일
-8. **초기 루트 생성 방법** — 지금은 서버에서 실행하는 CLI(`make create-root`, 비밀번호는 화면 표시 없이 입력)로 만들었음. 다른 방법으로 정하면 바꿈
+8. **초기 루트 생성 방법** — 지금은 서버에서 실행하는 CLI(`./sentinel create-root`, 비밀번호는 화면 표시 없이 입력)로 만들었음. 다른 방법으로 정하면 바꿈
 9. ~~AI 판정 입력~~ → 11/3에 신청 사유 · 사용 기간 · 직무 · 신청 전 90일 안의 이동을 넣음 (`ACCESS_REVIEW`)
 10. ~~비밀번호 규칙~~ → 길이 제한 없음 (10/12, 인트라넷 서비스). 빈 비밀번호만 막음. 잠금은 5회 실패 → 15분 그대로
 11. **도입 전부터 가진 권한** — 현재 보유 권한은 이 시스템에서 승인된 신청만 읽음. 나중에 옮겨 넣는(마이그레이션) 부분을 따로 만들 예정 (10/20)
@@ -306,4 +306,4 @@ DB가 거부한 **25가지**
 - **쓰기는 차례로** — SQLite의 `BEGIN IMMEDIATE`처럼 쓰기 트랜잭션은 스키마마다 `pg_advisory_xact_lock`으로 하나씩. 신청 번호 매기기(읽고 나서 쓰기)가 겹치지 않음
 - **값은 SQLite 때와 같게** — 시각은 ISO 8601 문자열(TEXT), 0/1 칸은 INTEGER (Python `True`/`False`는 1/0으로 넣음). DB는 UTF-8 · C 로캘로 만들어 문자열 비교 · 정렬이 SQLite(바이트 순)와 같음
 - 바뀐 문법 — `?` → `%s`, `lastrowid` → `RETURNING id`, `INSERT OR IGNORE` → `ON CONFLICT DO NOTHING`, `IS 'x'` → `IS NOT DISTINCT FROM 'x'`, `GLOB` → 정규식, `COLLATE NOCASE` → `lower(login_id)` 유일 색인, `REAL` → `DOUBLE PRECISION`, `event_findings.user` → `"user"` (예약어)
-- 시험 — `make test`가 시험 DB(`sentinelai_test`)에 시험마다 새 스키마를 만들어 트리거 · 쿼리를 돌림 (`tests/`)
+- 시험 — `scripts/dev.py test`가 시험 DB(`sentinelai_test`)에 시험마다 새 스키마를 만들어 트리거 · 쿼리를 돌림 (`tests/`)

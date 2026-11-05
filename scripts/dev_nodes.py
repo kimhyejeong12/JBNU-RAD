@@ -1,12 +1,12 @@
 """노드 수집 시험 — 시험 환경(.dev/)의 노드 키 꺼내기 · 노드 흉내.
 
-    python scripts/dev_nodes.py key 이름            노드 키 (없으면 등록해 발급) — make dev-targets 가 컨테이너에 넣습니다
-    python scripts/dev_nodes.py sim [-n 3] [-r 3] [-e 5]   흉내 노드 n 대가 e 초마다 r 번 보냅니다 (make dev-sim)
+    python scripts/dev_nodes.py key 이름            노드 키 (없으면 등록해 발급) — scripts/dev.py targets 가 컨테이너에 넣습니다
+    python scripts/dev_nodes.py sim [-n 3] [-r 3] [-e 5]   흉내 노드 n 대가 e 초마다 r 번 보냅니다 (scripts/dev.py sim)
 
 흉내 노드는 잠근 Ubuntu 서버(target-strict 컨테이너와 비슷한 BASE)의 원문에서 시작해, 차례마다 설정을 조금씩 바꿔(UFW 끄기 ·
 root 로그인 열기 · NOPASSWD 더하기 · 실패 잠금 빼기 등) 진짜 노드와 같은 주소로 보냅니다. 서버의 받기 · 바뀐 것 세기 · 주기 점검 · 화면을
-진짜 서버 없이 시험합니다. 진짜 수집은 make dev-targets (컨테이너 안에서 노드가 root 로 읽음).
-위치는 Makefile 의 DEV_ENV 를 따릅니다 (진짜 DB 를 건드리지 않음).
+진짜 서버 없이 시험합니다. 진짜 수집은 scripts/dev.py targets (컨테이너 안에서 노드가 root 로 읽음).
+위치는 scripts/dev.py 의 dev_env 를 따릅니다 (진짜 DB 를 건드리지 않음).
 """
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ def _send(server: str, key: str, payload: dict) -> str:
     except urllib.error.HTTPError as exc:
         return f"거부 {exc.code}: {exc.read().decode()[:120]}"
     except OSError as exc:
-        return f"보내지 못함: {exc} (make dev 가 떠 있나요?)"
+        return f"보내지 못함: {exc} (scripts/dev.py web 이 떠 있나요?)"
 
 
 def simulate(count: int, rounds: int, every: float, server: str, seed: int) -> int:

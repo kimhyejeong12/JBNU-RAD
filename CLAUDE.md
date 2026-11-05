@@ -86,7 +86,7 @@ JBNU-RAD/
 │       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 줌
 │       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
 │       ├── notify.py             결재 대기 → Slack 채널 (새 신청 = 1차 결재 대기, 1차 승인 = 최종 결재 대기). `SENTINELAI_SLACK_WEBHOOK_URL`, 비우면 끔. 신청 번호 · 부서 · 권한만, 결과(승인 · 반려)는 채널에 안 보냄. 결재 결과(1차 반려 · 최종 승인 · 최종 반려) → 신청자 계정 이메일(`users.email`), SMTP `SENTINELAI_SMTP_*`, 비우면 끔, 신청 번호 · 권한 · 결과만 (11/04)
-│       └── static/               화면 빌드 결과 — frontend/ 에서 `make front-build` 로 만들어 커밋. 서버는 그대로 서빙
+│       └── static/               화면 빌드 결과 — frontend/ 에서 `npm run build` 로 만들어 커밋. 서버는 그대로 서빙
 ├── frontend/                 React 화면 소스 (김혜정) — TypeScript · Vite · TanStack Query · Vitest · Tailwind v4. 10/29에 옛 index.html 을 기능 · 모양 그대로 옮기고 10/30에 CSS를 Tailwind로 바꿨음 (화면 그대로, 리디자인은 다음)
 │   └── src/
 │       ├── app/                  껍데기 — App(로그인 게이트) · styles.css(CSS는 이 파일 하나 — Tailwind · 색 토큰 · 화면 틀)
@@ -97,7 +97,7 @@ JBNU-RAD/
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
 │       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
 │       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(예시 질문은 config.ts) · stats · catalog · accounts · regulations(기준 문서). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
-├── docs/                     판정 근거 기준 문서(.md · .txt) — 보안 총책임자가 화면에서 올리고(10/30) 고치고(11/2) 지움(11/3), 코드 작업으로는 고치지 않음 (make index 가 RAG에 적재)
+├── docs/                     판정 근거 기준 문서(.md · .txt) — 보안 총책임자가 화면에서 올리고(10/30) 고치고(11/2) 지움(11/3), 코드 작업으로는 고치지 않음 (CLI `index` · 정책 관리 검토가 RAG에 적재)
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
 ├── data/                     검토 대상 (위치는 .env)
@@ -106,14 +106,15 @@ JBNU-RAD/
 │   ├── install.sh              /opt/sentinel-node · /etc/sentinel-node/node.conf · systemd 설치 · 제거
 │   └── testenv/                시험용 점검 대상 컨테이너 (Ubuntu + ufw · sshd · PAM · sudo, weak · strict)
 ├── scripts/                  dev_setup.py(로컬 시험 환경) · dev_nodes.py(노드 키 꺼내기 · 흉내 노드) · postgres-init.sql(시험 DB 만들기)
-├── tests/                    DB 시험 (pytest, 시험마다 새 스키마) — make test
+├── tests/                    DB 시험 (pytest, 시험마다 새 스키마) — scripts/dev.py test
 ├── design/                   DB 설계 — db-schema.md(권한 DB 결정 경위 · 남은 질문) · results-db.md(AI 결과 DB)
 ├── FRONTEND_GUIDE.md         화면 가이드 — 화면 동작 · 화면 규칙의 단일 출처
 ├── NOTES.md                  작업 메모 — 설정 값의 이유 · 서버 이슈 경위 · 모델 비교 (설정 파일 · 코드에 설명 주석 대신 여기에)
 ├── .dev/ · .milvus/          로컬 시험 환경 파일 · 벡터 DB 파일 (git 제외)
-├── .env · .env.example       설정. .env 는 git 제외, make install 이 예시에서 만듦
-├── compose.yaml              웹(app) + PostgreSQL 18 (make up, DB만은 make db-up). DB sentinelai · sentinelai_dev · sentinelai_test. 벡터 DB · 기준 문서 · PostgreSQL은 볼륨, data/는 읽기만
-├── Makefile · requirements.txt · requirements-dev.txt
+├── .env · .env.example       설정. .env 는 git 제외, 처음에 예시를 복사함
+├── compose.yaml              웹(app) + PostgreSQL 18 (docker compose up, DB만은 뒤에 postgres). DB sentinelai · sentinelai_dev · sentinelai_test. 벡터 DB · 기준 문서 · PostgreSQL은 볼륨, data/는 읽기만
+├── sentinel                  CLI — 떠 있는 컨테이너 안에서 `python -m sentinelai` (11/5, Makefile 대신)
+├── requirements.txt · requirements-dev.txt
 └── Dockerfile · README.md    컨테이너 이미지(웹 · 엔진 · data · db · CLI, 11/04에 웹을 넣음) · 저장소 소개
 ```
 
@@ -161,9 +162,9 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 - 못 보낸 수집은 노드에 쌓였다가 다음 차례에 먼저 보냄
 - 무엇을 뽑아 판정할지는 `sentinelai/data/collected.py`가 정함 (설치 안 됨과 권한이 없어 못 읽음은 다른 값)
 - 서버는 노드 · 수집 시각별로 `server_snapshots`에 쌓고 직전 수집과 달라진 설정을 셈
-- 망이 막힌 서버는 노드의 `export` 파일을 `make import-snapshots`로 넣음
+- 망이 막힌 서버는 노드의 `export` 파일을 `./sentinel import-snapshots`로 넣음
 - 서버 현황 표(`data/servers/`)가 있으면 노드 점검에 호스트 이름 · IP가 같은 행을 덧붙임
-- 노드 시험은 점검 대상 컨테이너 · 흉내 노드로 (§3 `make dev-targets` · `make dev-sim`)
+- 노드 시험은 점검 대상 컨테이너 · 흉내 노드로 (§3 `scripts/dev.py targets` · `sim`)
 
 ---
 
@@ -255,7 +256,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 
 ### 화면
 
-`make web` (`sentinelai/web/main.py`). 메뉴 · 탭 · 화면별 동작 · 화면 규칙은 **`FRONTEND_GUIDE.md`** 한 곳에 둠.
+`docker compose up` (`sentinelai/web/main.py`). 메뉴 · 탭 · 화면별 동작 · 화면 규칙은 **`FRONTEND_GUIDE.md`** 한 곳에 둠.
 
 | 역할 | 메뉴 |
 |---|---|
@@ -267,31 +268,27 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 
 ## 3. 실행
 
+Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./sentinel`, 시험 환경은 `scripts/dev.py`, 화면은 `frontend/`의 `npm`.
+
 | 명령 | 하는 일 |
 |---|---|
-| `make up` · `make down` · `make logs` | **컨테이너로** 웹 + PostgreSQL 올리기 (venv 없이, http://localhost:8000) · 내리기(볼륨은 남음) · 웹 로그. 다른 컴퓨터에서 보려면 `.env`에 `SENTINELAI_WEB_BIND=0.0.0.0` (11/04) |
-| `make docker-root LOGIN=아이디 NAME=이름 [DEPT=부서]` | 컨테이너 안에서 첫 루트 계정 (`make up` 뒤 한 번). CLI는 `docker compose exec app python -m sentinelai 명령` |
-| `make install` | venv · 의존성 · `.env` 준비 (처음 한 번) |
-| `make db-up` · `make db-down` | PostgreSQL 컨테이너만 올리기 · 내리기 (venv로 돌릴 때) (데이터는 볼륨에 남음). 팀 서버처럼 PostgreSQL 이 따로 있으면 `.env` 주소만 |
-| `make test` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움 |
-| `make web` | 대시보드 http://localhost:8000. 로그 감시 · 서버 점검은 웹이 스스로, 정책 관리 검토는 화면 버튼 |
-| `make health` | 서버 · 모델 · 벡터 DB · 두 DB 위치 확인 |
-| `make create-root LOGIN=아이디 NAME=이름 [DEPT=부서]` | 첫 루트 계정(보안 총책임자) — 서버에서 한 번만. 비밀번호는 화면 표시 없이 입력 |
-| `make import-snapshots DIR=폴더 NODE=이름` | 망이 막힌 노드의 `export` 파일 넣기 (벡터 DB를 안 써서 웹이 떠 있어도 됨) |
-| `make index [DOCS=경로] [REBUILD=1]` | 기준 문서 적재 (기본 `docs/`, 바뀐 파일만). `REBUILD=1`은 규칙까지 지우므로 그 뒤 `review-policies` 다시 |
-| `make review-policies` | 정책 관리 검토 1회 → AI 결과 DB |
-| `make check-nodes` | 서버 점검 1회 (새 수집이 온 노드만) |
-| `make monitor [SINCE=시각] [FULL=1]` | 로그 감시 1회 (지난 감시 이후, 웹 없는 서버에서 cron으로). `FULL=1`이면 처음부터 |
-| `make dev-setup [RESET=1]` | **로컬 시험 환경**을 `sentinelai_dev` DB · `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 이 컴퓨터용 노드 `dev-local` 키로 `.dev/node.conf`. 모델 서버에 닿으면 기준 문서도 적재 |
-| `make dev [DEV_CHECK_MIN=5]` | 시험 환경으로 웹 (http://127.0.0.1:8001, `sentinelai_dev` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 됨). 로그 감시 · 서버 점검은 `DEV_CHECK_MIN`분마다 |
-| `make dev-sim [NODES=3] [ROUNDS=3] [EVERY=5]` | **노드 수집 흉내** — 흉내 노드(sim-01…)가 잠근 Ubuntu 원문에서 시작해 차례마다 반쯤 확률로 설정 하나를 바꿔(UFW 끄기 · root · 비밀번호 로그인 열기 · NOPASSWD · 실패 잠금 빼기) 진짜 노드와 같은 주소 · 키로 보냄 |
-| `make dev-targets` · `make dev-targets-stop` | **진짜 수집** — podman compose로 점검 대상 컨테이너 2대(`target-weak`: 약한 설정 / `target-strict`: 잠근 설정)를 올리고 내림. 값은 `node/testenv/targets.env`(git 제외: `SERVER` · `KEY_WEAK` · `KEY_STRICT` · `INTERVAL`, 없으면 시험 환경 키로 만듦). SentinelAI를 바깥에 열지 않고(pasta `--map-host-loopback`) ufw가 실제로 켜짐(NET_ADMIN). 사용자 podman 소켓 필요. 10/20 시험: weak 위험 · strict 정상 |
-| `make dev-node` | 이 컴퓨터를 노드로 한 번 보내기 (root가 아니면 SSH · sudo는 "확인 못함") |
-| `make front-install` · `make front` · `make front-test` | 화면 개발 — npm 의존성(처음 한 번) · 개발 서버 http://localhost:5173 (`/api`는 8001로) · 시험 · 타입 검사 · 린트 |
-| `make front-build` · `make front-check` | 화면 빌드 → `sentinelai/web/static/` (**커밋**함 — 팀 서버에 Node · 외부망이 없어도 `make web`만으로 새 화면) · 깨끗이 설치해 빌드한 결과가 커밋된 것과 같은지 확인 |
+| `docker compose up -d --build --wait` · `down` · `logs -f app` | **컨테이너로** 웹 + PostgreSQL 올리기 (http://localhost:8000) · 내리기(볼륨은 남음) · 웹 로그. 다른 컴퓨터에서 보려면 `.env`에 `SENTINELAI_WEB_BIND=0.0.0.0` (11/04). PostgreSQL만은 끝에 `postgres` |
+| `./sentinel 명령` | 떠 있는 컨테이너 안에서 `python -m sentinelai 명령`. 터미널이 없으면(cron) `-T`로 붙음 |
+| `./sentinel create-root --login 아이디 --name 이름 [--department 부서]` | 첫 루트 계정(보안 총책임자) — 한 번만. 비밀번호는 화면 표시 없이 입력 |
+| `./sentinel import-snapshots 폴더 --node 이름` | 망이 막힌 노드의 `export` 파일 넣기 (폴더를 컨테이너로 복사해 넣음, 벡터 DB를 안 써서 웹이 떠 있어도 됨) |
+| `python -m sentinelai health` · `index [경로] [--rebuild]` · `review-policies` · `check-nodes` · `monitor [--since 시각] [--full]` | 웹이 꺼져 있을 때만 (venv). 연결 확인 · 기준 문서 적재(`--rebuild`는 규칙까지 지우므로 그 뒤 `review-policies` 다시) · 정책 관리 검토 · 서버 점검 · 로그 감시 1회(cron용, `--full`이면 처음부터) |
+| `scripts/dev.py setup [--reset]` | **로컬 시험 환경**을 `sentinelai_dev` DB · `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 이 컴퓨터용 노드 `dev-local` 키로 `.dev/node.conf`. 모델 서버에 닿으면 기준 문서도 적재 |
+| `scripts/dev.py web [--check-min 5]` | 시험 환경으로 웹 (http://127.0.0.1:8001, `sentinelai_dev` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 됨). 로그 감시 · 서버 점검은 `--check-min`분마다 |
+| `scripts/dev.py test` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움 |
+| `scripts/dev.py sim [-n 3] [-r 3] [-e 5]` | **노드 수집 흉내** — 흉내 노드(sim-01…)가 잠근 Ubuntu 원문에서 시작해 차례마다 반쯤 확률로 설정 하나를 바꿔(UFW 끄기 · root · 비밀번호 로그인 열기 · NOPASSWD · 실패 잠금 빼기) 진짜 노드와 같은 주소 · 키로 보냄 |
+| `scripts/dev.py targets [up\|down]` | **진짜 수집** — podman compose로 점검 대상 컨테이너 2대(`target-weak`: 약한 설정 / `target-strict`: 잠근 설정)를 올리고 내림. 값은 `node/testenv/targets.env`(git 제외: `SERVER` · `KEY_WEAK` · `KEY_STRICT` · `INTERVAL`, 없으면 시험 환경 키로 만듦). SentinelAI를 바깥에 열지 않고(pasta `--map-host-loopback`) ufw가 실제로 켜짐(NET_ADMIN). 사용자 podman 소켓 필요. 10/20 시험: weak 위험 · strict 정상 |
+| `scripts/dev.py node` | 이 컴퓨터를 노드로 한 번 보내기 (root가 아니면 SSH · sudo는 "확인 못함") |
+| `npm ci` · `npm run dev` · `npm test && npm run typecheck && npm run lint` (`frontend/`) | 화면 개발 — npm 의존성(처음 한 번) · 개발 서버 http://localhost:5173 (`/api`는 8001로) · 시험 · 타입 검사 · 린트 |
+| `npm run build` (`frontend/`) | 화면 빌드 → `sentinelai/web/static/` (**커밋**함 — 팀 서버에 Node · 외부망이 없어도 새 화면). 깨끗이 설치해(`npm ci`) 빌드한 뒤 `git status sentinelai/web/static`이 비면 커밋된 것과 같음 |
 
+- venv 준비(처음 한 번): `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && cp .env.example .env`. 팀 서버처럼 PostgreSQL 이 따로 있으면 `.env` 주소만
 - 10/20에 CLI를 줄였음 — `config` · `models` · `search` · `ask` · `chat` · `index-policies` · `review-requests` · `ask-logs` 없앰 (질의는 화면에서, 규칙 적재는 `review-policies`가)
-- **Milvus Lite 파일 락**: `make web`이 떠 있으면 `make health` · `index` · `review-policies` · `check-nodes` · `monitor`가 실패함. 웹이 떠 있을 때는 웹이 돌림
+- **Milvus Lite 파일 락**: 웹이 떠 있으면 CLI `health` · `index` · `review-policies` · `check-nodes` · `monitor`가 실패함 (컨테이너에서는 웹이 늘 떠 있음). 웹이 떠 있을 때는 웹이 돌림
 
 설정은 `.env` 한 곳. 코드에 주소 · 모델명을 하드코딩하지 않음. 두 환경 모두에서 동작해야 함.
 
@@ -311,7 +308,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 - ❌ `sentinelai/engine/` 수정 · `docs/`를 코드 작업으로 고치기 (기준 문서는 보안 총책임자가 화면에서 올리고 고치고 지움, 10/30 · 11/2 · 11/3). 프롬프트(`sentinelai/engine/prompt.py`)도 엔진 담당자와 상의 없이 안 바꿈
 - ❌ 엔진 기능 재구현 · 엔진 타입을 대체하는 웹 전용 스키마
 - ❌ 서버 주소 · 모델명 하드코딩 — 전부 `Settings`
-- ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제). 화면은 React + Vite, 빌드 결과를 커밋 (서버에 Node 불필요). 화면 소스를 고치면 `make front-build` 결과를 같은 커밋에. 스타일은 Tailwind v4 유틸리티 (`FRONTEND_GUIDE.md` §9). shadcn/ui 부품 등 새 의존성은 리디자인 때 정함
+- ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제). 화면은 React + Vite, 빌드 결과를 커밋 (서버에 Node 불필요). 화면 소스를 고치면 `npm run build` 결과를 같은 커밋에. 스타일은 Tailwind v4 유틸리티 (`FRONTEND_GUIDE.md` §9). shadcn/ui 부품 등 새 의존성은 리디자인 때 정함
 - ❌ 기준 문서(.md · .txt, 보안 총책임자) 말고는 파일 업로드 (pptx · pdf 등 문서 데이터 읽기는 §8 6에서 정함)
 - ❌ 정책 자동 수정 · 권한 자동 승인 — 결정은 사람이 함
 - ❌ 엔진 출력을 손으로 고치기 · 근거 없는 목업 데이터 · 사전 계산 답을 실시간처럼 보이는 연출 (10/8에 모두 걷어냈음)
@@ -375,7 +372,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 ## 7. 시연 기록 (9/30 산학 자문 멘토링)
 
 - 9/30 시연은 사전 계산 결과(`results.json` · `ask_results.json`) · 시연용 위험 예시 4건 · 예시 답 로딩 연출로 했음. 10/8에 모두 걷어내고 화면이 코어 작업을 직접 돌리게 바꿨음
-- 다음 시연 순서: 팀 서버 연결 → `make health` → `make web` → 정책 관리 검토를 로그 감시보다 먼저 (규칙이 적재돼야 로그 감시가 찾음)
+- 다음 시연 순서: 팀 서버 연결 → `python -m sentinelai health` → `docker compose up` → 정책 관리 검토를 로그 감시보다 먼저 (규칙이 적재돼야 로그 감시가 찾음)
 - 판정 한 건에 1~3분이라 미리 돌려 둠. 결과는 AI 결과 DB에 남아 서버를 다시 띄워도 보임
 
 ---

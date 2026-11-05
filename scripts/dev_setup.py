@@ -1,9 +1,9 @@
-"""로컬 시험 환경 — `make dev-setup` 이 부릅니다.
+"""로컬 시험 환경 — `scripts/dev.py setup` 이 부릅니다.
 
-진짜 DB · 벡터 DB 는 건드리지 않고 시험 DB(sentinelai_dev) · .dev/ 에 따로 만듭니다 (위치는 Makefile 의 DEV_ENV).
+진짜 DB · 벡터 DB 는 건드리지 않고 시험 DB(sentinelai_dev) · .dev/ 에 따로 만듭니다 (위치는 scripts/dev.py 의 dev_env).
 역할마다 시험 계정 · 시험용 권한 목록과 이 컴퓨터에서 돌릴 노드 설정(.dev/node.conf)을 넣고, 모델 서버에 닿으면 기준 문서도 적재합니다.
-노드 수집은 make dev-targets (컨테이너) · make dev-sim (흉내 노드)로 넣습니다.
-다시 만들려면 `make dev-setup RESET=1`.
+노드 수집은 scripts/dev.py targets (컨테이너) · sim (흉내 노드)로 넣습니다.
+다시 만들려면 `scripts/dev.py setup --reset`.
 """
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ def reset_db(url: str, schema: str) -> None:
     """시험 DB 의 스키마를 지웁니다 (SQLite 때 .dev/*.db 를 지우던 것). 진짜 DB 를 지우지 않게 이름에 dev 가 든 DB 만."""
     name = conninfo_to_dict(url).get("dbname", "")
     if "dev" not in name:
-        raise SystemExit(f"시험 DB 가 아닙니다 ({name}) — Makefile 의 DEV_DATABASE_URL 로 돌리세요")
+        raise SystemExit(f"시험 DB 가 아닙니다 ({name}) — scripts/dev.py setup 으로 돌리세요")
     with psycopg.connect(url, autocommit=True) as conn:
         conn.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
 
@@ -51,7 +51,7 @@ def reset_db(url: str, schema: str) -> None:
 def main() -> int:
     if DEV.exists():
         if os.environ.get("RESET") != "1":
-            print(f"{DEV} 가 이미 있습니다. 다시 만들려면: make dev-setup RESET=1")
+            print(f"{DEV} 가 이미 있습니다. 다시 만들려면: scripts/dev.py setup --reset")
             return 1
         shutil.rmtree(DEV)
     DEV.mkdir()
@@ -91,8 +91,8 @@ def main() -> int:
   이 컴퓨터용 노드 dev-local (설정 .dev/node.conf)
   기준 문서: {indexed}
 
-  make dev        웹 http://127.0.0.1:{PORT} (진짜 DB 대신 시험 DB · .dev/)
-  make dev-targets · make dev-sim · make dev-node   노드 수집 넣기 (make dev 가 떠 있을 때)""")
+  scripts/dev.py web        웹 http://127.0.0.1:{PORT} (진짜 DB 대신 시험 DB · .dev/)
+  scripts/dev.py targets · sim · node   노드 수집 넣기 (web 이 떠 있을 때)""")
     return 0
 
 

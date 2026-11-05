@@ -1,4 +1,4 @@
 -r requirements.txt
 
-# DB 시험 (make test)
+# DB 시험 (scripts/dev.py test)
 pytest>=8

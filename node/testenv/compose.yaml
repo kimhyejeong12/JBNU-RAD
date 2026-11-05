@@ -1,4 +1,4 @@
-# 시험용 점검 대상 서버 — 값은 targets.env (make dev-targets 가 시험 환경 키로 만들어 줌, 또는 targets.env.example 을 복사해 고침)
+# 시험용 점검 대상 서버 — 값은 targets.env (scripts/dev.py targets 가 시험 환경 키로 만들어 줌, 또는 targets.env.example 을 복사해 고침)
 #   podman compose --env-file targets.env up -d --build    /    podman compose --env-file targets.env down
 # 대상을 늘리려면 서비스를 하나 더 두고 PROFILE · KEY 를 정합니다.
 x-target: &target

@@ -1,4 +1,4 @@
-# SentinelAI 웹(app) + PostgreSQL. `make up` 이 둘 다, `make db-up` 은 PostgreSQL 만 띄웁니다 (venv 로 make web · make test 할 때).
+# SentinelAI 웹(app) + PostgreSQL. `docker compose up -d --build --wait` 가 둘 다, 뒤에 postgres 를 붙이면 PostgreSQL 만 띄웁니다 (venv 로 웹 · DB 시험을 돌릴 때).
 # 설정은 .env 를 그대로 읽고, DB 주소만 컨테이너끼리 닿는 이름(postgres)으로 바꿉니다. AI 모델 서버(Ollama)는 .env 주소 그대로.
 # 비밀번호는 .env 의 SENTINELAI_DB_PASSWORD 로 바꿉니다 (없으면 개발용 기본값 — SENTINELAI_DB_PATH · SENTINELAI_RESULTS_DB_PATH 와 맞춰 주세요).
 # 둘 다 이 컴퓨터(127.0.0.1)에서만 열고, 웹을 다른 컴퓨터에서 보려면 .env 에 SENTINELAI_WEB_BIND=0.0.0.0.
