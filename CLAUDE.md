@@ -26,7 +26,7 @@ SK쉴더스 산학협력 문제 제안서(2026. 8.)가 이 과제의 기준.
 
 | 요구 | 지금 구현 | 빈 곳 |
 |---|---|---|
-| 로컬 LLM · RAG — 보안정책 · 접근통제 · 권한 부여 기준 · 운영 가이드를 Vector DB에 | Ollama · Milvus Lite · `docs/` 기준 문서 2개 | 운영 가이드 · 사내 원문 pptx · pdf (§8 7) |
+| 로컬 LLM · RAG — 보안정책 · 접근통제 · 권한 부여 기준 · 운영 가이드를 Vector DB에 | Ollama · Milvus(compose) · `docs/` 기준 문서 2개 | 운영 가이드 · 사내 원문 pptx · pdf (§8 7) |
 | 정책 검토 — 공통 형식으로 표준화, 충돌 · 중복 · 과도한 허용 · 기준 위반과 개선안 | `review_policies` — RAG에 올라간 기준 문서끼리 견줌 (11/5, 솔루션 정책 파일 읽기는 뺐음) | 실제 솔루션 정책을 RAG에 올리는 길 (§8 2) |
 | 권한 적정성 — 부서 · 직무 · 기존 권한 · 신청 권한 → 승인 · 추가 검토 · 반려 권고 | `judge_request` (정상 → 승인 권고 · 주의 → 추가 검토 · 위험 → 반려 권고). 직무 · 신청 사유 · 사용 기간 · 최근 이동을 봄 (11/3). 받은 뒤 이동하면 `judge_grant`로 다시, 퇴사하면 코드가 위험 | 직무 기준 문서 (직무별 필요 권한) |
 | 대시보드 · 알림 — 정상 · 주의 · 위험, 위험이면 운영자 알림(이메일 · 메신저 포함), 고칠 것 설명 | 웹 대시보드 · 종 배지 · 결재 대기 Slack 채널 알림 · 결재 결과 신청자 메일(11/04) | 위험 판정 알림 (§8 4) |
@@ -89,7 +89,7 @@ JBNU-RAD/
 │   │   ├── nodes.py              수집 노드 등록부 — 노드마다 키 발급(해시로 찾고 화면에서 다시 볼 수 있게 키도 둠) · 다시 발급 · 끄기 (10/20)
 │   │   └── results.py            AI 결과 DB 저장 · 조회 — 정책 관리 검토 · 로그 감시(다음 감시 시작점 포함) · 내 질의 기록 · 보안 통계(threat_stats). CLI · 웹이 같은 DB를 씀
 │   └── web/                    웹 계층 (김혜정) — Engine 기능을 부르고 결과를 보여줌. 판정 로직 · 큐 없음
-│       ├── main.py               FastAPI — API + 화면 서빙. 시작 때 Engine 생성 · start()(작업 큐), 끌 때 stop()(큐 · 벡터 DB 잠금 해제)
+│       ├── main.py               FastAPI — API + 화면 서빙. 시작 때 Engine 생성 · start()(작업 큐), 끌 때 stop()(큐 · 벡터 DB 연결 닫기)
 │       ├── api_nodes.py          수집 노드 API — 수집 받기(키만) · 등록 · 키 발급 · 목록 · 끄기 (/api/nodes)
 │       ├── api_regulations.py    기준 문서 API — 보기 · 올리기 · 고치기(보안 총책임자, 감사 기록). 엔진의 공개 기능(index)만 씀 (/api/regulations)
 │       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 줌
@@ -105,7 +105,7 @@ JBNU-RAD/
 │       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · SourceChips) · confirm/(확인 창 — ask · ConfirmLayer)
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
 │       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
-│       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(예시 질문은 config.ts) · stats · catalog · accounts · regulations(기준 문서) · engine(설정 — 작업 큐). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
+│       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(예시 질문은 config.ts) · stats · catalog · accounts · regulations(기준 문서) · engine(관리의 큐 탭). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
 ├── docs/                     판정 근거 기준 문서(.md · .txt) — 보안 총책임자가 화면에서 올리고(10/30) 고치고(11/2) 지움(11/3), 코드 작업으로는 고치지 않음 (CLI `index` · 정책 관리 검토가 RAG에 적재)
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
@@ -115,9 +115,10 @@ JBNU-RAD/
 │   ├── install.sh              /opt/sentinel-node · /etc/sentinel-node/node.conf · systemd 설치 · 제거
 │   └── testenv/                시험용 점검 대상 컨테이너 (Ubuntu + ufw · sshd · PAM · sudo, weak · strict)
 ├── tests/                    DB 시험 (pytest, 시험마다 새 스키마) — python -m sentinelai.dev test
-├── .dev/ · .milvus/          로컬 시험 환경 파일 · 벡터 DB 파일 (git 제외)
+├── .dev/                     로컬 시험 환경 파일 (git 제외)
 ├── .env · .env.example       설정. .env 는 git 제외, 처음에 예시를 복사함
-├── compose.yaml              웹(app) + PostgreSQL 18 (docker compose up, DB만은 뒤에 postgres). DB sentinelai · sentinelai_dev · sentinelai_test. 벡터 DB · 기준 문서 · PostgreSQL은 볼륨, data/는 읽기만
+├── compose.yaml              웹(app) + PostgreSQL 18 + Milvus(벡터 DB, 단독 실행 — 내장 etcd · 로컬 저장소) (docker compose up). DB sentinelai · sentinelai_dev · sentinelai_test, 컬렉션 sentinelai_policies · sentinelai_dev. 벡터 DB · 기준 문서 · PostgreSQL은 볼륨, data/는 읽기만
+├── milvus/embedEtcd.yaml     Milvus 내장 etcd 설정 (compose 가 넣음)
 ├── sentinel                  CLI — 떠 있는 컨테이너 안에서 `python -m sentinelai` (11/5, Makefile 대신)
 ├── requirements.txt · requirements-dev.txt
 └── Dockerfile · README.md    컨테이너 이미지(웹 · 엔진 · data · db · CLI, 11/04에 웹을 넣음) · 저장소 소개
@@ -170,7 +171,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 - 판정은 모두 엔진(`sentinelai.engine`)이 함 — 이슈어가 읽어 쌓고, 워커 하나가 꺼내 판정 · 저장
 - CLI와 웹이 같은 `Engine` 기능을 부르고, 결과는 AI 결과 DB(`SENTINELAI_RESULTS_DB_PATH`의 스키마 `results`)에 실행마다 쌓음
 - 판정 실패 시 2회 재시도(`worker.attempt`). 그래도 실패하면 `failed` · `error`로 남기고 화면에는 "주의"로 올림 (이유 칸에 원인)
-- Milvus Lite는 한 프로세스만 DB를 엶. 웹이 떠 있으면 판정은 웹 작업(`/api/jobs`)으로, 꺼져 있으면 CLI로. 둘 다 같은 AI 결과 DB에 쌓음
+- 벡터 DB는 compose 의 Milvus 서버 (`SENTINELAI_MILVUS_URI`, 파일 경로를 넣으면 Milvus Lite). 웹이 떠 있으면 판정은 웹 작업(`/api/jobs`)으로, 꺼져 있으면 CLI로 — CLI 는 따로 큐를 돌려 웹과 함께 돌면 모델을 함께 침. 둘 다 같은 AI 결과 DB에 쌓음
 - 판정 입력: `sentinelai.sources`가 대상 · 사람 · 규정 RAG(조항) · 운영자 결정을 모으고, `sentinelai.context`가 글로 씀. 입력 예산 = (`NUM_CTX` − `NUM_PREDICT`) × 1.4자 − 프롬프트 글. 넘치면 신청 기록 · 운영자 결정 → 로그 줄 → 위협 기록 순으로 오래된 줄부터 빼고 "오래된 N줄은 입력 한도로 뺐습니다"를 그 칸에 적음. 대상 · 조항은 빼지 않음. 판정 결과 dict의 `input`(글자 수 · 한도 · 뺀 줄)은 저장하지 않음
 
 **이슈어 · 큐 · 워커** (`engine/issue.py` · `queue.py` · `worker.py`, 11/5)
@@ -233,7 +234,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `GET /api/results` | 마지막 정책 관리 검토(정책 문제 · 서버 점검) · 쌓인 로그 감시 판정 → 화면용 dict + 운영자 결정. 보안 총책임자에게는 결정 기록 전부(`decision_log`, 취소 포함) |
 | `GET /api/jobs` | 도는 작업(`running` — 없으면 기다리는 첫 작업, 그때 `queued: true`) · 진행(done/total) · 작업별 마지막 실패 · 기다리는 일(`waiting`, 신청 판정 · 기준 문서 적재 포함). 빠른 감시는 `fast`(간격 · 다음 시각 · 마지막 실행) |
 | `POST /api/jobs/{kind}` | `policies` · `nodes` · `suspects`를 큐에 넣음 (202, 다른 작업이 돌면 그 뒤에). 같은 작업이 이미 기다리거나 돌고 있으면 409. `events`는 자동으로만 돌아 404 |
-| `GET /api/queue` · `POST /api/queue/clear` | 설정 화면 (보안 총책임자) — 도는 잡 · 길마다 기다리는 잡 전부 · 열린 묶음 · 예약 · 종류마다 마지막 실행. 초기화는 도는 · 기다리는 잡을 모두 끝내고 워커를 새로 띄운 뒤 뜰 때처럼 기준 문서 적재 · 판정 못한 신청을 다시 쌓음 (예약은 그대로, 도는 작업이 없어도 됨, 감사 기록 `queue_clear`) |
+| `GET /api/queue` · `POST /api/queue/clear` | 관리 → 큐 화면 (보안 총책임자) — 도는 잡 · 길마다 기다리는 잡 전부 · 열린 묶음 · 예약 · 종류마다 마지막 실행. 초기화는 도는 · 기다리는 잡을 모두 끝내고 워커를 새로 띄운 뒤 뜰 때처럼 기준 문서 적재 · 판정 못한 신청을 다시 쌓음 (예약은 그대로, 도는 작업이 없어도 됨, 감사 기록 `queue_clear`) |
 | `POST /api/jobs/reset` | 돌고 있는 작업(작업 큐 · 빠른 감시)을 강제로 끝냄 (보안 총책임자, 감사 기록 `jobs_reset`). `{rerun: true}`면 같은 작업을 다시 넣음. 돌던 판정 한 건은 끝날 때까지 이어지고 결과는 버림 (`JobQueue.reset`). 도는 작업이 없으면 409 |
 | `POST /api/decisions` | 정책 문제 · 서버 점검 · 로그 판정에 대한 운영자 결정 · 취소 (보안 운영자 이상). 지금 결정은 `/api/results`의 `decisions`로 옴 — 다시 판정됐지만 결과가 그대로인 서버 점검 · 정책 문제는 지난 결정을 이어받아 `carried_from`(이어받은 판정 key)과 함께 옴 (`view.carry_decisions`) |
 | `POST /api/nodes/snapshots` | **수집 노드 전용** — 로그인 대신 `Authorization: Bearer 노드 키`. 본문 = 노드가 읽은 원문(`format: sentinel-node 1`, 2MB까지). 모르는 키 401 · 꺼진 노드 403 · 형식 400. 같은 노드 · 수집 시각은 한 번만 쌓음(`stored`) |
@@ -266,7 +267,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 |---|---|
 | 일반 사용자 | 메뉴 · 오른쪽 패널 없이 내 신청 화면 하나 — 신청서 위 · 목록 아래 (반려 사유 · 철회는 목록 줄의 상태 칸에서). AI 흔적 없음 |
 | 보안 운영자 | 권한 신청(1차 결재함 · 확인할 사람) · 정책 관리 · 로그 감시 · 통계 · 정책 질의 · 기준 문서(읽기만) |
-| 보안 총책임자 | 위 + 최종 결재함 · 관리(권한 목록 · 계정 관리 · 기준 문서) · 설정(작업 큐 보기 · 강제 초기화) |
+| 보안 총책임자 | 위 + 최종 결재함 · 관리(권한 목록 · 계정 관리 · 기준 문서 · 큐 — 작업 큐 보기 · 강제 초기화) |
 
 ---
 
@@ -290,7 +291,8 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 
 - venv 준비(처음 한 번): `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && cp .env.example .env`. 팀 서버처럼 PostgreSQL 이 따로 있으면 `.env` 주소만
 - 10/20에 CLI를 줄였음 — `config` · `models` · `search` · `ask` · `chat` · `index-policies` · `review-requests` · `ask-logs` 없앰 (질의는 화면에서)
-- **Milvus Lite 파일 락**: 웹이 떠 있으면 CLI `health` · `index` · `review-policies` · `check-nodes` · `monitor`가 실패함 (컨테이너에서는 웹이 늘 떠 있음). 웹이 떠 있을 때는 웹이 돌림
+- **웹이 떠 있을 때 CLI 판정**: 벡터 DB가 Milvus 서버라 CLI `review-policies` · `check-nodes` · `monitor`도 돌지만 웹 작업 큐와 따로 모델을 침. 웹이 떠 있을 때는 웹이 돌림 (Milvus Lite 를 쓰면 잠금 때문에 아예 실패)
+- Milvus 컨테이너가 healthy 가 된 뒤 웹이 뜸. 시험 환경(`python -m sentinelai.dev`)도 같은 Milvus 의 `sentinelai_dev` 컬렉션을 써서 compose 의 milvus 가 떠 있어야 함
 
 설정은 `.env` 한 곳. 코드에 주소 · 모델명을 하드코딩하지 않음. 두 환경 모두에서 동작해야 함.
 
@@ -355,7 +357,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 ## 6. 알려진 문제
 
 - **RAG에는 기준 문서만 있음** (11/5). 조항은 청크 4개뿐이라 `top_k=4`가 전부를 가져옴. 예전엔 솔루션 규칙도 함께 있어 종류별로 따로 찾았음
-- **Milvus Lite는 같은 프로세스에서도 동시에 열면 실패함** (`Open local milvus failed`). 서버를 띄우는 동안 자기 잠금을 풀어 두어, 두 스레드가 동시에 처음 열면 둘 다 파일 잠금을 잡으려 함 (10/20 자동 감시와 `/api/health`가 겹쳐 드러났음). `DocumentStore.store`가 잠금으로 한 번에 하나만 열고, 웹을 끌 때 `DocumentStore.close()`가 Milvus Lite 서버까지 멈춰 잠금을 풂 (클라이언트만 닫으면 안 풀림)
+- (Milvus Lite 를 쓸 때만) **Milvus Lite는 같은 프로세스에서도 동시에 열면 실패함** (`Open local milvus failed`). 서버를 띄우는 동안 자기 잠금을 풀어 두어, 두 스레드가 동시에 처음 열면 둘 다 파일 잠금을 잡으려 함 (10/20 자동 감시와 `/api/health`가 겹쳐 드러났음). `DocumentStore.store`가 잠금으로 한 번에 하나만 열고, 웹을 끌 때 `DocumentStore.close()`가 Milvus Lite 서버까지 멈춰 잠금을 풂 (클라이언트만 닫으면 안 풀림)
 - **팀 서버는 부팅 순서 때문에 GPU 없이 돌 수 있음.** 10/6~10/11 내내 CPU로만 돌았음. `ollama ps`의 PROCESSOR가 CPU면 의심. 경위 · 조치는 §9
 - **`gpt-oss:20b`는 `SENTINELAI_NUM_PREDICT=1024`가 모자람** (10/11에 4096으로 올림). 추론하느라 1024 토큰을 다 쓰고 빈 출력(`done_reason=length`)을 냄. 10/7 측정에서 약 2000 토큰 필요
 - **소형 모델 한계**(`qwen2.5:7b`): 반복 루프로 판정 1건이 380~417초까지 늘어남 (9/27 6건 중 3건). 같은 입력에도 등급이 바뀜 (REQ-005: 정상 → 재판정 주의). 판정 1건 20초대~7분
@@ -720,7 +722,8 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - **질의는 지웠음** (사용자 결정) — 질의 통합 시스템으로 완전히 다시 만들 예정이라 흐름 · 질의 프롬프트(ANSWER · LOG_FILTER · LOG_ANSWER · SERVER_FILTER · SERVER_ANSWER) · 출력 타입(Answer · LogFilter · ServerFilter) · `server_digest` 를 지우고 API 자리만 남김 (§2 질의)
 - 화면 · API 모양은 그대로 — `/api/jobs` 의 running · done · total 은 묶음 기준, waiting 은 묶음 · 단독 잡 한 줄씩
 - 처음 띄운 컨테이너가 시작에서 죽었음 — `./data` 마운트에 SELinux 라벨(`z`)이 없어 로그를 못 읽었고, 이슈어가 시작 때 판정 못한 신청의 사람 기록을 읽다 예외가 웹까지 올라왔음. 라벨을 붙이고, 읽기 실패는 그 판정의 실패로만 남기게 했음 (예전엔 판정 작업 안에서 읽어 그랬음)
-- 설정 메뉴(보안 총책임자)에 작업 큐 화면을 붙였음 (사용자 요청) — 작업 버튼 옆 [강제 중지]는 도는 작업 하나만 끝내서, 기다리는 잡이 쌓였거나 워커가 멈췄을 때 큐 전체를 비우고 새로 시작할 곳이 없었음. 관리(목록 화면)와 달리 오른쪽 패널 없이 넓게 씀
+- 관리에 [큐] 탭(보안 총책임자)을 붙이고 작업 큐 화면을 넣었음 (사용자 요청 — 처음엔 따로 [설정] 메뉴였다가 같은 날 관리의 한 탭으로 합치고, 하는 일에 맞게 이름을 큐로 바꿨음). 작업 버튼 옆 [강제 중지]는 도는 작업 하나만 끝내서, 기다리는 잡이 쌓였거나 워커가 멈췄을 때 큐 전체를 비우고 새로 시작할 곳이 없었음. 다른 관리 탭(목록)과 달리 오른쪽 패널 없이 넓게 씀
+- 벡터 DB를 Milvus Lite(파일)에서 compose 의 Milvus 서버(`milvusdb/milvus:v3.0.3`, pymilvus 3.0 과 맞춤)로 옮겼음 (사용자 결정). Lite 는 한 프로세스만 파일을 열어 CLI 가 웹과 함께 못 돌았고, 같은 프로세스에서도 동시에 열면 실패했음. etcd · MinIO 를 따로 띄우지 않는 단독 실행(내장 etcd · 로컬 저장소)이라 컨테이너 하나. 예전 볼륨(`milvus`)은 옮기지 않음 — 웹이 뜰 때 기준 문서를 다시 적재함. 코드는 주소만 바뀌어 엔진은 그대로 (파일 경로를 넣으면 여전히 Lite)
 - 웹이 뜰 때마다 기준 문서를 적재함 (사용자 요청) — 새 볼륨으로 띄운 컨테이너가 인덱스가 빈 채로 판정하고 있었음. 적재를 판정과 같은 길(0)로 올렸음 — 빈 인덱스로 신청을 먼저 판정하지 않게, 화면에서 올린 문서도 다음 판정부터 보이게
 - `types.py`를 없앴음 (사용자 결정) — 타입은 쓰는 모듈에서 정의. 판정 출력 타입 · `Notifier`는 쓰는 곳이 워커뿐이라 `worker.py`로, `Job` · `Batch`는 `queue.py`, `Settings`는 `settings.py`. 출력 타입 docstring · 설명은 글자 그대로 옮겼음
 
