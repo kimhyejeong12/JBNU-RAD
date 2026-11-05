@@ -14,7 +14,7 @@ export const queryClient = new QueryClient({
   },
 });
 
-export const EMPTY_RESULTS: Results = { summary: { failed: 0 }, sections: {}, policies: [], servers: [], events: [], policy_review: null, generated_at: null };
+export const EMPTY_RESULTS: Results = { summary: { failed: 0 }, sections: {}, servers: [], events: [], policy_review: null, generated_at: null };
 
 export const meQuery = () => queryOptions({ queryKey: ["me"], queryFn: () => getJSON<Me>("/api/auth/me") });
 

@@ -6,11 +6,11 @@ import { useResults } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
 import { PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
 import { SourceChips } from "@/app/ui/panel/SourceChips";
-import type { EventFinding, PolicyIssue, PolicyRow, ServerFinding, Snapshot } from "@/shared/api/types";
+import type { EventFinding, ServerFinding, Snapshot } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/base/Icon";
-import { KvTable, LevelDot, Section } from "@/shared/ui/base/parts";
+import { LevelDot, Section } from "@/shared/ui/base/parts";
 import { ModuleChanges, ModuleTables } from "@/shared/ui/server/ModuleTables";
 import { cn } from "@/shared/lib/cn";
 import {
@@ -37,13 +37,12 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
           <>
             <Section icon="activity" title="판단 이유"><div className={box}>{r.reason}</div></Section>
             <Section icon="ok" title="권고 조치"><div className={box}>{r.recommendation}</div></Section>
-            {it.type !== "policy" && <Section icon="db" title="근거 조항"><SourceChips itemKey={it.key} sources={r.sources} /></Section>}
+            <Section icon="db" title="근거 조항"><SourceChips itemKey={it.key} sources={it.type === "policy" ? it.raw.policy_ids : r.sources} /></Section>
           </>
         )}
 
         {it.type === "server" && <ServerSections f={it.raw} />}
         {it.type === "event" && <EventSection f={it.raw} onLogs={() => openLogs({ user: it.raw.title, period: "month" })} />}
-        {it.type === "policy" && <PolicySection issue={it.raw} policies={results.policies} />}
         {results.decision_log && <DecisionLog log={results.decision_log} it={it} />}
       </div>
 
@@ -93,18 +92,15 @@ function DecisionFoot({ it }: { it: ReviewItem }) {
 }
 
 function ServerSections({ f }: { f: ServerFinding }) {
-  const state = Object.entries(f.detail?.state ?? {}).filter(([, v]) => v) as [string, string][];
   const snap = f.detail?.snapshot;
   return (
     <>
-      {state.length > 0 && <Section icon="server" title="서버 현황"><KvTable rows={state} /></Section>}
       {snap?.modules && (
         <>
           {snap.changes?.length ? <ModuleChanges snap={snap} /> : <p className={cn(note, "mt-3.5")}>직전 수집과 달라진 설정 없음</p>}
           <ModuleFold snap={snap} />
         </>
       )}
-      <Section icon="file" title="이 서버에 걸린 정책"><div className={boxPre}>{f.detail?.matched}</div></Section>
     </>
   );
 }
@@ -133,23 +129,6 @@ function EventSection({ f, onLogs }: { f: EventFinding; onLogs: () => void }) {
       <div className="mt-2 flex flex-wrap gap-2">
         {hidden > 0 && <button className={cn(toolButton, "ml-0")} onClick={() => setAll(true)}>앞의 {hidden}줄 더 보기</button>}
         <button className={cn(toolButton, "ml-0")} id="to-logs" onClick={onLogs}><Icon name="search" small />이 사용자의 최근 한 달 로그</button>
-      </div>
-    </Section>
-  );
-}
-
-function PolicySection({ issue, policies }: { issue: PolicyIssue; policies: PolicyRow[] }) {
-  const rows = policies.filter((p) => (issue.policy_ids || []).includes(p.policy_id));
-  return (
-    <Section icon="file" title="관련 정책 원본">
-      <div className={box}>
-        <table className={kvTable}>
-          <tbody>
-            {rows.length
-              ? rows.map((p) => <tr key={p.policy_id}><th className={kvTh}>{p.policy_id}</th><td className={kvTd}>{`${p.solution} · ${p.source} → ${p.destination} · ${p.service} · ${p.action} · 만료 ${p.expires_at || "없음"}`}</td></tr>)
-              : <tr><td className={kvTd}>정보 없음</td></tr>}
-          </tbody>
-        </table>
       </div>
     </Section>
   );

@@ -146,16 +146,6 @@ export interface UserRow {
   created_at: string;
 }
 
-export interface PolicyRow {
-  policy_id: string;
-  solution: string;
-  source: string;
-  destination: string;
-  service: string;
-  action: string;
-  expires_at: string | null;
-}
-
 export interface PolicyIssue {
   key: string;
   kind: string;
@@ -193,7 +183,7 @@ export interface ServerFinding {
   gaps: ServerGap[];
   unjudged: string[];
   failed?: boolean;
-  detail?: { state?: Record<string, string | null>; snapshot?: Snapshot | null; matched?: string };
+  detail?: { snapshot?: Snapshot | null };
 }
 
 export interface EventFinding {
@@ -228,7 +218,6 @@ export interface Decision {
 export interface Results {
   summary: { failed: number } & Partial<Record<Level, number>>;
   sections: Record<string, Section | null>;
-  policies: PolicyRow[];
   servers: ServerFinding[];
   events: EventFinding[];
   policy_review: { issues: PolicyIssue[] } | null;

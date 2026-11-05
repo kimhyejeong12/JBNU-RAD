@@ -22,7 +22,7 @@ export const VIEWS: Record<View, ViewMeta> = {
   requests: { group: "결재", label: "권한 신청", icon: "lock", tip: "권한 신청",
               tabs: ["queue"], cols: ["신청자", "신청 권한", "신청 시각", "AI 판정"], search: "신청 번호 · 신청자 · 권한으로 검색" },
   policies: { group: "보안 운영", title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리",
-              tabs: ["queue", "nodes", "ask"], cols: ["대상", "상세 내용", "시간", "AI 판정"], search: "정책 ID · 서버 · 내용으로 검색" },
+              tabs: ["queue", "nodes", "ask"], cols: ["대상", "상세 내용", "시간", "AI 판정"], search: "조항 · 서버 · 내용으로 검색" },
   stats: { group: "보안 운영", title: "통계", label: "통계", icon: "activity", tip: "통계",
            tabs: ["stats", "ustats"], cols: [], search: "" },
   qa: { group: "보안 운영", title: "정책 질의", label: "정책 질의", icon: "chat", tip: "정책 질의",

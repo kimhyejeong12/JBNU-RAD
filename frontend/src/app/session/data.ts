@@ -65,9 +65,8 @@ export function useQa(kind: AskKind): AskItem[] {
 
 export function useClauses() {
   const regulations = useRegulations();
-  const policies = useResults().policies;
   return useMemo(() => ({
-    label: (source: string) => chipLabel(source, regulations, policies),
-    text: (source: string) => clauseText(source, regulations, policies),
-  }), [regulations, policies]);
+    label: (source: string) => chipLabel(source, regulations),
+    text: (source: string) => clauseText(source, regulations),
+  }), [regulations]);
 }
