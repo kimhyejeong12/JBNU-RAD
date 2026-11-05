@@ -1,4 +1,4 @@
-"""수집 노드가 보낸 원문 → 모듈별 상태. 무엇을 뽑을지는 노드가 아니라 여기서 정합니다."""
+"""수집 노드 스냅샷 — 구조체, 노드가 보낸 원문 → 모듈별 상태 (무엇을 뽑을지는 노드가 아니라 여기서 정함), 바뀐 설정, 질의용 요약."""
 from __future__ import annotations
 
 import json
@@ -7,8 +7,29 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .mapper import parse_datetime
-from .types import MODULE_LABELS, LoadIssue, LoadResult, ServerSnapshot
+from .base import LoadIssue, LoadResult, Record, parse_datetime
+
+MODULE_LABELS = {"ufw": "UFW", "sshd": "SSH", "pam": "PAM", "accounts": "계정 · sudo"}
+
+
+class ServerSnapshot(Record):
+    """modules 는 모듈 → 항목 → 값(판정에 넣을 문장), sections 는 모듈별 원문입니다."""
+
+    node: str = ""
+    host: str
+    ip: str = ""
+    collected_at: datetime  # UTC
+    collected_by: str = ""
+    modules: dict[str, dict[str, str]] = {}
+    sections: dict[str, str] = {}
+
+    def describe(self) -> str:
+        """한 줄에 한 항목."""
+        lines = [f"- 모듈 상태 수집: {self.collected_at:%Y-%m-%d %H:%M} UTC ({self.collected_by or '수집 계정 모름'})"]
+        for module, facts in self.modules.items():
+            lines += [f"- [{MODULE_LABELS.get(module, module)}] {k}: {v}" for k, v in facts.items()]
+        return "\n".join(lines)
+
 
 FORMAT = "sentinel-node 1"
 NODE_NAME = re.compile(r"^[A-Za-z0-9._-]{1,64}$")

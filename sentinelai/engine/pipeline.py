@@ -5,37 +5,37 @@ import json
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from langchain_core.runnables import Runnable, RunnablePassthrough
 
 from .. import ROOT
-from ..data import (
-    LoadIssue,
+from ..sources import (
     LoadResult,
     PolicyRule,
     ServerSnapshot,
     ServerState,
     between,
-    event_review_input,
     group_by_user,
+    inventory,
     latest,
     load_events,
     load_policies,
     load_servers,
+    optional,
     parse_datetime,
     period_since,
+    rules_for,
     search,
     server_digest,
-    server_review_input,
+    signals_text,
     snapshot_changes,
     snapshot_from_payload,
-    suspect_band,
     summarize,
     user_label,
     vocabulary,
 )
+from ..sources.logs import SecurityEvent
 from .prompt import Prompts
 from .rag import IndexReport, lookup, lookup_all
 from .types import Answer, LogFilter, PolicyReview, ServerFilter, ServerReview, SuspectScore, Verdict
@@ -223,17 +223,9 @@ def _access_text(request: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _optional(loader: Callable[[Any], LoadResult], source: Any) -> LoadResult:
-    """폴더 · 파일이 없으면 건너뛰고, 그 사실은 읽기 실패로 남깁니다."""
-    try:
-        return loader(source)
-    except FileNotFoundError as exc:
-        return LoadResult(source=Path(str(source)).name, issues=[LoadIssue(0, str(exc))])
-
-
 def review_policies(engine: Engine, policies_source: Any, progress: Progress | None = None) -> dict[str, Any]:
     """정책 폴더가 비면 RAG 의 규칙을 지웁니다 — 예전 규칙이 다른 검색에 섞이지 않게."""
-    policies = _optional(load_policies, policies_source)
+    policies = optional(load_policies, policies_source)
     index_documents(engine)
     if not policies.records:
         engine.documents.clear_rules()
@@ -262,19 +254,15 @@ def snapshot_row(payload: dict[str, Any], node: str, previous: dict[str, Any] | 
 def check_nodes(engine: Engine, snapshots: list[dict[str, Any]], policies_source: Any, servers_source: Any,
                 progress: Progress | None = None) -> dict[str, Any]:
     """새 수집이 온 노드마다 server_chain 으로 판정합니다."""
-    policies = _optional(load_policies, policies_source)
-    servers = _optional(load_servers, servers_source)
-    inventory = {}
-    for row in servers.records:
-        inventory[row.host.lower()] = row
-        if row.ip:
-            inventory[row.ip] = row
+    policies = optional(load_policies, policies_source)
+    servers = optional(load_servers, servers_source)
+    found = inventory(servers.records)
     if snapshots:
         index_documents(engine)
     findings = []
     chain = engine.server_chain() if snapshots else None
     for n, snap in enumerate(snapshots, start=1):
-        server = inventory.get(snap["host"].lower()) or inventory.get(snap["ip"]) or ServerState(host=snap["host"], ip=snap["ip"])
+        server = found.get(snap["host"].lower()) or found.get(snap["ip"]) or ServerState(host=snap["host"], ip=snap["ip"])
         snapshot = ServerSnapshot(**{k: snap[k] for k in ("node", "host", "ip", "collected_at", "collected_by", "modules")})
         inputs = server_review_input(server, policies.records, snapshot, snap["changes"])
         review, error, elapsed = attempt(lambda: chain.invoke(inputs))
@@ -461,18 +449,6 @@ def ask_servers(engine: Engine, registry: list[dict[str, Any]],
     return done(error)
 
 
-def _signals_text(s: dict[str, Any] | None) -> str:
-    if s is None:
-        return "로그 없음 (권한 신청 기록만 있음)"
-    ratio = f"{s['volume_ratio']}배" if s["volume_ratio"] is not None else "평소 기록 없음"
-    rows = [f"- 최근 7일 로그 {s['recent_events']}건 · 평소 4주 {s['baseline_events']}건",
-            f"- 하루 양(출력 장수 등) 평소 {s['baseline_daily_volume']} → 최근 {s['recent_daily_volume']} ({ratio})",
-            f"- 근무 시간 밖 · 주말 {round(s['off_hours_ratio'] * 100)}% · 예외 승인 {round(s['exception_ratio'] * 100)}%",
-            f"- 민감 문서 {s['sensitive_events']}건 ({', '.join(s['sensitive_words']) or '없음'}) · 30분 안 최대 {s['max_burst_30min']}건",
-            f"- 첫 로그 {s['first_seen'][:10]} · 마지막 로그 {s['last_seen'][:10]}{' (처음 보는 계정)' if s['new_account'] else ''}"]
-    return "\n".join(rows + [f"- 눈에 띔: {h}" for h in s["highlights"]])
-
-
 # 예전 AI 등급은 넣지 않습니다 — 한 번 위험으로 찍힌 사람이 계속 위험으로 나오지 않게.
 
 
@@ -509,7 +485,7 @@ def user_record_text(account: dict[str, Any] | None, log_id: str, facts: dict[st
     else:
         rows.append("- 로그 사용자 ID 를 아직 적지 않아 로그를 잇지 못함 (의심 근거 아님)")
     if include_signals and signals:
-        rows.append("- 행동 신호 (최근 7일 vs 앞 4주):\n" + "\n".join("  " + x for x in _signals_text(signals).splitlines()))
+        rows.append("- 행동 신호 (최근 7일 vs 앞 4주):\n" + "\n".join("  " + x for x in signals_text(signals).splitlines()))
     return "\n".join(rows)
 
 
@@ -520,9 +496,72 @@ def predict_suspect(engine: Engine, person: dict[str, Any], record: str, threats
     account = person["login_id"] or "SentinelAI 계정과 아직 잇지 않음 — 의심 근거 아님"
     log_id = person["log_id"] or "로그 사용자 ID 를 아직 적지 않음 — 의심 근거 아님"
     inputs = {"subject": f"{who} (계정: {account} / 로그 사용자 ID: {log_id})",
-              "signals": _signals_text(person["signals"]), "records": record, "lines": threats}
+              "signals": signals_text(person["signals"]), "records": record, "lines": threats}
     verdict, error, elapsed = attempt(lambda: engine.suspect_chain().invoke(inputs))
     result = _judged(verdict, error, elapsed)
     if verdict is not None:
-        result["level"] = suspect_band(verdict.score)
+        result["level"] = band(verdict.score)
     return result
+
+
+def event_review_input(events: list[SecurityEvent]) -> dict[str, str]:
+    first = events[0]
+    return {
+        "subject": f"{first.department} {first.who or first.user_name}".strip(),
+        "events": "\n".join(e.describe() for e in events),
+    }
+
+
+def server_review_input(server: ServerState, rules: list[PolicyRule], snapshot: ServerSnapshot | None = None,
+                        changes: list[str] | None = None) -> dict[str, str]:
+    """subject · state(현황 + 모듈 상태 + 바뀐 설정) · matched(코드가 찾은 규칙)."""
+    matched = rules_for(server, rules)
+    state = [server.describe()]
+    if snapshot:
+        state.append(snapshot.describe())
+    if changes:
+        state.append("- 직전 수집과 달라진 설정:\n" + "\n".join(f"  - {c}" for c in changes))
+    return {
+        "subject": server.name,
+        "state": "\n".join(state),
+        "matched": "\n".join(f"{rule.describe()} (이 서버: {why})" for rule, why in matched) or "코드가 찾은 규칙 없음",
+    }
+
+
+BANDS = ((70, "높음"), (40, "보통"))
+
+
+def band(score: int) -> str:
+    """모델이 적은 등급 대신 점수로 정해 둘이 어긋나지 않게 합니다."""
+    return next((name for floor, name in BANDS if score >= floor), "낮음")
+
+
+def suspect_people(accounts: list[dict[str, Any]], signals: dict[str, dict[str, Any]], findings: list[dict[str, Any]],
+                   requests: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """계정과 로그 사용자는 log_id 로 잇고, 잇지 못한 로그 사용자는 "계정 미연결"로 둡니다."""
+    people: dict[str, dict[str, Any]] = {}
+    by_log: dict[str, str] = {}
+    by_account: dict[int, str] = {}
+
+    def person(key: str, **info: Any) -> dict[str, Any]:
+        return people.setdefault(key, {"key": key, **info, "signals": None, "findings": [], "requests": []})
+
+    # 일반 사용자와 로그 사용자 ID 를 적은 계정만 사람으로 둡니다.
+    for a in accounts:
+        if a["role"] != "user" and not a["log_id"]:
+            continue
+        key = f"account:{a['id']}"
+        person(key, name=a["display_name"], department=a["department"], login_id=a["login_id"], log_id=a["log_id"], linked=bool(a["log_id"]))
+        by_account[a["id"]] = key
+        if a["log_id"]:
+            by_log[a["log_id"]] = key
+    for log_id, s in signals.items():
+        key = by_log.get(log_id) or f"log:{log_id}"
+        person(key, name=s["subject"], department="", login_id=None, log_id=log_id, linked=False)["signals"] = s
+    for f in findings:
+        key = by_log.get(f["log_id"]) or f"log:{f['log_id']}"
+        person(key, name=f["subject"], department="", login_id=None, log_id=f["log_id"], linked=False)["findings"].append(f)
+    for r in requests:
+        if r["account_id"] in by_account:
+            people[by_account[r["account_id"]]]["requests"].append(r)
+    return list(people.values())

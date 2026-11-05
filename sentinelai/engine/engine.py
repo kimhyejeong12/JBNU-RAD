@@ -21,9 +21,8 @@ from langchain_ollama import ChatOllama
 from pydantic import BaseModel
 
 from .. import ROOT
-from ..data import LoadResult, SecurityEvent, behavior_signals, load_collected, load_events, period_since, summarize, suspect_people
-from ..data.suspect import THREAT_LIMIT, threat_lines
-from ..data.collected import FORMAT
+from ..sources import FORMAT, LoadResult, SecurityEvent, behavior_signals, load_collected, load_events, period_since, summarize, threat_lines
+from ..sources.logs import THREAT_LIMIT
 from ..db import Database, User, auth, decisions, nodes, open_main_db, open_results_db, permissions, results
 from . import pipeline
 from .rag import DocumentStore, IndexReport
@@ -376,7 +375,7 @@ class Engine:
         now = datetime.now(timezone.utc)
         recent = (now - timedelta(days=35)).isoformat(timespec="seconds")
         events = load_events(self.settings.events_source).records
-        people = suspect_people(auth.accounts_brief(self.main_db), behavior_signals(events, now),
+        people = pipeline.suspect_people(auth.accounts_brief(self.main_db), behavior_signals(events, now),
                                 results.user_findings(self.results_db, recent), permissions.user_requests(self.main_db, recent))
         records = self.user_records(events)
         scored = []

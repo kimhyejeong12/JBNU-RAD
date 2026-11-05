@@ -7,7 +7,7 @@ import sys
 from typing import Any
 
 from . import db
-from .data import parse_datetime
+from .sources import parse_datetime
 from .engine import Engine
 
 

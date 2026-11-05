@@ -1,4 +1,4 @@
-"""SentinelAI. 하위 패키지를 가져오지 않아 `import sentinelai.data` 가 엔진까지 끌어오지 않습니다."""
+"""SentinelAI. 하위 패키지를 가져오지 않아 `import sentinelai.sources` 가 엔진까지 끌어오지 않습니다."""
 from pathlib import Path
 
 __version__ = "0.6.0"

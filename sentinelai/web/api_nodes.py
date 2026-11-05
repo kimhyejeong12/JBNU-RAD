@@ -7,7 +7,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, StringConstraints
 
-from sentinelai.data.collected import NODE_NAME
+from sentinelai.sources import NODE_NAME
 from sentinelai.db import Denied, nodes, results
 
 from .api_permissions import Approver

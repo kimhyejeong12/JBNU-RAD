@@ -11,7 +11,7 @@
 | `pam` | `/etc/pam.d/{common-auth, common-password, system-auth, password-auth, sshd, su, sudo}` · `faillock.conf` · `pwquality.conf` |
 | `accounts` | UID 0 계정 · sudo/wheel/admin 그룹 · `/etc/sudoers` · `/etc/sudoers.d/*` (root 필요) |
 
-- 원문을 그대로 보냄. 무엇을 뽑아 판정할지는 서버(`sentinelai/data/collected.py`)가 정함
+- 원문을 그대로 보냄. 무엇을 뽑아 판정할지는 서버(`sentinelai/sources/snapshots.py`)가 정함
 
 ## 설치
 
