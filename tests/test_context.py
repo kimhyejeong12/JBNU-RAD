@@ -4,9 +4,10 @@ from __future__ import annotations
 import time
 from datetime import datetime, timedelta, timezone
 
-from sentinelai.context import People, Person, Section, fit
+from sentinelai.context import Section, fit
+from sentinelai.context import person as about
 from sentinelai.db import auth, catalog, permissions
-from sentinelai.sources import SecurityEvent
+from sentinelai.sources import People, Person, SecurityEvent
 
 
 def _event(at: datetime, who: str = "7", **attrs: str) -> SecurityEvent:
@@ -15,13 +16,14 @@ def _event(at: datetime, who: str = "7", **attrs: str) -> SecurityEvent:
 
 
 def test_fit_drops_low_trim_first_and_says_so():
-    sections = [Section("a", ["대상"]), Section("b", [f"옛 신청 {i}" for i in range(10)], trim=0), Section("c", ["위협 1", "위협 2"], trim=2)]
+    sections = [Section("a", ["대상"]), Section("b", [f"옛 신청 {i}" for i in range(10)], cut="requests"),
+                Section("c", ["위협 1", "위협 2"], cut="threats")]
     built = fit(sections, 30)
     assert built.inputs["a"] == "대상"
     assert built.inputs["c"] == "위협 1\n위협 2"
     assert built.inputs["b"].startswith("(오래된 ") and built.inputs["b"].endswith("옛 신청 9")
     assert built.trimmed == {"b": built.trimmed["b"]} and built.trimmed["b"] >= 6
-    untouched = fit([Section("a", ["x"]), Section("b", ["y"], trim=0)], 1000, {"z": "없음"})
+    untouched = fit([Section("a", ["x"]), Section("b", ["y"], cut="requests"), Section("z", [], empty="없음")], 1000)
     assert untouched.trimmed == {} and untouched.inputs == {"a": "x", "b": "y", "z": "없음"}
 
 
@@ -29,13 +31,14 @@ def test_short_context_is_account_and_held_only():
     account = {"department": "재무팀", "job": "정산", "is_active": 1, "created_at": "2026-10-01", "left_on": "", "moves": [], "requests": [],
                "held": [{"requested_access": "CRM 조회", "access_code": "CRM_READ", "system": "CRM", "category": "고객정보", "period_end": ""}]}
     now = datetime(2026, 10, 20, 1, tzinfo=timezone.utc)
-    person = Person(account, "7", [_event(now, Exception="1")], None, ["- 운영자가 조치 필요로 정함"])
-    short = "\n".join(line for s in person.short() for line in s.lines)
+    decided = [{"decided_at": "2026-10-20T02:00:00", "at": "2026-10-20T01:00:00", "decider_name": "운영자", "action": "act", "comment": ""}]
+    person = Person(account, "7", [_event(now, Exception="1")], None, decided)
+    short = "\n".join(line for s in about.short(person) for line in s.lines)
     assert "직무 정산" in short and "CRM 조회 (CRM_READ) · CRM / 고객정보 · 기간 없음" in short
     assert "위협" not in short and "신청" not in short
-    full = "\n".join(line for s in person.full() for line in s.lines)
-    assert "운영자가 조치 필요로 정함" in full and "[예외 승인" in full
-    judged = "\n".join(line for s in person.full(skip=person.events) for line in s.lines)
+    full = "\n".join(line for s in about.full(person) for line in s.lines)
+    assert "운영자이(가) 조치 필요로 정함" in full and "[예외 승인" in full
+    judged = "\n".join(line for s in about.full(person, skip=person.events) for line in s.lines)
     assert "[예외 승인" not in judged
 
 

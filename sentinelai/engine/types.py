@@ -26,16 +26,16 @@ class Verdict(BaseModel):
 class ServerGap(BaseModel):
     """서버의 지금 상태가 기준 문서와 다른 곳 한 군데와, 맞추려면 바꿀 것."""
 
-    item: str = Field(description="어긋난 현황 항목 이름 또는 솔루션 정책 ID (예: 관리자 계정, FW-006)")
-    current: str = Field(description="지금 상태 — 현황 값이나 정책 내용 그대로")
+    item: str = Field(description="어긋난 설정 이름 (예: permitrootlogin, 관리자 계정)")
+    current: str = Field(description="지금 상태 — 수집한 값 그대로")
     required: str = Field(description="기준 문서가 요구하는 상태")
     source: str = Field(description="근거 조항 — 기준 문서 이름과 조항 번호 (예: 정책_운영기준.md 6.2)")
     level: RiskLevel = Field(description="이 차이의 위험 등급")
-    change: str = Field(description="기준에 맞추려면 이 환경에서 바꿀 것 — 설정 · 정책 · 계정 등 구체적 조치")
+    change: str = Field(description="기준에 맞추려면 이 환경에서 바꿀 것 — 설정 · 계정 등 구체적 조치")
 
 
 class ServerReview(BaseModel):
-    """서버 한 대의 현황을 기준 문서와 비교한 결과."""
+    """서버 한 대의 수집한 상태를 기준 문서와 비교한 결과."""
 
     level: RiskLevel = Field(description="서버 전체 위험 등급 — 차이가 없으면 정상")
     gaps: list[ServerGap] = Field(description="기준 문서와 다른 곳 목록. 없으면 빈 목록")
@@ -74,17 +74,17 @@ class SuspectScore(BaseModel):
 
 
 class PolicyIssue(BaseModel):
-    """정책 목록에서 발견된 문제 한 건."""
+    """기준 문서에서 발견된 문제 한 건."""
 
     kind: Literal["중복", "충돌", "과도한 허용"] = Field(description="문제 유형")
     level: RiskLevel = Field(description="위험 등급")
-    policy_ids: list[str] = Field(description="관련 정책 ID")
+    policy_ids: list[str] = Field(description="관련 조항 (문서 이름과 조항 번호, 예: 정책_운영기준.md 6.1)")
     reason: str = Field(description="문제라고 본 이유")
     recommendation: str = Field(description="개선안")
 
 
 class PolicyReview(BaseModel):
-    """정책 검토 결과 전체."""
+    """기준 문서 검토 결과 전체."""
 
     issues: list[PolicyIssue] = Field(description="발견된 문제 목록. 없으면 빈 목록")
     summary: str = Field(description="검토 요약")

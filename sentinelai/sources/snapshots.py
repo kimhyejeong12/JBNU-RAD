@@ -1,18 +1,19 @@
-"""수집 노드 스냅샷 — 구조체, 노드가 보낸 원문 → 모듈별 상태 (무엇을 뽑을지는 노드가 아니라 여기서 정함), 바뀐 설정, 질의용 요약."""
+"""서버 상태 (수집 노드) — 구조체, 노드가 보낸 원문 → 모듈별 상태 (무엇을 뽑을지는 노드가 아니라 여기서 정함), export 폴더 읽기, 바뀐 설정, 질의용 요약."""
 from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .base import LoadIssue, LoadResult, Record, parse_datetime
+from pydantic import BaseModel
 
 MODULE_LABELS = {"ufw": "UFW", "sshd": "SSH", "pam": "PAM", "accounts": "계정 · sudo"}
 
 
-class ServerSnapshot(Record):
+class ServerSnapshot(BaseModel):
     """modules 는 모듈 → 항목 → 값(판정에 넣을 문장), sections 는 모듈별 원문입니다."""
 
     node: str = ""
@@ -22,6 +23,10 @@ class ServerSnapshot(Record):
     collected_by: str = ""
     modules: dict[str, dict[str, str]] = {}
     sections: dict[str, str] = {}
+
+    @property
+    def name(self) -> str:
+        return f"{self.host} ({self.ip})" if self.ip and self.ip != self.host else self.host
 
     def describe(self) -> str:
         """한 줄에 한 항목."""
@@ -174,6 +179,15 @@ def accounts(text: str) -> dict[str, str]:
 PARSERS = {"ufw": ufw, "sshd": sshd, "pam": pam, "accounts": accounts}
 
 
+def _utc(value: str) -> datetime:
+    """노드는 ISO 8601 로 보냅니다. 시간대 표기가 없으면 UTC 로 봅니다."""
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise ValueError(f"수집 시각 형식이 아닙니다: {value!r}") from None
+    return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
+
+
 def snapshot_from_payload(payload: dict, node: str | None = None) -> ServerSnapshot:
     """형식이 맞지 않으면 ValueError. node 를 주지 않으면 본문의 node 를 씁니다."""
     if not isinstance(payload, dict) or payload.get("format") != FORMAT:
@@ -187,23 +201,32 @@ def snapshot_from_payload(payload: dict, node: str | None = None) -> ServerSnaps
     if not payload.get("host") or not payload.get("collected_at"):
         raise ValueError("호스트 · 수집 시각이 없습니다")
     return ServerSnapshot(
-        node=name, host=str(payload["host"]), ip=str(payload.get("ip", "")), collected_at=parse_datetime(str(payload["collected_at"])),
+        node=name, host=str(payload["host"]), ip=str(payload.get("ip", "")), collected_at=_utc(str(payload["collected_at"])),
         collected_by=str(payload.get("collected_by", "")), sections=sections,
         modules={m: parse(sections[m]) for m, parse in PARSERS.items() if m in sections},
     )
 
 
-def load_collected(target: Any, node: str | None = None) -> LoadResult:
+@dataclass
+class Collected:
+    """export 폴더를 읽은 결과 — 깨진 파일은 issues 에 "파일 이름: 이유"로."""
+
+    source: str
+    records: list[ServerSnapshot] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
+
+
+def load_collected(target: Any, node: str | None = None) -> Collected:
     """노드가 export 한 *.json 폴더를 읽습니다. 폴더가 없으면 FileNotFoundError."""
     folder = Path(target)
     if not folder.is_dir():
         raise FileNotFoundError(f"수집 폴더가 없습니다: {folder}")
-    result = LoadResult(source=folder.name)
+    result = Collected(source=folder.name)
     for path in sorted(folder.glob("*.json")):
         try:
             result.records.append(snapshot_from_payload(json.loads(path.read_text(encoding="utf-8")), node))
         except ValueError as exc:  # json.JSONDecodeError 도 ValueError 입니다.
-            result.issues.append(LoadIssue(0, f"{path.name}: {exc}"))
+            result.issues.append(f"{path.name}: {exc}")
     return result
 
 
@@ -220,6 +243,14 @@ def changes(before: dict[str, dict[str, str]] | None, after: dict[str, dict[str,
                 continue
             out.append(f"[{MODULE_LABELS.get(module, module)}] {key}: {old.get(key, '없음')} → {new.get(key, '없음')}")
     return out
+
+
+def server_lines(snapshot: ServerSnapshot, changed: list[str]) -> list[str]:
+    """서버 · 수집 상태 · 달라진 설정 — 판정 칸 · 검색어에 같은 글을 씁니다."""
+    lines = [f"- 서버: {snapshot.name}", snapshot.describe()]
+    if changed:
+        lines.append("- 직전 수집과 달라진 설정:\n" + "\n".join(f"  - {c}" for c in changed))
+    return lines
 
 
 def _stamp(at: str) -> str:

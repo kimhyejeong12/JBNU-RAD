@@ -1,4 +1,4 @@
-"""데이터 종류별 소스 — 연습용 로그 · 노드 원문 · 서버 ↔ 규칙 맞추기 (DB · 모델 없이)."""
+"""데이터 계층 — 연습용 로그 · 노드 원문 · 규정 RAG 검색어 (DB · 모델 없이)."""
 from __future__ import annotations
 
 import os
@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from sentinelai.sources import (MemorySource, PolicyRule, ServerState, behavior_signals, group_by_user, load_events, load_policies,
-                                rules_for, search, snapshot_changes, snapshot_from_payload, summarize, threat_lines)
+from sentinelai.sources import (Regulations, behavior_signals, group_by_user, load_events, search, server_lines,
+                                snapshot_changes, snapshot_from_payload, summarize, threat_lines)
 
 # 근무 시간 밖은 서버 현지 시각(KST)으로 셉니다.
 os.environ["TZ"] = "Asia/Seoul"
@@ -35,29 +35,49 @@ def test_signals_and_threat_lines(events):
     assert signals["9"]["new_account"] and signals["9"]["recent_events"] == 2
     assert signals["5"]["volume_ratio"] == 5.7 and signals["5"]["max_burst_30min"] == 12
     assert signals["4"]["sensitive_words"] == ["개인정보", "계약", "고객"]
-    lines = threat_lines(events)
+    lines = threat_lines(events, 15)
     assert len(lines) == 15 and all(line.endswith("]") for line in lines)
     assert lines == sorted(lines)
 
 
 def test_mapper_reports_bad_rows():
     rows = [{"TimeGenerated": "2026-10-01T00:00:00Z", "Type": "DLP_CL", "WHO": "a"}, {"TimeGenerated": "어제", "Type": "DLP_CL"}]
-    loaded = load_events(MemorySource(rows))
+    loaded = load_events(rows)
     assert [e.solution for e in loaded.records] == ["DLP"] and loaded.issues[0].line == 2
     with pytest.raises(ValueError, match="컬럼이 없습니다"):
-        load_events(MemorySource([{"WHO": "a"}]))
+        load_events([{"WHO": "a"}])
 
 
-def test_rules_for_server():
-    rules = load_policies(MemorySource([
-        {"policy_id": "FW-1", "source": "ANY", "destination": "10.0.1.0/24"},
-        {"policy_id": "FW-2", "source": "10.0.2.5", "destination": "db-01"},
-        {"policy_id": "FW-3", "source": "ANY", "destination": "ANY"},
-    ])).records
-    assert all(isinstance(r, PolicyRule) for r in rules)
-    found = rules_for(ServerState(host="db-01", ip="10.0.1.7"), rules)
-    assert [(r.policy_id, why) for r, why in found] == [("FW-1", "목적지 대역 10.0.1.0/24"), ("FW-2", "목적지 호스트 이름")]
-    assert rules_for(ServerState(host="db-011", ip="10.0.9.9"), rules) == []
+class FakeDocuments:
+    """search 에 들어온 검색어를 남기고, chunks 는 쌓인 순서대로 돌려줍니다."""
+
+    def __init__(self, chunks: list[str]) -> None:
+        self.queries: list[str] = []
+        self.stored = chunks
+
+    def search(self, query: str, k: int | None = None) -> list[str]:
+        self.queries.append(query)
+        return self.stored[:1]
+
+    def chunks(self) -> list[str]:
+        return self.stored
+
+    @staticmethod
+    def format(docs: list[str]) -> str:
+        return "\n\n".join(docs)
+
+
+def test_regulations_search_clauses_only_and_read_everything():
+    docs = FakeDocuments(["[정책_운영기준.md] 6.1 DLP 우선", "[정책_운영기준.md] 6.2 PAM"])
+    regs = Regulations(docs)
+    snap = snapshot_from_payload({"format": "sentinel-node 1", "host": "web-01", "ip": "10.0.0.5", "collected_at": "2026-11-05T00:00:00Z",
+                                  "sections": {}}, "web")
+    assert server_lines(snap, ["UFW 꺼짐"])[0] == "- 서버: web-01 (10.0.0.5)"
+    assert regs.for_server(snap, ["UFW 꺼짐"]) == "[정책_운영기준.md] 6.1 DLP 우선"
+    assert docs.queries[0].startswith("web-01 (10.0.0.5) / - 서버: web-01") and "UFW 꺼짐" in docs.queries[0]
+    assert regs.everything() == "[정책_운영기준.md] 6.1 DLP 우선\n\n[정책_운영기준.md] 6.2 PAM"
+    assert Regulations(FakeDocuments([])).everything() == "RAG 에 올라간 기준 문서 없음"
+    assert Regulations(FakeDocuments([])).clauses("x") == "찾은 기준 조항 없음"
 
 
 def _payload(ufw: str, sshd: str = "permitrootlogin no\npasswordauthentication no") -> dict:

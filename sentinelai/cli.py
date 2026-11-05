@@ -50,8 +50,8 @@ def index(engine: Engine, args: argparse.Namespace) -> int:
         print(f"  갱신   {name}")
     for name in report.skipped:
         print(f"  건너뜀 {name}")
-    if args.rebuild:
-        print("규칙까지 지웠습니다. review-policies 로 솔루션 정책을 다시 적재하세요.")
+    for name in report.removed:
+        print(f"  뺌     {name}")
     return 0
 
 
@@ -130,9 +130,9 @@ def parser() -> argparse.ArgumentParser:
     sub.add_parser("health", help="Ollama 연결 · 모델 · 벡터 DB 확인").set_defaults(run=health)
     cmd = sub.add_parser("index", help="기준 문서(docs/) 적재 — 바뀐 파일만")
     cmd.add_argument("source", nargs="?", help="문서 파일 · 폴더 (.md · .txt). 없으면 docs/")
-    cmd.add_argument("--rebuild", action="store_true", help="컬렉션을 비우고 전부 새로 (규칙도 지워짐)")
+    cmd.add_argument("--rebuild", action="store_true", help="컬렉션을 비우고 전부 새로")
     cmd.set_defaults(run=index)
-    sub.add_parser("review-policies", help="정책 관리 검토 — 문서 · 솔루션 정책 적재 + 정책 간 검토").set_defaults(run=review_policies)
+    sub.add_parser("review-policies", help="정책 관리 검토 — 기준 문서 적재 + 기준 문서 간 검토").set_defaults(run=review_policies)
     sub.add_parser("check-nodes", help="서버 점검 — 새 수집이 온 노드만").set_defaults(run=check_nodes)
     cmd = sub.add_parser("monitor", help="로그 감시 — 지난 감시 이후 로그만 (cron 용)")
     cmd.add_argument("--since", help="이 시각 이후 (UTC, ISO 8601)")

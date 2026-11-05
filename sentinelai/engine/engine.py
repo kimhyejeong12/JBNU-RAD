@@ -20,8 +20,8 @@ from langchain_ollama import ChatOllama
 from pydantic import BaseModel
 
 from .. import ROOT
-from ..context import People, Regulations, builders
-from ..sources import FORMAT, LoadResult, SecurityEvent, load_collected, load_events, period_since
+from ..context import Inputs
+from ..sources import FORMAT, Collected, Sources, load_collected, period_since
 from ..db import Database, User, auth, nodes, open_main_db, open_results_db, permissions, results
 from . import pipeline
 from .jobs import FAST, NORMAL, URGENT, Job, JobQueue
@@ -56,8 +56,6 @@ class Settings:
     chunk_size: int
     chunk_overlap: int
     top_k: int
-    policies_source: str
-    servers_source: str
     events_source: str
     db_path: str
     results_db_path: str
@@ -222,13 +220,14 @@ class Engine:
         return pipeline.rag_chain(self, *args, **kwargs)
 
     @cached_property
-    def regulations(self) -> Regulations:
-        return Regulations(self.documents)
+    def sources(self) -> Sources:
+        """데이터 계층 — DLP 로그 · 서버 상태 · DB 의 사용자 데이터 · RAG 기준 문서."""
+        return Sources(self.settings, self.main_db, self.results_db, self.documents)
 
-    def people(self, events: list[SecurityEvent] | None = None) -> People:
-        """작업 한 번에 쓸 사람 자료 — 로그 · 계정 · 운영자 결정을 한 번만 읽습니다."""
-        events = load_events(self.settings.events_source).records if events is None else events
-        return People(self.main_db, self.results_db, events)
+    @cached_property
+    def inputs(self) -> Inputs:
+        """판정 입력 합성 — 데이터는 sources 가 모아 넘깁니다."""
+        return Inputs(self.settings)
 
     @cached_property
     def main_db(self) -> Database:
@@ -257,7 +256,7 @@ class Engine:
         return info
 
     def index(self, source: Any = None, rebuild: bool = False) -> IndexReport:
-        """바뀐 파일만 적재합니다. rebuild 면 규칙까지 지우므로 정책 관리 검토를 다시 돌려야 합니다."""
+        """바뀐 파일만 적재하고, 폴더에 없는 파일의 조각은 뺍니다."""
         return pipeline.index_documents(self, source or pipeline.DOCS_DIR, rebuild)
 
     def remove_document(self, name: str) -> bool:
@@ -265,24 +264,19 @@ class Engine:
         return self.documents.remove(name)
 
     def run_policies(self, progress: Progress | None = None) -> dict[str, Any]:
-        """정책 관리 검토 1회 — 기준 문서 · 규칙 적재 후 정책 간 검토."""
-        decided = builders.policy_decisions(self.main_db, self.results_db)
-        review = pipeline.review_policies(self, self.settings.policies_source, decided, progress)
+        """정책 관리 검토 1회 — 기준 문서를 RAG 에 맞춘 뒤 문서끼리 견줌."""
+        review = pipeline.review_policies(self, self.sources.policy_decisions(), progress)
         results.save_policy_review(self.results_db, review, self.settings.model)
         return review
 
     def run_nodes(self, progress: Progress | None = None) -> dict[str, Any]:
         """새 수집이 온 노드만 판정하고, 한 건씩 바로 쌓아 중간에 멈춰도 남습니다."""
-        s = self.settings
-        pending = results.pending_snapshots(self.results_db, nodes.enabled_names(self.main_db))
-
         def save(done: int, total: int, finding: dict[str, Any]) -> None:
-            results.save_node_finding(self.results_db, finding, s.model)
+            results.save_node_finding(self.results_db, finding, self.settings.model)
             if progress:
                 progress(done, total, finding)
 
-        decided = lambda node: builders.server_decisions(self.main_db, self.results_db, node)  # noqa: E731
-        return pipeline.check_nodes(self, pending, s.policies_source, s.servers_source, decided, save)
+        return pipeline.check_nodes(self, self.sources.pending_servers(), self.sources.server_decisions, save)
 
     def run_fast_events(self, progress: Progress | None = None) -> dict[str, Any]:
         """지난 감시 이후 로그만 생각 단계를 끈 모델로 1차 판정합니다."""
@@ -294,8 +288,8 @@ class Engine:
         if since is None and not full:
             since = results.next_monitor_since(self.results_db, stage)
         fast = stage == "fast"
-        loaded = load_events(self.settings.events_source)
-        people = self.people(loaded.records)
+        loaded = self.sources.events()
+        people = self.sources.people(loaded.records)
         run = pipeline.monitor(self, loaded, lambda log_id: people.get(log_id=log_id), since, until, progress, fast=fast)
         results.save_monitor_run(self.results_db, run, f"{self.settings.model} (생각 끔)" if fast else self.settings.model,
                                  since.isoformat() if since else None, until.isoformat() if until else None, stage)
@@ -347,7 +341,7 @@ class Engine:
         at = since.isoformat(timespec="seconds") if since else None
         # 로그를 읽지 못하면 비율 없이 건수만 보여줍니다.
         try:
-            logs = load_events(self.settings.events_source, since=since).records
+            logs = self.sources.events(since).records
             total = {"count": len(logs), "days": dict(Counter(e.occurred_at.astimezone().date().isoformat() for e in logs))}
         except (FileNotFoundError, ValueError) as exc:
             total = {"count": None, "days": {}, "error": str(exc)}
@@ -371,7 +365,7 @@ class Engine:
     def run_suspects(self, progress: Progress | None = None) -> dict[str, Any]:
         """사람마다 의심 점수를 내고 한 사람씩 바로 쌓습니다. 모델에는 예전 AI 등급을 넣지 않습니다."""
         recent = (datetime.now(timezone.utc) - timedelta(days=35)).isoformat(timespec="seconds")
-        people = self.people()
+        people = self.sources.people()
         targets = people.suspects(results.user_findings(self.results_db, recent), permissions.user_requests(self.main_db, recent))
         scored = []
         for n, info in enumerate(targets, start=1):
@@ -399,7 +393,7 @@ class Engine:
             nodes.mark_collected(self.main_db, name, row["collected_at"])
         return {"node": name, "stored": stored}
 
-    def import_snapshots(self, folder: Any, node: str | None = None) -> tuple[LoadResult, int]:
+    def import_snapshots(self, folder: Any, node: str | None = None) -> tuple[Collected, int]:
         """등록부에 없는 노드는 키 없이 등록합니다. → (읽은 결과, 새로 넣은 수)"""
         loaded = load_collected(folder, node)
         stored = 0
@@ -418,7 +412,7 @@ class Engine:
         row = permissions.judge_input(self.main_db, request_no)
         if row is None:
             return None
-        return pipeline.judge_request(self, row, self.people().get(row["requester_id"], before=row["submitted_at"]))
+        return pipeline.judge_request(self, row, self.sources.people().get(row["requester_id"], before=row["submitted_at"]))
 
     def save_request_verdict(self, request_no: str, result: dict[str, Any]) -> bool:
         """그사이 1차 결재가 났으면 버리고 False."""
@@ -429,7 +423,7 @@ class Engine:
         grant = permissions.grant_input(self.main_db, request_no, move_id)
         if grant is None:
             return None
-        return pipeline.judge_grant(self, grant, self.people().get(grant["requester_id"]))
+        return pipeline.judge_grant(self, grant, self.sources.people().get(grant["requester_id"]))
 
     def save_grant_review(self, request_no: str, move_id: int, result: dict[str, Any]) -> bool:
         return permissions.save_grant_review(self.main_db, request_no, move_id, result, self.settings.model)

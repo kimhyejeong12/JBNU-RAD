@@ -10,7 +10,7 @@ GAP = {"source": "6.2 PAM", "level": "위험", "item": "[SSH] root 로그인", "
 
 def test_policy_review(results_db):
     rid = results.save_policy_review(results_db, {
-        "source": "data/policies", "load_issues": [], "rules": [{"id": "FW-001"}], "summary": "충돌 1건", "failed": False,
+        "source": "RAG 기준 문서", "load_issues": [], "rules": [], "summary": "충돌 1건", "failed": False,
         "elapsed_sec": 12.5,
         "issues": [{"kind": "충돌", "level": "위험", "policy_ids": ["SWG-001", "DLP-001"], "reason": "업로드", "recommendation": "차단"}],
     }, "qwen3:14b")

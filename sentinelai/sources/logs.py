@@ -1,15 +1,24 @@
-"""보안 솔루션 로그 (Microsoft Sentinel 내보내기) — 구조체 · 컬럼 · 읽기 · 자르기 · 찾기 · 세기 · 행동 신호."""
+"""DLP 로그 (Microsoft Sentinel 내보내기) — 읽기(CSV · TSV · JSON · JSONL, 파일 또는 폴더) · 구조체 · 자르기 · 찾기 · 세기 · 행동 신호."""
 from __future__ import annotations
 
+import csv
+import json
+import re
 from collections import Counter, defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
-from .base import Columns, ColumnMapper, LoadResult, Record, Row, load, parse_datetime
+from pydantic import BaseModel
+
+from .. import ROOT
+
+Row = dict[str, str]
 
 
-class SecurityEvent(Record):
+class SecurityEvent(BaseModel):
     """솔루션마다 다른 컬럼은 attributes 에 담습니다."""
 
     solution: str
@@ -40,14 +49,61 @@ class SecurityEvent(Record):
         return line
 
 
+@dataclass
+class LoadIssue:
+    line: int
+    message: str
+
+    def __str__(self) -> str:
+        # 0행은 파일 전체의 문제입니다.
+        return f"{self.line}행: {self.message}" if self.line else self.message
+
+
+@dataclass
+class LoadResult:
+    source: str
+    records: list[SecurityEvent] = field(default_factory=list)
+    # 한 행이 깨져도 나머지는 쓸 수 있게 예외 대신 모아 둡니다.
+    issues: list[LoadIssue] = field(default_factory=list)
+
+
+# --- 시각 ---
+
+# 한국어 로캘로 내보낸 CSV 는 "2026. 10. 6. 오전 2:47:00.000" 처럼 적힙니다.
+_KO_DATETIME = re.compile(
+    r"^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)\s*(\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?$"
+)
+
+
+def parse_datetime(value: str) -> datetime:
+    """한국어 로캘 표기 또는 ISO 8601 → UTC datetime."""
+    m = _KO_DATETIME.match(value)
+    if m:
+        y, mo, d, ampm, h, mi, s, frac = m.groups()
+        hour = int(h) % 12 + (12 if ampm == "오후" else 0)
+        micro = int((frac or "0").ljust(6, "0"))
+        parsed = datetime(int(y), int(mo), int(d), hour, int(mi), int(s or 0), micro)
+    else:
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError(f"날짜 · 시각 형식이 아닙니다: {value!r}") from None
+    # TimeGenerated 는 UTC 라서 시간대 표기가 없으면 UTC 로 봅니다.
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+# --- 컬럼 ---
+
 # 판정에 쓰지 않는 Log Analytics 공통 컬럼은 attributes 에 넣지 않습니다.
 _IGNORED = {"_ResourceId", "SourceSystem", "MG", "ManagementGroupName", "Computer"}
 
 
-class EventMapper(ColumnMapper):
-    """Microsoft Sentinel 사용자 지정 로그 → SecurityEvent. WHO · WHERE · HOW 를 공통 컬럼으로 봅니다."""
+class EventMapper:
+    """Microsoft Sentinel 사용자 지정 로그 → SecurityEvent. 필드마다 후보 컬럼 이름을 앞에서부터 찾고, WHO · WHERE · HOW 를 공통 컬럼으로 봅니다."""
 
-    COLUMNS = {
+    COLUMNS: dict[str, Sequence[str]] = {
         "occurred_at": ["TimeGenerated [UTC]", "TimeGenerated"],
         "solution": ["Type"],
         "who": ["WHO"],
@@ -59,31 +115,117 @@ class EventMapper(ColumnMapper):
         "source_ip": ["SourceIP", "SourceIp"],
         "tenant_id": ["TenantId"],
     }
-    REQUIRED = frozenset({"occurred_at", "solution"})
 
-    def __init__(self, columns: Columns | None = None, solution: str | None = None) -> None:
-        """solution: Type 컬럼이 없는 파일에 쓸 솔루션 이름."""
-        super().__init__(columns)
+    def __init__(self, columns: Mapping[str, Sequence[str]] | None = None, solution: str | None = None) -> None:
+        """columns: 이름이 다른 필드만 덮어씁니다. solution: Type 컬럼이 없는 파일에 쓸 솔루션 이름."""
+        self.columns = {**self.COLUMNS, **(columns or {})}
         self.solution = solution
-        if solution:
-            self.required.discard("solution")
+        self.required = {"occurred_at"} if solution else {"occurred_at", "solution"}
+        self.known = {name for names in self.columns.values() for name in names} | _IGNORED
+
+    def check(self, columns: Sequence[str]) -> None:
+        missing = [" / ".join(names) for f, names in self.columns.items() if f in self.required and not any(n in columns for n in names)]
+        if missing:
+            raise ValueError(f"컬럼이 없습니다: {', '.join(missing)}")
+
+    def get(self, row: Row, name: str) -> str:
+        for column in self.columns[name]:
+            if column in row:
+                if not row[column] and name in self.required:
+                    raise ValueError(f"{column} 값이 비어 있습니다")
+                return row[column]
+        return ""
 
     def map(self, row: Row) -> SecurityEvent:
-        skip = self.known_columns() | _IGNORED
+        fields = ("who", "where", "how", "user_id", "user_name", "department", "source_ip", "tenant_id")
         return SecurityEvent(
             solution=self.solution or self.get(row, "solution").removesuffix("_CL"),
             occurred_at=parse_datetime(self.get(row, "occurred_at")),
-            who=self.get(row, "who"),
-            where=self.get(row, "where"),
-            how=self.get(row, "how"),
-            user_id=self.get(row, "user_id"),
-            user_name=self.get(row, "user_name"),
-            department=self.get(row, "department"),
-            source_ip=self.get(row, "source_ip"),
-            tenant_id=self.get(row, "tenant_id"),
-            attributes={k: v for k, v in row.items() if k not in skip},
-            raw=row,
+            **{f: self.get(row, f) for f in fields},
+            attributes={k: v for k, v in row.items() if k not in self.known},
         )
+
+
+# --- 읽기 ---
+
+SUFFIXES = (".csv", ".tsv", ".json", ".jsonl")
+
+
+def _clean(row: Mapping[Any, Any]) -> Row:
+    # csv.DictReader 는 컬럼보다 값이 많은 행에 None 키를 붙입니다.
+    return {str(k).strip(): ("" if v is None else str(v).strip()) for k, v in row.items() if k is not None}
+
+
+def _rows(path: Path) -> Iterator[tuple[int, Row]]:
+    """(위치, 행). 위치는 CSV 면 파일 행 번호, JSON 이면 순번입니다."""
+    if not path.is_file():
+        raise FileNotFoundError(f"데이터 파일이 없습니다: {path}")
+    if path.suffix in (".csv", ".tsv"):
+        # utf-8-sig 라야 BOM 포함 파일의 첫 컬럼 이름이 깨지지 않습니다.
+        with path.open(encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f, delimiter="\t" if path.suffix == ".tsv" else ",")
+            for row in reader:
+                if any((v or "").strip() for v in row.values() if isinstance(v, str)):
+                    yield reader.line_num, _clean(row)
+        return
+    text = path.read_text(encoding="utf-8")
+    if path.suffix == ".jsonl":
+        items = [json.loads(line) for line in text.splitlines() if line.strip()]
+    else:
+        items = json.loads(text)
+        if isinstance(items, dict):
+            # API 응답은 {"value": [...]} 처럼 목록을 한 겹 감싸는 경우가 많습니다.
+            lists = [v for v in items.values() if isinstance(v, list)]
+            if len(lists) != 1:
+                raise ValueError(f"{path.name}: 행 목록을 찾을 수 없습니다")
+            items = lists[0]
+    for n, item in enumerate(items, start=1):
+        if not isinstance(item, dict):
+            raise ValueError(f"{path.name}: {n}번째 항목이 객체가 아닙니다")
+        yield n, _clean(item)
+
+
+def _read(name: str, rows: Iterable[tuple[int, Row]], mapper: EventMapper, strict: bool) -> LoadResult:
+    result = LoadResult(source=name)
+    checked = False
+    for line, row in rows:
+        if not checked:
+            try:
+                mapper.check(list(row))
+            except ValueError as exc:
+                raise ValueError(f"{name}: {exc}") from None
+            checked = True
+        try:
+            result.records.append(mapper.map(row))
+        except ValueError as exc:  # pydantic 의 ValidationError 도 여기로 옵니다.
+            if strict:
+                raise ValueError(f"{name} {line}행: {exc}") from None
+            result.issues.append(LoadIssue(line, str(exc)))
+    return result
+
+
+def _load(target: Any, mapper: EventMapper, strict: bool) -> LoadResult:
+    """target = 파일 · 폴더 경로 또는 행(dict) 목록. 필수 컬럼이 없으면 ValueError."""
+    if not isinstance(target, (str, Path)):
+        return _read("memory", enumerate((_clean(r) for r in target), start=1), mapper, strict)
+    path = Path(target) if Path(target).is_absolute() else ROOT / target
+    if not path.is_dir():
+        if path.suffix.lower() not in SUFFIXES:
+            raise ValueError(f"읽을 수 없는 형식입니다: {path.name} (지원: {', '.join(SUFFIXES)})")
+        return _read(path.name, _rows(path), mapper, strict)
+    # 컬럼이 맞지 않는 파일 하나 때문에 폴더의 나머지 파일을 버리지 않습니다.
+    result = LoadResult(source=path.name)
+    for file in sorted(p for p in path.iterdir() if p.is_file() and p.suffix.lower() in SUFFIXES):
+        try:
+            part = _read(file.name, _rows(file), mapper, strict)
+        except ValueError as exc:
+            if strict:
+                raise
+            result.issues.append(LoadIssue(0, str(exc)))
+            continue
+        result.records += part.records
+        result.issues += [LoadIssue(i.line, f"{file.name} {i.message}") for i in part.issues]
+    return result
 
 
 def load_events(
@@ -94,7 +236,7 @@ def load_events(
     until: datetime | None = None,
 ) -> LoadResult:
     """범위 밖 로그는 오류가 아니므로 issues 에 넣지 않습니다."""
-    result = load(target, mapper or EventMapper(), strict)
+    result = _load(target, mapper or EventMapper(), strict)
     if since or until:
         result.records = between(result.records, since, until)
     return result
@@ -150,6 +292,12 @@ def group_by_user(events: Iterable[SecurityEvent]) -> dict[str, list[SecurityEve
     for e in sorted(events, key=lambda e: e.occurred_at):
         groups.setdefault(e.log_user, []).append(e)
     return groups
+
+
+def group_subject(group: list[SecurityEvent]) -> str:
+    """묶음의 "부서 이름" — 판정 대상 칸 · 조항 검색어에 같은 글을 씁니다."""
+    first = group[0]
+    return f"{first.department} {first.who or first.user_name}".strip()
 
 
 def _has(value: str, needle: str) -> bool:
@@ -329,9 +477,6 @@ def signals_text(s: dict[str, Any] | None) -> str:
     return "\n".join(rows + [f"- 눈에 띔: {h}" for h in s["highlights"]])
 
 
-THREAT_LIMIT = 15
-
-
 def threat_marks(e: SecurityEvent) -> list[str]:
     """코드가 정하는 사실(예외 승인 · 민감 문서 · 근무 시간 밖)만 붙입니다."""
     marks = ["예외 승인"] if _exception(e) else []
@@ -342,7 +487,7 @@ def threat_marks(e: SecurityEvent) -> list[str]:
     return marks
 
 
-def threat_lines(events: list[SecurityEvent], limit: int = THREAT_LIMIT) -> list[str]:
+def threat_lines(events: list[SecurityEvent], limit: int) -> list[str]:
     """한 종류가 몰리지 않게 종류마다 최근 것부터 돌아가며 limit 줄을 뽑아 시간순으로 돌려줍니다."""
     kinds: dict[tuple, list[tuple[SecurityEvent, list[str]]]] = defaultdict(list)
     for e in sorted(events, key=lambda e: e.occurred_at, reverse=True):

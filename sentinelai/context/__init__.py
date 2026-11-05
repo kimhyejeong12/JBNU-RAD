@@ -1,7 +1,7 @@
-"""맥락 빌더 — sources · DB · 규정 RAG 를 모아 판정마다 LLM 입력을 만듭니다. 예전 AI 등급 · 의심 점수는 넣지 않습니다."""
+"""맥락 — 프롬프트 합성만 합니다. 데이터 계층(sources)이 모은 대상 · 사람 · 규정 RAG 결과 · 운영자 결정을 프롬프트 입력으로 쓰고 크기를 맞춥니다."""
 from . import builders
 from .budget import Built, Section, fit, limit
-from .person import People, Person
-from .regulations import Regulations
+from .inputs import Inputs
+from .prompts import Prompts
 
-__all__ = ["Built", "People", "Person", "Regulations", "Section", "builders", "fit", "limit"]
+__all__ = ["Built", "Inputs", "Prompts", "Section", "builders", "fit", "limit"]

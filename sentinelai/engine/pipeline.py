@@ -11,19 +11,14 @@ from typing import TYPE_CHECKING, Any
 from langchain_core.runnables import Runnable, RunnablePassthrough
 
 from .. import ROOT
-from ..context import Built, Person, builders
+from ..context import Built, Prompts
 from ..sources import (
     LoadResult,
-    ServerSnapshot,
-    ServerState,
+    Person,
     between,
     group_by_user,
-    inventory,
     latest,
     load_events,
-    load_policies,
-    load_servers,
-    optional,
     parse_datetime,
     period_since,
     search,
@@ -34,8 +29,7 @@ from ..sources import (
     user_label,
     vocabulary,
 )
-from .prompt import Prompts
-from .rag import IndexReport, lookup_all
+from .rag import IndexReport, lookup
 from .types import Answer, LogFilter, PolicyReview, ServerFilter, ServerReview, SuspectScore, Verdict
 
 if TYPE_CHECKING:
@@ -44,7 +38,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-# 판정 체인은 프롬프트와 모델뿐입니다. 입력(대상 · 사람 · 규정 RAG)은 context 의 빌더가 만듭니다.
+# 판정 체인은 프롬프트와 모델뿐입니다. 데이터(사람 · 규정 RAG · 운영자 결정)는 sources 가 모으고 engine.inputs 가 글로 씁니다.
 
 
 def review_chain(engine: Engine, **kwargs: Any) -> Runnable[dict[str, Any], Any]:
@@ -101,7 +95,7 @@ def answer_chain(engine: Engine, structured: bool = False, **kwargs: Any) -> Run
 
 def rag_chain(engine: Engine, structured: bool = False, k: int | None = None, **kwargs: Any) -> Runnable[str, Any]:
     """입력: 질문 문자열"""
-    return {"context": lookup_all(engine, k), "question": RunnablePassthrough()} | answer_chain(engine, structured, **kwargs)
+    return {"context": lookup(engine, k), "question": RunnablePassthrough()} | answer_chain(engine, structured, **kwargs)
 
 
 DOCS_DIR = ROOT / "docs"
@@ -151,31 +145,22 @@ def _judge(chain: Runnable[dict[str, Any], Any], built: Built) -> dict[str, Any]
 
 def judge_request(engine: Engine, row: dict[str, Any], person: Person) -> dict[str, Any]:
     """신청 1건 → 신청 행의 AI 칸에 저장할 dict. person 은 신청 시각까지의 기록입니다."""
-    return _judge(engine.review_chain(), builders.request(engine.settings, Prompts.ACCESS_REVIEW, engine.regulations, row, person))
+    return _judge(engine.review_chain(), engine.inputs.request(row, person, engine.sources.regulations.for_request(row)))
 
 
 def judge_grant(engine: Engine, row: dict[str, Any], person: Person) -> dict[str, Any]:
     """row 는 신청 행 + move. → grant_reviews 에 쌓을 dict"""
-    return _judge(engine.grant_chain(), builders.grant(engine.settings, Prompts.GRANT_REVIEW, engine.regulations, row, person))
+    return _judge(engine.grant_chain(), engine.inputs.grant(row, person, engine.sources.regulations.for_grant(row)))
 
 
-def review_policies(engine: Engine, policies_source: Any, decided: list[str], progress: Progress | None = None) -> dict[str, Any]:
-    """정책 폴더가 비면 RAG 의 규칙을 지웁니다 — 예전 규칙이 다른 검색에 섞이지 않게."""
-    policies = optional(load_policies, policies_source)
+def review_policies(engine: Engine, decided: list[dict[str, Any]], progress: Progress | None = None) -> dict[str, Any]:
+    """기준 문서를 RAG 에 맞춘 뒤 쌓인 문서 전체를 꺼내 문서끼리 견줍니다."""
     index_documents(engine)
-    if not policies.records:
-        engine.documents.clear_rules()
-        empty = {"summary": "솔루션 정책이 없어 정책 간 검토를 하지 않았습니다 (RAG 의 예전 규칙도 지웠습니다).", "issues": [],
-                 "failed": False, "error": None, "elapsed_sec": 0.0}
-        if progress:
-            progress(1, 1, empty)
-        return {**_loaded(policies), "rules": [], **empty}
-    engine.documents.index_rules(policies.source, [r.describe() for r in policies.records])
-    built = builders.policy(engine.settings, Prompts.POLICY_CONFLICT, engine.regulations, policies.records, decided)
-    rules_part = _judge(engine.policy_chain(), built)
+    built = engine.inputs.policy(engine.sources.regulations.everything(), decided)
+    part = _judge(engine.policy_chain(), built)
     if progress:
-        progress(1, 1, rules_part)
-    return {**_loaded(policies), "rules": [r.model_dump() for r in policies.records], **rules_part}
+        progress(1, 1, part)
+    return {"generated_at": _now(), "source": "RAG 기준 문서", "load_issues": [], "rules": [], **part}
 
 
 def snapshot_row(payload: dict[str, Any], node: str, previous: dict[str, Any] | None) -> dict[str, Any]:
@@ -187,27 +172,21 @@ def snapshot_row(payload: dict[str, Any], node: str, previous: dict[str, Any] | 
             "changes": snapshot_changes(previous and previous["modules"], snap.modules) if newer else []}
 
 
-def check_nodes(engine: Engine, snapshots: list[dict[str, Any]], policies_source: Any, servers_source: Any,
-                decided: Callable[[str], list[str]], progress: Progress | None = None) -> dict[str, Any]:
-    """새 수집이 온 노드마다 판정합니다. decided(노드) = 그 노드에 운영자가 정한 것."""
-    policies = optional(load_policies, policies_source)
-    servers = optional(load_servers, servers_source)
-    found = inventory(servers.records)
-    if snapshots:
+def check_nodes(engine: Engine, servers: list[dict[str, Any]], decided: Callable[[str], list[dict[str, Any]]],
+                progress: Progress | None = None) -> dict[str, Any]:
+    """servers = Sources.pending_servers, decided(노드) = 그 노드에 운영자가 정한 것."""
+    if servers:
         index_documents(engine)
     findings = []
     chain = engine.server_chain()
-    for n, snap in enumerate(snapshots, start=1):
-        server = found.get(snap["host"].lower()) or found.get(snap["ip"]) or ServerState(host=snap["host"], ip=snap["ip"])
-        snapshot = ServerSnapshot(**{k: snap[k] for k in ("node", "host", "ip", "collected_at", "collected_by", "modules")})
-        built = builders.server(engine.settings, Prompts.SERVER_REVIEW, engine.regulations, server, snapshot, snap["changes"],
-                                policies.records, decided(snap["node"]))
-        finding = {"node": snap["node"], "snapshot_id": snap["id"], "host": snap["host"], "ip": snap["ip"] or server.ip,
-                   "state": server.raw, "matched": built.inputs["matched"], **_judge(chain, built)}
+    for n, row in enumerate(servers, start=1):
+        snapshot, changed = row["snapshot"], row["changes"]
+        built = engine.inputs.server(snapshot, changed, engine.sources.regulations.for_server(snapshot, changed), decided(row["node"]))
+        finding = {"node": row["node"], "snapshot_id": row["id"], "host": row["host"], "ip": row["ip"], **_judge(chain, built)}
         findings.append(finding)
         if progress:
-            progress(n, len(snapshots), finding)
-    return {"findings": findings, "load_issues": [str(i) for i in policies.issues + servers.issues]}
+            progress(n, len(servers), finding)
+    return {"findings": findings, "load_issues": []}
 
 
 def monitor(
@@ -224,9 +203,8 @@ def monitor(
     findings = []
     groups = group_by_user(window)
     chain = engine.event_chain(llm=engine.fast_llm) if fast else engine.event_chain()
-    prompt = Prompts.EVENT_REVIEW
     for n, (user, events) in enumerate(groups.items(), start=1):
-        built = builders.events(engine.settings, prompt, engine.regulations, events, person(user), fast)
+        built = engine.inputs.events(events, person(user), engine.sources.regulations.for_events(events), fast)
         last = latest(events)
         finding = {
             # 같은 사용자가 다음 실행에도 나올 수 있어 마지막 로그 시각을 붙입니다.
@@ -395,7 +373,7 @@ def band(score: int) -> str:
 
 def predict_suspect(engine: Engine, info: dict[str, Any], person: Person) -> dict[str, Any]:
     """info = People.suspects 의 한 줄."""
-    result = _judge(engine.suspect_chain(), builders.suspect(engine.settings, Prompts.SUSPECT, engine.regulations, info, person))
+    result = _judge(engine.suspect_chain(), engine.inputs.suspect(info, person, engine.sources.regulations.for_suspect(info)))
     if not result["failed"]:
         result["level"] = band(result["score"])
     return result

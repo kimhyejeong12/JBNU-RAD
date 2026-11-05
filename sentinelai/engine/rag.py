@@ -1,4 +1,4 @@
-"""RAG 저장소 — 기준 조항(clause)과 솔루션 규칙(rule)을 한 Milvus 컬렉션에 쌓고 종류별로 찾습니다."""
+"""RAG 저장소 — 기준 문서(docs/)를 조각내 Milvus 컬렉션에 쌓고 찾습니다."""
 from __future__ import annotations
 
 import hashlib
@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from langchain_core.documents import Document
-from langchain_core.runnables import Runnable, RunnableParallel
+from langchain_core.runnables import Runnable
 from langchain_milvus import Milvus
 from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -21,25 +21,24 @@ if TYPE_CHECKING:
 class IndexReport:
     indexed: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
+    removed: list[str] = field(default_factory=list)
     chunks: int = 0
 
     def __str__(self) -> str:
         return (
             f"{len(self.indexed)}개 파일 갱신({self.chunks}청크), "
             f"{len(self.skipped)}개 파일 변경 없음"
+            + (f", {len(self.removed)}개 파일 뺌 ({', '.join(self.removed)})" if self.removed else "")
         )
 
 
 class DocumentStore:
-    """기준 조항(clause)과 솔루션 규칙(rule, source 가 "rules:" 로 시작)을 한 Milvus 컬렉션에 쌓습니다."""
+    """조각마다 source(파일 이름) · doc_hash 를 두고, id 는 "파일 이름|순번"의 해시라 순번을 되짚을 수 있습니다."""
 
     SUFFIXES = {".md", ".txt"}
-    RULES_PREFIX = "rules:"
-    # 메타데이터 필드를 늘리면 기존 컬렉션 스키마와 맞지 않아 종류는 source 접두어로 가립니다.
-    KIND_EXPR = {
-        "clause": f'not (source like "{RULES_PREFIX}%")',
-        "rule": f'source like "{RULES_PREFIX}%"',
-    }
+    ALL = "pk != ''"
+    # 한 번에 꺼내는 조각 수의 상한입니다 (기준 문서 전체를 읽을 때).
+    MAX_CHUNKS = 10000
     INDEX_PARAMS = {"metric_type": "COSINE", "index_type": "FLAT"}
 
     def __init__(self, settings: Settings) -> None:
@@ -136,7 +135,7 @@ class DocumentStore:
         return splitter.split_documents(docs)
 
     def index(self, source: str | Path, rebuild: bool = False) -> IndexReport:
-        """바뀐 파일만 다시 임베딩합니다. rebuild 면 컬렉션을 비우고 새로 적재합니다 (규칙도 지워짐)."""
+        """바뀐 파일만 다시 임베딩합니다. 폴더면 그 폴더에 없는 파일의 조각은 지웁니다. rebuild 면 컬렉션을 비우고 새로 적재합니다."""
         documents = self.read(source)
         if rebuild:
             with self._lock:
@@ -145,36 +144,30 @@ class DocumentStore:
         report = IndexReport()
         for doc in documents:
             self._replace(doc.metadata["source"], doc.metadata["doc_hash"], self.split([doc]), report, rebuild)
-        return report
-
-    def index_rules(self, name: str, rules: list[str]) -> IndexReport:
-        """규칙 묶음은 하나만 두고, 바뀌었으면 통째로 바꾸며 다른 묶음의 규칙은 지웁니다."""
-        source = self.RULES_PREFIX + name
-        doc_hash = self._digest("\n".join(rules))
-        chunks = [
-            Document(page_content=rule, metadata={"source": source, "doc_hash": doc_hash})
-            for rule in rules
-        ]
-        report = IndexReport()
-        self._replace(source, doc_hash, chunks, report)
-        stale = self.KIND_EXPR["rule"] + " and not (" + self._expr(source) + ")"
-        if self.store.search_by_metadata(expr=stale, limit=1):
-            self.store.delete(expr=stale)
+        if Path(source).is_dir():
+            for name in self.names() - {d.metadata["source"] for d in documents}:
+                self.store.delete(expr=self._expr(name))
+                report.removed.append(name)
         return report
 
     def remove(self, name: str) -> bool:
-        """기준 문서 하나의 조각을 지웁니다 (규칙 묶음 제외). 지운 게 있으면 True"""
-        if name.startswith(self.RULES_PREFIX) or not self.store.search_by_metadata(expr=self._expr(name), limit=1):
+        """기준 문서 하나의 조각을 지웁니다. 지운 게 있으면 True"""
+        if not self.store.search_by_metadata(expr=self._expr(name), limit=1):
             return False
         self.store.delete(expr=self._expr(name))
         return True
 
-    def clear_rules(self) -> bool:
-        """지운 게 있으면 True"""
-        if not self.store.search_by_metadata(expr=self.KIND_EXPR["rule"], limit=1):
-            return False
-        self.store.delete(expr=self.KIND_EXPR["rule"])
-        return True
+    def chunks(self) -> list[Document]:
+        """쌓인 조각 전부 — 파일 이름 · 원래 순서대로."""
+        try:
+            rows = self.store.search_by_metadata(expr=self.ALL, limit=self.MAX_CHUNKS)
+        except Exception:
+            return []
+        seq = {self._digest(f"{name}|{i}", 32): i for name in {d.metadata.get("source", "") for d in rows} for i in range(len(rows))}
+        return sorted(rows, key=lambda d: (d.metadata.get("source", ""), seq.get(d.metadata.get("pk"), len(rows))))
+
+    def names(self) -> set[str]:
+        return {d.metadata.get("source", "") for d in self.chunks()}
 
     def _replace(
         self, name: str, doc_hash: str, chunks: list[Document], report: IndexReport, rebuild: bool = False
@@ -191,22 +184,15 @@ class DocumentStore:
         report.indexed.append(name)
         report.chunks += len(chunks)
 
-    def _search_kwargs(self, k: int | None, kind: str | None) -> dict:
-        kwargs: dict = {"k": k or self.settings.top_k}
-        if kind:
-            kwargs["expr"] = self.KIND_EXPR[kind]
-        return kwargs
+    def retriever(self, k: int | None = None):
+        return self.store.as_retriever(search_kwargs={"k": k or self.settings.top_k})
 
-    def retriever(self, k: int | None = None, kind: str | None = None):
-        """kind: "clause" · "rule" · None(전부)."""
-        return self.store.as_retriever(search_kwargs=self._search_kwargs(k, kind))
-
-    def search(self, query: str, k: int | None = None, kind: str | None = None) -> list[Document]:
-        return self.store.similarity_search(query, **self._search_kwargs(k, kind))
+    def search(self, query: str, k: int | None = None) -> list[Document]:
+        return self.store.similarity_search(query, k=k or self.settings.top_k)
 
     def is_empty(self) -> bool:
         try:
-            return not self.store.search_by_metadata(expr="pk != ''", limit=1)
+            return not self.store.search_by_metadata(expr=self.ALL, limit=1)
         except Exception:
             return True
 
@@ -215,12 +201,6 @@ class DocumentStore:
         return "\n\n".join(f"[{d.metadata.get('source', '?')}] {d.page_content}" for d in docs)
 
 
-def lookup(engine: Engine, k: int | None, kind: str) -> Runnable[str, str]:
-    return engine.documents.retriever(k, kind) | DocumentStore.format
-
-
-def lookup_all(engine: Engine, k: int | None) -> Runnable[str, str]:
-    """조항과 규칙을 따로 찾아 이어 붙입니다. 한 번에 찾으면 규칙에 조항이 밀려납니다."""
-    both = RunnableParallel(clause=lookup(engine, k, "clause"), rule=lookup(engine, k, "rule"))
-    return both | (lambda found: "\n\n".join(text for text in found.values() if text))
+def lookup(engine: Engine, k: int | None) -> Runnable[str, str]:
+    return engine.documents.retriever(k) | DocumentStore.format
 

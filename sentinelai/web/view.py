@@ -42,7 +42,7 @@ def server(item: dict[str, Any]) -> dict[str, Any]:
         "title": title,
         # 바꿀 것은 다른 곳마다 따로 있어 권고 칸은 비웁니다.
         **_verdict({**item, "reason": item["summary"], "recommendation": ""}),
-        "detail": {"state": item["state"], "matched": item["matched"], "snapshot": item.get("snapshot") or {}},
+        "detail": {"snapshot": item.get("snapshot") or {}},
         # 모델이 정상이라 적은 항목은 "다른 곳"이 아니라 화면에서만 뺍니다.
         "gaps": [g for g in item.get("gaps", []) if g.get("level") != "정상"],
         "unjudged": item.get("unjudged", []),
@@ -83,7 +83,6 @@ def results(policies: dict[str, Any] | None, events: dict[str, Any] | None, node
                             ("servers", nodes_at and {"generated_at": nodes_at, "source": "수집 노드", "load_issues": []}))
         },
         "policy_review": policy_review,
-        "policies": [r["raw"] for r in policies["rules"]] if policies else [],
         "servers": servers,
         "events": findings,
     }
