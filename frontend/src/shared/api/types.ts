@@ -1,4 +1,4 @@
-// 서버 응답의 모양 — 서버는 dict 를 돌려주므로 화면이 쓰는 칸만 적습니다 (FRONTEND_GUIDE §4).
+// 서버 응답의 모양 — 서버는 dict 를 돌려주므로 화면이 쓰는 칸만 적습니다.
 
 export type Role = "user" | "manager" | "top";
 export type Level = "정상" | "주의" | "위험";

@@ -186,7 +186,7 @@ class Engine:
 
     @property
     def fast_llm(self) -> ChatOllama:
-        """빠른 로그 감시용 — 판정 모델과 같은 모델에 생각 단계만 끕니다. 묶음당 수 초지만 정확도가 떨어져 1차 판정에만 씁니다 (NOTES.md)."""
+        """빠른 로그 감시용 — 판정 모델과 같은 모델에 생각 단계만 끕니다. 묶음당 수 초지만 정확도가 떨어져 1차 판정에만 씁니다 (CLAUDE.md §9)."""
         if self._fast_llm is None:
             self._fast_llm = ChatOllama(**{**self.settings.llm_options, "reasoning": False})
         return self._fast_llm

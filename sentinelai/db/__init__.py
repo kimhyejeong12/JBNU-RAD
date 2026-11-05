@@ -2,7 +2,7 @@
 
 둘 다 PostgreSQL 스키마입니다 (main · results). 주소는 SQLite 때 이름 그대로인 SENTINELAI_DB_PATH · SENTINELAI_RESULTS_DB_PATH 에 둡니다.
 엔진 · 데이터 계층은 DB를 모릅니다. pipeline · web · CLI 만 씁니다.
-설계와 결정 경위는 design/db-schema.md · design/results-db.md 에 있습니다.
+설계 결정은 CLAUDE.md §9 에 있습니다.
 """
 from __future__ import annotations
 

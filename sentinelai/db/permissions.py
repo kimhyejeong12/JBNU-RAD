@@ -404,7 +404,7 @@ def save_ai_verdict(db: Database, request_no: str, result: dict, model: str) -> 
 def account_record(db: Database, user_id: int, before: str | None = None) -> dict[str, Any] | None:
     """판정에 넣는 계정 기록 — 계정 · 이동 · 지금 가진 권한 · 권한 신청 기록. 사람이 정한 것만 담고 AI 판정은 넣지 않습니다.
 
-    예전 AI 등급을 다시 넣으면 한 번 위험으로 찍힌 사람이 계속 위험으로 나오는 되먹임이 생깁니다 (NOTES.md 11/3).
+    예전 AI 등급을 다시 넣으면 한 번 위험으로 찍힌 사람이 계속 위험으로 나오는 되먹임이 생깁니다 (CLAUDE.md §9, 11/3).
     before(신청 시각)를 주면 그 신청과 그 뒤 신청은 빼고 봅니다 — 판정할 신청 자신이 기록에 섞이지 않게.
     """
     with db.connection() as conn:
