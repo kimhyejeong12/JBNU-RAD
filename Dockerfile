@@ -15,7 +15,7 @@ COPY sentinelai ./sentinelai
 # 기준 문서 볼륨이 처음 만들어질 때 이 내용으로 채워집니다.
 COPY docs ./docs
 
-RUN useradd --create-home --uid 10001 sentinelai && mkdir -p .milvus data && chown -R sentinelai:sentinelai /app
+RUN useradd --create-home --uid 10001 sentinelai && mkdir -p data && chown -R sentinelai:sentinelai /app
 USER sentinelai
 
 EXPOSE 8000

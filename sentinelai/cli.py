@@ -1,4 +1,4 @@
-"""웹이 꺼져 있을 때 쓰는 CLI — 웹이 떠 있으면 Milvus Lite 잠금 때문에 벡터 DB 를 쓰는 명령은 실패합니다."""
+"""웹이 꺼져 있을 때 쓰는 CLI — 웹이 떠 있으면 판정이 웹 작업 큐와 따로 돌아 모델을 함께 칩니다. Milvus Lite(파일)면 잠금 때문에 아예 실패합니다."""
 from __future__ import annotations
 
 import argparse

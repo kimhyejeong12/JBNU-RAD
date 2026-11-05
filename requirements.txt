@@ -2,7 +2,7 @@
 langchain-core>=1.0
 langchain-ollama>=1.0
 
-# RAG — 문서 분할 · Milvus (기본은 파일로 도는 Milvus Lite)
+# RAG — 문서 분할 · Milvus (기본은 compose 의 Milvus 서버, 파일 경로면 Milvus Lite)
 langchain-text-splitters>=1.0
 langchain-milvus>=0.4
 

@@ -30,10 +30,15 @@ CATALOG = [
 ]
 
 
+# 시험 환경도 compose 의 Milvus 를 쓰고, 컬렉션만 진짜와 나눕니다.
+DEV_MILVUS = "http://127.0.0.1:19530"
+
+
 def dev_env(check_min: int = 5) -> dict[str, str]:
     """.env 보다 환경변수가 먼저라, 시험 DB · 벡터 DB 위치를 환경변수로 넘깁니다."""
     return {**os.environ, "GRPC_VERBOSITY": "NONE", "SENTINELAI_DB_PATH": DEV_URL, "SENTINELAI_RESULTS_DB_PATH": DEV_URL,
-            "SENTINELAI_MILVUS_URI": ".dev/milvus.db", "SENTINELAI_MONITOR_INTERVAL_MIN": str(check_min)}
+            "SENTINELAI_MILVUS_URI": DEV_MILVUS, "SENTINELAI_MILVUS_COLLECTION": "sentinelai_dev",
+            "SENTINELAI_MONITOR_INTERVAL_MIN": str(check_min)}
 
 
 def _use_dev() -> None:

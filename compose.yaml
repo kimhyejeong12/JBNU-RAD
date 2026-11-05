@@ -1,4 +1,4 @@
-# SentinelAI 웹(app) + PostgreSQL — DB 비밀번호는 .env 의 SENTINELAI_DB_PASSWORD (없으면 개발용 기본값).
+# SentinelAI 웹(app) + PostgreSQL + Milvus(벡터 DB) — DB 비밀번호는 .env 의 SENTINELAI_DB_PASSWORD (없으면 개발용 기본값).
 services:
   postgres:
     image: postgres:18
@@ -19,6 +19,30 @@ services:
       timeout: 3s
       retries: 10
 
+  milvus:
+    image: milvusdb/milvus:v3.0.3
+    command: ["milvus", "run", "standalone"]
+    # etcd · 저장소를 따로 띄우지 않고 컨테이너 하나로 돕니다.
+    environment:
+      ETCD_USE_EMBED: "true"
+      ETCD_DATA_DIR: /var/lib/milvus/etcd
+      ETCD_CONFIG_PATH: /milvus/configs/embedEtcd.yaml
+      COMMON_STORAGETYPE: local
+      DEPLOY_MODE: STANDALONE
+    security_opt:
+      - seccomp:unconfined
+    ports:
+      - "127.0.0.1:19530:19530"
+    volumes:
+      - milvus-data:/var/lib/milvus
+      - ./milvus/embedEtcd.yaml:/milvus/configs/embedEtcd.yaml:ro,z
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 10s
+      timeout: 5s
+      start_period: 90s
+      retries: 6
+
   app:
     build: .
     image: sentinelai:0.6.0
@@ -26,11 +50,11 @@ services:
     environment:
       SENTINELAI_DB_PATH: postgresql://sentinelai:${SENTINELAI_DB_PASSWORD:-sentinelai-dev}@postgres:5432/sentinelai
       SENTINELAI_RESULTS_DB_PATH: postgresql://sentinelai:${SENTINELAI_DB_PASSWORD:-sentinelai-dev}@postgres:5432/sentinelai
+      SENTINELAI_MILVUS_URI: http://milvus:19530
     ports:
       - "${SENTINELAI_WEB_BIND:-127.0.0.1}:8000:8000"
     volumes:
-      # 벡터 DB · 기준 문서는 볼륨, 검토 대상 data/ 는 읽기만 합니다.
-      - milvus:/app/.milvus
+      # 기준 문서는 볼륨, 검토 대상 data/ 는 읽기만 합니다.
       - docs:/app/docs
       - ./data:/app/data:ro,z
     # 같은 컴퓨터의 Ollama 는 http://host.docker.internal:11434 로 닿습니다.
@@ -38,6 +62,8 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
+        condition: service_healthy
+      milvus:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/internal/status', timeout=3)"]
@@ -49,5 +75,5 @@ services:
 
 volumes:
   pgdata:
-  milvus:
+  milvus-data:
   docs:
