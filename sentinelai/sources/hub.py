@@ -36,6 +36,21 @@ class Sources:
         rows = results.pending_snapshots(self.results_db, nodes.enabled_names(self.main_db))
         return [{**r, "snapshot": ServerSnapshot(**{k: r[k] for k in SNAPSHOT_FIELDS})} for r in rows]
 
+    def servers(self, names: list[str] | None = None, since: str | None = None,
+                until: str | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """노드별 지금 상태(가장 늦은 수집 · 마지막 판정)와 기간 안 기록 — names 가 없으면 등록된 노드 전부."""
+        registry = [n for n in nodes.list_nodes(self.main_db) if names is None or n["name"] in names]
+        findings = {f["node"]: f for f in results.latest_node_findings(self.results_db)}
+        current = []
+        for n in registry:
+            snap = results.latest_snapshot(self.results_db, n["name"])
+            status = ("꺼짐" if not n["enabled"] else "끊김" if nodes.is_stale(n)
+                      else "수집 중" if n["last_seen_at"] else "키 없음" if not n["key_issued"] else "기다리는 중")
+            current.append({"node": n["name"], "host": (snap or n)["host"], "ip": (snap or n)["ip"], "status": status,
+                            "collected_at": snap["collected_at"] if snap else "", "modules": snap["modules"] if snap else {},
+                            "finding": findings.get(n["name"])})
+        return current, results.server_history(self.results_db, [n["name"] for n in registry], since, until)
+
     def server_decisions(self, node: str) -> list[dict[str, Any]]:
         return decisions.server(self.main_db, self.results_db, node)
 

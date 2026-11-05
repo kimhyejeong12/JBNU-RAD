@@ -4,9 +4,11 @@ from __future__ import annotations
 import itertools
 import logging
 from datetime import datetime
+from functools import cached_property
 from pathlib import Path
 from typing import Any
 
+from ..ask import Agent
 from ..db import Database, User
 from ..sources import Collected
 from .issue import Issuer
@@ -18,7 +20,7 @@ from .worker import Worker
 
 log = logging.getLogger(__name__)
 
-# 질의(정책 · 로그 · 서버)는 질의 통합 시스템으로 다시 만드는 중이라 자리만 남겨 둡니다.
+# 따로 돌던 로그 · 서버 질의 API 는 질의 에이전트(ask)로 합치는 중이라 자리만 남겨 둡니다.
 ASK_PAUSED = "질의 기능을 다시 만드는 중입니다"
 
 
@@ -182,10 +184,16 @@ class Engine:
                     ip: str | None = None) -> dict[str, Any]:
         return self.issuer.browse_logs(user, period, who, solution, how, page, ip)
 
-    # --- 질의 (자리만) ---
+    # --- 질의 ---
 
-    def ask(self, question: str, user: User) -> dict[str, Any]:
-        return {"answer": ASK_PAUSED, "sources": [], "elapsed_sec": 0.0, "failed": True, "error": ASK_PAUSED}
+    @cached_property
+    def agent(self) -> Agent:
+        return Agent(self.res.qa_llm(), self.res.sources)
+
+    def ask(self, question: str, user: User | None, history: list[dict[str, Any]] | None = None,
+            ip: str | None = None) -> dict[str, Any]:
+        """질의 에이전트 — 큐 밖에서 부른 자리에서 돕니다 (판정 워커와 모델을 함께 씀)."""
+        return self.agent.ask(question, history, user, ip)
 
     def _paused(self, question: str) -> dict[str, Any]:
         return {"question": question, "criteria": {}, "facts": None, "evidence": [], "answer": ASK_PAUSED, "sources": [],

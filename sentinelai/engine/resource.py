@@ -22,6 +22,7 @@ class Resources:
         self.settings = settings or Settings.load()
         self.documents = DocumentStore(self.settings)
         self._llms: dict[bool, ChatOllama] = {}
+        self._qa: ChatOllama | None = None
 
     # --- LLM ---
 
@@ -31,6 +32,12 @@ class Resources:
             options = self.settings.llm_options
             self._llms[think] = ChatOllama(**options) if think else ChatOllama(**{**options, "reasoning": False})
         return self._llms[think]
+
+    def qa_llm(self) -> ChatOllama:
+        """질답 모델 연결 — 질의 에이전트가 도구를 붙여 씁니다."""
+        if self._qa is None:
+            self._qa = ChatOllama(**{**self.settings.llm_options, "model": self.settings.qa_model, "reasoning": True})
+        return self._qa
 
     def chain(self, prompt: ChatPromptTemplate, schema: type[BaseModel], think: bool = True) -> Runnable[dict[str, Any], Any]:
         return prompt | self.llm(think).with_structured_output(schema)

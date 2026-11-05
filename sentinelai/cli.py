@@ -101,6 +101,22 @@ def monitor(engine: Engine, args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+def ask(engine: Engine, args: argparse.Namespace) -> int:
+    out = engine.ask(args.question, None)
+    for step in out["steps"]:
+        print(f"[{step['tool']}] {step.get('criteria') or step['args']} → {step['summary']}{' — ' + step['error'] if step.get('error') else ''}")
+    if out["failed"]:
+        print(f"질의 실패: {out['error']} ({out['elapsed_sec']}초)", file=sys.stderr)
+        return 1
+    print(f"\n{out['answer']}\n")
+    if out["sources"]:
+        print(f"근거: {', '.join(out['sources'])}")
+    for c in out["checks"]:
+        print(f"검증: {c}")
+    print(f"({out['elapsed_sec']}초{f' · 도구 없이 답해 처음부터 {out['restarts']}번 다시' if out['restarts'] else ''})")
+    return 0
+
+
 def import_snapshots(engine: Engine, args: argparse.Namespace) -> int:
     loaded, stored = engine.import_snapshots(args.folder, args.node)
     _issues([str(i) for i in loaded.issues])
@@ -139,6 +155,9 @@ def parser() -> argparse.ArgumentParser:
     cmd.add_argument("--until", help="이 시각까지 (UTC, ISO 8601)")
     cmd.add_argument("--full", action="store_true", help="지난 감시 시각을 무시하고 처음부터")
     cmd.set_defaults(run=monitor)
+    cmd = sub.add_parser("ask", help="질의 — 기준 문서 · 로그 · 서버를 도구로 찾아 답함 (모델 평가용, 감사 기록 없음)")
+    cmd.add_argument("question", help="질문")
+    cmd.set_defaults(run=ask)
     cmd = sub.add_parser("import-snapshots", help="망이 막힌 노드가 export 한 수집 파일(*.json) 넣기")
     cmd.add_argument("folder", help="수집 파일 폴더")
     cmd.add_argument("--node", help="이 파일들의 노드 이름 (노드는 본문에 이름을 싣지 않습니다. 화면에 등록한 이름)")
