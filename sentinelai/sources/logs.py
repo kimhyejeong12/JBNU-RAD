@@ -500,3 +500,32 @@ def threat_lines(events: list[SecurityEvent], limit: int) -> list[str]:
             if q and len(picked) < limit:
                 picked.append(q.pop(0))
     return [f"{e.describe()} [{' · '.join(m)}]" for e, m in sorted(picked, key=lambda x: x[0].occurred_at)]
+
+
+BROWSE_PAGE = 100
+
+
+def browse(source: Any, period: str, user: str = "", solution: str = "", how: str = "", page: int = 1,
+           page_size: int = BROWSE_PAGE, now: datetime | None = None) -> dict[str, Any]:
+    """사용자는 "부서 이름" 완전 일치입니다 (부분 일치면 다른 사람 로그가 섞임). options 는 로그 전체 기준."""
+    now = now or datetime.now(timezone.utc)
+    since = period_since(period, now)
+    loaded = load_events(source)
+    matched = search(between(loaded.records, since, now, include_since=True), solution=solution, how=how)
+    if user:
+        matched = [e for e in matched if user_label(e) == user]
+    page = max(page, 1)
+    newest = matched[::-1][(page - 1) * page_size:page * page_size]
+    return {
+        "period": period,
+        "since": since.isoformat(timespec="seconds") if since else None,
+        "until": now.isoformat(timespec="seconds"),
+        "criteria": {k: v for k, v in (("user", user), ("solution", solution), ("how", how)) if v},
+        "total": len(matched),
+        "page": page,
+        "page_size": page_size,
+        "facts": summarize(matched),
+        "events": [{**e.model_dump(mode="json"), "user": user_label(e)} for e in newest],
+        "options": {k: v for k, v in vocabulary(loaded.records).items() if k in ("users", "solutions", "how", "first", "last")},
+        "load_issues": [str(i) for i in loaded.issues],
+    }

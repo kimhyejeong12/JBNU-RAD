@@ -8,13 +8,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from langchain_core.documents import Document
-from langchain_core.runnables import Runnable
 from langchain_milvus import Milvus
 from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 if TYPE_CHECKING:
-    from .engine import Engine, Settings
+    from .settings import Settings
 
 
 @dataclass
@@ -199,8 +198,4 @@ class DocumentStore:
     @staticmethod
     def format(docs: list[Document]) -> str:
         return "\n\n".join(f"[{d.metadata.get('source', '?')}] {d.page_content}" for d in docs)
-
-
-def lookup(engine: Engine, k: int | None) -> Runnable[str, str]:
-    return engine.documents.retriever(k) | DocumentStore.format
 

@@ -245,76 +245,18 @@ def changes(before: dict[str, dict[str, str]] | None, after: dict[str, dict[str,
     return out
 
 
+def snapshot_row(payload: dict, node: str, previous: dict[str, Any] | None) -> dict[str, Any]:
+    """AI 결과 DB 에 쌓을 행 — 형식이 틀리면 ValueError. 늦게 도착한 옛 수집은 바뀐 것을 세지 않습니다."""
+    snap = snapshot_from_payload(payload, node)
+    at = snap.collected_at.isoformat(timespec="seconds")
+    newer = previous is None or at > previous["collected_at"]
+    return {**snap.model_dump(mode="json", exclude={"raw"}), "collected_at": at,
+            "changes": changes(previous and previous["modules"], snap.modules) if newer else []}
+
+
 def server_lines(snapshot: ServerSnapshot, changed: list[str]) -> list[str]:
     """서버 · 수집 상태 · 달라진 설정 — 판정 칸 · 검색어에 같은 글을 씁니다."""
     lines = [f"- 서버: {snapshot.name}", snapshot.describe()]
     if changed:
         lines.append("- 직전 수집과 달라진 설정:\n" + "\n".join(f"  - {c}" for c in changed))
     return lines
-
-
-def _stamp(at: str) -> str:
-    # 운영자가 읽는 답이라 KST 로 적습니다. 판정 입력(describe)은 UTC 그대로입니다.
-    if not at:
-        return "없음"
-    local = datetime.fromisoformat(at).astimezone()
-    return f"{local:%Y-%m-%d %H:%M} {local.tzname()}"
-
-
-def _in_module(item: str, module: str) -> bool:
-    """모듈 표시([UFW] 등)가 없는 항목은 어느 모듈인지 몰라 남깁니다."""
-    if not module:
-        return True
-    return item.startswith(f"[{module}]") or not item.startswith("[")
-
-
-def server_digest(current: list[dict[str, Any]], history: dict[str, Any], module: str = "") -> dict[str, Any]:
-    """→ {facts: 코드가 센 값, state: 노드별 지금 상태, lines: 기간 안 기록 (오래된 것부터)}"""
-    keys = {label: key for key, label in MODULE_LABELS.items()}
-    state, latest_levels = [], {}
-    for n in current:
-        f = n.get("finding")
-        level = "판정 실패" if f and f["failed"] else (f["level"] if f else "판정 없음")
-        latest_levels[level] = latest_levels.get(level, 0) + 1
-        lines = [f"## {n['node']} ({n['host'] or '호스트 모름'}{', ' + n['ip'] if n['ip'] else ''}) — {n['status']}, "
-                 f"마지막 수집 {_stamp(n.get('collected_at', ''))}"]
-        for mod, facts in (n.get("modules") or {}).items():
-            if module and keys.get(module) != mod:
-                continue
-            lines += [f"- [{MODULE_LABELS.get(mod, mod)}] {k}: {v}" for k, v in facts.items() if k != "읽은 파일"]
-        if f:
-            lines.append(f"- 마지막 서버 점검 ({_stamp(f['created_at'])}): {level} — {f['summary'] or f.get('error') or ''}".rstrip())
-            for g in f["gaps"]:
-                if g.get("level") != "정상" and _in_module(g.get("item", ""), module):
-                    lines.append(f"  - 정책과 다른 곳: {g.get('item')} — 지금 {g.get('current')} / 기준 {g.get('required')}"
-                                 f" ({g.get('level')}, {g.get('source') or '근거 없음'})")
-            if f.get("unjudged"):
-                lines.append(f"  - 판단하지 않은 항목: {', '.join(f['unjudged'])}")
-        state.append("\n".join(lines))
-
-    per_node: dict[str, dict[str, Any]] = {n["node"]: {"수집": 0, "설정이 바뀐 수집": 0, "바뀐 설정": 0, "판정": {}} for n in current}
-    events = []
-    for s in history["snapshots"]:
-        row = per_node.setdefault(s["node"], {"수집": 0, "설정이 바뀐 수집": 0, "바뀐 설정": 0, "판정": {}})
-        row["수집"] += 1
-        picked = [c for c in s["changes"] if _in_module(c, module)]
-        if picked:
-            row["설정이 바뀐 수집"] += 1
-            row["바뀐 설정"] += len(picked)
-            events += [(s["collected_at"], f"- {_stamp(s['collected_at'])} {s['node']} 설정 바뀜: {c}") for c in picked]
-    for f in history["findings"]:
-        level = "판정 실패" if f["failed"] else f["level"]
-        row = per_node.setdefault(f["node"], {"수집": 0, "설정이 바뀐 수집": 0, "바뀐 설정": 0, "판정": {}})
-        row["판정"][level] = row["판정"].get(level, 0) + 1
-        gaps = [g for g in f["gaps"] if g.get("level") != "정상" and _in_module(g.get("item", ""), module)]
-        events.append((f["created_at"], f"- {_stamp(f['created_at'])} {f['node']} 서버 점검: {level}, 정책과 다른 곳 {len(gaps)}"
-                       + (f" ({', '.join(g.get('item', '') for g in gaps)})" if gaps else "")))
-    collected = [s["collected_at"] for s in history["snapshots"]]
-    facts = {
-        "노드 수": len(current),
-        "마지막 판정 등급별 노드 수": latest_levels,
-        "기간 안 첫 수집": collected[0] if collected else None,
-        "기간 안 마지막 수집": collected[-1] if collected else None,
-        "노드별": per_node,
-    }
-    return {"facts": facts, "state": state, "lines": [line for _, line in sorted(events)]}

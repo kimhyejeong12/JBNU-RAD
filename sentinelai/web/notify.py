@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from email.message import EmailMessage
 
 from sentinelai.db import Database, auth
-from sentinelai.engine.engine import BOOT_ENV, Settings
+from sentinelai.engine.settings import BOOT_ENV, Settings
 
 log = logging.getLogger(__name__)
 
