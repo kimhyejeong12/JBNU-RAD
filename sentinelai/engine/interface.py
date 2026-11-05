@@ -20,10 +20,6 @@ from .worker import Worker
 
 log = logging.getLogger(__name__)
 
-# 따로 돌던 로그 · 서버 질의 API 는 질의 에이전트(ask)로 합치는 중이라 자리만 남겨 둡니다.
-ASK_PAUSED = "질의 기능을 다시 만드는 중입니다"
-
-
 class Engine:
     """웹은 start() 로 이슈어 예약 · 워커 스레드를 켜고, CLI 는 run_* 로 그 자리에서 돌립니다."""
 
@@ -194,16 +190,6 @@ class Engine:
             ip: str | None = None) -> dict[str, Any]:
         """질의 에이전트 — 큐 밖에서 부른 자리에서 돕니다 (판정 워커와 모델을 함께 씀)."""
         return self.agent.ask(question, history, user, ip)
-
-    def _paused(self, question: str) -> dict[str, Any]:
-        return {"question": question, "criteria": {}, "facts": None, "evidence": [], "answer": ASK_PAUSED, "sources": [],
-                "failed": True, "error": ASK_PAUSED, "elapsed_sec": 0.0}
-
-    def ask_logs(self, question: str, user: User) -> dict[str, Any]:
-        return self._paused(question)
-
-    def ask_servers(self, question: str, user: User) -> dict[str, Any]:
-        return self._paused(question)
 
 
 __all__ = ["FAST", "KINDS", "MANUAL", "NORMAL", "Engine"]

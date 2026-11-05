@@ -75,10 +75,11 @@ def test_history_and_checks(sources):
     model = FakeModel([call("search_regulations", {"query": "근무 시간"}),
                        AIMessage("<think>음</think>그중 99건이고 보안_규정.md 를 따릅니다.")])
     history = [{"question": f"q{i}", "answer": f"a{i}", "steps": [{"tool": "find_logs", "summary": "로그 3건"}]} for i in range(6)]
+    history += [{"question": "근거 없음", "answer": "지어냄", "steps": []}, {"question": "실패", "answer": "", "steps": [{"tool": "x", "summary": "실패"}], "failed": True}]
     out = Agent(model, sources).ask("그중 근무 시간 밖은?", history=history)
     msgs = model.calls[0]
-    assert [m.content for m in msgs if isinstance(m, HumanMessage)] == ["q2", "q3", "q4", "q5", "그중 근무 시간 밖은?"]
-    assert "[그때 찾은 것] find_logs: 로그 3건" in msgs[2].content
+    assert [m.content.split("\n")[0] for m in msgs if isinstance(m, HumanMessage)] == ["q2", "q3", "q4", "q5", "그중 근무 시간 밖은?"]
+    assert msgs[1].content == "q2\n(앞서 찾은 것: 로그 3건)" and msgs[2].content == "a2"
     assert out["answer"].startswith("그중 99건") and len(out["checks"]) == 2
 
 
@@ -101,3 +102,4 @@ def test_check_and_clean():
     assert check("10월 20일 3.3 조항, 48건", "?", ["2026-10-20T09:00 … 3.3 … \"count\": 48"]) == []
     assert check("7건", "7건 맞아?", []) == []
     assert clean("## 제목\n**굵게**") == "제목\n굵게"
+    assert clean("17건입니다.\n\n[그때 찾은 것] find_logs: 17건") == "17건입니다."

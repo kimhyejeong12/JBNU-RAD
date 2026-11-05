@@ -33,6 +33,7 @@ def _text(content: Any) -> str:
 def clean(answer: str) -> str:
     """생각 블록 · 마크다운 굵게 · 제목 표시를 걷어냅니다."""
     answer = THINK.sub("", answer).replace("**", "").replace("__", "")
+    answer = re.sub(r"^\s*[\[(](그때 찾은 것|앞서 찾은 것)[\]:].*$", "", answer, flags=re.M)
     return re.sub(r"^#{1,6}\s*", "", answer, flags=re.M).strip()
 
 
@@ -61,10 +62,14 @@ class Agent:
 
     def _history(self, history: list[dict[str, Any]]) -> list[BaseMessage]:
         out: list[BaseMessage] = []
-        for turn in history[-HISTORY_TURNS:]:
-            found = " · ".join(f"{s['tool']}: {s['summary']}" for s in turn.get("steps") or [])
-            out.append(HumanMessage(turn["question"]))
-            out.append(AIMessage(turn["answer"] + (f"\n[그때 찾은 것] {found}" if found else "")))
+        # 도구 없이 낸 답 · 실패한 턴은 근거가 없어 넣지 않습니다 — 모델이 그 답을 흉내 냅니다.
+        grounded = [t for t in history if t.get("steps") and not t.get("failed")]
+        for turn in grounded[-HISTORY_TURNS:]:
+            # 도구 요약은 질문 쪽에 붙입니다 — 답 쪽에 두면 모델이 그 모양을 답에 베낍니다.
+            found = "; ".join(s["summary"] + (f" — 조건 {', '.join(f'{k} {v}' for k, v in s['criteria'].items())}" if s.get("criteria") else "")
+                             for s in turn.get("steps") or [])
+            out.append(HumanMessage(turn["question"] + (f"\n(앞서 찾은 것: {found})" if found else "")))
+            out.append(AIMessage(turn["answer"] or turn.get("error") or ""))
         return out
 
     def _call(self, ctx: Context, call: dict[str, Any]) -> tuple[ToolResult | None, str | None]:

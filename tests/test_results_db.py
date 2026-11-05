@@ -88,3 +88,17 @@ def test_suspects_and_qa(results_db, people):
     mine = results.my_qa(results_db, people["manager"], "logs")
     assert mine[0]["facts"] == {"n": 3} and mine[0]["failed"] is False
     assert results.my_qa(results_db, people["user"], "logs") == []
+
+
+def test_agent_conversations(results_db, people):
+    me, other = people["manager"], people["top"]
+    step = {"tool": "find_logs", "summary": "로그 48건", "facts": {"count": 48}}
+    for q in ("정다은 출력 몇 번?", "그중 근무 시간 밖은?"):
+        results.save_qa(results_db, "agent", q, {"answer": "48회", "steps": [step], "checks": ["x"]}, "m", me, "a" * 32)
+    results.save_qa(results_db, "agent", "새 대화", {"answer": "?"}, "m", me, "b" * 32)
+    convs = results.my_conversations(results_db, me)
+    assert [(c["conversation_id"], c["question"], c["turns"]) for c in convs] == [("b" * 32, "새 대화", 1), ("a" * 32, "정다은 출력 몇 번?", 2)]
+    turns = results.my_conversation(results_db, me, "a" * 32)
+    assert [t["question"] for t in turns] == ["정다은 출력 몇 번?", "그중 근무 시간 밖은?"] and turns[0]["steps"] == [step]
+    assert turns[0]["checks"] == ["x"]
+    assert results.my_conversation(results_db, other, "a" * 32) == [] and results.my_conversations(results_db, other) == []

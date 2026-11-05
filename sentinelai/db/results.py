@@ -466,21 +466,33 @@ def monitor_findings(db: Database) -> dict[str, Any] | None:
 
 # --- 질의 기록 ---
 
-QA_KINDS = ("policy", "logs", "servers")
+QA_KINDS = ("policy", "logs", "servers", "agent")
 
 
-def save_qa(db: Database, kind: str, question: str, result: dict[str, Any], model: str, asker: User) -> int:
+def save_qa(db: Database, kind: str, question: str, result: dict[str, Any], model: str, asker: User,
+            conversation_id: str | None = None) -> int:
     if kind not in QA_KINDS:
         raise ValueError(f"kind 는 {', '.join(QA_KINDS)} 중 하나입니다")
     with db.transaction() as conn:
         return conn.execute(
             "INSERT INTO qa_records (kind, question, answer, sources, criteria, facts, evidence, failed, error, model,"
-            " elapsed_sec, asker_id, asker_name, asker_department, asked_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            " elapsed_sec, asker_id, asker_name, asker_department, asked_at, conversation_id, steps, checks)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (kind, question, result.get("answer", ""), _json(result.get("sources", [])), _json(result.get("criteria", {})),
              _json(result["facts"]) if result.get("facts") is not None else None, _json(result.get("evidence", [])),
              int(bool(result.get("failed"))), result.get("error"), model, result.get("elapsed_sec"),
-             asker.id, asker.display_name, asker.department, now()),
+             asker.id, asker.display_name, asker.department, now(), conversation_id,
+             _json(result.get("steps", [])), _json(result.get("checks", []))),
         ).fetchone()[0]
+
+
+def _qa(r: Any) -> dict[str, Any]:
+    record = dict(r)
+    for k in ("sources", "criteria", "evidence", "steps", "checks"):
+        record[k] = json.loads(record[k])
+    record["facts"] = json.loads(record["facts"]) if record["facts"] is not None else None
+    record["failed"] = bool(record["failed"])
+    return record
 
 
 def my_qa(db: Database, asker: User, kind: str, limit: int = 50) -> list[dict[str, Any]]:
@@ -489,12 +501,25 @@ def my_qa(db: Database, asker: User, kind: str, limit: int = 50) -> list[dict[st
         rows = conn.execute(
             "SELECT * FROM qa_records WHERE asker_id = %s AND kind = %s ORDER BY id DESC LIMIT %s", (asker.id, kind, limit)
         ).fetchall()
-    out = []
-    for r in rows:
-        record = dict(r)
-        for k in ("sources", "criteria", "evidence"):
-            record[k] = json.loads(record[k])
-        record["facts"] = json.loads(record["facts"]) if record["facts"] is not None else None
-        record["failed"] = bool(record["failed"])
-        out.append(record)
-    return out
+    return [_qa(r) for r in rows]
+
+
+def my_conversations(db: Database, asker: User, limit: int = 30) -> list[dict[str, Any]]:
+    """내 대화 — 최근 것부터, 첫 질문 · 턴 수 · 마지막 시각."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT conversation_id, (array_agg(question ORDER BY id))[1] AS question, count(*) AS turns,"
+            " max(asked_at) AS asked_at FROM qa_records WHERE asker_id = %s AND kind = 'agent' AND conversation_id IS NOT NULL"
+            " GROUP BY conversation_id ORDER BY max(id) DESC LIMIT %s", (asker.id, limit)
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def my_conversation(db: Database, asker: User, conversation_id: str) -> list[dict[str, Any]]:
+    """한 대화의 턴 — 처음 것부터. 다른 사람의 대화면 빈 목록입니다."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM qa_records WHERE asker_id = %s AND kind = 'agent' AND conversation_id = %s ORDER BY id",
+            (asker.id, conversation_id)
+        ).fetchall()
+    return [_qa(r) for r in rows]

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
@@ -134,24 +135,20 @@ def start_job(kind: str, request: Request) -> dict[str, Any]:
 class AskRequest(BaseModel):
     # 앞뒤 공백을 지운 뒤 길이를 봐 공백만 보낸 질문도 422 가 됩니다.
     question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+    conversation_id: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{32}$")] | None = None
 
 
 @app.post("/api/ask")
 def ask(body: AskRequest, request: Request, user: Approver) -> dict[str, Any]:
-    """기준 조항 · 솔루션 규칙을 검색합니다 (신청 목록은 모름)."""
-    return _engine(request).ask(body.question, user)
-
-
-@app.post("/api/ask-logs")
-def ask_logs(body: AskRequest, request: Request, user: Approver) -> dict[str, Any]:
-    """로그는 RAG 로 찾지 않고 코어가 조건에 맞춰 찾고 셉니다."""
-    return _engine(request).ask_logs(body.question, user)
-
-
-@app.post("/api/ask-servers")
-def ask_servers(body: AskRequest, request: Request, user: Approver) -> dict[str, Any]:
-    """서버 상태는 RAG 로 찾지 않고 코어가 수집 · 점검 기록을 골라 셉니다."""
-    return _engine(request).ask_servers(body.question, user)
+    """질의 에이전트 — 기준 문서 · 로그 · 서버 · 사람 · AI 판정을 도구로 찾아 답합니다. 같은 대화면 앞 턴을 이어 넣습니다."""
+    db = request.app.state.results_db
+    # 대화 id 는 화면이 만듭니다. 기록이 없는 id 면 새 대화이고, 읽기는 자기 기록만이라 남의 id 를 써도 이어지지 않습니다.
+    history = results_db.my_conversation(db, user, body.conversation_id) if body.conversation_id else []
+    conversation_id = body.conversation_id or uuid.uuid4().hex
+    engine = _engine(request)
+    out = engine.ask(body.question, user, history, request.client.host if request.client else None)
+    record = results_db.save_qa(db, "agent", body.question, out, engine.settings.qa_model, user, conversation_id)
+    return {**out, "id": record, "conversation_id": conversation_id}
 
 
 Filter = Annotated[str, Query(max_length=200)]
@@ -187,11 +184,10 @@ def browse_logs(request: Request, user: Approver, period: str,
 
 
 @app.get("/api/qa")
-def my_qa(kind: str, request: Request, user: Approver) -> list[dict[str, Any]]:
-    """다른 사람의 질의는 주지 않습니다."""
-    if kind not in results_db.QA_KINDS:
-        raise HTTPException(status_code=422, detail=f"kind 는 {', '.join(results_db.QA_KINDS)} 중 하나입니다")
-    return list(reversed(results_db.my_qa(request.app.state.results_db, user, kind)))
+def my_qa(request: Request, user: Approver, conversation: Annotated[str, Query(pattern=r"^[0-9a-f]{32}$")] | None = None) -> list[dict[str, Any]]:
+    """내 대화 목록, conversation 을 주면 그 대화의 턴. 다른 사람의 질의는 주지 않습니다."""
+    db = request.app.state.results_db
+    return results_db.my_conversation(db, user, conversation) if conversation else results_db.my_conversations(db, user)
 
 
 # --- 내부 상태 (서버 자신만) ---

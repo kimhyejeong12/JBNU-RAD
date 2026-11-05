@@ -39,7 +39,7 @@ def open_main_db(url: str, schema: str = "main") -> Database:
 
 def open_results_db(url: str, schema: str = "results") -> Database:
     """처음이면 스키마를 만듭니다."""
-    return _open(url, schema, "results.sql")
+    return _open(url, schema, "results.sql", "results_ask.sql")
 
 
 __all__ = ["Database", "Denied", "User", "auth", "catalog", "decisions", "nodes", "open_main_db", "open_results_db", "permissions", "results"]
