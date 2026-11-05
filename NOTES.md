@@ -21,8 +21,9 @@
 
 ### 데이터 위치 (10/08)
 - `SENTINELAI_REQUESTS_SOURCE` · `POLICIES_SOURCE` · `EVENTS_SOURCE`: 권한 신청 · 솔루션 정책 · 보안 솔루션 로그(Microsoft Sentinel 내보내기 등). 확장자(.csv · .json · .jsonl)로 읽는 방식을 고름
-- `SENTINELAI_RESULTS_DB_PATH`: AI 결과 DB (SQLite). 정책 관리 검토 · 로그 감시 판정 · 질의 기록. CLI와 웹이 함께 쓰고 웹을 다시 띄워도 결과가 보임. 10/12까지는 `SENTINELAI_RESULTS_PATH`(JSON 파일)
-- `SENTINELAI_DB_PATH`: 권한 DB (SQLite). 계정 · 신청 · 결재 · 운영자 결정
+- `SENTINELAI_RESULTS_DB_PATH`: AI 결과 DB (SQLite, 11/03에 PostgreSQL로 옮김). 정책 관리 검토 · 로그 감시 판정 · 질의 기록. CLI와 웹이 함께 쓰고 웹을 다시 띄워도 결과가 보임. 10/12까지는 `SENTINELAI_RESULTS_PATH`(JSON 파일)
+- `SENTINELAI_DB_PATH`: 권한 DB (SQLite, 11/03에 PostgreSQL로 옮김). 계정 · 신청 · 결재 · 운영자 결정
+- (11/03) 둘 다 PostgreSQL 스키마로 옮김 — 권한 DB = `main`, AI 결과 DB = `results`. 설정 이름은 그대로 두고 값만 PostgreSQL 주소 (엔진 `Settings`를 고치지 않으려고)
 
 ---
 

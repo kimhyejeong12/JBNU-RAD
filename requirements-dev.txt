@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# DB 시험 (make test)
+pytest>=8

@@ -5,13 +5,14 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from datetime import date, datetime, timedelta
 from typing import Any
 
+import psycopg
+
 from . import catalog
 from .auth import User
-from .core import Database, Denied, audit, now, today
+from .core import Database, Denied, Row, audit, now, today
 
 STAGES = ("manager", "top", "approved", "rejected", "withdrawn", "revoked")
 # 신청 판정에 "최근 이동"으로 넣는 기간입니다. 옮긴 지 얼마 안 된 사람이 예전 업무 권한을 이어 신청하는지 보게 합니다.
@@ -19,10 +20,10 @@ RECENT_MOVE_DAYS = 90
 STAGE_TEXT = {"manager": "1차 결재 대기", "top": "최종 결재 대기", "approved": "승인", "rejected": "반려", "withdrawn": "철회", "revoked": "회수"}
 
 
-def _next_request_no(conn: sqlite3.Connection) -> str:
+def _next_request_no(conn: psycopg.Connection[Row]) -> str:
     # 날짜는 사내 업무 기준인 서버 현지 시각(KST)으로 매깁니다.
     day = datetime.now().astimezone().strftime("%Y%m%d")
-    last = conn.execute("SELECT max(request_no) FROM access_requests WHERE request_no LIKE ?", (f"REQ-{day}-%",)).fetchone()[0]
+    last = conn.execute("SELECT max(request_no) FROM access_requests WHERE request_no LIKE %s", (f"REQ-{day}-%",)).fetchone()[0]
     seq = int(last[-3:]) + 1 if last else 1
     if seq > 999:
         raise Denied("오늘 받을 수 있는 신청 수(999건)를 넘었습니다")
@@ -30,15 +31,15 @@ def _next_request_no(conn: sqlite3.Connection) -> str:
 
 
 
-def _held(conn: sqlite3.Connection, user_id: int) -> list[sqlite3.Row]:
+def _held(conn: psycopg.Connection[Row], user_id: int) -> list[Row]:
     """지금 가진 권한 = 이 시스템에서 최종 승인됐고 사용 기간이 남은 신청 (회수 · 만료는 빠집니다)."""
     return conn.execute(
         "SELECT request_no, access_code, requested_access, period_end FROM access_requests"
-        " WHERE requester_id = ? AND stage = 'approved' AND (period_end = '' OR period_end >= ?) ORDER BY submitted_at",
+        " WHERE requester_id = %s AND stage = 'approved' AND (period_end = '' OR period_end >= %s) ORDER BY submitted_at",
         (user_id, today())).fetchall()
 
 
-def _held_text(rows: list[sqlite3.Row]) -> str:
+def _held_text(rows: list[Row]) -> str:
     lines = []
     for r in rows:
         name = f"{r['requested_access']} ({r['access_code']})" if r["access_code"] else r["requested_access"]
@@ -58,30 +59,30 @@ def submit(db: Database, by: User, access_code: str, reason: str = "", period_st
         held = _held(conn, by.id)
         if any(r["access_code"] == item["code"] for r in held):
             raise Denied("이미 가진 권한입니다")
-        if conn.execute("SELECT 1 FROM access_requests WHERE requester_id = ? AND access_code = ? AND stage IN ('manager', 'top')",
+        if conn.execute("SELECT 1 FROM access_requests WHERE requester_id = %s AND access_code = %s AND stage IN ('manager', 'top')",
                         (by.id, item["code"])).fetchone():
             raise Denied("같은 권한의 신청이 결재 중입니다")
         request_no = _next_request_no(conn)
         rid = conn.execute(
             "INSERT INTO access_requests (request_no, requester_id, requester_name, requester_department, requester_job, access_code,"
             " requested_access, current_access, reason, period_start, period_end, submitted_at)"
-            " SELECT ?, id, display_name, department, job, ?, ?, ?, ?, ?, ?, ? FROM users WHERE id = ?",
+            " SELECT %s, id, display_name, department, job, %s, %s, %s, %s, %s, %s, %s FROM users WHERE id = %s RETURNING id",
             (request_no, item["code"], item["name"], _held_text(held), reason.strip(), period_start, period_end, now(), by.id),
-        ).lastrowid
+        ).fetchone()[0]
         audit(conn, "request_submit", by.id, target_type="request", target_id=request_no)
         return _detail(conn, rid)
 
 
-def _row(conn: sqlite3.Connection, request_no: str) -> sqlite3.Row:
-    row = conn.execute("SELECT * FROM access_requests WHERE request_no = ?", (request_no,)).fetchone()
+def _row(conn: psycopg.Connection[Row], request_no: str) -> Row:
+    row = conn.execute("SELECT * FROM access_requests WHERE request_no = %s", (request_no,)).fetchone()
     if row is None:
         raise Denied("없는 신청입니다")
     return row
 
 
-def _detail(conn: sqlite3.Connection, rid: int) -> dict:
+def _detail(conn: psycopg.Connection[Row], rid: int) -> dict:
     """신청 한 행 → 화면용 dict. AI 판정 · 결재 · 회수 칸은 묶음으로 나눠 담습니다."""
-    row = dict(conn.execute("SELECT * FROM access_requests WHERE id = ?", (rid,)).fetchone())
+    row = dict(conn.execute("SELECT * FROM access_requests WHERE id = %s", (rid,)).fetchone())
     req = {k: v for k, v in row.items() if not k.startswith(("ai_", "manager_", "top_", "revoke"))}
     req["ai_verdict"] = None if row["ai_judged_at"] is None else {
         "level": row["ai_level"], "reason": row["ai_reason"], "recommendation": row["ai_recommendation"],
@@ -114,32 +115,32 @@ def _is_held(row: Any) -> bool:
     return row["stage"] == "approved" and (row["period_end"] == "" or row["period_end"] >= today())
 
 
-def _latest_move(conn: sqlite3.Connection, user_id: int, after: str) -> sqlite3.Row | None:
+def _latest_move(conn: psycopg.Connection[Row], user_id: int, after: str) -> Row | None:
     """after(신청 시각) 뒤에 기록된 마지막 이동. 신청 뒤에 업무가 바뀌었으면 그 권한은 예전 업무 기준으로 받은 것입니다."""
-    return conn.execute("SELECT * FROM user_moves WHERE user_id = ? AND recorded_at > ? ORDER BY id DESC LIMIT 1",
+    return conn.execute("SELECT * FROM user_moves WHERE user_id = %s AND recorded_at > %s ORDER BY id DESC LIMIT 1",
                         (user_id, after)).fetchone()
 
 
-def _move(m: sqlite3.Row) -> dict[str, Any]:
+def _move(m: Row) -> dict[str, Any]:
     return {"id": m["id"], "from_department": m["from_department"], "from_job": m["from_job"],
             "to_department": m["to_department"], "to_job": m["to_job"], "moved_on": m["moved_on"]}
 
 
-def _grant_review(conn: sqlite3.Connection, row: Any) -> dict[str, Any] | None:
+def _grant_review(conn: psycopg.Connection[Row], row: Any) -> dict[str, Any] | None:
     """지금 가진 권한의 재검토. 퇴사일이 지났으면 코드가 바로 위험, 신청 뒤 이동했으면 그 이동에 대한 AI 판정 (아직이면 verdict None).
 
     회수는 사람이 합니다 — 여기서는 권고만 냅니다.
     """
     if not _is_held(row):
         return None
-    user = conn.execute("SELECT left_on FROM users WHERE id = ?", (row["requester_id"],)).fetchone()
+    user = conn.execute("SELECT left_on FROM users WHERE id = %s", (row["requester_id"],)).fetchone()
     if user and user["left_on"] and user["left_on"] <= today():
         return {"cause": "leave", "left_on": user["left_on"],
                 "verdict": {**LEAVE_VERDICT, "reason": f"{user['left_on']} 퇴사한 사람의 권한이 아직 남아 있습니다."}}
     move = _latest_move(conn, row["requester_id"], row["submitted_at"])
     if move is None:
         return None
-    g = conn.execute("SELECT * FROM grant_reviews WHERE request_id = ? AND move_id = ? ORDER BY id DESC LIMIT 1",
+    g = conn.execute("SELECT * FROM grant_reviews WHERE request_id = %s AND move_id = %s ORDER BY id DESC LIMIT 1",
                      (row["id"], move["id"])).fetchone()
     return {"cause": "move", "move": _move(move), "verdict": None if g is None else {
         "level": g["level"], "reason": g["reason"], "recommendation": g["recommendation"], "sources": json.loads(g["sources"]),
@@ -169,7 +170,7 @@ def watch_people(db: Database) -> list[dict[str, Any]]:
         for u in users:
             flags: list[dict[str, Any]] = []
             held = conn.execute(
-                "SELECT * FROM access_requests WHERE requester_id = ? AND stage = 'approved' AND (period_end = '' OR period_end >= ?)"
+                "SELECT * FROM access_requests WHERE requester_id = %s AND stage = 'approved' AND (period_end = '' OR period_end >= %s)"
                 " ORDER BY submitted_at", (u["id"], day)).fetchall()
             if u["left_on"]:
                 gone = u["left_on"] <= day
@@ -179,7 +180,7 @@ def watch_people(db: Database) -> list[dict[str, Any]]:
                     flags.append({"kind": "leave", "level": level, "at": u["left_on"], "text": f"{u['left_on']} 퇴사 — {note}"})
                 elif not gone:
                     flags.append({"kind": "leave", "level": "주의", "at": u["left_on"], "text": f"{u['left_on']} 퇴사 예정 — 권한 {len(held)}건"})
-            for m in conn.execute("SELECT * FROM user_moves WHERE user_id = ? AND moved_on >= ? ORDER BY id", (u["id"], since)):
+            for m in conn.execute("SELECT * FROM user_moves WHERE user_id = %s AND moved_on >= %s ORDER BY id", (u["id"], since)):
                 flags.append({"kind": "move", "level": "정상", "at": m["moved_on"], "text": f"이동 {_move_text(m)}"})
             for r in held:
                 review = _grant_review(conn, r)
@@ -191,7 +192,7 @@ def watch_people(db: Database) -> list[dict[str, Any]]:
                 elif r["ai_level"] in ("위험", "주의") and not r["ai_failed"] and not (review and review["cause"] == "leave"):
                     flags.append({"kind": "grant", "level": r["ai_level"], "at": r["submitted_at"][:10], "request_no": r["request_no"],
                                   "text": f"보유 {r['requested_access']} — 승인 때 AI 판정 {r['ai_level']}"})
-            for r in conn.execute("SELECT * FROM access_requests WHERE requester_id = ? AND stage IN ('manager', 'top')"
+            for r in conn.execute("SELECT * FROM access_requests WHERE requester_id = %s AND stage IN ('manager', 'top')"
                                   " AND ai_failed = 0 AND ai_level IN ('위험', '주의') ORDER BY submitted_at", (u["id"],)):
                 flags.append({"kind": "request", "level": r["ai_level"], "at": r["submitted_at"][:10], "request_no": r["request_no"],
                               "text": f"신청 {r['requested_access']} — AI 판정 {r['ai_level']} ({STAGE_TEXT[r['stage']]})"})
@@ -218,12 +219,12 @@ def pending_grant_reviews(db: Database, user_id: int | None = None) -> list[str]
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT r.* FROM access_requests r JOIN users u ON u.id = r.requester_id"
-            " WHERE r.stage = 'approved' AND (r.period_end = '' OR r.period_end >= ?) AND (u.left_on = '' OR u.left_on > ?)"
-            + (" AND r.requester_id = ?" if user_id is not None else "") + " ORDER BY r.id",
+            " WHERE r.stage = 'approved' AND (r.period_end = '' OR r.period_end >= %s) AND (u.left_on = '' OR u.left_on > %s)"
+            + (" AND r.requester_id = %s" if user_id is not None else "") + " ORDER BY r.id",
             (today(), today(), *((user_id,) if user_id is not None else ()))).fetchall()
         for r in rows:
             move = _latest_move(conn, r["requester_id"], r["submitted_at"])
-            if move and not conn.execute("SELECT 1 FROM grant_reviews WHERE request_id = ? AND move_id = ? AND failed = 0",
+            if move and not conn.execute("SELECT 1 FROM grant_reviews WHERE request_id = %s AND move_id = %s AND failed = 0",
                                          (r["id"], move["id"])).fetchone():
                 out.append(f"grant:{r['request_no']}:{move['id']}")
     return out
@@ -234,7 +235,7 @@ def grant_input(db: Database, request_no: str, move_id: int) -> dict[str, Any] |
     with db.connection() as conn:
         row = conn.execute(
             "SELECT r.*, c.system AS access_system, c.category AS access_category, c.description AS access_description"
-            " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code WHERE r.request_no = ?",
+            " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code WHERE r.request_no = %s",
             (request_no,)).fetchone()
         if row is None or not _is_held(row):
             return None
@@ -252,14 +253,14 @@ def save_grant_review(db: Database, request_no: str, move_id: int, result: dict,
             return False
         conn.execute(
             "INSERT INTO grant_reviews (request_id, move_id, level, reason, recommendation, sources, failed, error, model,"
-            " elapsed_sec, judged_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            " elapsed_sec, judged_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
             (row["id"], move_id, result.get("level"), result.get("reason", ""), result.get("recommendation", ""),
              json.dumps(result.get("sources", []), ensure_ascii=False), int(result["failed"]), result.get("error"),
              model, result.get("elapsed_sec"), now()))
     return True
 
 
-def _can_view(by: User, req: sqlite3.Row) -> bool:
+def _can_view(by: User, req: Row) -> bool:
     return by.role in ("manager", "top") or req["requester_id"] == by.id
 
 
@@ -277,9 +278,9 @@ def list_requests(db: Database, by: User, stage: str | None = None, mine: bool =
         raise Denied(f"stage 는 {', '.join(STAGES)} 중 하나입니다")
     where, args = [], []
     if mine or by.role == "user":
-        where.append("requester_id = ?"); args.append(by.id)
+        where.append("requester_id = %s"); args.append(by.id)
     if stage:
-        where.append("stage = ?"); args.append(stage)
+        where.append("stage = %s"); args.append(stage)
     sql = "SELECT id FROM access_requests" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY submitted_at DESC, id DESC"
     with db.connection() as conn:
         return [_detail(conn, r["id"]) for r in conn.execute(sql, args).fetchall()]
@@ -292,13 +293,13 @@ def withdraw(db: Database, by: User, request_no: str) -> dict:
             raise Denied("본인 신청만 철회할 수 있습니다")
         if req["stage"] != "manager":
             raise Denied("1차 결재 전에만 철회할 수 있습니다")
-        conn.execute("UPDATE access_requests SET stage = 'withdrawn', closed_at = ? WHERE id = ?", (now(), req["id"]))
+        conn.execute("UPDATE access_requests SET stage = 'withdrawn', closed_at = %s WHERE id = %s", (now(), req["id"]))
         audit(conn, "request_withdraw", by.id, target_type="request", target_id=request_no)
         return _detail(conn, req["id"])
 
 
-def _person(conn: sqlite3.Connection, by: User) -> sqlite3.Row:
-    return conn.execute("SELECT id, display_name, department FROM users WHERE id = ?", (by.id,)).fetchone()
+def _person(conn: psycopg.Connection[Row], by: User) -> Row:
+    return conn.execute("SELECT id, display_name, department FROM users WHERE id = %s", (by.id,)).fetchone()
 
 
 def decide(db: Database, by: User, request_no: str, action: str, comment: str = "") -> dict:
@@ -312,8 +313,8 @@ def decide(db: Database, by: User, request_no: str, action: str, comment: str = 
         req = _row(conn, request_no)
         person = _person(conn, by)
         conn.execute(
-            f"UPDATE access_requests SET {step}_action = ?, {step}_comment = ?, {step}_id = ?, {step}_name = ?,"
-            f" {step}_department = ?, {step}_decided_at = ? WHERE id = ?",
+            f"UPDATE access_requests SET {step}_action = %s, {step}_comment = %s, {step}_id = %s, {step}_name = %s,"
+            f" {step}_department = %s, {step}_decided_at = %s WHERE id = %s",
             (action, comment.strip(), person["id"], person["display_name"], person["department"], now(), req["id"]),
         )
         audit(conn, f"request_{action}", by.id, target_type="request", target_id=request_no,
@@ -328,8 +329,8 @@ def revoke(db: Database, by: User, request_no: str, reason: str) -> dict:
         req = _row(conn, request_no)
         person = _person(conn, by)
         conn.execute(
-            "UPDATE access_requests SET revoke_reason = ?, revoker_id = ?, revoker_name = ?, revoker_department = ?, revoked_at = ?"
-            " WHERE id = ?",
+            "UPDATE access_requests SET revoke_reason = %s, revoker_id = %s, revoker_name = %s, revoker_department = %s, revoked_at = %s"
+            " WHERE id = %s",
             (reason.strip(), person["id"], person["display_name"], person["department"], now(), req["id"]),
         )
         audit(conn, "request_revoke", by.id, target_type="request", target_id=request_no)
@@ -344,7 +345,7 @@ def request_stats(db: Database, since: str | None = None) -> dict[str, Any]:
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT stage, ai_level, ai_failed, ai_judged_at FROM access_requests"
-            + (" WHERE submitted_at >= ?" if since else ""), (since,) if since else ()).fetchall()
+            + (" WHERE submitted_at >= %s" if since else ""), (since,) if since else ()).fetchall()
     totals: dict[str, int] = {}
     mismatches = 0
     for r in rows:
@@ -361,7 +362,7 @@ def user_requests(db: Database, since: str | None = None) -> list[dict[str, Any]
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT request_no, requester_id, requested_access, stage, ai_level, ai_failed, ai_judged_at, manager_action, top_action,"
-            " revoke_reason, submitted_at FROM access_requests" + (" WHERE submitted_at >= ?" if since else "") + " ORDER BY submitted_at",
+            " revoke_reason, submitted_at FROM access_requests" + (" WHERE submitted_at >= %s" if since else "") + " ORDER BY submitted_at",
             (since,) if since else ()).fetchall()
     return [{"request_no": r["request_no"], "account_id": r["requester_id"], "access": r["requested_access"], "stage": r["stage"],
              "ai": None if r["ai_judged_at"] is None or r["ai_failed"] else r["ai_level"],
@@ -375,7 +376,7 @@ def held_by_account(db: Database) -> dict[int, list[dict[str, Any]]]:
         rows = conn.execute(
             "SELECT r.requester_id, r.request_no, r.access_code, r.requested_access, r.period_end, c.system, c.category"
             " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code"
-            " WHERE r.stage = 'approved' AND (r.period_end = '' OR r.period_end >= ?) ORDER BY r.submitted_at", (today(),)).fetchall()
+            " WHERE r.stage = 'approved' AND (r.period_end = '' OR r.period_end >= %s) ORDER BY r.submitted_at", (today(),)).fetchall()
     out: dict[int, list[dict[str, Any]]] = {}
     for r in rows:
         out.setdefault(r["requester_id"], []).append({"request_no": r["request_no"], "code": r["access_code"], "access": r["requested_access"],
@@ -390,9 +391,9 @@ def save_ai_verdict(db: Database, request_no: str, result: dict, model: str) -> 
     """pipeline.judge_request 의 결과를 신청 행에 씁니다. 그사이 1차 결재가 났으면 쓰지 않고 False"""
     with db.transaction() as conn:
         updated = conn.execute(
-            "UPDATE access_requests SET ai_level = ?, ai_reason = ?, ai_recommendation = ?, ai_sources = ?, ai_failed = ?,"
-            " ai_error = ?, ai_model = ?, ai_elapsed_sec = ?, ai_judged_at = ?"
-            " WHERE request_no = ? AND stage = 'manager' AND manager_action IS NULL",
+            "UPDATE access_requests SET ai_level = %s, ai_reason = %s, ai_recommendation = %s, ai_sources = %s, ai_failed = %s,"
+            " ai_error = %s, ai_model = %s, ai_elapsed_sec = %s, ai_judged_at = %s"
+            " WHERE request_no = %s AND stage = 'manager' AND manager_action IS NULL",
             (result.get("level"), result.get("reason", ""), result.get("recommendation", ""),
              json.dumps(result.get("sources", []), ensure_ascii=False), int(result["failed"]), result.get("error"),
              model, result.get("elapsed_sec"), now(), request_no),
@@ -407,15 +408,15 @@ def account_record(db: Database, user_id: int, before: str | None = None) -> dic
     before(신청 시각)를 주면 그 신청과 그 뒤 신청은 빼고 봅니다 — 판정할 신청 자신이 기록에 섞이지 않게.
     """
     with db.connection() as conn:
-        user = conn.execute("SELECT id, display_name, department, job, role, is_active, left_on, log_id, created_at FROM users WHERE id = ?",
+        user = conn.execute("SELECT id, display_name, department, job, role, is_active, left_on, log_id, created_at FROM users WHERE id = %s",
                             (user_id,)).fetchone()
         if user is None:
             return None
-        moves = [_move(m) for m in conn.execute("SELECT * FROM user_moves WHERE user_id = ? ORDER BY id", (user_id,))]
+        moves = [_move(m) for m in conn.execute("SELECT * FROM user_moves WHERE user_id = %s ORDER BY id", (user_id,))]
         held = [dict(r) for r in _held(conn, user_id)]
         rows = conn.execute(
             "SELECT request_no, requested_access, reason, period_end, stage, manager_action, manager_comment, top_action, top_comment,"
-            " revoke_reason, submitted_at FROM access_requests WHERE requester_id = ?" + (" AND submitted_at < ?" if before else "")
+            " revoke_reason, submitted_at FROM access_requests WHERE requester_id = %s" + (" AND submitted_at < %s" if before else "")
             + " ORDER BY submitted_at DESC", (user_id, *((before,) if before else ()))).fetchall()
     requests = []
     for r in rows:
@@ -432,12 +433,12 @@ def judge_input(db: Database, request_no: str) -> dict[str, Any] | None:
     with db.connection() as conn:
         row = conn.execute(
             "SELECT r.*, c.system AS access_system, c.category AS access_category, c.description AS access_description"
-            " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code WHERE r.request_no = ?",
+            " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code WHERE r.request_no = %s",
             (request_no,)).fetchone()
         if row is None:
             return None
         since = (date.fromisoformat(row["submitted_at"][:10]) - timedelta(days=RECENT_MOVE_DAYS)).isoformat()
-        move = conn.execute("SELECT * FROM user_moves WHERE user_id = ? AND recorded_at <= ? AND moved_on >= ? ORDER BY id DESC LIMIT 1",
+        move = conn.execute("SELECT * FROM user_moves WHERE user_id = %s AND recorded_at <= %s AND moved_on >= %s ORDER BY id DESC LIMIT 1",
                             (row["requester_id"], row["submitted_at"], since)).fetchone()
         return {**dict(row), "move": _move(move) if move else None}
 

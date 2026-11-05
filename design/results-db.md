@@ -1,7 +1,7 @@
 # AI 결과 DB 설계
 
 SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
-- 2026-10-12 · 권한 DB는 [`db-schema.md`](db-schema.md) · DDL: [`sentinelai/db/results_schema.sql`](../sentinelai/db/results_schema.sql)
+- 2026-10-12 · 권한 DB는 [`db-schema.md`](db-schema.md) · DDL: [`sentinelai/db/results.sql`](../sentinelai/db/results.sql) (11/03까지는 `results_schema.sql` 외 SQLite 파일)
 
 ---
 
@@ -11,8 +11,8 @@ SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
 
 | 저장소 | 담는 것 |
 |---|---|
-| 권한 DB (`SENTINELAI_DB_PATH`) | 계정 · 세션 · 감사 기록 · 권한 신청(AI 판정 · 1차 · 최종 결재 · 회수를 한 행에) · 정책 · 로그 운영자 결정 |
-| **AI 결과 DB** (`SENTINELAI_RESULTS_DB_PATH`) | 정책 관리 검토 · 로그 감시 판정(지금의 `results.json`) · AI 질의 기록 |
+| 권한 DB (`SENTINELAI_DB_PATH`, 11/03부터 PostgreSQL 스키마 `main`) | 계정 · 세션 · 감사 기록 · 권한 신청(AI 판정 · 1차 · 최종 결재 · 회수를 한 행에) · 정책 · 로그 운영자 결정 |
+| **AI 결과 DB** (`SENTINELAI_RESULTS_DB_PATH`, 11/03부터 PostgreSQL 스키마 `results`) | 정책 관리 검토 · 로그 감시 판정(지금의 `results.json`) · AI 질의 기록 |
 | 보안 솔루션 로그 | **쌓지 않음.** 로그가 있는 곳(지금은 CSV, 나중에 외부 DB · Microsoft Sentinel)에서 `sentinelai.data`의 소스로 읽음 |
 
 - 처음 이름은 Log DB — 로그는 외부 DB에 쌓일 수 있어 따로 쌓지 않기로 했고(10/12), 남은 것이 AI 결과뿐이라 이름을 바꿨음
@@ -40,7 +40,7 @@ SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
 | 정책 관리 검토 = `results.json`의 `policies` 구역, 돌릴 때마다 덮어씀 | 실행마다 쌓임. 화면은 마지막 실행, 예전 실행과 그 결정도 남음 |
 | 로그 감시 = `results.json`의 `events` 구역에 쌓음, 다음 감시 시작점도 그 안 | 감시 1회 = 실행 1행 + 판정 n행. 다음 시작점 = 실행들의 마지막 로그 시각 중 가장 늦은 것 |
 | 운영자 결정 key = `실행 시각#순번` · `사용자@마지막 로그 시각` | `policy_issues/{id}` · `event_findings/{id}` |
-| CLI와 웹이 JSON 파일 하나를 함께 씀 (겹치면 한쪽 결과가 사라질 수 있음) | SQLite가 쓰기를 차례로 받음 |
+| CLI와 웹이 JSON 파일 하나를 함께 씀 (겹치면 한쪽 결과가 사라질 수 있음) | DB가 쓰기를 차례로 받음 (SQLite → 11/03부터 PostgreSQL, 스키마마다 advisory lock) |
 | 질의 기록 = 화면 메모리, 새로고침하면 사라짐 | 질문 · 답 · 근거 · 물은 사람이 남음 |
 
 ---

@@ -1,7 +1,7 @@
 # 권한 DB 스키마 설계 (검토용)
 
 SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
-- DDL: [`sentinelai/db/schema.sql`](../sentinelai/db/schema.sql) (권한 DB) · AI 결과 DB는 [`results-db.md`](results-db.md)
+- DDL: [`sentinelai/db/main.sql`](../sentinelai/db/main.sql) (권한 DB, 11/03까지는 `schema.sql` 외 SQLite 파일 열한 개) · AI 결과 DB는 [`results-db.md`](results-db.md)
 - 2026-10-11 확정 · **DB 계층 · API · 화면까지 구현**
 
 ---
@@ -40,7 +40,7 @@ SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
     - `approvals` · `revocations` 테이블과 Log DB의 `request_verdicts`는 없앰 (회수도 같은 행의 칸)
 16. **(6차) 권한 신청 AI 판정은 권한 DB에**
     - 보안 총책임자까지 올라가는 결재 근거 — Log DB 정리와 상관없이 신청과 함께 남아야 함
-    - 권한 DB를 계정과 신청으로 나누지 않음 — 결재 순서 · 역할을 강제하는 트리거가 `users`를 봐야 하는데, SQLite 트리거는 다른 DB 파일을 볼 수 없음
+    - 권한 DB를 계정과 신청으로 나누지 않음 — 결재 순서 · 역할을 강제하는 트리거가 `users`를 봐야 하는데, SQLite 트리거는 다른 DB 파일을 볼 수 없음 (11/03 PostgreSQL로 옮긴 뒤에도 권한 DB는 스키마 하나로 둠)
 17. **(6차) AI 판정은 1차 결재 전까지만 바뀜**
     - 다시 판정하면 덮어씀
     - 보안 운영자가 결재하면 AI 칸이 굳음 — 보안 총책임자는 보안 운영자가 본 판정을 그대로 봄
@@ -62,11 +62,11 @@ SentinelAI — 전북대학교 RAD(RAG & Decision) · SK쉴더스
 | 정책 · 로그 결정 = 브라우저 메모리 | 결정 · 취소가 DB에 쌓임 (`review_decisions`) |
 | 로그인 없음 | ID/PW 로그인(Argon2id · 세션 2일), 역할 3개, 보안 총책임자가 계정 생성 (처음엔 루트만, 10/12에 넓힘), 감사 기록 |
 
-- SQLite — 파일 하나, 서버 불필요, 표준 라이브러리. WAL 모드
+- ~~SQLite — 파일 하나, 서버 불필요, 표준 라이브러리. WAL 모드~~ → **(11/03) PostgreSQL** — 권한 DB = 스키마 `main`, AI 결과 DB = 스키마 `results`. 주소는 `SENTINELAI_DB_PATH` · `SENTINELAI_RESULTS_DB_PATH`(이름은 SQLite 때 그대로, 값이 PostgreSQL 주소) (§6)
 - 데이터 계층 · 판정 흐름(`engine/pipeline.py`)은 DB를 모름. `sentinelai/db/`는 `Engine`(engine.py — 10/20에 작업 큐와 함께 옮겼음)과 `web`이 씀
 - **결재 규칙은 DB가 강제 (트리거)** — 화면 · 앱 코드에 버그가 있어도 순서 건너뛰기, 역할이 아닌 사람의 결재 · 회수, 기록 수정 불가
 - 시각은 ISO 8601 UTC 문자열. 값은 문자열 위주, 필수 칸 최소
-- 추가 패키지: `argon2-cffi` 하나
+- 추가 패키지: `argon2-cffi` · `psycopg` · `psycopg-pool`
 
 ---
 
@@ -79,8 +79,8 @@ users ─┬─ sessions
 users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 ```
 
-- 스키마 파일은 차례로 적용 — `Database(path, "schema.sql", "decisions.sql", "accounts.sql", "decisions_server.sql", "roles_names.sql", "nodes.sql", "nodes_keys.sql")`
-- n번째 파일 적용 → `user_version = n`. 이미 만든 DB는 시작할 때 빠진 파일만 더 적용
+- 스키마 파일은 차례로 적용 — `Database(url, "main", "main.sql")`. SQLite 때 파일 열한 개(schema.sql ~ users_job.sql)를 적용한 최종 상태가 `main.sql` 하나 (11/03)
+- n번째 파일 적용 → 스키마 안 `schema_version` = n. 이미 만든 DB는 시작할 때 빠진 파일만 더 적용
 - 테이블을 더할 때는 새 파일을 뒤에 붙임. 앞 파일은 고치지 않음
 
 ### 신청의 상태 (`access_requests.stage`)
@@ -238,7 +238,7 @@ users ── review_decisions (정책 관리 · 로그 감시 결정, 결정자)
 
 ---
 
-## 4. 검증한 것 (`schema.sql`을 SQLite로 실행)
+## 4. 검증한 것 (`schema.sql`을 SQLite로 실행 — PostgreSQL로 옮긴 뒤로는 `make test`의 `tests/test_main_db.py`)
 
 - 준비: 루트 → 보안 총책임자 · 보안 운영자 2명(영업팀 · 인사팀) · 일반 사용자 생성 후 실행
 - 신청 → 인사팀 보안 운영자 1차 승인 → 다른 보안 총책임자 최종 승인 → `approved`. 결재자 이름 · 부서 · AI 등급 남음
@@ -257,7 +257,7 @@ DB가 거부한 **25가지**
 
 ---
 
-### `users.job` · `users.left_on` · `user_moves` · `grant_reviews` — 직무 · 퇴사 · 이동 (11/3, `users_job.sql`)
+### `users.job` · `users.left_on` · `user_moves` · `grant_reviews` — 직무 · 퇴사 · 이동 (11/3, `users_job.sql` → `main.sql`)
 
 - `users.job` 직무 · `users.left_on` 퇴사일(YYYY-MM-DD 또는 빈 값). 보안 총책임자가 계정 관리에서 적음
 - `access_requests.requester_job` — 신청 때 직무 (트리거로 고칠 수 없음)
@@ -284,3 +284,16 @@ DB가 거부한 **25가지**
 11. **도입 전부터 가진 권한** — 현재 보유 권한은 이 시스템에서 승인된 신청만 읽음. 나중에 옮겨 넣는(마이그레이션) 부분을 따로 만들 예정 (10/20)
     - 기존 권한을 계정별로 넣을지 (보안 총책임자가 화면에서, 또는 IAM 내보내기)
     - 넣는다면 결재 없이 넣는 기록을 어떻게 남길지
+
+---
+
+## 6. PostgreSQL로 옮김 (11/03)
+
+- **한 DB, 스키마 둘** — 권한 DB = `main`, AI 결과 DB = `results`. 주소는 `SENTINELAI_DB_PATH` · `SENTINELAI_RESULTS_DB_PATH`(이름은 SQLite 때 그대로, 값이 PostgreSQL 주소). 둘이 같은 DB여도 되고 다른 DB여도 됨. 연결마다 `search_path`를 그 스키마로 두어 쿼리에는 스키마 이름이 없음
+- **엔진은 쿼리 한 줄만** — `Engine.judge_request`의 `?` → `%s`. 같은 주소 · 스키마는 `db/__init__.py`가 한 번만 열고(웹이 뜰 때 여러 스레드가 동시에 열어도 연결 풀 하나), 프로세스가 끝날 때 닫음
+- **새로 시작** — SQLite 데이터는 옮기지 않음. 스키마 파일은 SQLite 때 차례로 적용하던 파일들의 최종 상태를 `main.sql` · `results.sql` 하나씩으로 합침 (칸 순서도 그대로)
+- **규칙은 그대로 트리거** — 문장도 그대로. 트리거 19개(권한 DB) · 9개(AI 결과 DB)를 plpgsql 함수로 옮김. 늘 막는 것(고칠 수 없음 · 지울 수 없음)은 `deny('문장')` 하나를 같이 씀
+- **쓰기는 차례로** — SQLite의 `BEGIN IMMEDIATE`처럼 쓰기 트랜잭션은 스키마마다 `pg_advisory_xact_lock`으로 하나씩. 신청 번호 매기기(읽고 나서 쓰기)가 겹치지 않음
+- **값은 SQLite 때와 같게** — 시각은 ISO 8601 문자열(TEXT), 0/1 칸은 INTEGER (Python `True`/`False`는 1/0으로 넣음). DB는 UTF-8 · C 로캘로 만들어 문자열 비교 · 정렬이 SQLite(바이트 순)와 같음
+- 바뀐 문법 — `?` → `%s`, `lastrowid` → `RETURNING id`, `INSERT OR IGNORE` → `ON CONFLICT DO NOTHING`, `IS 'x'` → `IS NOT DISTINCT FROM 'x'`, `GLOB` → 정규식, `COLLATE NOCASE` → `lower(login_id)` 유일 색인, `REAL` → `DOUBLE PRECISION`, `event_findings.user` → `"user"` (예약어)
+- 시험 — `make test`가 시험 DB(`sentinelai_test`)에 시험마다 새 스키마를 만들어 트리거 · 쿼리를 돌림 (`tests/`)

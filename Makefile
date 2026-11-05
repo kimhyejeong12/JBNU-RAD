@@ -5,17 +5,22 @@ IMAGE := sentinelai:0.6.0
 DOCS ?= docs
 DEV_PORT ?= 8001
 DEV_CHECK_MIN ?= 5
-# 로컬 시험 환경 — 진짜 DB · 벡터 DB 대신 .dev/ 를 씁니다 (모델 서버 주소 등 나머지는 .env 그대로). 주기 점검은 DEV_CHECK_MIN 분마다.
-DEV_ENV := SENTINELAI_DB_PATH=.dev/sentinelai.db SENTINELAI_RESULTS_DB_PATH=.dev/results.db SENTINELAI_MILVUS_URI=.dev/milvus.db SENTINELAI_MONITOR_INTERVAL_MIN=$(DEV_CHECK_MIN) DEV_PORT=$(DEV_PORT)
+# PostgreSQL (compose.yaml) 안의 시험용 DB. 진짜 DB(sentinelai)와 따로 둡니다. scripts/postgres-init.sql 이 만듭니다.
+DEV_DATABASE_URL ?= postgresql://sentinelai:sentinelai-dev@127.0.0.1:5432/sentinelai_dev
+TEST_DATABASE_URL ?= postgresql://sentinelai:sentinelai-dev@127.0.0.1:5432/sentinelai_test
+# 로컬 시험 환경 — 진짜 DB · 벡터 DB 대신 시험 DB · .dev/ 를 씁니다 (모델 서버 주소 등 나머지는 .env 그대로). 주기 점검은 DEV_CHECK_MIN 분마다.
+DEV_ENV := SENTINELAI_DB_PATH=$(DEV_DATABASE_URL) SENTINELAI_RESULTS_DB_PATH=$(DEV_DATABASE_URL) SENTINELAI_MILVUS_URI=.dev/milvus.db SENTINELAI_MONITOR_INTERVAL_MIN=$(DEV_CHECK_MIN) DEV_PORT=$(DEV_PORT)
 # 시험용 점검 대상 컨테이너 (node/testenv/compose.yaml) — 노드가 그 안에서 root 로 읽어 보냅니다. 값은 node/testenv/targets.env.
 # podman compose 는 docker-compose 를 쓰므로 사용자 podman 소켓이 떠 있어야 합니다 (systemctl --user start podman.socket).
 PODMAN ?= podman
 TARGETS := cd node/testenv && $(PODMAN) compose --env-file targets.env
 
-.PHONY: dev-setup dev dev-node dev-sim dev-targets dev-targets-stop front-install front front-test front-build front-check help install health index review-policies check-nodes monitor import-snapshots create-root web docker-build docker-run clean
+.PHONY: db-up db-down test dev-setup dev dev-node dev-sim dev-targets dev-targets-stop front-install front front-test front-build front-check help install health index review-policies check-nodes monitor import-snapshots create-root web docker-build docker-run clean
 
 help:
 	@echo "install                        venv 생성 + 의존성 설치 + .env 준비"
+	@echo "db-up · db-down                PostgreSQL 컨테이너 (compose.yaml) 올리기 · 내리기 — 처음 한 번 db-up"
+	@echo "test                           DB 시험 (트리거 · 쿼리를 시험 DB sentinelai_test 에서)"
 	@echo "web                            대시보드 (http://localhost:8000) — 로그 감시 · 서버 점검은 웹이 스스로 돌림"
 	@echo "health                         Ollama · 모델 · 벡터 DB 확인"
 	@echo "create-root LOGIN=아이디 NAME=이름 [DEPT=부서]  초기 루트 계정(보안 총책임자) — 비밀번호는 입력받음"
@@ -25,7 +30,7 @@ help:
 	@echo "review-policies                정책 관리 검토 — 문서 · 솔루션 정책 적재 + 정책 간 검토"
 	@echo "check-nodes                    서버 점검 — 새 수집이 온 노드만"
 	@echo "monitor [SINCE=시각] [FULL=1]   로그 감시 — 지난 감시 이후 로그만 (cron 용)"
-	@echo "--- 로컬 시험 환경 (.dev/, 진짜 DB 는 건드리지 않음) ---"
+	@echo "--- 로컬 시험 환경 (시험 DB · .dev/, 진짜 DB 는 건드리지 않음) ---"
 	@echo "dev-setup [RESET=1]            시험 계정(비밀번호 dev-pass-1234) · 이 컴퓨터용 노드 설정 만들기"
 	@echo "dev [DEV_CHECK_MIN=5]          시험 환경으로 웹 실행 (http://127.0.0.1:$(DEV_PORT)), 서버 점검 5분마다"
 	@echo "--- 노드 수집 시험 (make dev 가 떠 있을 때) ---"
@@ -45,8 +50,17 @@ help:
 install:
 	python3 -m venv .venv
 	$(PY) -m pip install --upgrade pip
-	$(PY) -m pip install -r requirements.txt
+	$(PY) -m pip install -r requirements-dev.txt
 	@test -f .env || (cp .env.example .env && echo ".env 생성됨")
+
+db-up:
+	$(DOCKER) compose up -d --wait
+
+db-down:
+	$(DOCKER) compose down
+
+test:
+	SENTINELAI_TEST_DATABASE_URL=$(TEST_DATABASE_URL) $(PY) -m pytest tests
 
 health:
 	$(PY) -m sentinelai health

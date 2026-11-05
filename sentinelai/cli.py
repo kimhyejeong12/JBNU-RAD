@@ -44,7 +44,7 @@ def health(engine: Engine, args: argparse.Namespace) -> int:
                              ("임베딩 모델", "embedding_ready", s.embedding_model)):
         print(f"{label:9s}: {name} {'OK' if h[key] else '없음'}")
     print(f"벡터 DB     : {s.milvus_target} — {'OK' if h['index_ready'] else '비어 있음 (index 로 적재)'}")
-    print(f"권한 DB     : {s.db_path} · AI 결과 DB: {s.results_db_path}")
+    print(f"권한 DB     : {db.core.describe(s.db_path)} (스키마 main) · AI 결과 DB: {db.core.describe(s.results_db_path)} (스키마 results)")
     return 0 if h["ok"] else 1
 
 
@@ -71,7 +71,7 @@ def review_policies(engine: Engine, args: argparse.Namespace) -> int:
 
     review = engine.run_policies(progress)
     _issues(review["load_issues"])
-    print(f"\n{engine.results_db.path} 에 저장")
+    print(f"\n{engine.results_db.label} 에 저장")
     return 1 if review["failed"] else 0
 
 
@@ -85,7 +85,7 @@ def check_nodes(engine: Engine, args: argparse.Namespace) -> int:
     if not run["findings"]:
         print("새 수집이 온 노드가 없습니다.")
     failed = sum(f["failed"] for f in run["findings"])
-    print(f"\n{engine.results_db.path} 에 저장 — 판정 실패 {failed}건")
+    print(f"\n{engine.results_db.label} 에 저장 — 판정 실패 {failed}건")
     return 1 if failed else 0
 
 
@@ -102,14 +102,14 @@ def monitor(engine: Engine, args: argparse.Namespace) -> int:
     if not run["findings"]:
         print("판정할 새 로그가 없습니다.")
     failed = sum(f["failed"] for f in run["findings"])
-    print(f"\n{engine.results_db.path} 에 저장 — 판정 실패 {failed}건")
+    print(f"\n{engine.results_db.label} 에 저장 — 판정 실패 {failed}건")
     return 1 if failed else 0
 
 
 def import_snapshots(engine: Engine, args: argparse.Namespace) -> int:
     loaded, stored = engine.import_snapshots(args.folder, args.node)
     _issues([str(i) for i in loaded.issues])
-    print(f"{loaded.source}: 수집 {len(loaded.records)}건 중 새로 넣음 {stored}건 → {engine.results_db.path}")
+    print(f"{loaded.source}: 수집 {len(loaded.records)}건 중 새로 넣음 {stored}건 → {engine.results_db.label}")
     return 1 if loaded.issues else 0
 
 
@@ -125,7 +125,7 @@ def create_root(engine: Engine, args: argparse.Namespace) -> int:
     except db.Denied as exc:
         print(f"만들지 못했습니다: {exc}", file=sys.stderr)
         return 1
-    print(f"루트 계정을 만들었습니다: {user.login_id} ({user.display_name}) → {engine.main_db.path}")
+    print(f"루트 계정을 만들었습니다: {user.login_id} ({user.display_name}) → {engine.main_db.label}")
     return 0
 
 

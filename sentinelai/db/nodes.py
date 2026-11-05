@@ -44,14 +44,14 @@ def authenticate(db: Database, presented: str, info: dict[str, Any]) -> dict[str
               "agent_version": str(info.get("agent_version", "")), "interval_min": int(info.get("interval_min") or 0)}
     with db.transaction() as conn:
         # 키는 32바이트 무작위 값이라 해시를 그대로 찾아도 됩니다 (비밀번호처럼 느린 해시가 필요 없음).
-        row = conn.execute("SELECT * FROM nodes WHERE key_hash = ?", (_hash(presented),)).fetchone()
+        row = conn.execute("SELECT * FROM nodes WHERE key_hash = %s", (_hash(presented),)).fetchone()
         if row is None:
             raise Unauthorized("등록되지 않은 키입니다 — 정책 관리 → [노드]에서 발급한 키를 node.conf 에 넣으세요")
         if not row["enabled"]:
             raise Denied("꺼 둔 노드입니다")
-        conn.execute(f"UPDATE nodes SET {', '.join(f'{k} = ?' for k in fields)}, last_seen_at = ? WHERE id = ?",
+        conn.execute(f"UPDATE nodes SET {', '.join(f'{k} = %s' for k in fields)}, last_seen_at = %s WHERE id = %s",
                      (*fields.values(), now(), row["id"]))
-        return _row(conn.execute("SELECT * FROM nodes WHERE id = ?", (row["id"],)).fetchone())
+        return _row(conn.execute("SELECT * FROM nodes WHERE id = %s", (row["id"],)).fetchone())
 
 
 def create(db: Database, by: User, name: str) -> tuple[dict[str, Any], str]:
@@ -61,39 +61,39 @@ def create(db: Database, by: User, name: str) -> tuple[dict[str, Any], str]:
         raise Denied("노드 이름은 영문 · 숫자 · . _ - 1~64자입니다" + (" (쓸 수 없는 이름)" if name in RESERVED else ""))
     key = secrets.token_urlsafe(32)
     with db.transaction() as conn:
-        if conn.execute("SELECT 1 FROM nodes WHERE name = ?", (name,)).fetchone():
+        if conn.execute("SELECT 1 FROM nodes WHERE name = %s", (name,)).fetchone():
             raise Denied("이미 있는 노드 이름입니다")
-        conn.execute("INSERT INTO nodes (name, key_hash, key, registered_at) VALUES (?,?,?,?)", (name, _hash(key), key, now()))
+        conn.execute("INSERT INTO nodes (name, key_hash, key, registered_at) VALUES (%s,%s,%s,%s)", (name, _hash(key), key, now()))
         audit(conn, "node_create", by.id, target_type="node", target_id=name)
-        return _row(conn.execute("SELECT * FROM nodes WHERE name = ?", (name,)).fetchone()), key
+        return _row(conn.execute("SELECT * FROM nodes WHERE name = %s", (name,)).fetchone()), key
 
 
 def reissue_key(db: Database, by: User, name: str) -> tuple[dict[str, Any], str]:
     """키를 다시 발급합니다. 예전 키는 바로 못 쓰게 됩니다. → (노드, 새 키)"""
     key = secrets.token_urlsafe(32)
-    return _change(db, by, name, "UPDATE nodes SET key_hash = ?, key = ? WHERE name = ?", (_hash(key), key), "node_key_issue", {}), key
+    return _change(db, by, name, "UPDATE nodes SET key_hash = %s, key = %s WHERE name = %s", (_hash(key), key), "node_key_issue", {}), key
 
 
 def key_of(db: Database, by: User, name: str) -> str | None:
     """화면에 보여줄 노드 키. 10/20 오후 전에 발급해 해시만 있는 키는 None (다시 발급하면 보임)."""
     _require_analyst(by)
     with db.connection() as conn:
-        row = conn.execute("SELECT key FROM nodes WHERE name = ?", (name,)).fetchone()
+        row = conn.execute("SELECT key FROM nodes WHERE name = %s", (name,)).fetchone()
     return row["key"] if row else None
 
 
 def ensure(db: Database, name: str, info: dict[str, Any]) -> None:
     """손으로 넣은 수집(import-snapshots)의 노드를 등록부에 둡니다. 키는 주지 않습니다 — 그 노드가 직접 보내려면 화면에서 키를 발급합니다."""
     with db.transaction() as conn:
-        if conn.execute("SELECT 1 FROM nodes WHERE name = ?", (name,)).fetchone() is None:
-            conn.execute("INSERT INTO nodes (name, host, ip, registered_at) VALUES (?,?,?,?)",
+        if conn.execute("SELECT 1 FROM nodes WHERE name = %s", (name,)).fetchone() is None:
+            conn.execute("INSERT INTO nodes (name, host, ip, registered_at) VALUES (%s,%s,%s,%s)",
                          (name, str(info.get("host", "")), str(info.get("ip", "")), now()))
             audit(conn, "node_import", target_type="node", target_id=name)
 
 
 def mark_collected(db: Database, name: str, collected_at: str) -> None:
     with db.transaction() as conn:
-        conn.execute("UPDATE nodes SET last_collected_at = max(coalesce(last_collected_at, ''), ?) WHERE name = ?",
+        conn.execute("UPDATE nodes SET last_collected_at = greatest(coalesce(last_collected_at, ''), %s) WHERE name = %s",
                      (collected_at, name))
 
 
@@ -115,16 +115,16 @@ def _require_analyst(by: User) -> None:
 def _change(db: Database, by: User, name: str, sql: str, args: tuple, action: str, detail: dict) -> dict[str, Any]:
     _require_analyst(by)
     with db.transaction() as conn:
-        if conn.execute("SELECT 1 FROM nodes WHERE name = ?", (name,)).fetchone() is None:
+        if conn.execute("SELECT 1 FROM nodes WHERE name = %s", (name,)).fetchone() is None:
             raise Denied("없는 노드입니다")
         conn.execute(sql, (*args, name))
         audit(conn, action, by.id, target_type="node", target_id=name, detail=json.dumps(detail, ensure_ascii=False))
-        return _row(conn.execute("SELECT * FROM nodes WHERE name = ?", (name,)).fetchone())
+        return _row(conn.execute("SELECT * FROM nodes WHERE name = %s", (name,)).fetchone())
 
 
 def set_enabled(db: Database, by: User, name: str, enabled: bool) -> dict[str, Any]:
     """끈 노드는 보내도 받지 않고, 주기 점검에서도 빠집니다."""
-    return _change(db, by, name, "UPDATE nodes SET enabled = ? WHERE name = ?", (int(enabled),), "node_update", {"enabled": enabled})
+    return _change(db, by, name, "UPDATE nodes SET enabled = %s WHERE name = %s", (int(enabled),), "node_update", {"enabled": enabled})
 
 
 def is_stale(node: dict[str, Any], at: datetime | None = None) -> bool:

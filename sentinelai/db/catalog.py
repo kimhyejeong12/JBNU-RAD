@@ -6,10 +6,11 @@ from __future__ import annotations
 
 import json
 import re
-import sqlite3
+
+import psycopg
 
 from .auth import User
-from .core import Database, Denied, audit, now
+from .core import Database, Denied, Row, audit, now
 
 FIELDS = ("name", "system", "category", "description")
 
@@ -19,7 +20,7 @@ def _top(by: User) -> None:
         raise Denied("권한 목록은 보안 총책임자만 관리할 수 있습니다")
 
 
-def _item(row: sqlite3.Row) -> dict:
+def _item(row: Row) -> dict:
     return {**dict(row), "is_active": bool(row["is_active"])}
 
 
@@ -30,8 +31,8 @@ def list_items(db: Database, by: User) -> list[dict]:
         return [_item(r) for r in conn.execute(sql)]
 
 
-def get(conn: sqlite3.Connection, code: str) -> sqlite3.Row:
-    row = conn.execute("SELECT * FROM access_catalog WHERE code = ?", (code,)).fetchone()
+def get(conn: psycopg.Connection[Row], code: str) -> Row:
+    row = conn.execute("SELECT * FROM access_catalog WHERE code = %s", (code,)).fetchone()
     if row is None:
         raise Denied("권한 목록에 없는 권한입니다")
     return row
@@ -45,12 +46,12 @@ def create(db: Database, by: User, code: str, name: str, system: str = "", categ
     if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", code):
         raise Denied("권한 코드는 영문 · 숫자 · _ . - 만 64자까지 씁니다 (예: HR_SALARY_READ)")
     with db.transaction() as conn:
-        if conn.execute("SELECT 1 FROM access_catalog WHERE code = ?", (code,)).fetchone():
+        if conn.execute("SELECT 1 FROM access_catalog WHERE code = %s", (code,)).fetchone():
             raise Denied("이미 있는 권한 코드입니다")
         stamp = now()
         conn.execute(
             "INSERT INTO access_catalog (code, name, system, category, description, created_by, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
             (code, name, system.strip(), category.strip(), description.strip(), by.id, stamp, stamp),
         )
         audit(conn, "access_create", by.id, target_type="access", target_id=code)
@@ -69,8 +70,8 @@ def update(db: Database, by: User, code: str, **changes) -> dict:
     with db.transaction() as conn:
         get(conn, code)
         if values:
-            sets = ", ".join(f"{k} = ?" for k in values)
-            conn.execute(f"UPDATE access_catalog SET {sets}, updated_at = ? WHERE code = ?", (*values.values(), now(), code))
+            sets = ", ".join(f"{k} = %s" for k in values)
+            conn.execute(f"UPDATE access_catalog SET {sets}, updated_at = %s WHERE code = %s", (*values.values(), now(), code))
             audit(conn, "access_update", by.id, target_type="access", target_id=code,
                   detail=json.dumps(values, ensure_ascii=False))
         return _item(get(conn, code))

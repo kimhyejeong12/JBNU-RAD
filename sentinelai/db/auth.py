@@ -8,7 +8,6 @@ from __future__ import annotations
 import hashlib
 import json
 import secrets
-import sqlite3
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
@@ -16,7 +15,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from argon2.profiles import RFC_9106_LOW_MEMORY
 
-from .core import Database, Denied, audit, now, today
+from .core import Database, Denied, Row, audit, now, today
 
 HASHER = PasswordHasher.from_parameters(RFC_9106_LOW_MEMORY)
 SESSION_TTL = timedelta(days=2)
@@ -39,7 +38,7 @@ class User:
     must_change_password: bool
 
     @classmethod
-    def of(cls, row: sqlite3.Row) -> User:
+    def of(cls, row: Row) -> User:
         return cls(row["id"], row["login_id"], row["display_name"], row["department"], row["role"],
                    bool(row["is_root"]), bool(row["must_change_password"]))
 
@@ -71,11 +70,11 @@ def create_root(db: Database, login_id: str, password: str, display_name: str, d
             raise Denied("루트 계정이 이미 있습니다")
         uid = conn.execute(
             "INSERT INTO users (login_id, password_hash, display_name, department, role, is_root, must_change_password, created_at)"
-            " VALUES (?, ?, ?, ?, 'top', 1, 0, ?)",
+            " VALUES (%s, %s, %s, %s, 'top', 1, 0, %s) RETURNING id",
             (login_id, HASHER.hash(password), display_name, department, now()),
-        ).lastrowid
+        ).fetchone()[0]
         audit(conn, "root_create", uid, login_id=login_id, target_type="user", target_id=str(uid))
-        return User.of(conn.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone())
+        return User.of(conn.execute("SELECT * FROM users WHERE id = %s", (uid,)).fetchone())
 
 
 def _require_top(by: User) -> None:
@@ -83,7 +82,7 @@ def _require_top(by: User) -> None:
         raise Denied("계정 관리는 보안 총책임자만 할 수 있습니다")
 
 
-def _guard_target(by: User, target: sqlite3.Row) -> None:
+def _guard_target(by: User, target: Row) -> None:
     # 다른 보안 총책임자가 루트의 비밀번호를 바꾸면 루트를 가로챌 수 있어 막습니다.
     if target["is_root"] and not by.is_root:
         raise Denied("루트 계정은 루트만 고칠 수 있습니다")
@@ -98,12 +97,12 @@ def create_user(db: Database, by: User, login_id: str, password: str, display_na
     with db.transaction() as conn:
         uid = conn.execute(
             "INSERT INTO users (login_id, password_hash, display_name, department, job, role, created_at, created_by)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            " VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
             (login_id, HASHER.hash(password), display_name, department, job.strip(), role, now(), by.id),
-        ).lastrowid
+        ).fetchone()[0]
         audit(conn, "user_create", by.id, target_type="user", target_id=str(uid),
               detail=json.dumps({"login_id": login_id, "role": role, "department": department, "job": job.strip()}, ensure_ascii=False))
-        return User.of(conn.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone())
+        return User.of(conn.execute("SELECT * FROM users WHERE id = %s", (uid,)).fetchone())
 
 
 def update_user(db: Database, by: User, user_id: int, **changes: object) -> User:
@@ -129,7 +128,7 @@ def update_user(db: Database, by: User, user_id: int, **changes: object) -> User
         except ValueError:
             raise Denied("퇴사일은 YYYY-MM-DD 로 적습니다") from None
     with db.transaction() as conn:
-        target = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        target = conn.execute("SELECT * FROM users WHERE id = %s", (user_id,)).fetchone()
         if target is None:
             raise Denied("없는 계정입니다")
         _guard_target(by, target)
@@ -138,20 +137,20 @@ def update_user(db: Database, by: User, user_id: int, **changes: object) -> User
         # 자기 역할을 낮추거나 정지하면 계정 관리 화면에서 바로 밀려나 되돌릴 수 없습니다.
         if target["id"] == by.id and ("role" in fields or fields.get("is_active") in (0, False)):
             raise Denied("자기 계정의 역할을 바꾸거나 정지할 수 없습니다")
-        conn.execute(f"UPDATE users SET {', '.join(f'{k} = ?' for k in fields)} WHERE id = ?", (*fields.values(), user_id))
+        conn.execute(f"UPDATE users SET {', '.join(f'{k} = %s' for k in fields)} WHERE id = %s", (*fields.values(), user_id))
         # 비어 있던 칸을 처음 채우는 것은 이동이 아닙니다 (직무 칸은 11/3에 생겨 기존 계정이 모두 빈 값).
         moved = [k for k in ("department", "job") if k in fields and fields[k] != target[k] and target[k]]
         if moved:
             conn.execute(
                 "INSERT INTO user_moves (user_id, from_department, from_job, to_department, to_job, moved_on, recorded_at, recorded_by)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                 (user_id, target["department"], target["job"], fields.get("department", target["department"]),
                  fields.get("job", target["job"]), today(), now(), by.id))
         if fields.get("is_active") in (0, False):
-            conn.execute("UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL", (now(), user_id))
+            conn.execute("UPDATE sessions SET revoked_at = %s WHERE user_id = %s AND revoked_at IS NULL", (now(), user_id))
         audit(conn, "user_update", by.id, target_type="user", target_id=str(user_id),
               detail=json.dumps(fields, ensure_ascii=False))
-        return User.of(conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone())
+        return User.of(conn.execute("SELECT * FROM users WHERE id = %s", (user_id,)).fetchone())
 
 
 def reset_password(db: Database, by: User, user_id: int, temporary_password: str) -> None:
@@ -159,16 +158,16 @@ def reset_password(db: Database, by: User, user_id: int, temporary_password: str
     _require_top(by)
     _check_password(temporary_password)
     with db.transaction() as conn:
-        target = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        target = conn.execute("SELECT * FROM users WHERE id = %s", (user_id,)).fetchone()
         if target is None:
             raise Denied("없는 계정입니다")
         _guard_target(by, target)
         if conn.execute(
-            "UPDATE users SET password_hash = ?, must_change_password = 1, failed_logins = 0, locked_until = NULL WHERE id = ?",
+            "UPDATE users SET password_hash = %s, must_change_password = 1, failed_logins = 0, locked_until = NULL WHERE id = %s",
             (HASHER.hash(temporary_password), user_id),
         ).rowcount == 0:
             raise Denied("없는 계정입니다")
-        conn.execute("UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL", (now(), user_id))
+        conn.execute("UPDATE sessions SET revoked_at = %s WHERE user_id = %s AND revoked_at IS NULL", (now(), user_id))
         audit(conn, "password_reset", by.id, target_type="user", target_id=str(user_id))
 
 
@@ -195,10 +194,10 @@ def _login_failed(db: Database, user_id: int | None, login_id: str, ip: str | No
         locked = False
         if reason == "password":
             # 동시에 틀려도 횟수가 빠지지 않게 SQL 안에서 더합니다.
-            count = conn.execute("UPDATE users SET failed_logins = failed_logins + 1 WHERE id = ? RETURNING failed_logins",
+            count = conn.execute("UPDATE users SET failed_logins = failed_logins + 1 WHERE id = %s RETURNING failed_logins",
                                  (user_id,)).fetchone()[0]
             if count >= MAX_FAILED_LOGINS:
-                conn.execute("UPDATE users SET failed_logins = 0, locked_until = ? WHERE id = ?", (_later(LOCK_TIME), user_id))
+                conn.execute("UPDATE users SET failed_logins = 0, locked_until = %s WHERE id = %s", (_later(LOCK_TIME), user_id))
                 locked = True
         audit(conn, "login_failed", user_id, login_id=login_id, ip=ip, detail=json.dumps({"reason": reason, "locked": locked}))
         return locked
@@ -208,7 +207,7 @@ def login(db: Database, login_id: str, password: str, ip: str | None = None, use
     """성공하면 (세션 토큰, 사용자). 토큰은 쿠키로만 주고 DB에는 해시만 둡니다."""
     failure = Denied("아이디 또는 비밀번호가 맞지 않습니다")
     with db.connection() as conn:
-        row = conn.execute("SELECT * FROM users WHERE login_id = ?", (login_id,)).fetchone()
+        row = conn.execute("SELECT * FROM users WHERE lower(login_id) = lower(%s)", (login_id,)).fetchone()
     if row is None:
         try:
             HASHER.verify(_DUMMY_HASH, password)
@@ -233,14 +232,14 @@ def login(db: Database, login_id: str, password: str, ip: str | None = None, use
         updates["password_hash"] = HASHER.hash(password)
     token = secrets.token_urlsafe(32)
     with db.transaction() as conn:
-        conn.execute(f"UPDATE users SET {', '.join(f'{k} = ?' for k in updates)} WHERE id = ?", (*updates.values(), row["id"]))
+        conn.execute(f"UPDATE users SET {', '.join(f'{k} = %s' for k in updates)} WHERE id = %s", (*updates.values(), row["id"]))
         stamp = now()
         conn.execute(
-            "INSERT INTO sessions (token_hash, user_id, created_at, last_seen_at, expires_at, ip, user_agent) VALUES (?,?,?,?,?,?,?)",
+            "INSERT INTO sessions (token_hash, user_id, created_at, last_seen_at, expires_at, ip, user_agent) VALUES (%s,%s,%s,%s,%s,%s,%s)",
             (_token_hash(token), row["id"], stamp, stamp, _later(SESSION_TTL), ip, user_agent),
         )
         audit(conn, "login", row["id"], login_id=login_id, ip=ip)
-        return token, User.of(conn.execute("SELECT * FROM users WHERE id = ?", (row["id"],)).fetchone())
+        return token, User.of(conn.execute("SELECT * FROM users WHERE id = %s", (row["id"],)).fetchone())
 
 
 def session_user(db: Database, token: str | None) -> User | None:
@@ -250,12 +249,12 @@ def session_user(db: Database, token: str | None) -> User | None:
     with db.connection() as conn:
         row = conn.execute(
             "SELECT u.*, s.id AS session_id FROM sessions s JOIN users u ON u.id = s.user_id"
-            " WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > ? AND u.is_active = 1",
+            " WHERE s.token_hash = %s AND s.revoked_at IS NULL AND s.expires_at > %s AND u.is_active = 1",
             (_token_hash(token), now()),
         ).fetchone()
         if row is None:
             return None
-        conn.execute("UPDATE sessions SET last_seen_at = ? WHERE id = ?", (now(), row["session_id"]))
+        conn.execute("UPDATE sessions SET last_seen_at = %s WHERE id = %s", (now(), row["session_id"]))
         return User.of(row)
 
 
@@ -263,9 +262,9 @@ def logout(db: Database, token: str | None) -> None:
     if not token:
         return
     with db.transaction() as conn:
-        row = conn.execute("SELECT user_id FROM sessions WHERE token_hash = ? AND revoked_at IS NULL", (_token_hash(token),)).fetchone()
+        row = conn.execute("SELECT user_id FROM sessions WHERE token_hash = %s AND revoked_at IS NULL", (_token_hash(token),)).fetchone()
         if row:
-            conn.execute("UPDATE sessions SET revoked_at = ? WHERE token_hash = ?", (now(), _token_hash(token)))
+            conn.execute("UPDATE sessions SET revoked_at = %s WHERE token_hash = %s", (now(), _token_hash(token)))
             audit(conn, "logout", row["user_id"])
 
 
@@ -275,15 +274,15 @@ def change_password(db: Database, user: User, current: str, new: str, token: str
     if new == current:
         raise Denied("새 비밀번호가 지금과 같습니다")
     with db.transaction() as conn:
-        row = conn.execute("SELECT password_hash FROM users WHERE id = ?", (user.id,)).fetchone()
+        row = conn.execute("SELECT password_hash FROM users WHERE id = %s", (user.id,)).fetchone()
         try:
             HASHER.verify(row["password_hash"], current)
         except (VerificationError, InvalidHashError):
             raise Denied("지금 비밀번호가 맞지 않습니다") from None
         stamp = now()
-        conn.execute("UPDATE users SET password_hash = ?, must_change_password = 0, password_changed_at = ? WHERE id = ?",
+        conn.execute("UPDATE users SET password_hash = %s, must_change_password = 0, password_changed_at = %s WHERE id = %s",
                      (HASHER.hash(new), stamp, user.id))
-        conn.execute("UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND token_hash IS NOT ?",
+        conn.execute("UPDATE sessions SET revoked_at = %s WHERE user_id = %s AND revoked_at IS NULL AND token_hash IS DISTINCT FROM %s",
                      (stamp, user.id, _token_hash(token) if token else None))
         audit(conn, "password_change", user.id)
 
