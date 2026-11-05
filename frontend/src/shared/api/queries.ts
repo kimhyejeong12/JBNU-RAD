@@ -2,7 +2,7 @@ import { QueryClient, keepPreviousData, queryOptions } from "@tanstack/react-que
 import { getJSON } from "./http";
 import { jobsInterval } from "./jobs";
 import type {
-  AccessItem, AskItem, AskKind, Health, Jobs, LogsPage, LogsParams, Me, NodeDetail, NodeRow, QaRecord, Regulation,
+  AccessItem, AskItem, Conversation, Health, Jobs, LogsPage, LogsParams, Me, NodeDetail, NodeRow, QaRecord, Regulation,
   RequestRow, Results, StatPeriod, Stats, UserRow, UserStats, WatchPerson,
 } from "./types";
 
@@ -49,10 +49,11 @@ export const jobsQuery = () => queryOptions({
   refetchIntervalInBackground: true,
 });
 
-export const qaQuery = (kind: AskKind) => queryOptions({
-  queryKey: ["qa", kind],
+export const conversationsQuery = () => queryOptions({ queryKey: ["qa", "list"], queryFn: () => getJSON<Conversation[]>("/api/qa") });
+export const conversationQuery = (id: string) => queryOptions({
+  queryKey: ["qa", id],
   queryFn: async (): Promise<AskItem[]> =>
-    (await getJSON<QaRecord[]>(`/api/qa?kind=${kind}`)).map(({ question, ...rest }, n) => ({ ...rest, id: `qa-${n}`, q: question, started: null })),
+    (await getJSON<QaRecord[]>(`/api/qa?conversation=${id}`)).map(({ question, id: no, ...rest }) => ({ ...rest, id: `qa-${no}`, q: question, started: null })),
 });
 
 // staleTime Infinity 면 받은 적 있는 키로 돌아올 때 다시 받지 않아 0 으로 둡니다.

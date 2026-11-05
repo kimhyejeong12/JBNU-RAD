@@ -4,8 +4,6 @@ import { useQueue } from "@/app/queue/useQueue";
 import { stageCounts } from "@/app/queue/select";
 import type { StageFilter } from "@/app/ui/state/uiReducer";
 import { useUi } from "@/app/ui/state/UiContext";
-import { ASK } from "@/features/ask/config";
-import { askMode } from "@/features/ask/lib";
 import { Icon } from "@/shared/ui/base/Icon";
 
 const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
@@ -14,7 +12,7 @@ const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
   { tab: "stats", icon: "activity", label: "보안 통계", panel: "view-stats" },
   { tab: "ustats", icon: "warn", label: "사용자 위협", panel: "view-stats" },
   { tab: "logs", icon: "search", label: "로그 조회", panel: "view-logs" },
-  { tab: "ask", icon: "chat", label: "정책 질의", panel: "view-ask" },
+  { tab: "ask", icon: "chat", label: "질의", panel: "view-ask" },
   { tab: "engine", icon: "list", label: "작업 큐", panel: "view-engine" },
 ];
 
@@ -58,7 +56,7 @@ export function MainTabs() {
         <button key={t.tab} role="tab" className={TAB} id={`tab-${t.tab}`} aria-selected={ui.mainTab === t.tab} aria-controls={t.panel}
           hidden={!tabs.includes(t.tab)} onClick={() => setMainTab(t.tab)}>
           <Icon name={t.icon} small />
-          {t.tab === "ask" ? <span id="tab-ask-label">{ASK[askMode(ui.view)].label}</span> : t.label}
+          {t.label}
         </button>
       ))}
     </nav>

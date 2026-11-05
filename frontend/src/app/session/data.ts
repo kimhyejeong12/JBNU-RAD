@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useMe } from "./me";
 import { dataNeeds, type DataNeeds } from "./views";
 import {
-  EMPTY_RESULTS, catalogQuery, healthQuery, jobsQuery, peopleQuery, qaQuery, regulationsQuery, requestsQuery, resultsQuery, usersQuery,
+  EMPTY_RESULTS, catalogQuery, healthQuery, jobsQuery, peopleQuery, conversationQuery, conversationsQuery, regulationsQuery, requestsQuery, resultsQuery, usersQuery,
 } from "@/shared/api/queries";
-import type { AccessItem, AskItem, AskKind, Jobs, Regulation, RequestRow, Results, UserRow, WatchPerson } from "@/shared/api/types";
+import type { AccessItem, AskItem, Conversation, Jobs, Regulation, RequestRow, Results, UserRow, WatchPerson } from "@/shared/api/types";
 import { chipLabel, clauseText } from "@/shared/lib/clause";
 
 // 받기 전에는 늘 같은 빈 배열을 돌려주어 useMemo 의존성이 그릴 때마다 바뀌지 않게 합니다.
@@ -58,9 +58,14 @@ export function useHealth() {
   return useQuery({ ...healthQuery(), enabled });
 }
 
-export function useQa(kind: AskKind): AskItem[] {
+export function useConversations(): Conversation[] {
   const enabled = useNeeds().operator;
-  return useQuery({ ...qaQuery(kind), enabled }).data ?? NONE;
+  return useQuery({ ...conversationsQuery(), enabled }).data ?? NONE;
+}
+
+export function useConversation(id: string): AskItem[] {
+  const enabled = useNeeds().operator;
+  return useQuery({ ...conversationQuery(id), enabled }).data ?? NONE;
 }
 
 export function useClauses() {

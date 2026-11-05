@@ -35,6 +35,7 @@ export interface UiStore {
   setLogs(patch: Partial<UiState["logs"]>): void;
   setStats(patch: Partial<UiState["stats"]>): void;
   setAskSource(src: AskSource | null): void;
+  setConversation(id: string): void;
   gotoNode(name: string): void;
   gotoActiveGrant(no: string): void;
   gotoEvent(key: string): void;
@@ -105,6 +106,10 @@ export function useUiStore(): UiStore {
       setLogs: (patch) => dispatch({ type: "SET_LOGS", patch }),
       setStats: (patch) => dispatch({ type: "SET_STATS", patch }),
       setAskSource: (src) => dispatch({ type: "SET_ASK_SOURCE", src }),
+      setConversation: (id) => {
+        dispatch({ type: "SET_CONVERSATION", id });
+        dispatch({ type: "CLOSE_DRAWER" });
+      },
       gotoNode: (name) => {
         dispatch({ type: "NAVIGATE", view: "policies", nextSelected: keepOrFirst("policies", ui.stageFilter) });
         dispatch({ type: "SET_MAIN_TAB", tab: "nodes" });

@@ -238,8 +238,6 @@ export interface Jobs {
   fast?: { every_min: number; next_at: string | null; last: Record<string, { finished_at?: string | null }>; running?: string | null };
 }
 
-export type AskKind = "policy" | "servers" | "logs";
-
 export interface ServerFacts {
   "노드 수": number;
   "마지막 판정 등급별 노드 수"?: Record<string, number>;
@@ -248,17 +246,41 @@ export interface ServerFacts {
   "노드별"?: Record<string, { "수집": number; "바뀐 설정": number; "판정": Record<string, number> }>;
 }
 
-export interface AskAnswer {
-  answer: string;
-  sources?: string[];
-  criteria?: Record<string, string> | null;
+// 질의 에이전트가 부른 도구 한 번 — 화면의 근거 칩 · 패널이 됩니다.
+export interface AskStep {
+  tool: string;
+  args: Record<string, unknown>;
+  summary: string;
   facts?: LogFacts | ServerFacts | null;
   evidence?: string[];
+  sources?: string[];
+  criteria?: Record<string, string>;
+  error?: string;
+}
+
+export interface AskAnswer {
+  answer: string;
+  steps?: AskStep[];
+  sources?: string[];
+  checks?: string[];
+  restarts?: number;
   failed?: boolean;
+  error?: string | null;
+  elapsed_sec?: number | null;
+  conversation_id?: string;
 }
 
 export interface QaRecord extends AskAnswer {
+  id: number;
   question: string;
+  asked_at: string;
+}
+
+export interface Conversation {
+  conversation_id: string;
+  question: string;
+  turns: number;
+  asked_at: string;
 }
 
 // started 가 있으면 답을 기다리는 중입니다.

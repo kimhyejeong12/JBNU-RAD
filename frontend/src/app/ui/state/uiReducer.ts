@@ -3,12 +3,15 @@ import { VIEWS, isAdminView, type MainTab, type SavedPage, type View } from "@/a
 
 // 서버 데이터는 TanStack Query 에 있고 여기에는 보고 있는 메뉴 · 탭 · 항목만 둡니다.
 
+// 대화 id 는 화면이 만듭니다 (서버는 기록이 없는 id 를 새 대화로 봅니다).
+export const newConversation = (): string => crypto.randomUUID().replaceAll("-", "");
+
 export const NEW_ITEM = "new";
 
 export type StageFilter = "pending" | "active" | "people" | "all";
 export type StatKind = "stats" | "ustats";
 export type LevelFilter = "전체" | Level;
-export interface AskSource { i: number; n: number }   // 인용 조항 { 질의 순번, sources 순번 }
+export interface AskSource { i: number; n: number }   // 근거 { 질의 순번, 도구 단계 순번 }
 export interface StatSelection { kind: string; key: string }
 
 export interface UiState {
@@ -22,6 +25,7 @@ export interface UiState {
   panelMsg: string;
   expanded: ReadonlySet<string>;
   askSource: AskSource | null;
+  conversation: string;
   drawerOpen: boolean;
   nodes: { selected: string | null; adding: boolean };
   logs: { period: LogPeriod; user: string; solution: string; how: string; page: number; selected: number | null };
@@ -30,7 +34,7 @@ export interface UiState {
 
 export const initialUi: UiState = {
   view: null, lastAdmin: null, mainTab: "queue", filter: "전체", stageFilter: "pending", query: "", selected: null, panelMsg: "",
-  expanded: new Set(), askSource: null, drawerOpen: false,
+  expanded: new Set(), askSource: null, conversation: newConversation(), drawerOpen: false,
   nodes: { selected: null, adding: false },
   logs: { period: "week", user: "", solution: "", how: "", page: 1, selected: null },
   stats: { period: "month", kind: null, selected: null },
@@ -56,7 +60,8 @@ export type UiAction =
   | { type: "ADD_NODE" }
   | { type: "SET_LOGS"; patch: Partial<UiState["logs"]> }
   | { type: "SET_STATS"; patch: Partial<UiState["stats"]> }
-  | { type: "SET_ASK_SOURCE"; src: AskSource | null };
+  | { type: "SET_ASK_SOURCE"; src: AskSource | null }
+  | { type: "SET_CONVERSATION"; id: string };
 
 export const isStatTab = (t: MainTab): t is StatKind => t === "stats" || t === "ustats";
 export const panelOnDemand = (tab: MainTab): boolean => tab === "ask" || isStatTab(tab);
@@ -132,5 +137,7 @@ export function uiReducer(s: UiState, a: UiAction): UiState {
       return { ...s, stats: { ...s.stats, ...a.patch } };
     case "SET_ASK_SOURCE":
       return { ...s, askSource: a.src };
+    case "SET_CONVERSATION":
+      return { ...s, conversation: a.id, askSource: null };
   }
 }
