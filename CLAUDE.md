@@ -56,22 +56,23 @@ JBNU-RAD/
 │   ├── dev.py                  로컬 시험 환경 `python -m sentinelai.dev` — setup · web · test · targets (11/5, 예전 scripts/)
 │   ├── __main__.py · cli.py    CLI `python -m sentinelai` — 웹이 꺼져 있을 때 쓰는 최소 명령 (health · index · review-policies · check-nodes · monitor · import-snapshots · create-root). 모두 Engine 기능을 부름
 │   ├── engine/                 엔진 (양현성) — 자원 · 이슈어 · 종류별 큐 · 워커 · 인터페이스 (11/5 사용자 정리)
-│   │   ├── interface.py          Engine — 넷을 엮는 입구. 웹 · CLI 가 부르는 이름(health · index · run_* · start · start_job · enqueue_* · job_status · stats · browse_logs · receive_snapshot …)만. run_* 는 CLI 용으로 묶음을 쌓고 그 자리에서 워커를 돌림(drain). 질의(ask*)는 자리만 남김 (§8 1)
+│   │   ├── interface.py          Engine — 넷을 엮는 입구. 웹 · CLI 가 부르는 이름(health · index · run_* · start · start_job · enqueue_* · job_status · stats · browse_logs · receive_snapshot …)만. run_* 는 CLI 용으로 묶음을 쌓고 그 자리에서 워커를 돌림(drain). 질의(ask)는 질의 에이전트를 큐 밖에서 부름
 │   │   ├── resource.py           Resources — LLM 연결(생각 켬 · 끔) · 체인 · 벡터 DB · 두 DB · 데이터 계층 · 프롬프트 모듈을 한 번만 열고, 상태 확인(health)
 │   │   ├── issue.py              Issuer — 데이터 계층에서 판정할 것을 읽어 큐에 잡을 쌓음(판정 한 건 = 잡 하나, 한 번의 실행 = 묶음), 예약 · 판정 못한 신청 다시 쌓기 · 수집 받기(받으면 서버 점검을 바로) · 집계(보안 통계 · 사용자 위협 · 로그 조회, 모델 없이 바로 돌려줌)
 │   │   ├── queue.py              Queues — 종류별 길(기준 문서 적재 · 권한 신청 · 재검토 0 → 빠른 감시 1 → 정밀 감시 · 서버 점검 · 위협 예측 · 정책 관리 검토 2), 묶음(Batch)과 닫기 잡, 같은 key 한 번만, 취소 · 강제 중지, 화면 · 내부 상태 모양
 │   │   ├── worker.py             Worker — 잡을 꺼내 규정 RAG → 프롬프트 모듈(context) → 모델(JUDGMENTS 표: 종류마다 프롬프트 · 출력 타입 · 생각 켬/끔) → 저장. 묶음은 닫기 잡이 마무리(로그 감시는 여기서 한 번에 저장). 출력 타입 Verdict · ServerReview · SuspectScore · PolicyReview 와 알림 자리 Notifier(구현 없음, §8 4)도 여기
 │   │   ├── settings.py           Settings(.env · SENTINELAI_ 환경변수)
 │   │   └── rag.py                DocumentStore — 기준 문서(docs/)를 조각내 한 컬렉션에. 검색 · 조각 전부(문서 · 원래 순서) · 폴더에 없는 문서의 조각 빼기
+│   ├── ask/                    질의 에이전트 (11/5) — tools(읽기 전용 도구 다섯, MCP 도구 모양) · agent(도구 호출 루프 · 대화 이어 가기) · check(답 검증)
 │   ├── sources/                데이터 계층 (양현성) — DLP 로그 · 서버 상태(수집 노드) · DB 의 사용자 데이터 · RAG 기준 문서 넷만 읽음. 모듈마다 독립(공통 베이스 없음), 입구 `Sources`(hub.py)는 모으기만. 엔진을 모름 (11/5, 예전 data/)
 │   │   ├── hub.py                Sources — events(DLP) · pending_servers(서버 상태) · people · 운영자 결정(DB) · regulations(RAG). `Engine.sources`
 │   │   ├── logs.py               SecurityEvent · EventMapper(Microsoft Sentinel 로그) · 파일 · 폴더 · 행 목록 읽기(load_events) · 시각 필터 · 사용자별 묶음 · 로그 질의용 search · summarize · vocabulary · 행동 신호 · 위협 표시
-│   │   ├── snapshots.py          ServerSnapshot · 수집 노드 본문 → 모듈별 상태(UFW · SSH · PAM · 계정 · sudo), 직전 수집과 달라진 설정, 서버 질의용 server_digest
+│   │   ├── snapshots.py          ServerSnapshot · 수집 노드 본문 → 모듈별 상태(UFW · SSH · PAM · 계정 · sudo), 직전 수집과 달라진 설정, 질의 servers 도구용 server_digest
 │   │   ├── people.py             People · Person — 사람마다 계정 · 이동 · 지금 가진 권한 · 신청 기록(권한 DB) · 로그 · 행동 신호 · 운영자 결정, 위협 예측 대상 고르기. 신청 · 이동 글(access_text · move_text)
 │   │   ├── decisions.py          운영자 결정 — 정책 관리 · 서버 점검 · 로그 감시 판정에 사람이 정한 것 (권한 DB · AI 결과 DB)
 │   │   └── regulations.py        규정 RAG — 판정마다 검색어를 만들어 조항을 찾음, 정책 관리 검토에는 쌓인 문서 전부 (엔진이 넘긴 DocumentStore)
 │   ├── context/                맥락 (11/5) — 프롬프트 합성만. sources 가 모은 데이터를 판정마다 LLM 입력 글로 쓰고 크기를 맞춤. DB · RAG 를 모름
-│   │   ├── prompts.py            프롬프트 (권한 검토 · 보유 권한 재검토 · 로그 검토 · 위협 예측 · 정책 검토 · 서버 점검 · 질의응답 · 로그 · 서버 질의). 판정 입력 칸 이름 = 빌더의 Section key
+│   │   ├── prompts.py            프롬프트 (권한 검토 · 보유 권한 재검토 · 로그 검토 · 위협 예측 · 정책 검토 · 서버 점검 · 질의 에이전트). 판정 입력 칸 이름 = 빌더의 Section key
 │   │   ├── inputs.py             Inputs — 판정마다 프롬프트 · 빌더를 짝짓고 크기를 한 번만 맞춤 (`Engine.inputs`)
 │   │   ├── person.py             사람 칸 — sources.Person 을 글로 (full: 계정 · 이동 · 지금 가진 권한 · 신청 기록 · 로그 요약 · 행동 신호 · 최근 위협 기록 / short: 계정 · 지금 가진 권한)
 │   │   ├── builders.py           판정마다 빌더 하나 (request · grant · events · suspect · server · policy) — 받은 데이터 · RAG 결과 → 칸(Section) 목록. 크기는 모름
@@ -81,6 +82,7 @@ JBNU-RAD/
 │   │   ├── main.sql              권한 DB — 사용자 · 세션 · 감사 기록 · 신청(1건 = 1행: 신청 · AI 판정 · 1차 · 최종 결재 · 회수) · 권한 목록 · 운영자 결정 · 수집 노드 · 직무 · 퇴사일 · 이동 기록 · 보유 권한 재검토(11/3). 결재 순서 · 역할은 트리거가 강제 (11/03 SQLite 마이그레이션 11개를 하나로)
 │   │   ├── main_email.sql        main.sql 뒤에 적용 — 계정에 알림 받을 이메일 칸 (11/04)
 │   │   ├── results.sql           AI 결과 DB — 정책 관리 검토 · 로그 감시 판정 · 서버 점검 · 수집 기록 · 의심 점수 · 질의 기록 (쌓기만, 로그 자체는 안 쌓음)
+│   │   ├── results_ask.sql       results.sql 뒤에 적용 — 질의 기록에 대화 id · 도구 단계 · 검증 칸 (11/5)
 │   │   ├── postgres-init.sql     시험 DB(sentinelai_dev · sentinelai_test) 만들기 — compose 의 PostgreSQL 이 처음 뜰 때
 │   │   ├── auth.py               Argon2id · 로그인 잠금 · 세션 2일 · 계정 관리는 보안 총책임자 (루트 계정은 루트만)
 │   │   ├── permissions.py        신청(권한 목록 코드로, 현재 보유 권한은 승인된 유효 신청에서 읽어 남김) · AI 판정 저장(1차 결재 전까지만) · 철회 · 결재 · 회수
@@ -105,7 +107,7 @@ JBNU-RAD/
 │       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · SourceChips) · confirm/(확인 창 — ask · ConfirmLayer)
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
 │       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
-│       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(예시 질문은 config.ts) · stats · catalog · accounts · regulations(기준 문서) · engine(관리의 큐 탭). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
+│       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(질의 탭 하나 — 대화 · 근거 칩 · 도구별 패널, 예시 질문은 config.ts) · stats · catalog · accounts · regulations(기준 문서) · engine(관리의 큐 탭). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
 ├── docs/                     판정 근거 기준 문서(.md · .txt) — 보안 총책임자가 화면에서 올리고(10/30) 고치고(11/2) 지움(11/3), 코드 작업으로는 고치지 않음 (CLI `index` · 정책 관리 검토가 RAG에 적재)
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
@@ -220,11 +222,17 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 
 **로그 조회** `browse_logs` — 기간(지금부터, 달력 단위 아님) · 사용자 · 솔루션 · 행위로 거르고 셈. 모델 없이 코드만, 저장하지 않음
 
-### 질의 (다시 만드는 중)
+### 질의 — 질의 에이전트 (11/5)
 
-- 11/5에 정책 · 서버 · 로그 질의의 흐름 · 프롬프트 · 출력 타입을 지웠음 — 질의 통합 시스템(§8 1)으로 완전히 다시 만듦
-- 남은 자리: API 세 개(`/api/ask` · `/api/ask-servers` · `/api/ask-logs`)는 "질의 기능을 다시 만드는 중입니다" 실패 응답(모양은 같음, 질의 기록에 안 남김), 질의 기록 DB · `/api/qa`, 설정 `SENTINELAI_QA_MODEL` · health 의 질답 모델 확인
-- 예전 설계(서버 · 로그 질의 표: 조건 뽑기 → 코드가 찾고 셈 → 답)는 `68165fb`의 CLAUDE.md §2
+- 정책 · 로그 · 서버 질의를 하나로 합쳤음. 질답 모델(`SENTINELAI_QA_MODEL`, 생각 켬)이 도구를 골라 부르고, 찾은 것으로만 답함. MCP 는 쓰지 않음 — 쓰는 쪽이 같은 프로세스뿐이라 내부 도구 호출로, 도구 정의는 MCP 모양(이름 · 설명 · JSON 인자)으로 둠 (사용자 결정)
+- 도구 다섯 (`ask/tools.py`, 읽기만, 숫자는 코드가 셈): `search_regulations` 기준 문서 조항 · `find_logs` 로그 거르고 세기 · `servers` 노드 상태 · 점검 · 바뀐 설정 · `person` 한 사람의 계정 · 이동 · 권한 · 신청 · 로그 요약 · `findings` 로그 감시 판정 · 정책 문제 · 의심 점수
+- 루프: 도구를 부르는 모델 호출 5번까지, 넘으면 도구 없이 마무리. 모르는 도구 · 인자 오류 · 도구 예외는 오류 글로 모델에 돌려줌
+- 도구 없이 답하면 그 답을 버리고 처음부터 1번 다시 (사용자 요청). 그래도 도구가 없으면 검증에 "도구로 찾지 않고 답했습니다"
+- 대화: 화면이 대화 id 를 만들고, 같은 대화의 앞 4턴(질문 + 앞서 찾은 것 요약 · 답)을 넣음. 도구 없이 낸 답 · 실패한 턴은 넣지 않음 — 모델이 그 답을 흉내 냄
+- 예전 버그를 도구가 막음: 사람 이름이 `keyword` 로 오면 `user` 로 옮김, 로그 처음 · 끝으로 채운 기간은 비움, 솔루션 · 어디서 · 행위에 로그에 없는 값은 빼고 쉼표는 '또는', 0건이면 조건 하나씩의 건수를 돌려줘 다시 부르게 함. 답의 `**` · `<think>` 는 코드가 걷어냄
+- 검증(`ask/check.py`): 답의 숫자가 도구 결과 · 질문에 있는지, 인용한 문서를 찾았는지 → `checks`, 화면에 경고. 날짜에 든 숫자와 구분하지 못해 약함 (§8 8)
+- `find_logs` 를 부를 때마다 감사 기록 `log_view` (`via: ask`). 큐 밖에서 웹 요청 자리에서 돎 — 판정 워커와 모델을 함께 씀
+- CLI `python -m sentinelai ask "질문"` — 모델 평가용, 감사 기록 없음
 
 ### API
 
@@ -239,8 +247,8 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `POST /api/decisions` | 정책 문제 · 서버 점검 · 로그 판정에 대한 운영자 결정 · 취소 (보안 운영자 이상). 지금 결정은 `/api/results`의 `decisions`로 옴 — 다시 판정됐지만 결과가 그대로인 서버 점검 · 정책 문제는 지난 결정을 이어받아 `carried_from`(이어받은 판정 key)과 함께 옴 (`view.carry_decisions`) |
 | `POST /api/nodes/snapshots` | **수집 노드 전용** — 로그인 대신 `Authorization: Bearer 노드 키`. 본문 = 노드가 읽은 원문(`format: sentinel-node 1`, 2MB까지). 모르는 키 401 · 꺼진 노드 403 · 형식 400. 같은 노드 · 수집 시각은 한 번만 쌓음(`stored`) |
 | `POST /api/nodes` · `POST /api/nodes/{이름}/key` · `GET /api/nodes` · `GET /api/nodes/{이름}` · `PATCH /api/nodes/{이름}` | 등록(+ 키) · 키 다시 발급(예전 키 무효) · 목록(상태 · 끊김 · 마지막 판정) · 하나(키 · 최근 수집 · 바뀐 것 · 판정 기록 · 모듈 상태) · 켜기/끄기. 보안 운영자 이상, 감사 기록 |
-| `POST /api/ask` · `/api/ask-servers` · `/api/ask-logs` | 정책 · 서버 · 로그 질의 — 다시 만드는 중이라 지금은 "질의 기능을 다시 만드는 중입니다" 실패 응답만. 입력 `{"question"}` (공백 제외 1~500자, 벗어나면 422) |
-| `GET /api/qa?kind=policy\|servers\|logs` | 내 질의 기록 (최근 50건). 다른 사람 것은 안 줌 |
+| `POST /api/ask` | 질의 에이전트 — 입력 `{question, conversation_id?}` (질문 공백 제외 1~500자, id 는 32자리 16진수, 벗어나면 422). 같은 id 의 내 앞 턴을 이어 넣고, 기록이 없는 id 면 새 대화. 출력 `{answer, steps, sources, checks, restarts, failed, error, elapsed_sec, id, conversation_id}`, 질의 기록(kind `agent`)에 남김 |
+| `GET /api/qa[?conversation=]` | 내 대화 목록(최근 30개 — 첫 질문 · 턴 수 · 마지막 시각), `conversation` 을 주면 그 대화의 턴. 다른 사람 것은 안 줌 |
 | `GET /api/logs?period=day\|week\|month\|quarter\|half\|year\|all[&user=&solution=&how=&page=]` | 로그 조회 — 지금부터 1 · 7 · 30 · 90 · 180 · 365일 또는 전체. 사용자는 "부서 이름" 완전 일치. 최신순 100건씩 + 집계(`facts`) + 거르기 칸 값(`options`, 로그 전체 기준). 조회마다 감사 기록(`log_view`: 누가 · 조건 · IP) |
 | `GET /api/stats?period=week\|month\|quarter\|all` | 보안 통계 (기본 한 달, 모델 없이 셈, `results.threat_stats`) — `logs`(기간 안 로그 수 · 날짜별, 비율의 분모) · `events`(주의 · 위험 판정에 묶인 로그 줄 · 날짜별) · `servers`(노드별 등급 · 위험 · 주의 항목, 모듈별 위협 항목, 걸린 조항 — 노드마다 기간 안 마지막 점검) · `safety`(시스템 안전 점수, 아래) |
 | `GET /api/user-stats?period=` | 사용자 위협 — `suspects`(사람마다 마지막 의심 점수 · 등급 · 이유 · 확인할 점 · 행동 신호 · 흐름 · 지금 가진 권한 `held`, 계정 미연결은 null, 기간과 무관) · `safety`(사용자 안전 점수) · `events.users`(사용자별 위협 로그 줄 · 판정 수 · 로그 사용자 ID) · `requests`(신청 수 · AI 등급별 · AI와 결재가 엇갈린 수) |
@@ -253,7 +261,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(보안 운영자 = 1차, 보안 총책임자 = 최종) · 회수 · 다시 판정 |
 | `GET /internal/status` | **서버 자신(127.0.0.1)만** — 작업 큐 · 자동 실행 예약 · 권한 신청 판정 대기열. 로그인 없음, 밖에서 오거나 전달 헤더(`X-Forwarded-For` 등)가 붙으면 404. `curl -s localhost:8000/internal/status` |
 
-- **모든 API는 로그인 필요** (`/api/auth/login` 제외). 정책 관리 · 로그 감시 API(`results` · `jobs` · `ask*` · `logs` · `stats` · `user-stats` · `qa` · `regulations`)는 보안 운영자 이상
+- **모든 API는 로그인 필요** (`/api/auth/login` 제외). 정책 관리 · 로그 감시 API(`results` · `jobs` · `ask` · `logs` · `stats` · `user-stats` · `qa` · `regulations`)는 보안 운영자 이상
 - 안전 점수: 시스템 = 켜 둔 노드마다 마지막 점검 등급을 정상 1 · 주의 0.5 · 위험 0으로 평균 × 100 (끊긴 노드는 0.5 이하, 판정 없는 노드 제외, `results.server_safety`). 사용자 = 사람마다 마지막 의심 등급을 낮음 1 · 보통 0.5 · 높음 0으로 평균 × 100 (`results.user_safety`)
 - 없앤 것: CSV 권한 신청 재판정(`/api/review`) · `requests` 작업 (DB 신청으로 바뀜), 신청 하나 보기 `GET /api/requests/{no}` (10/22, 화면이 안 씀)
 - `Engine()` · `rag_chain`은 앱 시작 때 1회만 만듦. 같은 출처에서만 열므로 CORS 없음
@@ -266,7 +274,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | 역할 | 메뉴 |
 |---|---|
 | 일반 사용자 | 메뉴 · 오른쪽 패널 없이 내 신청 화면 하나 — 신청서 위 · 목록 아래 (반려 사유 · 철회는 목록 줄의 상태 칸에서). AI 흔적 없음 |
-| 보안 운영자 | 권한 신청(1차 결재함 · 확인할 사람) · 정책 관리 · 로그 감시 · 통계 · 정책 질의 · 기준 문서(읽기만) |
+| 보안 운영자 | 권한 신청(1차 결재함 · 확인할 사람) · 정책 관리 · 로그 감시 · 통계 · 질의 · 기준 문서(읽기만) |
 | 보안 총책임자 | 위 + 최종 결재함 · 관리(권한 목록 · 계정 관리 · 기준 문서 · 큐 — 작업 큐 보기 · 강제 초기화) |
 
 ---
@@ -281,7 +289,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 | `./sentinel 명령` | 떠 있는 컨테이너 안에서 `python -m sentinelai 명령`. 터미널이 없으면(cron) `-T`로 붙음 |
 | `./sentinel create-root --login 아이디 --name 이름 [--department 부서]` | 첫 루트 계정(보안 총책임자) — 한 번만. 비밀번호는 화면 표시 없이 입력 |
 | `./sentinel import-snapshots 폴더 --node 이름` | 망이 막힌 노드의 `export` 파일 넣기 (폴더를 컨테이너로 복사해 넣음, 벡터 DB를 안 써서 웹이 떠 있어도 됨) |
-| `python -m sentinelai health` · `index [경로] [--rebuild]` · `review-policies` · `check-nodes` · `monitor [--since 시각] [--full]` | 웹이 꺼져 있을 때만 (venv). 연결 확인 · 기준 문서 적재(`--rebuild`는 컬렉션을 비우고 새로) · 정책 관리 검토 · 서버 점검 · 로그 감시 1회(cron용, `--full`이면 처음부터) |
+| `python -m sentinelai health` · `index [경로] [--rebuild]` · `review-policies` · `check-nodes` · `monitor [--since 시각] [--full]` · `ask "질문"` | 웹이 꺼져 있을 때만 (venv). 연결 확인 · 기준 문서 적재(`--rebuild`는 컬렉션을 비우고 새로) · 정책 관리 검토 · 서버 점검 · 로그 감시 1회(cron용, `--full`이면 처음부터) · 질의 1회(모델 평가용) |
 | `python -m sentinelai.dev setup [--reset]` | **로컬 시험 환경**을 `sentinelai_dev` DB · `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 모델 서버에 닿으면 기준 문서도 적재 |
 | `python -m sentinelai.dev web [--check-min 5]` | 시험 환경으로 웹 (http://127.0.0.1:8001, `sentinelai_dev` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 됨). 로그 감시 · 서버 점검은 `--check-min`분마다 |
 | `python -m sentinelai.dev test` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움 |
@@ -290,7 +298,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 | `npm run build` (`frontend/`) | 화면 빌드 → `sentinelai/web/static/` (**커밋**함 — 팀 서버에 Node · 외부망이 없어도 새 화면). 깨끗이 설치해(`npm ci`) 빌드한 뒤 `git status sentinelai/web/static`이 비면 커밋된 것과 같음 |
 
 - venv 준비(처음 한 번): `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && cp .env.example .env`. 팀 서버처럼 PostgreSQL 이 따로 있으면 `.env` 주소만
-- 10/20에 CLI를 줄였음 — `config` · `models` · `search` · `ask` · `chat` · `index-policies` · `review-requests` · `ask-logs` 없앰 (질의는 화면에서)
+- 10/20에 CLI를 줄였음 — `config` · `models` · `search` · `ask` · `chat` · `index-policies` · `review-requests` · `ask-logs` 없앰 (11/5에 `ask` 를 질의 에이전트로 다시 붙임)
 - **웹이 떠 있을 때 CLI 판정**: 벡터 DB가 Milvus 서버라 CLI `review-policies` · `check-nodes` · `monitor`도 돌지만 웹 작업 큐와 따로 모델을 침. 웹이 떠 있을 때는 웹이 돌림 (Milvus Lite 를 쓰면 잠금 때문에 아예 실패)
 - Milvus 컨테이너가 healthy 가 된 뒤 웹이 뜸. 시험 환경(`python -m sentinelai.dev`)도 같은 Milvus 의 `sentinelai_dev` 컬렉션을 써서 compose 의 milvus 가 떠 있어야 함
 
@@ -382,7 +390,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 
 ## 8. 남은 일
 
-1. **질의 통합 시스템** (11/5 다음 업무) — 정책 · 로그 · 서버 질의(`engine/ask.py`)를 하나로. 지금은 질의마다 따로 조건 뽑기 · 찾기 · 답하기를 함. 알려진 문제: 로그 질의가 사용자 이름을 항목(`keyword`)에 넣어 0회로 답함("재무 정다은이 출력을 몇 번" — 실제 23회), 질문에 없는 기간을 채움, 답에 `**굵게**`가 남음 (§9)
+1. **질의 에이전트 평가** — 11/5에 정책 · 로그 · 서버 질의를 질의 에이전트 하나로 합쳤음 (§2 질의). 남은 것: 평가 질문 15개(예전 예시 9 + 섞인 질문)를 `qwen3:14b`로 돌려 도구 선택 · 숫자 · 근거를 §9에, 근무 시간 밖 · 주말처럼 로그 도구가 못 거르는 조건, 도구 단계를 실시간으로 보여 주기(SSE)
 2. **데이터를 다시 정하고 `qwen3:14b`로 전 건 판정해 §5와 대조** — 권한 신청 CSV는 지웠고, 정책 · 서버 현황 파일 읽기는 11/5에 뺐음. 실제 솔루션 정책이 오면 RAG에 올리는 길(화면 업로드 등)을 정하고 정책 관리 검토 · 로그 감시가 찾게 함
 3. **DB · 로그인 · 권한 신청** — 구현 끝 (10/11~10/12). 권한 DB(신청 1건 = 1행: AI 판정 · 1차 · 최종 결재 · 회수), ID/PW 로그인, 계정 생성은 보안 총책임자, AI 결과 DB 분리(§9), 질의 기록(자기 것만). 보안 총책임자는 결정 기록 전부 · 1차 결재 의견을 봄. 남은 질문은 §9 DB 설계
 4. **알림(Notifier)** — 로그 감시의 주의 · 위험 판정을 운영자에게 보냄. 자리(`Notifier`)만 `sentinelai/engine/worker.py`에 있고 같은 파일의 로그 감시 저장(`_save_events`)에 부를 곳을 표시했음. 결재 대기 알림은 11/04에 웹(`web/notify.py`)에서 Slack 채널로 보냄 (11/04 팀 결정: 채널, Slack 먼저) — 같은 채널을 쓰면 됨. 결재 결과는 같은 날 신청자 이메일로 (SMTP, 시연은 Gmail · 사내 이전 때 사내 SMTP). 계정 관리 화면의 이메일 칸은 리디자인 때 (그 전에는 `PATCH /api/users/{id}`)
@@ -444,7 +452,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 
 #### 판정 모델 · 질답 모델 (10/11)
 - `SENTINELAI_MODEL` — 판정: 권한 신청 · 재검토 · 정책 관리 검토 · 서버 점검 · 로그 감시 · 위협 예측 (워커)
-- `SENTINELAI_QA_MODEL` — 질답: 정책 · 로그 · 서버 질의 (다시 만드는 중, §8 1 — 설정 · health 확인만 남김)
+- `SENTINELAI_QA_MODEL` — 질답: 질의 에이전트 (생각 켬, `Resources.qa_llm`)
 - 나눈 이유: 판정은 오탐이 적어야 하고(정상을 정상으로), 질답은 빨리 답해야 함 — 요구가 달라 모델을 따로 고를 수 있게 했음
 - CLI `health` · `/api/health`는 두 모델을 모두 확인함
 - 지금은 둘 다 `qwen3:14b` (아래 모델 비교)
@@ -727,3 +735,18 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - 웹이 뜰 때마다 기준 문서를 적재함 (사용자 요청) — 새 볼륨으로 띄운 컨테이너가 인덱스가 빈 채로 판정하고 있었음. 적재를 판정과 같은 길(0)로 올렸음 — 빈 인덱스로 신청을 먼저 판정하지 않게, 화면에서 올린 문서도 다음 판정부터 보이게
 - `types.py`를 없앴음 (사용자 결정) — 타입은 쓰는 모듈에서 정의. 판정 출력 타입 · `Notifier`는 쓰는 곳이 워커뿐이라 `worker.py`로, `Job` · `Batch`는 `queue.py`, `Settings`는 `settings.py`. 출력 타입 docstring · 설명은 글자 그대로 옮겼음
 
+
+### 질의 에이전트 (11/5)
+
+- **이유**: 예전 질의는 정책 · 로그 · 서버가 따로(조건 뽑기 → 코드가 찾고 셈 → 답) 돌고 메뉴마다 탭이 달랐음. 섞인 질문("박민수가 받은 위험 판정과 걸린 조항")을 못 받았음 → 도구를 고르는 에이전트 하나로 (사용자 기획)
+- **MCP 를 안 씀** (사용자 결정 — 화면에서만 씀): 쓰는 쪽이 같은 프로세스뿐이라 통신 층만 늘어남. 로그인 사용자 · 감사 기록이 그대로 붙음. 밖에 꺼낼 때 감싸기만 하게 도구 모양은 MCP 와 같게 둠
+- **화면**: 질의 탭 하나 — [정책 질의] 메뉴를 [질의]로 바꾸고 정책 관리 · 로그 감시의 질의 탭은 뺐음 (사용자 요청 "한 탭으로"). 답 아래 도구 호출마다 근거 칩, 누르면 오른쪽 패널에 도구별 집계 · 로그 · 조항 원문. 검증 경고 · [새 대화] · 지난 대화 고르기
+- **11/5 시험** (팀 서버 `qwen3:14b` GPU, `NUM_CTX` 8192 · `NUM_PREDICT` 4096)
+  - 재무 정다은 출력 48회 ✅ (17~60초). 처음엔 어디서 칸에 `PC,VDI`, 행위 칸에 항목 이름 `PrintCount`를 채워 0건 → 도구가 바로잡게 고침
+  - 영업팀 → 급여 테이블: 한 번은 도구 없이 지어냄("인사 · 재무만") → 도구 없이 답하면 다시 돌리게 함. 그 뒤 3.3 · 3.2 · 4.2 ✅
+  - SSH 루트 로그인 서버 + 조항: tnode-01 열림 · tnode-02 닫힘 ✅, 조항은 6.2(특권 계정 직접 로그인 금지)로 넓게 댐
+  - "VPN 접속 기록은?" → 모른다 ✅, 다만 도구를 부르지 않고 부른 척 적음 → 프롬프트에 금지를 적음
+  - 이어지는 질문 "그중 예외 승인된 건?": 처음엔 로그 줄을 직접 세 1건(실제 2건) → 조건을 더해 다시 부르고 `keyword` 에 `항목=값`을 쓰게 프롬프트를 고쳐 2건 ✅
+  - 대화 기록 요약을 답 쪽에 붙였더니 모델이 그 모양(`[그때 찾은 것] …`)을 답에 베낌 → 질문 쪽으로 옮기고, 근거 없는 턴은 기록에서 뺌
+  - 숫자 검증이 날짜 속 숫자와 구분하지 못해 "10월 19일 15건"(실제 14건)을 걸러내지 못했음
+- 앞서 CPU 로만 돌던 때 질의 한 건 168~521초, 한 번은 빈 답 — 입력(시스템 · 도구 정의 · 도구 결과 약 6,600토큰)이 `NUM_CTX` 8192 − 4096 을 넘었을 수 있음. 빈 답이면 오류에 `done_reason` · 토큰 수를 남김
