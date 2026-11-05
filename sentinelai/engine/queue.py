@@ -8,9 +8,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-# 길 — 작은 수가 먼저입니다. 같은 길은 먼저 들어온 것부터.
+# 길 — 작은 수가 먼저입니다. 같은 길은 먼저 들어온 것부터. 기준 문서 적재는 다음 판정이 새 조항을 보도록 판정과 같은 길입니다.
 URGENT, FAST, NORMAL = 0, 1, 2
-LANES = {"request": URGENT, "grant": URGENT, "events_fast": FAST, "index": FAST,
+LANES = {"index": URGENT, "request": URGENT, "grant": URGENT, "events_fast": FAST,
          "events": NORMAL, "nodes": NORMAL, "suspects": NORMAL, "policies": NORMAL}
 KINDS = {"policies": "정책 관리 검토", "events": "로그 감시", "nodes": "서버 점검", "events_fast": "빠른 로그 감시", "suspects": "위협 예측"}
 # 화면에서 시작할 수 있는 작업입니다. 로그 감시는 서버가 스스로만 돌립니다.

@@ -24,6 +24,15 @@ def test_lanes_then_arrival_order():
     assert batch.status == "done" and batch.done == 2 and q.last()["suspects"]["error"] is None
 
 
+def test_index_goes_with_verdicts_in_arrival_order():
+    q, ran = Queues(), []
+    q.submit(Job("events_fast", "events_fast:x"))
+    q.submit(Job("index", "index:1", work=lambda: None))
+    q.submit(Job("request", "REQ-1"))
+    _drain(q, ran)
+    assert ran == ["index:1", "REQ-1", "events_fast:x"]
+
+
 def test_same_key_and_same_kind_once():
     q = Queues()
     first, new = q.submit(Job("request", "REQ-1"))

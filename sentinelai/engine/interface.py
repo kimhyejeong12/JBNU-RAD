@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import itertools
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,8 @@ from .rag import DocumentStore, IndexReport
 from .resource import Resources
 from .settings import Settings
 from .worker import Worker
+
+log = logging.getLogger(__name__)
 
 # 질의(정책 · 로그 · 서버)는 질의 통합 시스템으로 다시 만드는 중이라 자리만 남겨 둡니다.
 ASK_PAUSED = "질의 기능을 다시 만드는 중입니다"
@@ -53,7 +56,8 @@ class Engine:
     # --- 웹: 예약 · 워커 ---
 
     def start(self) -> None:
-        """판정 못한 신청 · 재검토를 먼저 쌓고, 자동 작업은 뜨자마자 한 번 그 뒤 정한 간격마다 돕니다."""
+        """기준 문서 적재 · 판정 못한 신청 · 재검토를 먼저 쌓고, 자동 작업은 뜨자마자 한 번 그 뒤 정한 간격마다 돕니다."""
+        self.exclusive(self._reindex)
         self.issuer.resume()
         for kind in ("events", "nodes", "suspects"):
             self.issuer.every(kind, self.settings.monitor_interval_min)
@@ -123,6 +127,12 @@ class Engine:
 
     def index(self, source: str | Path | None = None, rebuild: bool = False) -> IndexReport:
         return self.worker.index(source, rebuild)
+
+    def _reindex(self) -> IndexReport:
+        """뜰 때마다 docs/ 를 RAG 에 맞춥니다 — 바뀐 파일만 임베딩해 그대로면 금방 끝납니다."""
+        report = self.worker.index()
+        log.info("기준 문서 적재 — %s", report)
+        return report
 
     def remove_document(self, name: str) -> bool:
         """RAG 에서만 뺍니다. docs/ 의 파일은 부르는 쪽이 지웁니다."""
