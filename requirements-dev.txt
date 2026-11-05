@@ -1,4 +1,4 @@
 -r requirements.txt
 
-# DB 시험 (scripts/dev.py test)
+# DB 시험 (python -m sentinelai.dev test)
 pytest>=8

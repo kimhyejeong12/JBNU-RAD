@@ -1,6 +1,6 @@
 """DB 시험 — 실제 PostgreSQL 에서 트리거 · 쿼리를 돌립니다.
 
-SENTINELAI_TEST_DATABASE_URL 이 없으면 건너뜁니다 (scripts/dev.py test 가 넣음). 시험마다 이름이 겹치지 않는 스키마를 만들고 끝나면 지웁니다.
+SENTINELAI_TEST_DATABASE_URL 이 없으면 건너뜁니다 (python -m sentinelai.dev test 가 넣음). 시험마다 이름이 겹치지 않는 스키마를 만들고 끝나면 지웁니다.
 """
 from __future__ import annotations
 

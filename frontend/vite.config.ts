@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 import type { ProxyOptions } from "vite";
 import { defineConfig } from "vitest/config";
 
-// 개발 중에는 /api 를 `scripts/dev.py web`(8001)로 넘겨 쿠키 세션이 같은 출처처럼 동작합니다. /internal 은 화면이 쓰지 않습니다.
+// 개발 중에는 /api 를 `python -m sentinelai.dev web`(8001)로 넘겨 쿠키 세션이 같은 출처처럼 동작합니다. /internal 은 화면이 쓰지 않습니다.
 const API = "http://127.0.0.1:8001";
 
 // 계정 비교 화면(compare.html)은 칸마다 로그인이 따로 있어야 하는데, 브라우저는 호스트마다 세션 쿠키를 하나만 둡니다.
