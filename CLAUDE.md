@@ -27,13 +27,13 @@ SK쉴더스 산학협력 문제 제안서(2026. 8.)가 이 과제의 기준.
 | 요구 | 지금 구현 | 빈 곳 |
 |---|---|---|
 | 로컬 LLM · RAG — 보안정책 · 접근통제 · 권한 부여 기준 · 운영 가이드를 Vector DB에 | Ollama · Milvus Lite · `docs/` 기준 문서 2개 | 운영 가이드 · 사내 원문 pptx · pdf (§8 6) |
-| 정책 검토 — 공통 형식으로 표준화, 충돌 · 중복 · 과도한 허용 · 기준 위반과 개선안 | `sentinelai/sources/` → `review_policies` | 실제 정책 샘플 (§8 1) |
+| 정책 검토 — 공통 형식으로 표준화, 충돌 · 중복 · 과도한 허용 · 기준 위반과 개선안 | `review_policies` — RAG에 올라간 기준 문서끼리 견줌 (11/5, 솔루션 정책 파일 읽기는 뺐음) | 실제 솔루션 정책을 RAG에 올리는 길 (§8 1) |
 | 권한 적정성 — 부서 · 직무 · 기존 권한 · 신청 권한 → 승인 · 추가 검토 · 반려 권고 | `judge_request` (정상 → 승인 권고 · 주의 → 추가 검토 · 위험 → 반려 권고). 직무 · 신청 사유 · 사용 기간 · 최근 이동을 봄 (11/3). 받은 뒤 이동하면 `judge_grant`로 다시, 퇴사하면 코드가 위험 | 직무 기준 문서 (직무별 필요 권한) |
 | 대시보드 · 알림 — 정상 · 주의 · 위험, 위험이면 운영자 알림(이메일 · 메신저 포함), 고칠 것 설명 | 웹 대시보드 · 종 배지 · 결재 대기 Slack 채널 알림 · 결재 결과 신청자 메일(11/04) | 위험 판정 알림 (§8 3) |
-| 수집 인터페이스 모듈화 — 실제 솔루션 API · Export, 계정 관리 시스템 · AD 연동 대비 | `RowSource` · 수집 노드 | 실제 연동 (§8 11) |
+| 수집 인터페이스 모듈화 — 실제 솔루션 API · Export, 계정 관리 시스템 · AD 연동 대비 | 데이터 계층 입구 `Sources` — 모듈마다 따로 읽는 DLP 로그 · 수집 노드 · DB · RAG | 실제 연동 (§8 11) |
 | 위험도 · 신뢰도 평가 (구조도) | 사용자 의심 점수 · 안전 점수 | 정책 위험도 점수 · AI 판단 신뢰도 (§8 7) |
 
-**검증 시나리오** — 이 넷이 맞게 나와야 함
+**검증 시나리오** — 이 넷이 맞게 나와야 함. 위 둘(솔루션 정책)은 실제 솔루션 정책이 RAG에 올라와야 볼 수 있음 (11/5부터 정책 파일을 읽지 않음)
 
 | 시나리오 | 기대 | 가까운 예전 사례 · 조항 |
 |---|---|---|
@@ -58,21 +58,22 @@ JBNU-RAD/
 │   ├── engine/                 엔진 (양현성) — 체인 · 판정 흐름 · 큐 (10/20에 chains/ · pipeline · 작업 큐 · CLI 를 합쳤음)
 │   │   ├── engine.py             Settings(.env) · Engine — 모델 · RAG 저장소 · 두 DB를 열고 모든 기능(run_policies · run_nodes · run_events · ask · ask_servers · ask_logs · browse_logs · stats · user_stats · run_suspects · receive_snapshot · import_snapshots · judge_request · health)과 통합 잡 큐를 엮음. 웹 · CLI는 Engine 하나만 만듦
 │   │   ├── jobs.py               JobQueue — 일꾼 하나가 모든 AI 일(권한 신청 · 재검토 · 빠른 · 정밀 감시 · 서버 점검 · 위협 예측 · 정책 관리 검토 · 기준 문서 적재)을 우선순위대로 하나씩, 예약 · 취소 · 강제 중지 (11/5)
-│   │   ├── pipeline.py           체인(review · grant · policy · server · event · suspect · 질의 체인들)과 판정 흐름(review_policies · check_nodes · snapshot_row · monitor · judge_request · judge_grant · predict_suspect · ask_servers · browse_logs · ask_logs · attempt). 판정은 context 빌더 → 체인 → 결과 dict, 저장 · 큐는 engine.py
-│   │   ├── rag.py                DocumentStore — 기준 조항(clause) · 솔루션 규칙(rule)을 한 컬렉션에, 종류별 검색
-│   │   ├── prompt.py             프롬프트 (권한 검토 · 보유 권한 재검토 · 로그 검토 · 위협 예측 · 정책 검토 · 서버 점검 · 질의응답 · 로그 · 서버 질의)
+│   │   ├── pipeline.py           체인(review · grant · policy · server · event · suspect · 질의 체인들)과 판정 흐름(review_policies · check_nodes · snapshot_row · monitor · judge_request · judge_grant · predict_suspect · ask_servers · browse_logs · ask_logs · attempt). 판정은 `engine.inputs` → 체인 → 결과 dict, 저장 · 큐는 engine.py
+│   │   ├── rag.py                DocumentStore — 기준 문서(docs/)를 조각내 한 컬렉션에. 검색 · 조각 전부(문서 · 원래 순서) · 폴더에 없는 문서의 조각 빼기
 │   │   └── types.py              출력 타입 Verdict · PolicyReview · ServerReview · SuspectScore · Answer · LogFilter, 알림 자리 Notifier (구현 없음, §8 3)
-│   ├── sources/                검토 대상 데이터 (양현성) — 데이터 종류마다 한 파일에 구조체 · 컬럼 · 읽기 · 프롬프트용 글. 엔진 · DB를 모름 (11/5, 예전 data/)
-│   │   ├── base.py               Record · LoadResult · RowSource(CsvSource · JsonSource · MemorySource) · ColumnMapper · load · parse_datetime
-│   │   ├── logs.py               SecurityEvent · EventMapper(Microsoft Sentinel 로그) · 시각 필터 · 사용자별 묶음 · 로그 질의용 search · summarize · vocabulary · 행동 신호 · 위협 표시
-│   │   ├── policies.py           PolicyRule · PolicyRuleMapper
-│   │   ├── servers.py            ServerState(서버 현황 표) · 서버 ↔ 규칙 맞춰 보기 (IP · 대역 · 호스트 이름, ANY 제외)
-│   │   └── snapshots.py          ServerSnapshot · 수집 노드 본문 → 모듈별 상태(UFW · SSH · PAM · 계정 · sudo), 직전 수집과 달라진 설정, 서버 질의용 server_digest
-│   ├── context/                맥락 빌더 (11/5) — sources · DB · 규정 RAG 를 모아 판정마다 LLM 입력을 만들고 입력 예산에 맞춰 자름
-│   │   ├── person.py             People · Person — 사람 맥락(계정 · 이동 · 지금 가진 권한 · 신청 기록 · 로그 요약 · 행동 신호 · 최근 위협 기록), 위협 예측 대상 고르기
-│   │   ├── regulations.py        규정 RAG — 조항 · 규칙을 종류별로 찾음
-│   │   ├── builders.py           판정마다 빌더 하나 (request · grant · events · suspect · server · policy) + 운영자 결정 줄
-│   │   └── budget.py             Section · fit — 넘치면 정한 칸의 오래된 줄부터 빼고 "N줄 뺐습니다"를 입력에 적음
+│   ├── sources/                데이터 계층 (양현성) — DLP 로그 · 서버 상태(수집 노드) · DB 의 사용자 데이터 · RAG 기준 문서 넷만 읽음. 모듈마다 독립(공통 베이스 없음), 입구 `Sources`(hub.py)는 모으기만. 엔진을 모름 (11/5, 예전 data/)
+│   │   ├── hub.py                Sources — events(DLP) · pending_servers(서버 상태) · people · 운영자 결정(DB) · regulations(RAG). `Engine.sources`
+│   │   ├── logs.py               SecurityEvent · EventMapper(Microsoft Sentinel 로그) · 파일 · 폴더 · 행 목록 읽기(load_events) · 시각 필터 · 사용자별 묶음 · 로그 질의용 search · summarize · vocabulary · 행동 신호 · 위협 표시
+│   │   ├── snapshots.py          ServerSnapshot · 수집 노드 본문 → 모듈별 상태(UFW · SSH · PAM · 계정 · sudo), 직전 수집과 달라진 설정, 서버 질의용 server_digest
+│   │   ├── people.py             People · Person — 사람마다 계정 · 이동 · 지금 가진 권한 · 신청 기록(권한 DB) · 로그 · 행동 신호 · 운영자 결정, 위협 예측 대상 고르기. 신청 · 이동 글(access_text · move_text)
+│   │   ├── decisions.py          운영자 결정 — 정책 관리 · 서버 점검 · 로그 감시 판정에 사람이 정한 것 (권한 DB · AI 결과 DB)
+│   │   └── regulations.py        규정 RAG — 판정마다 검색어를 만들어 조항을 찾음, 정책 관리 검토에는 쌓인 문서 전부 (엔진이 넘긴 DocumentStore)
+│   ├── context/                맥락 (11/5) — 프롬프트 합성만. sources 가 모은 데이터를 판정마다 LLM 입력 글로 쓰고 크기를 맞춤. DB · RAG 를 모름
+│   │   ├── prompts.py            프롬프트 (권한 검토 · 보유 권한 재검토 · 로그 검토 · 위협 예측 · 정책 검토 · 서버 점검 · 질의응답 · 로그 · 서버 질의). 판정 입력 칸 이름 = 빌더의 Section key
+│   │   ├── inputs.py             Inputs — 판정마다 프롬프트 · 빌더를 짝짓고 크기를 한 번만 맞춤 (`Engine.inputs`)
+│   │   ├── person.py             사람 칸 — sources.Person 을 글로 (full: 계정 · 이동 · 지금 가진 권한 · 신청 기록 · 로그 요약 · 행동 신호 · 최근 위협 기록 / short: 계정 · 지금 가진 권한)
+│   │   ├── builders.py           판정마다 빌더 하나 (request · grant · events · suspect · server · policy) — 받은 데이터 · RAG 결과 → 칸(Section) 목록. 크기는 모름
+│   │   └── budget.py             입력 크기를 한 곳에 — 글자 한도 · 칸별 줄 수(위협 기록 15 · 운영자 결정 20) · 한 줄 글자 수 · 자르는 순서(`TRIM`) · fit
 │   ├── db/                     권한 DB · AI 결과 DB (PostgreSQL 스키마 main · results). 엔진 · 데이터 계층은 모름. 설계 결정은 §9
 │   │   ├── core.py               연결 풀 · 스키마 적용(schema_version) · 쓰기 차례(advisory lock) · 트리거 · 제약 위반 → Denied
 │   │   ├── main.sql              권한 DB — 사용자 · 세션 · 감사 기록 · 신청(1건 = 1행: 신청 · AI 판정 · 1차 · 최종 결재 · 회수) · 권한 목록 · 운영자 결정 · 수집 노드 · 직무 · 퇴사일 · 이동 기록 · 보유 권한 재검토(11/3). 결재 순서 · 역할은 트리거가 강제 (11/03 SQLite 마이그레이션 11개를 하나로)
@@ -106,7 +107,7 @@ JBNU-RAD/
 ├── docs/                     판정 근거 기준 문서(.md · .txt) — 보안 총책임자가 화면에서 올리고(10/30) 고치고(11/2) 지움(11/3), 코드 작업으로는 고치지 않음 (CLI `index` · 정책 관리 검토가 RAG에 적재)
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
-├── data/                     검토 대상 (위치는 .env)
+├── data/                     DLP 로그 (위치는 .env)
 ├── node/                     수집 노드 — 점검 대상 서버에 까는 데몬 (패키지와 따로, 표준 라이브러리만, Python 3.8+). 설치 · 사용은 node/README.md
 │   ├── sentinel_node/          collect(모듈별 원문 읽기) · client(보내기 · 못 보낸 것 쌓기 · 키 저장) · config · __main__(run · once · show · export)
 │   ├── install.sh              /opt/sentinel-node · /etc/sentinel-node/node.conf · systemd 설치 · 제거
@@ -120,24 +121,17 @@ JBNU-RAD/
 └── Dockerfile · README.md    컨테이너 이미지(웹 · 엔진 · data · db · CLI, 11/04에 웹을 넣음) · 저장소 소개
 ```
 
-### 검토 대상 데이터
+### 읽는 데이터 (11/5부터 넷만)
 
-| `.env` | 내용 | 지금 |
+| 데이터 | 어디서 | 지금 |
 |---|---|---|
-| `SENTINELAI_POLICIES_SOURCE` | 솔루션 정책 | `data/policies/` — 비어 있음 |
-| `SENTINELAI_SERVERS_SOURCE` | 서버 현황 (자산관리 내보내기) | `data/servers/` — 비어 있음 |
-| `SENTINELAI_EVENTS_SOURCE` | 보안 솔루션 로그 | `data/연습용_로그_원본+합성.csv` |
+| DLP 로그 | `SENTINELAI_EVENTS_SOURCE` — Microsoft Sentinel 내보내기 (`TimeGenerated`, `WHO` · `WHERE` · `HOW` 등, `sentinelai/sources/logs.py`) | `data/연습용_로그_원본+합성.csv` |
+| 서버 상태 | 수집 노드가 보낸 원문 → AI 결과 DB `server_snapshots` | 시험 컨테이너 2대 |
+| 사용자 데이터 | 권한 DB — 계정 · 이동 · 신청 · 결재 · 운영자 결정 | — |
+| 기준 문서 | RAG — `docs/`를 적재 (보안 총책임자가 화면에서 올리고 고침) | 2개 |
 
-- 폴더를 가리키면 안의 `.csv` · `.json` · `.jsonl`을 모두 읽음 (솔루션 · 도구마다 내보낸 파일을 그대로 둠)
-- 컬럼이 맞지 않는 파일은 건너뛰고 화면 하단에 알림. 폴더가 없거나 비면 그 검토만 건너뜀
-- 사내 기준 문서는 `docs/`에. 정책 관리 검토를 돌릴 때 바뀐 것만 RAG에 다시 적재
-
-| 대상 | 컬럼 |
-|---|---|
-| 권한 신청 | `id, requester, requested_access, current_access, 신청일` |
-| 정책 | `policy_id, solution, source, destination, service, action, expires_at` |
-| 서버 현황 | 호스트 이름(`host` · `hostname` · `호스트명` 등)이나 IP(`ip` · `IP` 등) 하나만 있으면 됨. 나머지 컬럼(용도 · 영역 · 외부 노출 · 열린 포트 · 관리자 계정 · 마지막 패치 등)은 이름 그대로 판정에 넣음 |
-| 로그 | Microsoft Sentinel 내보내기 (`TimeGenerated`, `WHO` · `WHERE` · `HOW` 등, `sentinelai/sources/logs.py`) |
+- 로그 위치가 폴더면 안의 `.csv` · `.json` · `.jsonl`을 모두 읽음 (솔루션 · 도구마다 내보낸 파일을 그대로 둠). 컬럼이 맞지 않는 파일은 건너뛰고 화면 하단에 알림
+- 솔루션 정책 파일(`SENTINELAI_POLICIES_SOURCE`) · 서버 현황 표(`SENTINELAI_SERVERS_SOURCE`)는 11/5에 뺐음 — 10/20부터 둘 다 비어 있었고, 정책은 RAG에 올려 검색하기로 함 (§9)
 
 **연습용 데이터** — 실제 솔루션 · 서버의 내보내기가 아니라 결과를 실제 환경 평가로 쓰지 않음. 실제 데이터가 오면 연습용 파일을 뺌.
 - 권한 신청 · 정책 CSV는 10/7에 지웠음 (예전 사례: `8eb0e1d^`)
@@ -165,7 +159,6 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 - 무엇을 뽑아 판정할지는 `sentinelai/sources/snapshots.py`가 정함 (설치 안 됨과 권한이 없어 못 읽음은 다른 값)
 - 서버는 노드 · 수집 시각별로 `server_snapshots`에 쌓고 직전 수집과 달라진 설정을 셈
 - 망이 막힌 서버는 노드의 `export` 파일을 `./sentinel import-snapshots`로 넣음
-- 서버 현황 표(`data/servers/`)가 있으면 노드 점검에 호스트 이름 · IP가 같은 행을 덧붙임
 - 노드 시험은 점검 대상 컨테이너를 올려 그 안의 진짜 노드로 (§3 `python -m sentinelai.dev targets`). 흉내 노드 · 이 컴퓨터를 노드로 보내기는 11/5에 뺐음
 
 ---
@@ -176,7 +169,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 - CLI와 웹이 같은 `Engine` 기능을 부르고, 결과는 AI 결과 DB(`SENTINELAI_RESULTS_DB_PATH`의 스키마 `results`)에 실행마다 쌓음
 - 판정 실패 시 2회 재시도(`pipeline.attempt`). 그래도 실패하면 `failed` · `error`로 남기고 화면에는 "주의"로 올림 (이유 칸에 원인)
 - Milvus Lite는 한 프로세스만 DB를 엶. 웹이 떠 있으면 판정은 웹 작업(`/api/jobs`)으로, 꺼져 있으면 CLI로. 둘 다 같은 AI 결과 DB에 쌓음
-- 판정 입력은 `sentinelai.context`의 빌더가 만듦 — 대상 · 사람 맥락 · 규정 RAG(조항 · 규칙) · 운영자 결정. 입력 예산 = (`NUM_CTX` − `NUM_PREDICT`) × 1.4자 − 프롬프트 글. 넘치면 신청 기록 → 로그 줄 → 위협 기록 · 운영자 결정 순으로 오래된 줄부터 빼고 "오래된 N줄은 입력 한도로 뺐습니다"를 그 칸에 적음. 대상 · 조항은 빼지 않음. 판정 결과 dict의 `input`(글자 수 · 한도 · 뺀 줄)은 저장하지 않음
+- 판정 입력: `sentinelai.sources`가 대상 · 사람 · 규정 RAG(조항) · 운영자 결정을 모으고, `sentinelai.context`가 글로 씀. 입력 예산 = (`NUM_CTX` − `NUM_PREDICT`) × 1.4자 − 프롬프트 글. 넘치면 신청 기록 · 운영자 결정 → 로그 줄 → 위협 기록 순으로 오래된 줄부터 빼고 "오래된 N줄은 입력 한도로 뺐습니다"를 그 칸에 적음. 대상 · 조항은 빼지 않음. 판정 결과 dict의 `input`(글자 수 · 한도 · 뺀 줄)은 저장하지 않음
 
 **통합 잡 큐** (`engine/jobs.py`, 11/5) — 웹만 씀 (CLI는 `run_*`를 바로 부름)
 - 일꾼 하나가 차례로 — 모델 · 벡터 DB를 동시에 치지 않음
@@ -189,28 +182,28 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 ### 판정 기능
 
 **정책 관리** `review_policies` — 화면 [정책 관리 검토 실행]
-- 기준 문서(`docs/`) · 정책 규칙을 RAG에 맞춤 (바뀐 것만, 규칙 묶음은 하나만) → 정책 전체 + 기준 조항 + 지난 검토의 문제에 운영자가 정한 것(유형 · 정책 ID · 결정 · 의견) → `policy_chain` → `PolicyReview`
-- 정책 폴더가 비면 RAG의 예전 규칙을 지우고 빈 검토를 남김 — 서버 점검 · 로그 감시가 지운 규칙을 찾지 않게
+- 기준 문서(`docs/`)를 RAG에 맞춤 (바뀐 것만, 폴더에 없는 문서의 조각은 뺌) → RAG에 쌓인 조각 전부(문서 · 원래 순서) + 지난 검토의 문제에 운영자가 정한 것(유형 · 조항 · 결정 · 의견) → `policy_chain` → `PolicyReview`
+- 기준 문서끼리의 중복 · 충돌 · 과도한 허용과 관련 조항(`policy_ids` 칸에 "문서 이름 조항 번호") · 개선안. 문서 전부를 넣으므로 문서가 입력 한도를 넘으면 자르지 못함 — 문서가 늘면 조각마다 비슷한 조각을 찾아 견주는 방식으로 바꿈
 - 실행마다 쌓고 화면은 마지막 실행을 봄
 
 **서버 점검** `check_nodes` — 웹이 뜨자마자 한 번, 그 뒤 `SENTINELAI_MONITOR_INTERVAL_MIN`분마다, 또는 노드 탭 [지금 점검]
 - 켜 둔 노드 중 지난 점검 뒤 새 수집이 온 노드만, 그 노드의 가장 늦은 수집 한 건 → `server_chain` → `ServerReview`
-- 입력: 모듈 상태 · 직전 수집과 달라진 설정 + 서버 현황 표의 같은 서버 행 + 코드가 IP · 대역 · 호스트 이름으로 찾은 규칙 + RAG로 찾은 조항 · 규칙 + 그 노드의 지난 점검에 운영자가 정한 것(이상 없음 · 조치 필요, 그때 다른 곳 이름 · 의견)
+- 입력: 서버(호스트 · IP) · 모듈 상태 · 직전 수집과 달라진 설정 + RAG로 찾은 조항 + 그 노드의 지난 점검에 운영자가 정한 것(이상 없음 · 조치 필요, 그때 다른 곳 이름 · 의견)
 - 출력: 기준과 다른 곳마다 지금 · 기준 · 근거 조항 · 등급 · 이 환경에서 바꿀 것. 조항이 없거나 확인 못한 항목은 판단하지 않고 이름만
 - 한 건씩 `node_findings`에 쌓고 화면은 노드마다 마지막 판정을 봄 (노드 한 대 30초 안팎)
 
 **위협 예측** `run_suspects` (10/22) — 정밀 감시와 같은 주기, 또는 사용자 위협 탭 [지금 예측]
 - 사람마다 행동 신호(`sources.logs.behavior_signals` — 최근 7일 vs 앞 4주: 하루 양 · 근무 시간 밖 · 예외 승인 · 민감 문서 · 30분 안 몰아서 · 처음 보는 계정) + 사용자 기록 · 최근 위협 기록 15건(아래 "사용자 기록") + 기준 조항(11/5, 눈에 띄는 신호로 찾음 — 참고로만) → `suspect_chain`(생각하는 판정 모델) → `SuspectScore`(0~100 · 이유 · 확인할 점)
 - 등급은 점수로 코드가 정함. 한 사람씩 `suspect_scores`에 쌓음 (사람당 20초 안팎)
-- 로그 감시 판정의 근거는 기준 문서 · 솔루션 정책만 (10/20 결정). 11/3부터 정밀 감시는 사용자 기록을 맥락으로 함께 봄 — 어긋남의 근거로는 쓰지 않게 프롬프트에 적음
+- 로그 감시 판정의 근거는 기준 문서만 (10/20 결정, 11/5에 솔루션 정책을 뺌). 11/3부터 정밀 감시는 사용자 기록을 맥락으로 함께 봄 — 어긋남의 근거로는 쓰지 않게 프롬프트에 적음
 
 **로그 감시** `monitor` — 두 단계 (10/22), 화면에서는 시작하지 않음
 - 빠른 감시: `SENTINELAI_FAST_INTERVAL_MIN`(5)분마다 생각 단계를 끈 연결(`Engine.fast_llm`)로 새 로그만 판정해 "1차 판정"으로 바로 올림 (묶음당 수 초, 큐에서 정밀 감시 · 서버 점검보다 먼저). 사람 맥락은 계정(부서 · 직무 · 활성 · 퇴사일) · 지금 가진 권한만 (11/5). 비우면 정밀 감시만
 - 정밀 감시: `SENTINELAI_MONITOR_INTERVAL_MIN`(30, 0이면 끔)분마다 생각하는 판정 모델로 같은 구간을 다시 판정해 확정. 확정된 구간의 1차 판정은 목록에서 빠짐 (`monitor_runs.stage` = fast · final)
-- 흐름: 지난 감시 이후 로그 → 사용자별 묶음 → `event_chain`(조항 · 규칙 검색) → `Verdict`. 읽은 가장 늦은 로그 시각이 다음 시작점
+- 흐름: 지난 감시 이후 로그 → 사용자별 묶음 → `event_chain`(조항 검색) → `Verdict`. 읽은 가장 늦은 로그 시각이 다음 시작점
 
 **사용자 기록** (11/3, 11/5 맥락 빌더로 옮김) — 사용자가 관여한 판정(권한 신청 · 보유 권한 재검토 · 정밀 감시 · 위협 예측)에 그 사람의 기록을 한 칸(`person`)으로 넣음. 빠른 감시는 속도 때문에 계정 · 지금 가진 권한만
-- 만드는 곳: `context.People` — 작업 한 번에 로그 · 계정 · 운영자 결정을 한 번만 읽고, `get(계정 id 또는 로그 사용자 ID)`이 사람마다 `Person`. 계정 ↔ 로그 사용자는 `log_id`로 이음
+- 모으는 곳: `sources.People` — 작업 한 번에 로그 · 계정 · 운영자 결정을 한 번만 읽고, `get(계정 id 또는 로그 사용자 ID)`이 사람마다 `Person`. 계정 ↔ 로그 사용자는 `log_id`로 이음. 글로 쓰는 곳은 `context/person.py`
 - 담는 것: 계정(부서 · 직무 · 활성 · 퇴사일) · 이동 전부 · 지금 가진 권한(권한 목록의 시스템 · 분류 · 설명 · 끝나는 날) · 권한 신청 전부(결재 · 반려 의견 · 회수 사유, 예산이 모자라면 오래된 것부터 뺌) · 로그 집계 · 행동 신호 · 최근 위협 기록
 - 권한 신청 판정은 신청 시각까지로 자름 — 그 뒤의 이동 · 신청 · 로그 · 운영자 결정을 뺌 (11/5 전에는 신청만 잘랐음). 보유 권한은 신청할 때 남긴 칸(`current_access`)을 씀
 - 최근 위협 기록 15건: 운영자가 로그 감시 판정에 정한 것([조치] · [이상 없음], 11/5부터 이상 없음도)을 먼저, 남은 자리는 코드가 고른 로그(`sources.logs.threat_lines` — 예외 승인 · 민감 문서 · 근무 시간 밖, 같은 종류가 몰리지 않게 돌아가며 최근 것부터). 정밀 감시는 지금 판정하는 묶음의 로그를 뺌 (같은 줄을 두 번 넣지 않게)
@@ -288,7 +281,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 | `./sentinel 명령` | 떠 있는 컨테이너 안에서 `python -m sentinelai 명령`. 터미널이 없으면(cron) `-T`로 붙음 |
 | `./sentinel create-root --login 아이디 --name 이름 [--department 부서]` | 첫 루트 계정(보안 총책임자) — 한 번만. 비밀번호는 화면 표시 없이 입력 |
 | `./sentinel import-snapshots 폴더 --node 이름` | 망이 막힌 노드의 `export` 파일 넣기 (폴더를 컨테이너로 복사해 넣음, 벡터 DB를 안 써서 웹이 떠 있어도 됨) |
-| `python -m sentinelai health` · `index [경로] [--rebuild]` · `review-policies` · `check-nodes` · `monitor [--since 시각] [--full]` | 웹이 꺼져 있을 때만 (venv). 연결 확인 · 기준 문서 적재(`--rebuild`는 규칙까지 지우므로 그 뒤 `review-policies` 다시) · 정책 관리 검토 · 서버 점검 · 로그 감시 1회(cron용, `--full`이면 처음부터) |
+| `python -m sentinelai health` · `index [경로] [--rebuild]` · `review-policies` · `check-nodes` · `monitor [--since 시각] [--full]` | 웹이 꺼져 있을 때만 (venv). 연결 확인 · 기준 문서 적재(`--rebuild`는 컬렉션을 비우고 새로) · 정책 관리 검토 · 서버 점검 · 로그 감시 1회(cron용, `--full`이면 처음부터) |
 | `python -m sentinelai.dev setup [--reset]` | **로컬 시험 환경**을 `sentinelai_dev` DB · `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 모델 서버에 닿으면 기준 문서도 적재 |
 | `python -m sentinelai.dev web [--check-min 5]` | 시험 환경으로 웹 (http://127.0.0.1:8001, `sentinelai_dev` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 됨). 로그 감시 · 서버 점검은 `--check-min`분마다 |
 | `python -m sentinelai.dev test` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움 |
@@ -297,7 +290,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 | `npm run build` (`frontend/`) | 화면 빌드 → `sentinelai/web/static/` (**커밋**함 — 팀 서버에 Node · 외부망이 없어도 새 화면). 깨끗이 설치해(`npm ci`) 빌드한 뒤 `git status sentinelai/web/static`이 비면 커밋된 것과 같음 |
 
 - venv 준비(처음 한 번): `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && cp .env.example .env`. 팀 서버처럼 PostgreSQL 이 따로 있으면 `.env` 주소만
-- 10/20에 CLI를 줄였음 — `config` · `models` · `search` · `ask` · `chat` · `index-policies` · `review-requests` · `ask-logs` 없앰 (질의는 화면에서, 규칙 적재는 `review-policies`가)
+- 10/20에 CLI를 줄였음 — `config` · `models` · `search` · `ask` · `chat` · `index-policies` · `review-requests` · `ask-logs` 없앰 (질의는 화면에서)
 - **Milvus Lite 파일 락**: 웹이 떠 있으면 CLI `health` · `index` · `review-policies` · `check-nodes` · `monitor`가 실패함 (컨테이너에서는 웹이 늘 떠 있음). 웹이 떠 있을 때는 웹이 돌림
 
 설정은 `.env` 한 곳. 코드에 주소 · 모델명을 하드코딩하지 않음. 두 환경 모두에서 동작해야 함.
@@ -315,7 +308,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 
 ## 4. 규칙
 
-- ❌ `sentinelai/engine/` 수정 · `docs/`를 코드 작업으로 고치기 (기준 문서는 보안 총책임자가 화면에서 올리고 고치고 지움, 10/30 · 11/2 · 11/3). 프롬프트(`sentinelai/engine/prompt.py`)도 엔진 담당자와 상의 없이 안 바꿈
+- ❌ `sentinelai/engine/` 수정 · `docs/`를 코드 작업으로 고치기 (기준 문서는 보안 총책임자가 화면에서 올리고 고치고 지움, 10/30 · 11/2 · 11/3). 프롬프트(`sentinelai/context/prompts.py`)도 엔진 담당자와 상의 없이 안 바꿈
 - ❌ 엔진 기능 재구현 · 엔진 타입을 대체하는 웹 전용 스키마
 - ❌ 서버 주소 · 모델명 하드코딩 — 전부 `Settings`
 - ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제). 화면은 React + Vite, 빌드 결과를 커밋 (서버에 Node 불필요). 화면 소스를 고치면 `npm run build` 결과를 같은 커밋에. 스타일은 Tailwind v4 유틸리티. shadcn/ui 부품 등 새 의존성은 리디자인 때 정함
@@ -362,7 +355,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 
 ## 6. 알려진 문제
 
-- **검색은 종류별로 함.** RAG에 기준 조항과 솔루션 규칙이 함께 있어 한 번에 찾으면 규칙에 조항 청크가 밀려남. 권한 · 정책 검토는 조항만, 로그 검토는 조항 · 규칙을 따로, 질의응답은 둘을 이어 붙임. 조항은 청크 4개뿐이라 `top_k=4`가 전부를 가져옴
+- **RAG에는 기준 문서만 있음** (11/5). 조항은 청크 4개뿐이라 `top_k=4`가 전부를 가져옴. 예전엔 솔루션 규칙도 함께 있어 종류별로 따로 찾았음
 - **Milvus Lite는 같은 프로세스에서도 동시에 열면 실패함** (`Open local milvus failed`). 서버를 띄우는 동안 자기 잠금을 풀어 두어, 두 스레드가 동시에 처음 열면 둘 다 파일 잠금을 잡으려 함 (10/20 자동 감시와 `/api/health`가 겹쳐 드러났음). `DocumentStore.store`가 잠금으로 한 번에 하나만 열고, 웹을 끌 때 `DocumentStore.close()`가 Milvus Lite 서버까지 멈춰 잠금을 풂 (클라이언트만 닫으면 안 풀림)
 - **팀 서버는 부팅 순서 때문에 GPU 없이 돌 수 있음.** 10/6~10/11 내내 CPU로만 돌았음. `ollama ps`의 PROCESSOR가 CPU면 의심. 경위 · 조치는 §9
 - **`gpt-oss:20b`는 `SENTINELAI_NUM_PREDICT=1024`가 모자람** (10/11에 4096으로 올림). 추론하느라 1024 토큰을 다 쓰고 빈 출력(`done_reason=length`)을 냄. 10/7 측정에서 약 2000 토큰 필요
@@ -381,14 +374,14 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 ## 7. 시연 기록 (9/30 산학 자문 멘토링)
 
 - 9/30 시연은 사전 계산 결과(`results.json` · `ask_results.json`) · 시연용 위험 예시 4건 · 예시 답 로딩 연출로 했음. 10/8에 모두 걷어내고 화면이 코어 작업을 직접 돌리게 바꿨음
-- 다음 시연 순서: 팀 서버 연결 → `python -m sentinelai health` → `docker compose up` → 정책 관리 검토를 로그 감시보다 먼저 (규칙이 적재돼야 로그 감시가 찾음)
+- 다음 시연 순서: 팀 서버 연결 → `python -m sentinelai health` → `docker compose up` → 정책 관리 검토(기준 문서 적재 포함)
 - 판정 한 건에 1~3분이라 미리 돌려 둠. 결과는 AI 결과 DB에 남아 서버를 다시 띄워도 보임
 
 ---
 
 ## 8. 남은 일
 
-1. **데이터를 다시 정하고 `qwen3:14b`로 전 건 판정해 §5와 대조** — 권한 신청 CSV는 지웠고 정책 · 서버 현황 폴더는 비어 있음 (연습용은 10/20에 지움). 서버 현황은 점검 도구 · 자산관리에서 내보내는 컬럼부터 정함
+1. **데이터를 다시 정하고 `qwen3:14b`로 전 건 판정해 §5와 대조** — 권한 신청 CSV는 지웠고, 정책 · 서버 현황 파일 읽기는 11/5에 뺐음. 실제 솔루션 정책이 오면 RAG에 올리는 길(화면 업로드 등)을 정하고 정책 관리 검토 · 로그 감시가 찾게 함
 2. **DB · 로그인 · 권한 신청** — 구현 끝 (10/11~10/12). 권한 DB(신청 1건 = 1행: AI 판정 · 1차 · 최종 결재 · 회수), ID/PW 로그인, 계정 생성은 보안 총책임자, AI 결과 DB 분리(§9), 질의 기록(자기 것만). 보안 총책임자는 결정 기록 전부 · 1차 결재 의견을 봄. 남은 질문은 §9 DB 설계
 3. **알림(Notifier)** — 로그 감시의 주의 · 위험 판정을 운영자에게 보냄. 자리(`Notifier`)만 `sentinelai/engine/types.py`에 있고 `pipeline.py`의 `monitor`에 부를 곳을 표시했음. 결재 대기 알림은 11/04에 웹(`web/notify.py`)에서 Slack 채널로 보냄 (11/04 팀 결정: 채널, Slack 먼저) — 같은 채널을 쓰면 됨. 결재 결과는 같은 날 신청자 이메일로 (SMTP, 시연은 Gmail · 사내 이전 때 사내 SMTP). 계정 관리 화면의 이메일 칸은 리디자인 때 (그 전에는 `PATCH /api/users/{id}`)
 4. **출력 · 매체 반출 조항 없음** — 로그 감시가 근거 없이 판정함. 절차서 14 · 17번(예외처리 · 매체 반출입) 원문 필요. 10/20 시나리오 B · D가 이 때문에 "정상"으로 나와 검토에서 빠졌음. **코드 규칙(출력량 · 시간대 · 새 계정)으로 올리지 않고 절차서 원문을 RAG에 넣기로 했음 (10/20).** 원문을 받으면 6번 경로로 넣고 시나리오로 다시 확인
@@ -398,7 +391,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 8. **내부 상태 API** — 10/20에 `/internal/status`로 작업 큐 · 예약 · 판정 대기열을 화면과 분리했음. 남은 것: `/api/health`도 옮길지, 자동 감시가 연달아 실패하면 알릴지
 9. **보안 대시보드** (10/21 TODO) — 권한 신청 · 정책 관리 · 서버 점검 · 로그 감시를 한눈에. 통계 메뉴(10/21)와 겹치지 않게, 운영자가 무엇을 결정하는 데 쓰는지부터 정함
 10. **위협 미리 판정** (10/21 TODO) — 사고 전에 먼저 판정해 알림. 사용자 쪽은 의심 점수(10/22)를 만들었음. 남은 것: 의심 점수가 오를 때 알리기(3번과 함께) · 서버 쪽 예측. 입력(서버 점검의 바뀐 설정 · 로그 감시 추이 · 권한 신청 등)과 알림과의 관계는 아직 안 정함
-11. **이번 범위 밖** — 실제 솔루션 API 수집(`sentinelai.sources`에 RowSource로 추가). 로그가 외부 DB(Microsoft Sentinel 등)에 쌓이면 읽기만 하고 우리 DB에 안 쌓음. 그때 로그 질의 조건을 그 DB 쿼리(KQL 등)로 넘기고 로그 전체를 메모리에 읽는 `ask_logs`를 바꿈
+11. **이번 범위 밖** — 실제 솔루션 API 수집(`sentinelai.sources`에 모듈 하나로 추가하고 `Sources`에 묶음). 로그가 외부 DB(Microsoft Sentinel 등)에 쌓이면 읽기만 하고 우리 DB에 안 쌓음. 그때 로그 질의 조건을 그 DB 쿼리(KQL 등)로 넘기고 로그 전체를 메모리에 읽는 `ask_logs`를 바꿈
 12. **감사 기록 분석** (11/3 TODO) — 지금 감사 기록(로그인 · 결재 · 로그 조회 · 기준 문서 · 계정 · 노드 변경)은 쌓기만 하고 아무도 다시 읽지 않음. 이 기록을 전방위로 분석해 사람이 놓친 위협(예: 로그인 실패 몰림 · 한 사람의 몰아서 로그 조회 · 기준 문서 수정 직후 판정 변화 · 결재 패턴)을 찾아 알림(3번과 함께). 중간발표 보안 설계 슬라이드 5번 카드에서 나왔음. 구현 전까지 발표 · 문서에서는 "남김"까지만 말함
 13. **퇴사 · 이직 · DLP 로그 묶기** (11/3 TODO) — 계정에 필드를 더함
     - ~~퇴사 · 이직(부서 이동)한 사람의 정보~~ → 11/3에 직무 · 퇴사일 · 이동 기록(`user_moves`)을 넣고 판정에 씀 (`main.sql`). 남은 것: 의심 점수 · 로그 감시에도 퇴사 · 이동을 넣을지, 퇴사일이 지나면 계정을 알아서 정지할지
@@ -684,6 +677,15 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - **sources/**: 데이터 종류별(로그 · 정책 규칙 · 서버 현황 · 노드 스냅샷)로 구조체 · 컬럼 · 읽기 · 글을 한 파일에. 솔루션(DLP · SecureMark)별 차이는 로그 소스 안의 컬럼 설정. 쓰지 않던 `AccessRequest` · `AccessRequestMapper` · `load_requests`를 지웠음. 옮긴 뒤 판정 입력 27건이 옮기기 전과 글자까지 같았음
 - **context/**: 판정마다 빌더 하나. 사람 맥락에 예전 AI 등급 · 의심 점수는 계속 넣지 않음 (11/3 결정 유지, 사용자 결정). 새로 넣은 것: 지금 가진 권한의 시스템 · 분류 · 설명, 이동 · 신청 전부(예전엔 이동 5 · 신청 10), 운영자 [이상 없음] 결정, 위협 예측의 기준 조항, 서버 점검 · 정책 관리 검토의 운영자 결정, 빠른 감시의 계정 · 지금 가진 권한
 - 화면 파일 수를 줄이려 빌더 여섯은 `builders.py` 한 파일에 둠 (계획에서는 판정마다 한 파일)
+- 같은 날 프롬프트를 `engine/prompt.py`에서 `context/prompts.py`로 옮겼음 — 판정 입력 칸과 프롬프트 칸을 한 곳에서 맞추려고. 빌더는 칸만 내고, 크기(글자 한도 · 줄 수 · 한 줄 글자 수 · 자르는 순서)는 `budget.py`, 프롬프트 · 빌더 짝과 자르기 호출은 `inputs.py` 한 곳. 옮긴 뒤 판정 입력 28건이 옮기기 전과 글자까지 같았음
+- 같은 날 사람 · 운영자 결정(DB 읽기) · 규정 RAG 검색을 `context/`에서 `sources/`(people · decisions · regulations)로 옮겼음 — `context/`는 프롬프트 합성만. 판정 흐름은 `sources`로 모으고(`engine.people` · `engine.regulations.for_*` · `sources.decisions`) → `engine.inputs`로 글을 씀. 그래서 `sources`는 이제 DB를 읽음(엔진은 여전히 모름). 옮긴 뒤 판정 입력 28건이 글자까지 같았음
+- 같은 날 데이터 계층이 읽는 것을 넷으로 줄였음 (사용자 결정) — DLP 로그 · 서버 상태(수집 노드) · DB 의 사용자 데이터 · RAG 기준 문서. 입구는 `Sources` 하나(`Engine.sources`), 안의 구조체는 종류별
+  - 뺀 것: 솔루션 정책 파일(`PolicyRule` · `data/policies`) · 서버 현황 표(`ServerState` · `data/servers`) · IP로 규칙 맞추기(`rules_for`) · RAG의 솔루션 규칙(`index_rules` · 종류별 검색) · 프롬프트의 [솔루션 정책] 칸 · 화면의 "서버 현황" · "이 서버에 걸린 정책" · "관련 정책 원본"
+  - 이유: 10/20부터 두 폴더가 비어 있어 판정에 들어간 적이 없었음. 정책은 파일이 아니라 RAG에 올려 검색하는 쪽이 낫다고 봄
+  - 정책 관리 검토는 RAG에 쌓인 기준 문서 조각 전부를 꺼내 문서끼리 견주게 바꿨음 (★ 정책 이해의 "정책 간 모순"). 조각 id 가 "파일 이름|순번" 해시라 순서를 되짚어 원래 순서로 넣음. `PolicyIssue.policy_ids` 칸 이름은 그대로 두고 조항을 담음 (DB · 화면을 바꾸지 않으려고)
+  - 기준 문서 적재가 폴더에 없는 문서의 조각을 빼므로 예전 규칙 조각도 다음 적재 때 빠짐
+  - 판정 입력: 권한 신청 · 재검토 · 위협 예측은 글자까지 같고, 로그 감시 · 서버 점검은 [솔루션 정책] 칸만 빠짐 (늘 "찾은 솔루션 정책 없음"이었음)
+- 같은 날 공통 베이스(`sources/base.py` — `RowSource` · `ColumnMapper` · `load`)를 없앴음 (사용자 결정). 읽는 것마다 방식이 달라 모듈마다 따로 읽음 — 로그는 `logs.py`가 파일 · 폴더 · 행 목록을, 노드 원문은 `snapshots.py`가, 사람 · 결정은 DB를, 규정은 RAG를. `Sources`는 모으기만. 새 출처(솔루션 API 등)는 모듈 하나를 더하고 `Sources`에 묶음. 옮긴 뒤 판정 입력이 글자까지 같았음 (행동 신호 4주 구간이 시각에 따라 미끄러진 것만 다름)
 - **입력 예산**: `qwen3:14b`로 잰 판정 입력은 토큰당 1.52자 → 1.4자로 셈. 예전에는 `NUM_CTX` 8192 · `NUM_PREDICT` 4096에서 판정 입력이 9천 자(약 6천 토큰)까지 가 Ollama가 말없이 앞을 잘랐을 수 있음 — 지금은 빌더가 정한 순서로 자르고 그 사실을 입력에 적음
 - **`NUM_CTX` 16384**: 계획은 32768이었으나 팀 서버에서 `qwen3:14b`가 16384에 10.0 GiB · 32768에 14.0 GiB(`/api/ps`)라 RTX 5070 12GB에 다 올라가는 16384로 정했음. 16384면 판정 입력 약 1만 6천 자 — 11/5 시험 DB의 가장 긴 입력(정밀 감시 48줄 묶음) 7.4천 자가 자르지 않고 들어감
 - **통합 잡 큐**: 일꾼 하나 · 우선순위 · 진행 보고 때 급한 일에 자리 내주기(§2). 기준 문서 적재도 큐의 일이라 웹이 2초마다 엿보던 것을 없앴고, 파일 쓰기와 적재가 다른 작업 사이에 끼지 않음. 바깥 API 모양(`/api/jobs` · `/internal/status` · `judging`)은 그대로 두고 `queued` · `waiting`만 더해 화면 코드는 안 바꿨음
