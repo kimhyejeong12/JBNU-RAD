@@ -12,6 +12,7 @@ import { NodesTab } from "@/features/nodes/NodesTab";
 import { LogsTab } from "@/features/logs/LogsTab";
 import { AskTab } from "@/features/ask/AskTab";
 import { StatsTab } from "@/features/stats/StatsTab";
+import { EngineTab } from "@/features/engine/EngineTab";
 
 export const workspace = "grid min-h-0 grid-cols-[minmax(0,1fr)_430px] gap-4.5 px-5.5 pt-4.5 pb-5.5 narrow:grid-cols-[1fr] narrow:px-4 narrow:py-3.5";
 
@@ -32,6 +33,7 @@ export function Workspace() {
         {stat ? <StatsTab /> : <div id="view-stats" role="tabpanel" aria-labelledby="tab-stats" hidden />}
         {ui.mainTab === "logs" ? <LogsTab /> : <section id="view-logs" role="tabpanel" aria-labelledby="tab-logs" hidden />}
         {ui.mainTab === "ask" ? <AskTab /> : <section id="view-ask" role="tabpanel" aria-labelledby="tab-ask" hidden />}
+        {ui.mainTab === "engine" ? <EngineTab /> : <section id="view-engine" role="tabpanel" aria-labelledby="tab-engine" hidden />}
         <Footer />
       </div>
       {!noPanel && <RightPanel />}

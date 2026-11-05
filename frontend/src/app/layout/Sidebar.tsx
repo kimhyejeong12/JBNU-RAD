@@ -46,6 +46,9 @@ export function Sidebar({ wide, onToggle }: { wide: boolean; onToggle: () => voi
       </div>
       <div className={cn("mt-auto flex flex-col gap-1.5", !wide && "items-center")}>
         {/* 관리는 처리할 일이 아니라 건수를 달지 않습니다. */}
+        {me.role === "top" && item("settings", "sliders", "설정", {
+          id: "nav-settings", view: "settings", current: ui.view === "settings", tip: "설정|작업 큐 상태 · 강제 초기화", onClick: () => navigate("settings"),
+        })}
         {me.role === "top" && item("admin", "gear", "관리", {
           id: "nav-admin", view: "admin", current: isAdminView(ui.view), tip: "관리|권한 목록 · 계정 관리 · 기준 문서", onClick: openAdmin,
         })}

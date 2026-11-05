@@ -15,6 +15,7 @@ const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
   { tab: "ustats", icon: "warn", label: "사용자 위협", panel: "view-stats" },
   { tab: "logs", icon: "search", label: "로그 조회", panel: "view-logs" },
   { tab: "ask", icon: "chat", label: "정책 질의", panel: "view-ask" },
+  { tab: "engine", icon: "list", label: "작업 큐", panel: "view-engine" },
 ];
 
 // 아래 테두리 2px 가 탭 줄의 선과 겹치게 1px 내립니다.

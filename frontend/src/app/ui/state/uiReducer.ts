@@ -60,7 +60,9 @@ export type UiAction =
 
 export const isStatTab = (t: MainTab): t is StatKind => t === "stats" || t === "ustats";
 export const panelOnDemand = (tab: MainTab): boolean => tab === "ask" || isStatTab(tab);
-export const panelIdle = (s: UiState): boolean => panelOnDemand(s.mainTab) && !(s.mainTab === "ask" ? s.askSource : s.stats.selected);
+// 설정의 작업 큐는 오른쪽 패널 없이 넓게 씁니다.
+export const panelIdle = (s: UiState): boolean =>
+  s.mainTab === "engine" || (panelOnDemand(s.mainTab) && !(s.mainTab === "ask" ? s.askSource : s.stats.selected));
 
 function withTab(s: UiState, tab: MainTab): UiState {
   const askSource = tab !== s.mainTab ? null : s.askSource;
