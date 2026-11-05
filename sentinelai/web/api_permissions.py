@@ -152,7 +152,7 @@ def update_user(user_id: int, body: UserChange, request: Request, user: Anyone) 
         raise _denied(exc) from None
     # 부서 · 직무를 옮겼으면 예전 업무로 받은 권한을 다시 판정합니다.
     if "department" in changes or "job" in changes:
-        request.app.state.verdicts.enqueue_grants(user_id)
+        request.app.state.engine.enqueue_grants(user_id)
     return changed.public()
 
 
@@ -215,8 +215,8 @@ def _with_verdict(request: Request, req: dict, user: User) -> dict:
                 "approvals": [{k: v for k, v in a.items() if k != "ai_level"} for a in req["approvals"]]}
     review = req.get("grant_review")
     if review and review["cause"] == "move":
-        review = {**review, "judging": request.app.state.verdicts.pending(f"grant:{req['request_no']}:{review['move']['id']}")}
-    return {**req, "grant_review": review, "judging": request.app.state.verdicts.pending(req["request_no"])}
+        review = {**review, "judging": request.app.state.engine.pending(f"grant:{req['request_no']}:{review['move']['id']}")}
+    return {**req, "grant_review": review, "judging": request.app.state.engine.pending(req["request_no"])}
 
 
 @router.get("/people", dependencies=[Depends(role("manager", "top"))])
@@ -241,7 +241,7 @@ def submit(body: NewRequest, request: Request, background: BackgroundTasks,
         req = permissions.submit(request.app.state.main_db, user, **body.model_dump())
     except Denied as exc:
         raise _denied(exc) from None
-    request.app.state.verdicts.enqueue(req["request_no"])
+    request.app.state.engine.enqueue_request(req["request_no"])
     background.add_task(notify.notify_waiting, request.app.state.slack_url, req)
     return _with_verdict(request, req, user)
 
@@ -299,7 +299,7 @@ def rejudge(request_no: str, request: Request, user: Approver) -> dict[str, Any]
         raise HTTPException(status_code=404, detail=str(exc)) from None
     if not permissions.rejudgeable(request.app.state.main_db, request_no):
         raise HTTPException(status_code=400, detail="1차 결재 뒤에는 다시 판정할 수 없습니다")
-    request.app.state.verdicts.enqueue(request_no)
+    request.app.state.engine.enqueue_request(request_no)
     return {"request_no": request_no, "judging": True}
 
 

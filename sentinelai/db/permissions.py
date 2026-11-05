@@ -31,8 +31,9 @@ def _next_request_no(conn: psycopg.Connection[Row]) -> str:
 def _held(conn: psycopg.Connection[Row], user_id: int) -> list[Row]:
     """지금 가진 권한 = 최종 승인됐고 사용 기간이 남은 신청입니다."""
     return conn.execute(
-        "SELECT request_no, access_code, requested_access, period_end FROM access_requests"
-        " WHERE requester_id = %s AND stage = 'approved' AND (period_end = '' OR period_end >= %s) ORDER BY submitted_at",
+        "SELECT r.request_no, r.access_code, r.requested_access, r.period_end, c.system, c.category, c.description"
+        " FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code"
+        " WHERE r.requester_id = %s AND r.stage = 'approved' AND (r.period_end = '' OR r.period_end >= %s) ORDER BY r.submitted_at",
         (user_id, today())).fetchall()
 
 
@@ -386,13 +387,14 @@ def save_ai_verdict(db: Database, request_no: str, result: dict, model: str) -> 
 
 
 def account_record(db: Database, user_id: int, before: str | None = None) -> dict[str, Any] | None:
-    """사람이 정한 것만 담습니다 (예전 AI 등급의 되먹임 방지). before 가 있으면 그 신청부터 뺍니다."""
+    """사람이 정한 것만 담습니다 (예전 AI 등급의 되먹임 방지). before 가 있으면 그 뒤의 이동 · 신청을 뺍니다."""
     with db.connection() as conn:
         user = conn.execute("SELECT id, display_name, department, job, role, is_active, left_on, log_id, created_at FROM users WHERE id = %s",
                             (user_id,)).fetchone()
         if user is None:
             return None
-        moves = [_move(m) for m in conn.execute("SELECT * FROM user_moves WHERE user_id = %s ORDER BY id", (user_id,))]
+        moves = [_move(m) for m in conn.execute("SELECT * FROM user_moves WHERE user_id = %s" + (" AND recorded_at <= %s" if before else "")
+                                                + " ORDER BY id", (user_id, *((before,) if before else ())))]
         held = [dict(r) for r in _held(conn, user_id)]
         rows = conn.execute(
             "SELECT request_no, requested_access, reason, period_end, stage, manager_action, manager_comment, top_action, top_comment,"

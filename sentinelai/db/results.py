@@ -30,24 +30,12 @@ def _utc(stamp: str | None) -> str | None:
 def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
     """→ policy_reviews.id"""
     with db.transaction() as conn:
-        servers = review.get("servers") or {}
         rid = conn.execute(
-            "INSERT INTO policy_reviews (source, load_issues, rules, summary, failed, error, model, elapsed_sec, created_at,"
-            " servers_source, servers_load_issues) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            "INSERT INTO policy_reviews (source, load_issues, rules, summary, failed, error, model, elapsed_sec, created_at)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (str(review.get("source", "")), _json(review.get("load_issues", [])), _json(review.get("rules", [])),
-             review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now(),
-             str(servers.get("source", "")), _json(servers.get("load_issues", []))),
+             review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now()),
         ).fetchone()[0]
-        # reason 에는 요약, sources 에는 차이(gaps)들의 조항을 모읍니다.
-        conn.cursor().executemany(
-            "INSERT INTO server_findings (review_id, seq, host, ip, state, matched, level, reason, recommendation, sources,"
-            " failed, error, elapsed_sec, gaps, unjudged, snapshot) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            [(rid, n, f["host"], f.get("ip", ""), _json(f.get("state", {})), f.get("matched", ""), f.get("level"),
-              f.get("summary", ""), "", _json(list(dict.fromkeys(g["source"] for g in f.get("gaps", []) if g.get("source")))),
-              int(f["failed"]), f.get("error"), f.get("elapsed_sec"), _json(f.get("gaps", [])), _json(f.get("unjudged", [])),
-              _json(f.get("snapshot") or {}))
-             for n, f in enumerate(servers.get("findings", []), start=1)],
-        )
         conn.cursor().executemany(
             "INSERT INTO policy_issues (review_id, seq, kind, level, policy_ids, reason, recommendation) VALUES (%s,%s,%s,%s,%s,%s,%s)",
             [(rid, n, i["kind"], i["level"], _json(i.get("policy_ids", [])), i.get("reason", ""), i.get("recommendation", ""))

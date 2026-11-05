@@ -28,11 +28,11 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Milvus Lite 는 한 프로세스만 열 수 있어 Engine 을 한 번만 만들고 판정은 모두 그 작업 큐로 돌립니다.
+    # Milvus Lite 는 한 프로세스만 열 수 있어 Engine 을 한 번만 만들고 AI 작업은 모두 그 통합 큐로 돌립니다.
     engine = Engine()
     engine.start()
     app.state.engine = engine
-    app.state.main_db, app.state.results_db, app.state.verdicts = engine.main_db, engine.results_db, engine.verdicts
+    app.state.main_db, app.state.results_db = engine.main_db, engine.results_db
     app.state.slack_url = notify.slack_url()
     app.state.mail = notify.mail_settings()
     yield
@@ -96,7 +96,7 @@ class ResetJobs(BaseModel):
 
 @app.post("/api/jobs/reset")
 def reset_jobs(body: ResetJobs, request: Request, user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
-    """돌던 판정 한 건은 끝날 때까지 이어집니다. rerun 이면 같은 작업을 바로 다시 시작합니다."""
+    """돌던 판정 한 건은 끝날 때까지 이어지고 결과는 버립니다. rerun 이면 같은 작업을 다시 넣습니다."""
     reset = _engine(request).reset_jobs(rerun=body.rerun)
     if not reset:
         raise HTTPException(status_code=409, detail="돌고 있는 작업이 없습니다")
@@ -108,11 +108,11 @@ def reset_jobs(body: ResetJobs, request: Request, user: Annotated[User, Depends(
 
 @app.post("/api/jobs/{kind}", status_code=202, dependencies=analyst)
 def start_job(kind: str, request: Request) -> dict[str, Any]:
-    """백그라운드로 시작합니다. 한 번에 하나만 돌아 돌고 있으면 409 입니다."""
+    """큐에 넣습니다 (다른 작업이 돌면 그 뒤에). 같은 작업이 이미 기다리거나 돌고 있으면 409 입니다."""
     if kind not in MANUAL:
         raise HTTPException(status_code=404, detail=f"화면에서 시작할 수 없는 작업입니다: {kind} (가능: {', '.join(MANUAL)})")
-    if not _engine(request).jobs.start(kind):
-        raise HTTPException(status_code=409, detail="다른 작업이 돌고 있습니다. 끝난 뒤 다시 시도하세요.")
+    if not _engine(request).start_job(kind):
+        raise HTTPException(status_code=409, detail="같은 작업이 이미 기다리거나 돌고 있습니다.")
     return jobs(request)
 
 

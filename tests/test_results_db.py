@@ -13,13 +13,10 @@ def test_policy_review(results_db):
         "source": "data/policies", "load_issues": [], "rules": [{"id": "FW-001"}], "summary": "충돌 1건", "failed": False,
         "elapsed_sec": 12.5,
         "issues": [{"kind": "충돌", "level": "위험", "policy_ids": ["SWG-001", "DLP-001"], "reason": "업로드", "recommendation": "차단"}],
-        "servers": {"source": "data/servers", "load_issues": [], "findings": [
-            {"host": "web-01", "ip": "10.0.0.5", "level": "위험", "summary": "root 로그인", "gaps": [GAP], "failed": False}]},
     }, "qwen3:14b")
     review = results.latest_policy_review(results_db)
     assert review["id"] == rid and review["elapsed_sec"] == 12.5
     assert review["issues"][0]["policy_ids"] == ["SWG-001", "DLP-001"]
-    assert review["servers"]["findings"][0]["sources"] == ["6.2 PAM"]
     key = review["issues"][0]["key"]
     assert results.findings_by_key(results_db, [key, "policy_issues/x", "other/1"])[key]["kind"] == "충돌"
     with pytest.raises(Denied, match="AI 결과는 고칠 수 없습니다"), results_db.transaction() as conn:

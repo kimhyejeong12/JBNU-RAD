@@ -1,6 +1,7 @@
 """SentinelAI 엔진 — 정책을 RAG 에 쌓고 정책 이해 · 로그 감시를 판정하는 코어."""
 
 from .engine import KINDS, MANUAL, Engine, Settings
+from .jobs import Job, JobCancelled, JobQueue
 from .prompt import Prompts
 from .rag import DocumentStore, IndexReport
 from .types import Answer, LogFilter, Notifier, PolicyIssue, PolicyReview, RiskLevel, ServerFilter, ServerGap, ServerReview, Verdict
@@ -14,6 +15,9 @@ __all__ = [
     "DocumentStore",
     "Engine",
     "IndexReport",
+    "Job",
+    "JobCancelled",
+    "JobQueue",
     "LogFilter",
     "Notifier",
     "PolicyIssue",
