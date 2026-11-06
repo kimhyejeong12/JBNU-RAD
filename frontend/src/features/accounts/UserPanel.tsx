@@ -12,7 +12,7 @@ import { useUi } from "@/app/ui/state/UiContext";
 import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
-import { Switch } from "@/shared/ui/base/parts";
+import { Meta, Switch } from "@/shared/ui/base/parts";
 import { ask } from "@/app/ui/confirm/ask";
 
 const WIDE_FIELD = cn(field, "col-span-full");
@@ -73,7 +73,7 @@ function EditUser({ u }: { u: UserRow }) {
   const note = locked ? "루트 계정은 루트만 고칠 수 있습니다."
     : u.is_root ? "루트는 역할을 바꾸거나 정지할 수 없습니다."
       : self ? "자기 계정의 역할을 바꾸거나 정지할 수 없습니다."
-        : "계정은 지우지 않고 정지합니다 (결재 기록이 가리킵니다).";
+        : "";
 
   async function onEdit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -84,20 +84,20 @@ function EditUser({ u }: { u: UserRow }) {
     // 부서 · 직무를 옮기면 지금 가진 권한을 AI 가 다시 판정합니다 (빈 칸을 처음 채우는 것은 이동이 아님).
     const moved = (["department", "job"] as const).filter((k) => (u[k] ?? "") !== "" && String(f.get(k) ?? "").trim() !== (u[k] ?? ""));
     if (moved.length && !(await ask({
-      title: "부서 · 직무 이동", confirm: "저장",
-      message: `${u.display_name} (${u.login_id})의 ${moved.map((k) => (k === "department" ? "부서" : "직무")).join(" · ")}를 바꿉니다. 이동으로 기록되고, 지금 가진 권한이 새 업무에 맞는지 AI 가 권한마다 다시 판정합니다 (권한 신청 화면에서 봄).`,
+      title: "부서 이동", confirm: "저장",
+      message: `${u.display_name}의 ${moved.map((k) => (k === "department" ? "부서" : "직무")).join(", ")}를 바꿉니다. 가진 권한을 다시 판정합니다.`,
     }))) return;
     const leftOn = String(f.get("left_on") ?? "");
     if (leftOn && leftOn !== u.left_on && !(await ask({
       title: "퇴사일 적기", confirm: "저장", danger: true,
-      message: `${u.display_name} (${u.login_id})의 퇴사일을 ${leftOn}로 적습니다. 그날이 지나면 남은 권한이 모두 위험(회수 권고)으로 올라갑니다. 계정 정지 · 권한 회수는 따로 하세요.`,
+      message: `${u.display_name}의 퇴사일을 ${leftOn}로 적습니다.`,
     }))) return;
     if (!fixed) {
       const role = f.get("role") as Role;
       // 저장하면 권한이 바로 오르내려서 역할이 바뀔 때만 묻습니다.
       if (role !== u.role && !(await ask({
         title: "역할 바꾸기", confirm: "바꾸기", danger: true,
-        message: `${u.display_name} (${u.login_id})의 역할을 바꿉니다: ${ROLE_LABEL[u.role]} → ${ROLE_LABEL[role]}. 저장하면 바로 그 역할의 메뉴와 권한이 적용됩니다.`,
+        message: `${u.display_name}: ${ROLE_LABEL[u.role]} → ${ROLE_LABEL[role]}`,
       }))) return;
       patch.role = role;
     }
@@ -107,7 +107,7 @@ function EditUser({ u }: { u: UserRow }) {
   async function onToggle(on: boolean) {
     if (!on && !(await ask({
       title: "계정 정지", confirm: "정지", danger: true,
-      message: `${u.display_name} (${u.login_id}) 계정을 정지합니다. 로그인이 막히고, 지금 로그인한 세션도 바로 끊깁니다.`,
+      message: `${u.display_name} 계정을 정지합니다. 로그인 중이면 바로 끊깁니다.`,
     }))) return;
     action.mutate({ id: u.id, patch: { is_active: on }, done: on ? "✓ 활성으로 바꿨습니다" : "✓ 정지했습니다" });
   }
@@ -118,7 +118,7 @@ function EditUser({ u }: { u: UserRow }) {
     const temporary_password = String(new FormData(e.currentTarget).get("temporary_password"));
     if (!(await ask({
       title: "비밀번호 초기화", confirm: "초기화", danger: true,
-      message: `${u.display_name} (${u.login_id})의 비밀번호를 지금 적은 임시 비밀번호로 바꿉니다. 그 사람은 다음 로그인 때 비밀번호를 새로 정해야 합니다.`,
+      message: `${u.display_name}의 비밀번호를 임시 비밀번호로 바꿉니다.`,
     }))) return;
     action.mutate({ id: u.id, temporary_password });
   }
@@ -128,22 +128,22 @@ function EditUser({ u }: { u: UserRow }) {
       <PanelHead title="계정" />
       <div className={panelBody}>
         <p className={subject}>{u.display_name} ({u.login_id})</p>
-        <div className={meta}>{ROLE_LABEL[u.role]}{u.is_root ? " · 루트" : ""} · 만든 날 {stamp(u.created_at)}{u.last_login_at ? ` · 마지막 로그인 ${stamp(u.last_login_at)}` : ""}</div>
+        <div className={meta}><Meta items={[ROLE_LABEL[u.role] + (u.is_root ? " (루트)" : ""), `만든 날 ${stamp(u.created_at)}`, u.last_login_at && `마지막 로그인 ${stamp(u.last_login_at)}`]} /></div>
         {!locked && (
           <>
             <Switch className="mt-3.5" checked={u.is_active} disabled={fixed || action.isPending} onChange={onToggle}
-              label={u.is_active ? "활성" : "정지"} hint={u.is_active ? "로그인할 수 있습니다. 끄면 정지 · 세션 끊김" : "로그인할 수 없습니다. 켜면 다시 로그인할 수 있습니다"} />
+              label={u.is_active ? "활성" : "정지"} hint={u.is_active ? "로그인 가능" : "로그인 막힘"} />
             <form key={`edit:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-edit" onKeyDown={noEnterSubmit} onSubmit={onEdit}>
               <label className={field}>이름<input className={input} name="display_name" defaultValue={u.display_name} maxLength={100} /></label>
               <label className={field}>부서<input className={input} name="department" defaultValue={u.department ?? ""} maxLength={100} /></label>
               <label className={field}>직무<input className={input} name="job" defaultValue={u.job} maxLength={100} placeholder="예: 서버 운영 담당" /></label>
               <div className={WIDE_FIELD}>역할<RoleSelect value={u.role} disabled={fixed} /></div>
-              <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="보안 솔루션 로그의 UserID" /></label>
+              <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="로그의 UserID" /></label>
               <label className={field}>퇴사일<input className={input} name="left_on" type="date" defaultValue={u.left_on} /></label>
               <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
             </form>
             <form key={`reset:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-reset" noValidate onKeyDown={noEnterSubmit} onSubmit={onReset}>
-              <label className={WIDE_FIELD}>비밀번호 초기화 — 임시 비밀번호<input className={input} name="temporary_password" type="password" required autoComplete="new-password" /></label>
+              <label className={WIDE_FIELD}>임시 비밀번호<input className={input} name="temporary_password" type="password" required autoComplete="new-password" /></label>
               <div className={WIDE_ACTIONS}><button type="submit" className={actionButton}>초기화</button></div>
             </form>
           </>

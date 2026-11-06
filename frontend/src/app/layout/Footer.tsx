@@ -16,7 +16,7 @@ export function Footer() {
   return (
     <footer className="px-1 py-0.5 text-[11.5px] text-ink-dim" id="foot">
       {results.generated_at ? `계산 시각 ${stamp(results.generated_at)}` : "아직 분석하지 않았습니다"}
-      {warns.map((w, i) => <Fragment key={i}> · <span className="text-risk">{w}</span></Fragment>)}
+      {warns.map((w, i) => <Fragment key={i}>{"  "}<span className="ml-2.5 text-risk">{w}</span></Fragment>)}
     </footer>
   );
 }

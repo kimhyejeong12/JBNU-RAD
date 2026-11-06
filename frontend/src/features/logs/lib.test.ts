@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import { filterChoices, logAttrs, pageCount } from "./lib";
 
 test("logAttrs: 항목을 '키=값 · 키=값' 으로", () => {
-  expect(logAttrs({ attributes: { Attachments: "a.pdf", PrintCount: 3 } })).toBe("Attachments=a.pdf · PrintCount=3");
+  expect(logAttrs({ attributes: { Attachments: "a.pdf", PrintCount: 3 } })).toBe("Attachments=a.pdf, PrintCount=3");
   expect(logAttrs({})).toBe("");
 });
 

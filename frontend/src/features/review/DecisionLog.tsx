@@ -12,7 +12,7 @@ export function DecisionLog({ log, it }: { log: Record<string, Record<string, De
   const steps = rows.map((d) => ({
     title: d.action === "cancel" ? "결정 취소" : DECISIONS[d.action],
     who: person(d.decider_name, d.decider_department),
-    when: `${stamp(d.decided_at)}${d.ai_level ? ` · 그때 AI 판정 ${d.ai_level}` : ""}`,
+    when: stamp(d.decided_at),
     say: d.comment,
   }));
   return (

@@ -75,7 +75,7 @@ function PasswordForm({ forced }: { forced: boolean }) {
     <form className={CARD} id="pw-form" noValidate onSubmit={onSubmit}>
       <h3 id="pw-title" className="m-0 text-[17px] font-bold">{forced ? "처음 로그인했습니다" : "비밀번호 변경"}</h3>
       <p className={note} id="pw-note">
-        {forced ? "계속하려면 비밀번호를 바꾸세요. 루트가 준 임시 비밀번호는 더 쓸 수 없습니다." : "바꾸면 다른 곳에 로그인된 세션은 끊깁니다."}
+        {forced ? "계속하려면 비밀번호를 바꾸세요." : "바꾸면 다른 곳에 로그인된 세션은 끊깁니다."}
       </p>
       <label className={field}>지금 비밀번호<input className={input} name="current" type="password" autoComplete="current-password" required autoFocus /></label>
       <label className={field}>새 비밀번호<input className={input} name="new" type="password" autoComplete="new-password" required /></label>

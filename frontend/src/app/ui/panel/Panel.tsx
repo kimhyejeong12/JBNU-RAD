@@ -25,7 +25,8 @@ export function PanelMsg() {
   return <p className={cn(ui.panelMsg.startsWith("✓") ? formMsgOk : formMsg, "my-[1em]")}>{ui.panelMsg}</p>;
 }
 
-export function PanelFoot({ note: text }: { note: ReactNode }) {
+export function PanelFoot({ note: text }: { note?: ReactNode }) {
   const { ui } = useUi();
+  if (!ui.panelMsg && !text) return null;
   return <div className={panelFoot}>{ui.panelMsg ? <PanelMsg /> : <p className={note}>{text}</p>}</div>;
 }

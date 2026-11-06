@@ -14,11 +14,7 @@ export function EngineTab() {
   const d = q.data;
 
   async function onClear() {
-    const message = "도는 작업과 기다리는 작업을 모두 끝내고 판정 워커를 새로 띄웁니다.\n\n"
-      + "· 지금 판정 중인 한 건은 끝날 때까지 이어지고 결과는 버립니다.\n"
-      + "· 뜰 때처럼 기준 문서 적재 · 판정 못한 권한 신청을 다시 쌓습니다. 자동 실행은 정한 시각에 다시 돕니다.\n"
-      + "· 로그 감시 · 정책 관리 검토는 남는 것 없이 다음 실행이 같은 구간을 다시 판정합니다.\n"
-      + "· 감사 기록에 남습니다.";
+    const message = "모든 작업을 끝내고 큐를 새로 시작합니다.";
     if (await ask({ title: "작업 큐 강제 초기화", confirm: "초기화", danger: true, message })) clear.mutate();
   }
 
@@ -27,12 +23,11 @@ export function EngineTab() {
       <section className={section}>
         <div className={cardHead}>
           <h3 className={cardTitle}>작업 큐</h3>
-          <span className={cn(cardCount, "ml-0")} id="queue-count">{d ? `도는 작업 ${d.current ? 1 : 0} · 기다리는 작업 ${waitingCount(d)}` : ""}</span>
+          <span className={cn(cardCount, "ml-0")} id="queue-count">{d ? `실행 ${d.current ? 1 : 0}, 대기 ${waitingCount(d)}` : ""}</span>
           <button className={cn(toolButton, "border-risk text-risk")} id="queue-clear" disabled={!d || clear.isPending} onClick={() => void onClear()}>
             <Icon name="warn" small />{clear.isPending ? "초기화하는 중…" : "강제 초기화"}
           </button>
         </div>
-        <p className={cn(note, "mx-4.5 mt-0 mb-3")}>판정은 워커 하나가 길 순서(판정 · 적재 → 빠른 감시 → 정기 작업) · 들어온 순서로 한 건씩 꺼냅니다. 모델 서버가 응답하지 않아 큐가 멈췄을 때 초기화하세요.</p>
         {q.isError ? <p className={cn(note, "mx-4.5 mb-4 text-risk")}>작업 큐를 받지 못했습니다: {q.error.message}</p>
           : d ? <Current d={d} /> : <p className={cn(note, "mx-4.5 mb-4")}>불러오는 중…</p>}
       </section>
@@ -76,7 +71,7 @@ function Waiting({ d }: { d: QueueDetail }) {
             {d.lanes.flatMap((lane) => [
               ...lane.jobs.slice(0, LANE_ROWS).map((j) => (
                 <tr key={j.id}>
-                  <td className={cn(ltd, "whitespace-nowrap text-ink-dim")}>{lane.lane} · {lane.name}</td>
+                  <td className={cn(ltd, "whitespace-nowrap text-ink-dim")}>{lane.name}</td>
                   <td className={ltd}>{jobName(d, j.kind)}{j.auto ? " (자동)" : ""}</td>
                   <td className={ltd}>{jobTarget(j)}</td>
                   <td className={cn(ltd, "tabular-nums")}>{stamp(j.created_at)}</td>

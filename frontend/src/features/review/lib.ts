@@ -55,7 +55,7 @@ export function eventItems(r: Results): QueueItem[] {
       what: `로그 ${lines.length}건 — ${f.reason}`,
       when: stamp(f.detail?.last_event_at),
       // 정밀 감시가 같은 구간을 다시 판정하면 1차 판정은 목록에서 빠집니다.
-      sub: f.stage === "fast" ? "1차 판정 · 확정 대기" : "",
+      sub: f.stage === "fast" ? "1차 판정" : "",
       judge: f.level, raw: f,
     };
   });

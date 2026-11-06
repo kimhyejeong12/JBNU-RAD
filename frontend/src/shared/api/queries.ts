@@ -3,7 +3,7 @@ import { getJSON } from "./http";
 import { jobsInterval } from "./jobs";
 import type {
   AccessItem, AskItem, Conversation, Health, Jobs, LogsPage, LogsParams, Me, NodeDetail, NodeRow, QaRecord, Regulation,
-  RequestRow, Results, StatPeriod, Stats, UserRow, UserStats, WatchPerson,
+  RequestRow, Results, RiskPeople, StatPeriod, Stats, UserRow, UserStats, WatchPerson,
 } from "./types";
 
 // /api/logs 는 조회마다 감사 기록을 남겨 암묵적 재요청(포커스 · 재접속 · 재시도)을 모두 끕니다.
@@ -35,6 +35,15 @@ export const peopleQuery = () => queryOptions({
   queryFn: () => getJSON<WatchPerson[]>("/api/people"),
   refetchInterval: (q) => (q.state.data?.some((p) => p.flags.some((f) => f.text.endsWith("재검토 대기"))) ? 3000 : false),
   refetchIntervalInBackground: true,
+});
+
+// 바로 알리려고 30초마다 다시 셉니다.
+export const riskPeopleQuery = () => queryOptions({
+  queryKey: ["requests", "risk"],
+  queryFn: () => getJSON<RiskPeople>("/api/risk-people"),
+  refetchInterval: 30_000,
+  refetchIntervalInBackground: true,
+  staleTime: 0,
 });
 
 export const usersQuery = () => queryOptions({ queryKey: ["users"], queryFn: () => getJSON<UserRow[]>("/api/users") });

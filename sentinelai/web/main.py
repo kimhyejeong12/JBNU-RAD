@@ -162,6 +162,12 @@ def stats(request: Request, user: Approver, period: str = "month") -> dict[str, 
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
+@app.get("/api/risk-people")
+def risk_people(request: Request, user: Approver) -> dict[str, Any]:
+    """이동 · 퇴사한 사람의 위험 — 코드가 셈, 화면이 자주 다시 받습니다."""
+    return _engine(request).risk_people()
+
+
 @app.get("/api/user-stats")
 def user_stats(request: Request, user: Approver, period: str = "month") -> dict[str, Any]:
     try:

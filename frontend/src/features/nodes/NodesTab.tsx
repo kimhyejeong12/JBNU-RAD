@@ -39,7 +39,7 @@ export function NodesTab() {
           <tbody id="node-rows">
             {nodes.isError ? <tr className={lrowTone(false)}><td colSpan={5} className={ltdEmpty}>노드 목록을 받지 못했습니다: {nodes.error.message}</td></tr>
               : !nodes.data ? <tr className={lrowTone(false)}><td colSpan={5} className={ltdEmpty}>불러오는 중…</td></tr>
-                : !list.length ? <tr className={lrowTone(false)}><td colSpan={5} className={ltdEmpty}>아직 등록된 노드가 없습니다.<br />[노드 등록]으로 서버마다 키를 발급하고, 그 서버에 node/install.sh 로 노드를 까세요.</td></tr>
+                : !list.length ? <tr className={lrowTone(false)}><td colSpan={5} className={ltdEmpty}>등록된 노드가 없습니다.</td></tr>
                   : list.map((n) => {
                     const [cls, label, tip] = nodeState(n);
                     return (

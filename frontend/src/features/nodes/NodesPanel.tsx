@@ -17,7 +17,7 @@ import { cn } from "@/shared/lib/cn";
 import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import {
-  actionButton, box, empty, field, formActions, formGrid, formMsg, input, meta, note, panelBody, primaryButton, recLine, subject, toolButton,
+  actionButton, box, boxPre, empty, field, formActions, formGrid, formMsg, input, meta, note, panelBody, primaryButton, recLine, subject, toolButton,
 } from "@/shared/ui/base/styles";
 
 export function NodesPanel() {
@@ -45,10 +45,9 @@ function AddNodePanel() {
       <PanelHead title="노드 등록" />
       <div className={panelBody}>
         <form id="node-form" className={formGrid} noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
-          <label className={cn(field, "col-span-full")}><span>노드 이름 <b className="text-risk">*</b></span><input className={input} id="node-name" name="name" required maxLength={64} pattern="[A-Za-z0-9._\-]+" title="영문 · 숫자 · . _ - 만" placeholder="예: cust-db01" autoFocus /></label>
+          <label className={cn(field, "col-span-full")}><span>노드 이름 <b className="text-risk">*</b></span><input className={input} id="node-name" name="name" required maxLength={64} pattern="[A-Za-z0-9._\-]+" title="영문, 숫자, . _ -" placeholder="예: cust-db01" autoFocus /></label>
           <div className={cn(formActions, "col-span-full")}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>등록하고 키 발급</button></div>
         </form>
-        <p className={note}>서버 하나에 노드 하나. 이름은 영문 · 숫자 · . _ - 로 짓습니다.</p>
       </div>
     </>
   );
@@ -61,10 +60,10 @@ function SummaryPanel({ list }: { list: NodeRow[] }) {
       <PanelHead title="수집 노드" />
       <div className={panelBody}>
         <Section icon="activity" title="상태">
-          <KvTable rows={[["노드", `${list.length}대`], ["수집 중", `${count("on")}대`], ["끊김", `${count("stale")}대`], ["꺼짐 · 키 없음 · 기다리는 중", `${count("off") + count("wait")}대`]]} />
+          <KvTable rows={[["노드", `${list.length}대`], ["수집 중", `${count("on")}대`], ["끊김", `${count("stale")}대`], ["꺼짐", `${count("off") + count("wait")}대`]]} />
         </Section>
         <Section icon="server" title="노드 깔기">
-          <p className={note}>1. [노드 등록]으로 서버 이름을 넣고 키를 받습니다.<br />2. 그 서버에서 node/install.sh --server {location.origin} --key {"<키>"}</p>
+          <div className={boxPre}>node/install.sh --server {location.origin} --key {"<키>"}</div>
         </Section>
       </div>
     </>
@@ -126,15 +125,15 @@ function NodeRecords({ d }: { d: NodeDetail }) {
       <Section icon="activity" title="마지막 서버 점검">
         {finding ? (
           <>
-            <div className={box}><LevelDot level={finding.level || "주의"} />{finding.failed ? "판정 실패" : finding.level} · {stamp(finding.created_at)}<br />{finding.summary}</div>
+            <div className={box}><LevelDot level={finding.level || "주의"} />{finding.failed ? "판정 실패" : finding.level} <span className="text-ink-dim">{stamp(finding.created_at)}</span><br />{finding.summary}</div>
             {item && <button className={toolButton} id="to-finding" onClick={() => select(item.key)}><Icon name="list" small />검토 현황에서 보기</button>}
           </>
-        ) : <p className={note}>{d.latest ? "다음 주기 점검을 기다리고 있습니다." : "아직 받은 수집이 없습니다."}</p>}
+        ) : <p className={note}>{d.latest ? "점검 대기" : "수집 없음"}</p>}
       </Section>
       <Section icon="list" title="최근 수집">
         {d.snapshots.length
           ? <KvTable rows={d.snapshots.map((x) => [stamp(x.collected_at), !x.changes.length ? "달라진 설정 없음"
-            : x.changes.slice(0, 4).join(" · ") + (x.changes.length > 4 ? ` 외 ${x.changes.length - 4}개` : "")])} />
+            : x.changes.slice(0, 4).join(", ") + (x.changes.length > 4 ? ` 외 ${x.changes.length - 4}개` : "")])} />
           : <p className={note}>없음</p>}
       </Section>
       {d.latest && <ModuleTables snap={d.latest} />}

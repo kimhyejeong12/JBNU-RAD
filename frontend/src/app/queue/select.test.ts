@@ -48,7 +48,7 @@ test("openRisks: 내가 결재할 위험 신청 + 결정하지 않은 위험 판
 test("todoCounts: 사이드바 숫자는 할 일 — 내 단계 결재 대기 · 결정 안 한 주의 이상(1차 판정 제외), 탭과 상관없이, 입력은 바꾸지 않는다", () => {
   const evtFast = item({ type: "event", key: "event:f", level: "위험", raw: { stage: "fast" } });
   const frozen = Object.freeze([...items, evtFast]);
-  expect(todoCounts(frozen, ["requests", "policies", "events", "qa", "docs"], "manager")).toEqual({ requests: 1, policies: 1, events: 1 });
+  expect(todoCounts(frozen, ["requests", "policies", "events", "docs"], "manager")).toEqual({ requests: 1, policies: 1, events: 1 });
   expect(todoCounts(frozen, ["requests", "policies", "events"], "top").requests).toBe(0);
 });
 
@@ -68,7 +68,7 @@ test("조건에 걸러진 것이면 그 문구", () => {
 });
 
 test("정책 관리 · 로그 감시", () => {
-  expect(emptyText("events", "pending", jobs, false)).toBe("검토할 주의 · 위험 판정이 없습니다.");
+  expect(emptyText("events", "pending", jobs, false)).toBe("검토할 판정이 없습니다.");
   expect(emptyText("policies", "pending", jobs, false)).toBe("아직 정책 관리 결과가 없습니다. 오른쪽 위 [정책 관리 검토 실행]을 누르세요.");
   expect(emptyText("policies", "pending", null, false)).toBe("아직 정책 관리 결과가 없습니다. 오른쪽 위 [분석 실행]을 누르세요.");
 });

@@ -13,7 +13,7 @@ test("eventItems: 로그 줄 수 · 1차 판정 · 결정", () => {
   const r: Results = { ...EMPTY_RESULTS, events: [event({ detail: { events: "a\nb\n", last_event_at: "2026-10-20T18:30:00+09:00" }, stage: "fast" })], decisions: { event: { k1: decision } } };
   expect(eventItems(r)[0]).toMatchObject({
     type: "event", key: "event:k1", itemKey: "k1", id: "LOG-abc", level: "위험", judge: "위험",
-    who: "A 개발 박민수", what: "로그 2건 — 퇴근 뒤 출력", when: "2026-10-20 18:30", sub: "1차 판정 · 확정 대기", decision,
+    who: "A 개발 박민수", what: "로그 2건 — 퇴근 뒤 출력", when: "2026-10-20 18:30", sub: "1차 판정", decision,
   });
   expect(eventItems({ ...EMPTY_RESULTS, events: [event({ stage: "final" })] })[0]).toMatchObject({ what: "로그 0건 — 퇴근 뒤 출력", sub: "", decision: undefined });
 });

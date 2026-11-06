@@ -71,7 +71,7 @@ export function RequestForm({ hidden }: { hidden: boolean }) {
 
 // 시스템마다 줄을 나누면 카드가 적은 시스템도 한 줄을 차지해 한 격자에 이어 놓습니다.
 function AccessPicker({ o, onPick }: { o: AccessOptions; onPick: (code: string) => void }) {
-  if (o.empty) return <p className={cn(note, "font-normal")}>신청할 수 있는 권한이 없습니다. 보안 총책임자에게 등록을 요청하세요.</p>;
+  if (o.empty) return <p className={cn(note, "font-normal")}>신청할 수 있는 권한이 없습니다.</p>;
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-2 font-normal" role="radiogroup" aria-label="신청할 권한">
       <input type="hidden" name="access_code" value={o.value} />
@@ -90,7 +90,7 @@ function AccessCard({ a, reason, picked, onPick }: { a: AccessItem; reason?: str
         <span className="min-w-0 flex-1">{a.name}</span>
         {reason && <span className="shrink-0 rounded-[99px] bg-line px-1.75 text-[11px] font-semibold">{reason}</span>}
       </span>
-      <span className="text-[12px] text-ink-dim">{[a.system || "기타", a.category].filter(Boolean).join(" · ")}</span>
+      <span className="text-[12px] text-ink-dim">{[a.system || "기타", a.category].filter(Boolean).join(", ")}</span>
       {a.description && <span className="line-clamp-2 text-[12px] text-ink-dim">{a.description}</span>}
     </button>
   );

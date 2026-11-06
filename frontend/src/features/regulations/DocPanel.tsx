@@ -6,7 +6,7 @@ import { busyJob } from "@/shared/api/jobs";
 import type { Regulation } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
-import { Section } from "@/shared/ui/base/parts";
+import { Meta, Section } from "@/shared/ui/base/parts";
 import { actionButton, dangerButton, field, formActions, input, meta, note, panelActions, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useRemoveRegulation, useUploadRegulation } from "./api";
@@ -38,12 +38,11 @@ function UploadDoc() {
     <>
       <PanelHead title="기준 문서 올리기" />
       <form className={panelBody} id="doc-upload" noValidate onSubmit={onSubmit}>
-        <label className={field}>문서 파일 (.md · .txt, 1MB 까지)
+        <label className={field}>문서 파일 (.md, .txt)
           <input className={input} type="file" accept=".md,.txt" required
             onChange={(e) => { const f = e.target.files?.[0] ?? null; setFile(f); setProblem(f ? uploadProblem(f, names) ?? "" : ""); }} />
         </label>
         {problem && <p className={cn(note, "text-risk")}>{problem}</p>}
-        <p className={note}>올리면 바로 AI 판정의 근거로 씁니다. 정책은 [정책 관리 검토 실행] 때 새 기준으로 다시 판정됩니다.</p>
         <div className={cn(formActions, "mt-3")}>
           <PanelMsg />
           <button type="submit" className={cn(actionButton, primaryButton)} disabled={upload.isPending}>{upload.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "올리는 중…") : "올리기"}</button>
@@ -62,7 +61,7 @@ function DocView({ d, canEdit }: { d: Regulation; canEdit: boolean }) {
       <PanelHead title="기준 문서" />
       <div className={panelBody}>
         <p className={subject}>{it.who}</p>
-        <div className={meta}>{d.name}{d.updated_at ? ` · 고친 시각 ${stamp(d.updated_at)}` : ""} · 조항 {it.judge}</div>
+        <div className={meta}><Meta items={[d.name, d.updated_at && `고친 시각 ${stamp(d.updated_at)}`, `조항 ${it.judge}`]} /></div>
         {mode === "edit" ? <EditDoc d={d} onClose={close} /> : mode === "remove" ? <RemoveDoc d={d} onClose={close} /> : (
           <>
             {canEdit && (
@@ -77,7 +76,7 @@ function DocView({ d, canEdit }: { d: Regulation; canEdit: boolean }) {
           </>
         )}
       </div>
-      <PanelFoot note="AI 판정의 근거로 쓰는 문서입니다." />
+      <PanelFoot />
     </>
   );
 }
@@ -95,10 +94,7 @@ function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (problem) return setTried(true);
-    const message = `기준 문서 ${d.name} 내용을 고칩니다.\n\n`
-      + "· 저장하면 이 문서를 바로 다시 적재하고, 앞으로의 AI 판정은 새 내용을 근거로 씁니다.\n"
-      + "· 정책은 다음 [정책 관리 검토 실행] 때 새 기준으로 다시 판정됩니다.\n"
-      + "· 고치기 전 원문과 사유는 감사 기록에 남습니다.";
+    const message = `${d.name}을(를) 고칩니다. 다음 판정부터 새 내용을 씁니다.`;
     if (await ask({ title: "기준 문서 고치기", confirm: "고치기", message })) edit.mutate({ name: d.name, content, reason }, { onSuccess: onClose });
   }
   // 기다리는 중이면 고치기를 멈추고 쓰던 글은 남깁니다.
@@ -112,14 +108,14 @@ function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
       <label className={field}>원문
         <textarea className={cn(input, "resize-y")} rows={18} value={content} onChange={(e) => setContent(e.target.value)} />
       </label>
-      <label className={field}>고치는 사유 (감사 기록에 남습니다)
-        <input className={input} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="예: 출력 · 매체 반출 조항 추가" />
+      <label className={field}>사유
+        <input className={input} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="예: 매체 반출 조항 추가" />
       </label>
-      <label className={field}>확인 — 파일 이름을 똑같이 입력하세요
+      <label className={field}>파일 이름 확인
         <input className={input} value={typed} autoComplete="off" onChange={(e) => setTyped(e.target.value)} placeholder={d.name} />
       </label>
       {problem && <p className={cn(note, tried && "text-risk")}>{problem}</p>}
-      {busy && !problem && <p className={note}>지금 AI 작업({busy})이 돌고 있어, 고치기를 누르면 끝나는 대로 바로 적용합니다.</p>}
+      {busy && !problem && <p className={note}>{busy} 끝난 뒤 적용됩니다.</p>}
       <div className={formActions}>
         <button type="button" className={actionButton} onClick={() => void onCancel()}>취소</button>
         <button type="submit" className={cn(actionButton, primaryButton)} disabled={edit.isPending}>{edit.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "적재하는 중…") : "고치기"}</button>
@@ -140,10 +136,7 @@ function RemoveDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (problem) return setTried(true);
-    const message = `기준 문서 ${d.name} 를 지웁니다.\n\n`
-      + "· 이 문서의 조항은 바로 AI 판정의 근거에서 빠집니다.\n"
-      + "· 이미 이 문서를 근거로 낸 판정은 그대로 남습니다. 정책은 다음 [정책 관리 검토 실행] 때 남은 기준으로 다시 판정됩니다.\n"
-      + "· 지운 원문과 사유는 감사 기록에 남습니다.";
+    const message = `${d.name}을(를) 지웁니다. 다음 판정부터 근거에서 빠집니다.`;
     if (await ask({ title: "기준 문서 지우기", confirm: "지우기", danger: true, message })) remove.mutate({ name: d.name, reason });
   }
 
@@ -156,7 +149,7 @@ function RemoveDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
         <input className={input} value={typed} autoComplete="off" onChange={(e) => setTyped(e.target.value)} placeholder={d.name} />
       </label>
       {problem && <p className={cn(note, (tried || count <= 1) && "text-risk")}>{problem}</p>}
-      {busy && !problem && <p className={note}>지금 AI 작업({busy})이 돌고 있어, 지우기를 누르면 끝나는 대로 바로 적용합니다.</p>}
+      {busy && !problem && <p className={note}>{busy} 끝난 뒤 적용됩니다.</p>}
       <div className={formActions}>
         <PanelMsg />
         <button type="button" className={actionButton} onClick={onClose} disabled={remove.isPending}>취소</button>

@@ -20,7 +20,7 @@ test("requestItem: 판정 중 · 판정 대기 · 판정 실패 · 등급", () =
 
 test("requestItem: 상태 글자 — 기간이 끝난 승인은 따로", () => {
   expect(requestItem(row({ stage: "manager" })).sub).toBe("1차 결재 대기");
-  expect(requestItem(row({ stage: "approved", period_end: "2000-01-01" })).sub).toBe("승인 · 기간 끝");
+  expect(requestItem(row({ stage: "approved", period_end: "2000-01-01" })).sub).toBe("만료");
   expect(requestItem(row({ stage: "approved", period_end: null })).sub).toBe("승인");
 });
 
@@ -65,7 +65,7 @@ const approval = { step: "manager", action: "approve", approver_name: "박운영
 
 test("결재 기록 — 단계 · 결정 · 이름 (부서) · 시각 · 그때 AI 판정 · 의견", () => {
   expect(approvalSteps(row({ approvals: [approval] }))).toEqual([
-    { title: "1차 승인", who: "박운영 (보안팀)", when: "2026-10-29 03:49 · 그때 AI 판정 주의", say: "확인했습니다" },
+    { title: "1차 승인", who: "박운영 (보안팀)", when: "2026-10-29 03:49", say: "확인했습니다" },
   ]);
 });
 
@@ -81,22 +81,22 @@ test("최종 반려와 회수는 기록 끝에 붙는다", () => {
 
 test("반려 의견 — 반려한 단계 · 결재자 · 의견, 의견이 없으면 그렇게 적음", () => {
   const finalReject = { ...approval, step: "top", action: "reject", comment: "인사팀장 승인이 필요합니다" } as const;
-  expect(rejectNote(row({ stage: "rejected", approvals: [approval, finalReject] }))).toBe("최종 반려 · 박운영 (보안팀) — 인사팀장 승인이 필요합니다");
-  expect(rejectNote(row({ stage: "rejected", approvals: [{ ...approval, action: "reject", comment: null }] }))).toBe("1차 반려 · 박운영 (보안팀) — 의견 없음");
+  expect(rejectNote(row({ stage: "rejected", approvals: [approval, finalReject] }))).toBe("최종 반려: 인사팀장 승인이 필요합니다");
+  expect(rejectNote(row({ stage: "rejected", approvals: [{ ...approval, action: "reject", comment: null }] }))).toBe("1차 반려: 의견 없음");
   expect(rejectNote(row({ stage: "approved", approvals: [approval] }))).toBeUndefined();
 });
 
 test("내 신청 줄 — 반려된 신청에만 반려 의견을 단다", () => {
   const rejected = row({ stage: "rejected", approvals: [{ ...approval, action: "reject", comment: "사유 부족" }] });
-  expect(rejectNote(rejected)).toBe("1차 반려 · 박운영 (보안팀) — 사유 부족");
+  expect(rejectNote(rejected)).toBe("1차 반려: 사유 부족");
   expect(rejectNote(row({ stage: "manager" }))).toBeUndefined();
 });
 
 test("보유 중 배지의 기간 — 올해면 월/일까지, 다른 해면 날짜 전체, 끝나는 날이 없으면 보유 중만", () => {
   expect(heldLabel(null, "2026-11-02")).toBe("보유 중");
-  expect(heldLabel("2026-12-31", "2026-11-02")).toBe("보유 중 · 12/31까지");
-  expect(heldLabel("2027-01-15", "2026-11-02")).toBe("보유 중 · 2027-01-15까지");
-  expect(accessOptions([access("A-1", "A")], [mine("A-1", "approved", "2999-03-05")], "").reason["A-1"]).toBe("보유 중 · 2999-03-05까지");
+  expect(heldLabel("2026-12-31", "2026-11-02")).toBe("보유 중 (12/31까지)");
+  expect(heldLabel("2027-01-15", "2026-11-02")).toBe("보유 중 (2027-01-15까지)");
+  expect(accessOptions([access("A-1", "A")], [mine("A-1", "approved", "2999-03-05")], "").reason["A-1"]).toBe("보유 중 (2999-03-05까지)");
 });
 
 test("내 신청 묶음 — 결재 중(1차 · 최종) · 사용 중(승인 · 기간 남음) · 끝난 것(반려 · 철회 · 회수 · 기간 끝남)", () => {
@@ -110,7 +110,7 @@ test("내 신청 묶음 — 결재 중(1차 · 최종) · 사용 중(승인 · �
 
 test("내 신청 상태 글자 — 사용 중은 기간까지, 기간이 끝난 승인은 만료, 나머지는 단계 이름", () => {
   const on = "2026-11-02";
-  expect(mineStatus(row({ stage: "approved", period_end: "2026-12-31" }), on)).toBe("사용 중 · 12/31까지");
+  expect(mineStatus(row({ stage: "approved", period_end: "2026-12-31" }), on)).toBe("12/31까지");
   expect(mineStatus(row({ stage: "approved", period_end: null }), on)).toBe("사용 중");
   expect(mineStatus(row({ stage: "approved", period_end: "2026-10-31" }), on)).toBe("만료");
   expect(mineStatus(row({ stage: "manager" }), on)).toBe("1차 결재 대기");
@@ -126,10 +126,10 @@ test("requestItem: 보유 권한 재검토 — 퇴사는 바로 위험, 이동�
   const move = { id: 1, from_department: "보안팀", from_job: "보안 관제", to_department: "인사팀", to_job: "", moved_on: "2026-11-03" };
   const verdict = { level: "위험" as const, reason: "r", recommendation: "c", sources: [], by: "code" as const };
   const held = { stage: "approved" as const, period_end: "" };
-  expect(requestItem(row({ ...held, grant_review: { cause: "leave", left_on: "2026-11-01", verdict } })).sub).toBe("승인 · 퇴사 재검토 위험");
-  expect(requestItem(row({ ...held, grant_review: { cause: "move", move, verdict: null, judging: true } })).sub).toBe("승인 · 이동 재검토 판정 중");
-  expect(requestItem(row({ ...held, grant_review: { cause: "move", move, verdict: null } })).sub).toBe("승인 · 이동 재검토 판정 대기");
-  expect(requestItem(row({ ...held, grant_review: { cause: "move", move, verdict: { ...verdict, level: "정상", by: "ai" } } })).sub).toBe("승인 · 이동 재검토 정상");
+  expect(requestItem(row({ ...held, grant_review: { cause: "leave", left_on: "2026-11-01", verdict } })).sub).toBe("퇴사 재검토 위험");
+  expect(requestItem(row({ ...held, grant_review: { cause: "move", move, verdict: null, judging: true } })).sub).toBe("이동 재검토 판정 중");
+  expect(requestItem(row({ ...held, grant_review: { cause: "move", move, verdict: null } })).sub).toBe("이동 재검토 판정 대기");
+  expect(requestItem(row({ ...held, grant_review: { cause: "move", move, verdict: { ...verdict, level: "정상", by: "ai" } } })).sub).toBe("이동 재검토 정상");
   expect(moveText(move)).toBe("2026-11-03 보안팀(보안 관제) → 인사팀");
 });
 
@@ -138,5 +138,5 @@ test("personItem: 확인할 사람 한 줄 — 부서 이름(직무), 걸린 것
     flags: [{ kind: "grant" as const, level: "위험" as const, at: "2026-10-20", text: "보유 CRM 조회 — 이동 뒤 재검토 위험", request_no: "REQ-1" },
             { kind: "move" as const, level: "정상" as const, at: "2026-11-03", text: "이동 2026-11-03 보안팀 → 인사팀" }] };
   expect(personItem(p)).toMatchObject({ type: "person", key: "person:3", id: "dev-user", level: "위험", who: "인사팀 김 (채용 담당)",
-    what: "보유 CRM 조회 — 이동 뒤 재검토 위험 · 이동 2026-11-03 보안팀 → 인사팀", when: "2026-11-03", judge: "위험", sub: "2건 · 정지" });
+    what: "보유 CRM 조회 — 이동 뒤 재검토 위험, 이동 2026-11-03 보안팀 → 인사팀", when: "2026-11-03", judge: "위험", sub: "2건 (정지)" });
 });

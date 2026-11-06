@@ -9,10 +9,10 @@ const job = (p: Partial<QueueJob>): QueueJob => ({
 test("잡 key 에서 대상을 읽음", () => {
   expect(jobTarget(job({}))).toBe("재무 정다은");
   expect(jobTarget(job({ kind: "request", key: "REQ-20261105-001", lane: 0 }))).toBe("REQ-20261105-001");
-  expect(jobTarget(job({ kind: "grant", key: "grant:REQ-20261105-001:7" }))).toBe("REQ-20261105-001 · 이동 7");
+  expect(jobTarget(job({ kind: "grant", key: "grant:REQ-20261105-001:7" }))).toBe("REQ-20261105-001 (이동 7)");
   expect(jobTarget(job({ kind: "suspects", key: "suspects:account:3" }))).toBe("account:3");
   expect(jobTarget(job({ kind: "index", key: "index:2" }))).toBe("docs/");
-  expect(jobTarget(job({ key: "events:close", close: true }))).toBe("마무리 · 저장");
+  expect(jobTarget(job({ key: "events:close", close: true }))).toBe("저장");
 });
 
 test("기다리는 수 · 묶음 진행 · 마지막 실행 순서", () => {

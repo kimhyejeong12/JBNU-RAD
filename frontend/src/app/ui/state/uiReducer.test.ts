@@ -1,12 +1,12 @@
 import { expect, test } from "vitest";
-import { initialUi, newConversation, uiReducer, type UiState } from "./uiReducer";
+import { initialUi, newConversation, panelIdle, uiReducer, type UiState } from "./uiReducer";
 
 const at = (patch: Partial<UiState>): UiState => ({ ...initialUi, ...patch });
 
-test("NAVIGATE: 다른 메뉴로 가면 거르기 · 메시지 · 인용을 초기화하고 첫 항목을 고른다", () => {
+test("NAVIGATE: 다른 메뉴로 가면 거르기 · 메시지를 초기화하고 첫 항목을 고른다 (질의 팝업은 그대로)", () => {
   const s = uiReducer(at({ view: "requests", mainTab: "queue", filter: "위험", panelMsg: "✓", askSource: { i: 0, n: 0 }, query: "x" }),
     { type: "NAVIGATE", view: "policies", nextSelected: "policy:1" });
-  expect(s).toMatchObject({ view: "policies", mainTab: "queue", filter: "전체", panelMsg: "", askSource: null, selected: "policy:1", query: "x" });
+  expect(s).toMatchObject({ view: "policies", mainTab: "queue", filter: "전체", panelMsg: "", askSource: { i: 0, n: 0 }, selected: "policy:1", query: "x" });
 });
 
 test("NAVIGATE: 같은 메뉴면 거르기를 유지한다", () => {
@@ -15,10 +15,10 @@ test("NAVIGATE: 같은 메뉴면 거르기를 유지한다", () => {
 });
 
 test("NAVIGATE: 검토 현황 탭이 없는 메뉴는 첫 탭으로", () => {
-  expect(uiReducer(at({ view: "requests" }), { type: "NAVIGATE", view: "qa", nextSelected: null }).mainTab).toBe("ask");
   const stats = uiReducer(at({ view: "requests" }), { type: "NAVIGATE", view: "stats", nextSelected: null });
-  expect(stats.mainTab).toBe("stats");
-  expect(stats.stats.kind).toBe("stats");
+  expect(stats.mainTab).toBe("risk");
+  expect(panelIdle(stats)).toBe(true);
+  expect(uiReducer(stats, { type: "SET_MAIN_TAB", tab: "stats" }).stats.kind).toBe("stats");
 });
 
 test("NAVIGATE: 관리의 탭을 보면 기억하고, 다른 메뉴로 가도 잊지 않는다", () => {
@@ -40,14 +40,15 @@ test("SELECT: 다른 메뉴의 항목이면 메뉴를 바꾸고 검토 현황 �
 });
 
 test("SET_CONVERSATION: 대화를 바꾸면 근거 패널 선택을 푼다", () => {
-  const s = uiReducer(at({ view: "qa", mainTab: "ask", askSource: { i: 0, n: 1 } }), { type: "SET_CONVERSATION", id: "a".repeat(32) });
+  const s = uiReducer(at({ view: "events", askOpen: true, askSource: { i: 0, n: 1 } }), { type: "SET_CONVERSATION", id: "a".repeat(32) });
   expect(s).toMatchObject({ conversation: "a".repeat(32), askSource: null });
   expect(newConversation()).toMatch(/^[0-9a-f]{32}$/);
 });
 
-test("SET_MAIN_TAB: 탭을 바꾸면 인용 조항을 닫고, 통계 종류가 바뀌면 선택을 푼다", () => {
-  const s = uiReducer(at({ view: "events", mainTab: "ask", askSource: { i: 1, n: 0 } }), { type: "SET_MAIN_TAB", tab: "logs" });
-  expect(s).toMatchObject({ mainTab: "logs", askSource: null });
+test("SET_MAIN_TAB: 질의 팝업은 탭과 무관하고, 통계 종류가 바뀌면 선택을 푼다", () => {
+  const s = uiReducer(at({ view: "events", askOpen: true, askSource: { i: 1, n: 0 } }), { type: "SET_MAIN_TAB", tab: "logs" });
+  expect(s).toMatchObject({ mainTab: "logs", askOpen: true, askSource: { i: 1, n: 0 } });
+  expect(uiReducer(s, { type: "SET_ASK_OPEN", open: false }).askOpen).toBe(false);
   const u = uiReducer(at({ view: "stats", mainTab: "stats", stats: { period: "week", kind: "stats", selected: { kind: "node", key: "a" } } }), { type: "SET_MAIN_TAB", tab: "ustats" });
   expect(u.stats).toEqual({ period: "week", kind: "ustats", selected: null });
 });
@@ -66,7 +67,6 @@ test("CLOSE_PANEL: 서랍을 닫고 탭별 선택을 푼다", () => {
   expect(uiReducer(at({ mainTab: "nodes", drawerOpen: true, nodes: { selected: "n1", adding: false } }), { type: "CLOSE_PANEL" }))
     .toMatchObject({ drawerOpen: false, nodes: { selected: null, adding: false } });
   expect(uiReducer(at({ mainTab: "logs", logs: { ...initialUi.logs, selected: 3 } }), { type: "CLOSE_PANEL" }).logs.selected).toBeNull();
-  expect(uiReducer(at({ mainTab: "ask", askSource: { i: 0, n: 0 } }), { type: "CLOSE_PANEL" }).askSource).toBeNull();
   expect(uiReducer(at({ mainTab: "stats", stats: { ...initialUi.stats, selected: { kind: "node", key: "n1" } } }), { type: "CLOSE_PANEL" }).stats.selected).toBeNull();
   expect(uiReducer(at({ mainTab: "queue", selected: "req:1", drawerOpen: true }), { type: "CLOSE_PANEL" })).toMatchObject({ selected: "req:1", drawerOpen: false });
 });
@@ -92,7 +92,7 @@ test("TOGGLE_CHIP: 펼친 칩을 넣고 뺀다", () => {
 
 test("NAVIGATE: 지금 탭이 새 메뉴에도 있으면 탭을 유지한다", () => {
   expect(uiReducer(at({ view: "stats", mainTab: "ustats" }), { type: "NAVIGATE", view: "stats", nextSelected: null }).mainTab).toBe("ustats");
-  expect(uiReducer(at({ view: "qa", mainTab: "ask" }), { type: "NAVIGATE", view: "policies", nextSelected: null }).mainTab).toBe("queue");
+  expect(uiReducer(at({ view: "stats", mainTab: "risk" }), { type: "NAVIGATE", view: "policies", nextSelected: null }).mainTab).toBe("queue");
   expect(uiReducer(at({ view: "policies", mainTab: "nodes" }), { type: "NAVIGATE", view: "events", nextSelected: null }).mainTab).toBe("queue");
 });
 

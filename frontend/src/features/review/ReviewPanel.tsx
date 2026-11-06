@@ -10,7 +10,7 @@ import type { EventFinding, ServerFinding, Snapshot } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/base/Icon";
-import { LevelDot, Section } from "@/shared/ui/base/parts";
+import { LevelDot, Meta, Section } from "@/shared/ui/base/parts";
 import { ModuleChanges, ModuleTables } from "@/shared/ui/server/ModuleTables";
 import { cn } from "@/shared/lib/cn";
 import {
@@ -23,7 +23,7 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
   const r = it.raw;
   // 10/14 전 서버 점검 결과(recommendation 이 있음)는 예전 칸으로 보입니다.
   const gapped = it.type === "server" && !it.raw.failed && !it.raw.recommendation;
-  const title = it.type === "policy" ? `${it.who} · ${it.raw.kind}` : it.raw.title;
+  const title = it.type === "policy" ? `${it.who} ${it.raw.kind}` : it.raw.title;
 
   return (
     <>
@@ -48,8 +48,7 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
 
       {it.type === "event" && it.raw.stage === "fast" ? (
         <div className={panelFoot}>
-          <h4 className={panelFootTitle}>1차 판정 — 확정 대기</h4>
-          <p className={note}>빠른 감시의 판정입니다. 정밀 감시가 확정하면 결정할 수 있습니다.</p>
+          <h4 className={panelFootTitle}>1차 판정 (확정 대기)</h4>
         </div>
       ) : <DecisionFoot it={it} />}
     </>
@@ -78,13 +77,13 @@ function DecisionFoot({ it }: { it: ReviewItem }) {
         {decision ? (
           <>
             <span className="min-w-0 flex-1">
-              결정 <b className="text-ink">{DECISIONS[decision.action]}</b> · {`${decision.decider_department ?? ""} ${decision.decider_name}`.trim()} · {stamp(decision.decided_at)}
-              {decision.ai_level ? ` (그때 AI 판정: ${decision.ai_level})` : ""}{decision.comment ? ` — ${decision.comment}` : ""}
-              {decision.carried_from ? " · 같은 결과의 지난 판정에서 이어짐" : ""}
+              <Meta items={[<b key="a" className="text-ink">{DECISIONS[decision.action]}</b>, decision.decider_name, stamp(decision.decided_at),
+                decision.carried_from && "이전 결정"]} />
+              {decision.comment && <span className="block">{decision.comment}</span>}
             </span>
             <button id="undo" onClick={() => act("cancel")} className="shrink-0 self-start border-none bg-transparent p-0 text-[12px] whitespace-nowrap text-ink-dim underline">취소</button>
           </>
-        ) : <span>AI는 권고만 합니다. 최종 결정은 사람이 내립니다.</span>}
+        ) : null}
       </div>
       <PanelMsg />
     </div>
@@ -97,7 +96,7 @@ function ServerSections({ f }: { f: ServerFinding }) {
     <>
       {snap?.modules && (
         <>
-          {snap.changes?.length ? <ModuleChanges snap={snap} /> : <p className={cn(note, "mt-3.5")}>직전 수집과 달라진 설정 없음</p>}
+          {snap.changes?.length ? <ModuleChanges snap={snap} /> : <p className={cn(note, "mt-3.5")}>바뀐 설정 없음</p>}
           <ModuleFold snap={snap} />
         </>
       )}
@@ -151,7 +150,7 @@ function GapSections({ itemKey, f }: { itemKey: string; f: ServerFinding }) {
             {g.source && <SourceChips itemKey={`${itemKey}:gap${n}`} sources={[g.source]} className="mt-1.5" />}
           </div>
         )) : <div className={box}>기준 문서와 다른 곳을 찾지 못했습니다.</div>}
-        {f.unjudged.length > 0 && <p className={note}>다루는 조항이 없어 판단하지 않은 항목: {f.unjudged.join(", ")}</p>}
+        {f.unjudged.length > 0 && <p className={note}>판단 안 함: {f.unjudged.join(", ")}</p>}
       </Section>
     </>
   );

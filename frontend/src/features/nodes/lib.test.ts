@@ -8,10 +8,10 @@ const node = (p: Partial<NodeRow>): NodeRow => ({
 });
 
 test("꺼짐 · 키 없음 · 끊김 · 기다리는 중 · 수집 중 순서로 본다", () => {
-  expect(nodeState(node({ enabled: false, key_issued: false }))).toEqual(["off", "꺼짐", "보내도 받지 않고 주기 점검에서도 빠집니다"]);
-  expect(nodeState(node({ key_issued: false, stale: true }))).toEqual(["wait", "키 없음", "손으로 넣은 수집뿐입니다. 키를 발급해 노드에 넣으면 직접 보낼 수 있습니다"]);
-  expect(nodeState(node({ stale: true }))).toEqual(["stale", "끊김", "30분 간격인데 세 번 넘게 소식이 없습니다"]);
-  expect(nodeState(node({ last_collected_at: null }))).toEqual(["wait", "기다리는 중", "키를 발급했지만 아직 받은 수집이 없습니다"]);
+  expect(nodeState(node({ enabled: false, key_issued: false }))).toEqual(["off", "꺼짐", "수집, 점검 안 함"]);
+  expect(nodeState(node({ key_issued: false, stale: true }))).toEqual(["wait", "키 없음", "키를 발급하세요"]);
+  expect(nodeState(node({ stale: true }))).toEqual(["stale", "끊김", "90분 넘게 소식 없음"]);
+  expect(nodeState(node({ last_collected_at: null }))).toEqual(["wait", "기다리는 중", "첫 수집 대기"]);
   expect(nodeState(node({}))).toEqual(["on", "수집 중", "30분마다"]);
   expect(nodeState(node({ interval_min: null }))[2]).toBe("?분마다");
 });

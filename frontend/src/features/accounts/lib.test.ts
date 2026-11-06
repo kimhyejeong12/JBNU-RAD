@@ -13,13 +13,13 @@ test("userItem: 정지 · 잠김 · 활성, 비밀번호 변경 전, 루트 표�
   expect(userItem(user({ locked_until: "2999-01-01T00:00:00+09:00" })).judge).toBe("잠김");
   expect(userItem(user({ locked_until: "2000-01-01T00:00:00+09:00" })).judge).toBe("활성");
   expect(userItem(user({ must_change_password: true })).sub).toBe("비밀번호 변경 전");
-  expect(userItem(user({ role: "top", is_root: true })).typeLabel).toBe("보안 총책임자 · 루트");
+  expect(userItem(user({ role: "top", is_root: true })).typeLabel).toBe("보안 총책임자 (루트)");
   expect(userItem(user({ department: null, last_login_at: null })) ).toMatchObject({ what: "부서 없음", when: "—" });
 });
 
 test("userItem: 직무는 부서 옆에, 퇴사일이 지났으면 아래 줄에 퇴사", () => {
-  expect(userItem(user({ job: "보안 관제" })).what).toBe("보안팀 · 보안 관제");
+  expect(userItem(user({ job: "보안 관제" })).what).toBe("보안팀, 보안 관제");
   expect(userItem(user({ left_on: "2026-11-01" }), "2026-11-03").sub).toBe("2026-11-01 퇴사");
   expect(userItem(user({ left_on: "2026-11-10" }), "2026-11-03").sub).toBe("");
-  expect(userItem(user({ left_on: "2026-11-01", must_change_password: true }), "2026-11-03").sub).toBe("2026-11-01 퇴사 · 비밀번호 변경 전");
+  expect(userItem(user({ left_on: "2026-11-01", must_change_password: true }), "2026-11-03").sub).toBe("2026-11-01 퇴사, 비밀번호 변경 전");
 });

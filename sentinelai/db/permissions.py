@@ -193,6 +193,28 @@ def watch_people(db: Database) -> list[dict[str, Any]]:
     return out
 
 
+def expired_grants(db: Database) -> list[dict[str, Any]]:
+    """WATCH_DAYS 안에 사용 기간이 끝났는데 회수 기록이 없는 일반 사용자의 권한과 그 사람입니다."""
+    day = today()
+    since = (date.fromisoformat(day) - timedelta(days=WATCH_DAYS)).isoformat()
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT r.request_no, r.requested_access, r.period_end, u.id, u.login_id, u.display_name, u.department, u.job,"
+            " u.is_active, u.left_on FROM access_requests r JOIN users u ON u.id = r.requester_id"
+            " WHERE r.stage = 'approved' AND r.period_end <> '' AND r.period_end < %s AND r.period_end >= %s AND u.role = 'user'"
+            " ORDER BY r.period_end DESC", (day, since)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def log_ids(db: Database, user_ids: list[int]) -> dict[int, str]:
+    """계정 id → 로그 사용자 ID (적지 않은 계정은 뺍니다)."""
+    if not user_ids:
+        return {}
+    with db.connection() as conn:
+        rows = conn.execute("SELECT id, log_id FROM users WHERE id = ANY(%s) AND log_id <> ''", (user_ids,)).fetchall()
+    return {r["id"]: r["log_id"] for r in rows}
+
+
 def _move_text(m: Any) -> str:
     side = lambda d, j: f"{d or '부서 없음'}{f'({j})' if j else ''}"  # noqa: E731
     return f"{m['moved_on']} {side(m['from_department'], m['from_job'])} → {side(m['to_department'], m['to_job'])}"

@@ -13,6 +13,8 @@ const ICONS: Record<string, ReactNode> = {
   warn: <><circle cx="12" cy="12" r="9" /><path d="M12 8v4M12 16h.01" /></>,
   bad: <><circle cx="12" cy="12" r="9" /><path d="m15 9-6 6M9 9l6 6" /></>,
   chev: <path d="m9 6 6 6-6 6" />,
+  back: <path d="m15 6-6 6 6 6" />,
+  close: <path d="M18 6 6 18M6 6l12 12" />,
   file: <><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></>,
   db: <><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></>,
   activity: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,

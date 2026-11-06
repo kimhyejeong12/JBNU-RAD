@@ -176,6 +176,9 @@ class Engine:
     def user_stats(self, period: str) -> dict[str, Any]:
         return self.issuer.user_stats(period)
 
+    def risk_people(self) -> dict[str, Any]:
+        return self.issuer.risk_people()
+
     def browse_logs(self, user: User, period: str, who: str = "", solution: str = "", how: str = "", page: int = 1,
                     ip: str | None = None) -> dict[str, Any]:
         return self.issuer.browse_logs(user, period, who, solution, how, page, ip)
