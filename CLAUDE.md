@@ -101,7 +101,7 @@ JBNU-RAD/
 ├── frontend/                 React 화면 소스 (김혜정) — TypeScript · Vite · TanStack Query · Vitest · Tailwind v4. 10/29에 옛 index.html 을 기능 · 모양 그대로 옮기고 10/30에 CSS를 Tailwind로 바꿨음 (화면 그대로, 리디자인은 다음)
 │   └── src/
 │       ├── app/                  껍데기 — App(로그인 게이트) · styles.css(CSS는 이 파일 하나 — Tailwind · 색 토큰 · 화면 틀)
-│       │   ├── layout/             화면 틀 — AppShell · TopBar · Sidebar · Workspace · MainTabs · RightPanel · Footer · 큰 화면 확대(pageScale)
+│       │   ├── layout/             화면 틀 — AppShell · TopBar · TopNav(메뉴) · Workspace · MainTabs · RightPanel · Footer · 큰 화면 확대(pageScale)
 │       │   ├── overlays/           툴팁
 │       │   ├── session/            로그인한 사람(me) · 역할별 메뉴(views) · 역할별 데이터 훅(data) · 부팅(useBoot) · 새로고침 뒤 마지막 화면(lastPage)
 │       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · SourceChips) · confirm/(확인 창 — ask · ConfirmLayer)
@@ -637,7 +637,7 @@ ExecStartPre=+/usr/bin/nvidia-smi
 
 ### 운영자 결정 이어받기 (11/2)
 
-- 결정은 판정 한 건(`node_findings/{id}` · `policy_issues/{id}`)에 붙어, 노드가 새 수집을 보내거나(기본 30분) 정책 관리 검토를 다시 돌리면 같은 문제도 새 판정이라 결정 없음이 됐음 → 사이드바 "처리할 일" 숫자가 같은 문제로 계속 되살아남
+- 결정은 판정 한 건(`node_findings/{id}` · `policy_issues/{id}`)에 붙어, 노드가 새 수집을 보내거나(기본 30분) 정책 관리 검토를 다시 돌리면 같은 문제도 새 판정이라 결정 없음이 됐음 → 메뉴의 "처리할 일" 숫자가 같은 문제로 계속 되살아남
 - 웹(`/api/results`)이 결과가 그대로인 새 판정에 지난 결정을 이어 붙임. 같다 = 서버 점검은 노드 · 등급 · 정책과 다른 곳(항목 · 등급, 정상 항목 제외), 정책 문제는 유형 · 등급 · 정책 ID. 권한 DB의 결정 기록은 그대로(새 행을 쓰지 않음)
 - 그 판정에 자기 기록(취소 포함)이 있으면 잇지 않음 — 이어진 결정을 취소하면 정말 결정 없음이 되게
 - 로그 감시는 판정마다 새 로그 구간이라 잇지 않음. 한계: 모델이 같은 문제를 다른 말 · 다른 항목 이름으로 내면 다른 결과로 봄
@@ -770,3 +770,10 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - 대화 · 근거 선택 · 열림은 메뉴 · 탭을 옮겨도 그대로 (답을 기다리는 중에 다른 메뉴로 가도 답이 이어짐). 닫혀 있는 동안 답을 기다리면 버튼에 점
 - 버튼이 오른쪽 패널의 결재 버튼을 가리지 않게 운영자 화면은 아래 여백을 둠. 휴대폰 폭에서는 팝업이 화면 전체
 - 11/6 시험(시험 웹): 정책 관리에서 열어 묻고 다른 메뉴로 옮긴 뒤에도 답(재무 정다은 출력 48회 ✅, 17.9초) · 근거 보기 · Esc 확인
+
+### 위 메뉴 (11/6)
+
+- 왼쪽 사이드바(접기 · 펼치기)를 없애고 메뉴를 위 막대(`TopNav`)로 옮겼음 (사용자 결정 — 시안을 보고 정함). 목록 · 오른쪽 패널이 화면 폭을 다 씀
+- 처리할 일 건수는 메뉴 옆 빨간 배지. [관리](보안 총책임자) · [기준 문서](보안 운영자)는 구분선 뒤 끝에
+- 1150px 이하에서는 메뉴가 막대 아래 줄로 내려가 옆으로 밂 — 좁은 화면용 메뉴 고르기(`Seg`)는 뺐음
+- 휴대폰 폭에서 탭 이름이 글자마다 줄을 바꾸던 것을 고쳤음 (줄 바꿈 없음, 아이콘 숨김)
