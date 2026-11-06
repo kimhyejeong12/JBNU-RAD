@@ -239,6 +239,43 @@ class Issuer:
         return {"period": period, "since": at, "events": {"users": results.threat_stats(results_db, at)["events"]["users"]},
                 "requests": permissions.request_stats(main_db, at), "suspects": suspects, "safety": results.user_safety(results_db, at)}
 
+    def risk_people(self) -> dict[str, Any]:
+        """부서 · 직무를 옮겼거나 사용 기간이 끝난 권한이 남은 일반 사용자 — 이동 뒤 보유 권한 재검토 · 로그 감시 판정을 더합니다."""
+        main_db, results_db = self.res.main_db, self.res.results_db
+        # 결재 중 신청 · 퇴사는 확인할 사람에 있어 여기서는 이동과 보유 권한만 봅니다.
+        people = {p["id"]: {**p, "flags": [f for f in p["flags"] if f["kind"] in ("move", "grant")]}
+                  for p in permissions.watch_people(main_db) if any(f["kind"] == "move" for f in p["flags"])}
+        for r in permissions.expired_grants(main_db):
+            p = people.setdefault(r["id"], {"id": r["id"], "login_id": r["login_id"], "name": r["display_name"],
+                                            "department": r["department"], "job": r["job"], "is_active": bool(r["is_active"]),
+                                            "left_on": r["left_on"], "flags": []})
+            p["flags"].append({"kind": "expired", "level": "주의", "at": r["period_end"], "request_no": r["request_no"],
+                               "text": f"{r['requested_access']} ({r['period_end']} 만료)"})
+        log_ids = permissions.log_ids(main_db, list(people))
+        error = None
+        try:
+            by_log = group_by_user(self.res.sources.events().records)
+        except (FileNotFoundError, ValueError) as exc:
+            by_log, error = {}, str(exc)
+        found = (results.monitor_findings(results_db) or {}).get("findings", [])
+        for p in people.values():
+            log_id = log_ids.get(p["id"], "")
+            logs = by_log.get(log_id, []) if log_id else []
+            p["log_id"], p["log_user"] = log_id, group_subject(logs) if logs else ""
+            # 이동한 사람만 — 가장 이른 이동 뒤의 주의 · 위험 판정입니다.
+            since = min((f["at"] for f in p["flags"] if f["kind"] == "move"), default=None)
+            for f in found if since and log_id else []:
+                if f["user"] == log_id and not f["failed"] and f["level"] in ("주의", "위험") and f["last_event_at"][:10] >= since:
+                    stage = " (1차)" if f["stage"] == "fast" else ""
+                    p["flags"].append({"kind": "event", "level": f["level"], "at": f["last_event_at"][:10], "event_key": f["key"],
+                                       "text": f"로그 감시 {f['level']}{stage}: {f['reason']}"})
+            p["flags"].sort(key=lambda f: f["at"], reverse=True)
+            p["flags"].sort(key=lambda f: -permissions.LEVEL_RANK[f["level"]])
+            p["level"], p["at"] = p["flags"][0]["level"], max(f["at"] for f in p["flags"])
+        out = sorted(people.values(), key=lambda p: p["at"], reverse=True)
+        out.sort(key=lambda p: -permissions.LEVEL_RANK[p["level"]])
+        return {"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "people": out, "log_error": error}
+
     def browse_logs(self, user: User, period: str, who: str = "", solution: str = "", how: str = "", page: int = 1,
                     ip: str | None = None) -> dict[str, Any]:
         """조회 조건을 감사 기록에 남깁니다."""
