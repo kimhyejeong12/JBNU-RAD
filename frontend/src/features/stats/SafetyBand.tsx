@@ -15,7 +15,7 @@ export type SafetyGroup = [name: string, list: { key: string; label: string }[],
 
 export function SafetyBand({ label, safety, groups, onSelect, names = 3 }: { label: string; safety: SafetyScore | null | undefined; groups: SafetyGroup[]; onSelect: (kind: string, key: string) => void; names?: number }) {
   if (!safety || safety.score == null) {
-    return <div className={SCORE}><span className={statLabel}>{label}</span><span className={BIG}>—</span><p className={note}>아직 점검한 대상이 없습니다.</p></div>;
+    return <div className={SCORE}><span className={statLabel}>{label}</span><span className={BIG}>—</span><p className={note}>점검 없음</p></div>;
   }
   const t = safety.trend || [];
   const shown = groups.filter(([, list]) => list.length);
@@ -36,7 +36,7 @@ export function SafetyBand({ label, safety, groups, onSelect, names = 3 }: { lab
               </span>
             )}
           </div>
-        )) : <p className={note}>점수를 깎은 대상이 없습니다.</p>}
+        )) : <p className={note}>문제 없음</p>}
       </div>
       <div className="phone:col-span-full">
         {t.length > 1 ? (

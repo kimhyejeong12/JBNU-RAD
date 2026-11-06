@@ -20,5 +20,5 @@ test("clauseText: 모르는 문서", () => {
 });
 
 test("chipLabel: 문서 이름과 조항 번호", () => {
-  expect(chipLabel("[접근권한_관리기준.md] 4.1, 4.2", regs)).toBe("접근권한_관리기준 · 4.1, 4.2");
+  expect(chipLabel("[접근권한_관리기준.md] 4.1, 4.2", regs)).toBe("접근권한_관리기준 4.1, 4.2");
 });

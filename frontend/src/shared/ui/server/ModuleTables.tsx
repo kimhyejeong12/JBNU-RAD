@@ -18,7 +18,7 @@ export function ModuleState({ snap }: { snap?: Snapshot | null }) {
 export function ModuleChanges({ snap }: { snap: Snapshot }) {
   return (
     <Section icon="activity" title="직전 수집과 달라진 설정">
-      {snap.changes?.length ? <div className={boxPre}>{snap.changes.join("\n")}</div> : <p className={note}>직전 수집과 달라진 설정이 없습니다.</p>}
+      {snap.changes?.length ? <div className={boxPre}>{snap.changes.join("\n")}</div> : <p className={note}>바뀐 설정 없음</p>}
     </Section>
   );
 }
@@ -26,7 +26,7 @@ export function ModuleChanges({ snap }: { snap: Snapshot }) {
 export function ModuleTables({ snap }: { snap: Snapshot }) {
   return (
     <Section icon="db" title="모듈 상태">
-      <p className={note}>{stamp(snap.collected_at)} 수집 · {snap.collected_by || "수집 계정 모름"}</p>
+      <p className={note}>{stamp(snap.collected_at)} 수집</p>
       {Object.entries(snap.modules ?? {}).map(([m, facts]) => (
         <Fragment key={m}>
           <p className="mx-0 mt-2.5 mb-1 text-[12px] font-bold text-ink-dim">{MODULE_LABEL[m] || m}</p>

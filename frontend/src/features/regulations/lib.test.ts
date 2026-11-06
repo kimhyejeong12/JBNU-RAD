@@ -21,7 +21,7 @@ test("제목 줄이 없으면 파일 이름, 조항이 없으면 없음", () => 
 test("올릴 파일 확인 — .md · .txt 만, 1MB 까지, 같은 이름은 안 됨", () => {
   expect(uploadProblem({ name: "개인정보_처리기준.md", size: 2048 }, ["접근권한_관리기준.md"])).toBeNull();
   expect(uploadProblem({ name: "메모.TXT", size: 10 }, [])).toBeNull();
-  expect(uploadProblem({ name: "절차서.pdf", size: 10 }, [])).toBe(".md · .txt 파일만 올릴 수 있습니다");
+  expect(uploadProblem({ name: "절차서.pdf", size: 10 }, [])).toBe(".md, .txt 파일만 올릴 수 있습니다");
   expect(uploadProblem({ name: "큰문서.md", size: 1_000_001 }, [])).toBe("1MB 까지 올릴 수 있습니다");
   expect(uploadProblem({ name: "접근권한_관리기준.md", size: 10 }, ["접근권한_관리기준.md"])).toBe("같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요");
 });

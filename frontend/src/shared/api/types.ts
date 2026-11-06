@@ -81,11 +81,12 @@ export interface RequestRow {
 }
 
 export interface WatchFlag {
-  kind: "leave" | "move" | "grant" | "request";
+  kind: "leave" | "move" | "grant" | "request" | "expired" | "event";
   level: Level;
   at: string;
   text: string;
   request_no?: string;
+  event_key?: string;   // 로그 감시 판정 (event 만)
 }
 
 export interface WatchPerson {
@@ -99,6 +100,15 @@ export interface WatchPerson {
   level: Level;
   at: string;
   flags: WatchFlag[];
+  log_id?: string;     // 이동 · 만료에만
+  log_user?: string;
+}
+
+// 부서 · 직무를 옮겼거나 사용 기간이 끝난 권한이 남은 사람 — 코드가 셉니다 (모델 없음).
+export interface RiskPeople {
+  generated_at: string;
+  people: WatchPerson[];
+  log_error: string | null;
 }
 
 export interface UserMove {

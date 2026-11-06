@@ -16,7 +16,7 @@ export function useDecide() {
   return useMutation({
     mutationFn: ({ it, action, comment }: DecideArgs) => send<{ decision?: Decision | null }>("/api/decisions", {
       kind: it.type, item_key: it.itemKey, action, ai_level: it.level || null,
-      subject: it.type === "policy" ? `${it.who} · ${it.raw.kind}` : it.raw.title,
+      subject: it.type === "policy" ? `${it.who} ${it.raw.kind}` : it.raw.title,
       comment: action === "cancel" ? "" : comment || "",
     }),
     onSuccess: async (res, { it, action }) => {

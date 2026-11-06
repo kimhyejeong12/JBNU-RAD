@@ -24,5 +24,5 @@ export function chipLabel(source: string, regulations: Regulation[]): string {
   const doc = docOf(source, regulations);
   const nums = clauseNums(source);
   const name = doc ? doc.name.replace(/\.md$/, "") : source.replace(/[[\]#]/g, "").trim();
-  return nums.length ? `${name} · ${nums.join(", ")}` : name;
+  return nums.length ? `${name} ${nums.join(", ")}` : name;
 }

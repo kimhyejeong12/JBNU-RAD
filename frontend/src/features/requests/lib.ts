@@ -13,7 +13,7 @@ export function requestItem(r: RequestRow): QueueItem {
     what: r.requested_access,
     when: stamp(r.submitted_at),
     judge: level || (r.judging ? "판정 중" : v && v.failed ? "판정 실패" : "판정 대기"),
-    sub: r.stage === "approved" && !isActive(r) ? "승인 · 기간 끝" : grantNote(r) ?? STAGE_LABEL[r.stage],
+    sub: r.stage === "approved" && !isActive(r) ? "만료" : grantNote(r) ?? STAGE_LABEL[r.stage],
     raw: r,
   };
 }
@@ -22,10 +22,10 @@ export function personItem(p: WatchPerson): QueueItem {
   return {
     type: "person", key: `person:${p.id}`, id: p.login_id, level: p.level,
     who: `${p.department} ${p.name}`.trim() + (p.job ? ` (${p.job})` : ""),
-    what: p.flags.map((f) => f.text).join(" · "),
+    what: p.flags.map((f) => f.text).join(", "),
     when: p.at,
     judge: p.level,
-    sub: `${p.flags.length}건${!p.is_active ? " · 정지" : ""}`,
+    sub: `${p.flags.length}건${!p.is_active ? " (정지)" : ""}`,
     raw: p,
   };
 }
@@ -36,7 +36,7 @@ export function grantNote(r: RequestRow): string | undefined {
   if (!g) return undefined;
   const v = g.verdict;
   const state = v ? (v.failed ? "판정 실패" : v.level) : g.judging ? "판정 중" : "판정 대기";
-  return `승인 · ${g.cause === "leave" ? "퇴사" : "이동"} 재검토 ${state}`;
+  return `${g.cause === "leave" ? "퇴사" : "이동"} 재검토 ${state}`;
 }
 
 // 예: 2026-11-03 보안팀(보안 관제) → 인사팀(채용 담당)
@@ -54,7 +54,7 @@ export function mineGroup(r: RequestRow, on: string = today()): MineGroup {
 export function mineStatus(r: RequestRow, on: string = today()): string {
   if (r.stage !== "approved") return STAGE_LABEL[r.stage];
   if (!isActive(r, on)) return "만료";
-  return r.period_end ? `사용 중 · ${shortDate(r.period_end, on)}까지` : "사용 중";
+  return r.period_end ? `${shortDate(r.period_end, on)}까지` : "사용 중";
 }
 
 export function shortDate(day: string, on: string = today()): string {
@@ -66,7 +66,7 @@ export function rejectNote(r: RequestRow): string | undefined {
   if (r.stage !== "rejected") return undefined;
   const a = [...(r.approvals ?? [])].reverse().find((x) => x.action === "reject");
   if (!a) return undefined;
-  return `${a.step === "manager" ? "1차" : "최종"} 반려 · ${person(a.approver_name, a.approver_department)} — ${a.comment || "의견 없음"}`;
+  return `${a.step === "manager" ? "1차" : "최종"} 반려: ${a.comment || "의견 없음"}`;
 }
 
 // 신청자는 1차 결재 전에만 철회합니다 (서버도 같은 조건으로 막습니다).
@@ -99,14 +99,14 @@ export function accessOptions(catalog: AccessItem[], mine: RequestRow[], prev: s
 }
 
 export function heldLabel(periodEnd: string | null, on: string = today()): string {
-  return periodEnd ? `보유 중 · ${shortDate(periodEnd, on)}까지` : "보유 중";
+  return periodEnd ? `보유 중 (${shortDate(periodEnd, on)}까지)` : "보유 중";
 }
 
 export function approvalSteps(r: RequestRow): HistoryStep[] {
   const steps: HistoryStep[] = (r.approvals ?? []).map((a) => ({
     title: `${a.step === "manager" ? "1차" : "최종"} ${a.action === "approve" ? "승인" : "반려"}`,
     who: person(a.approver_name, a.approver_department),
-    when: `${stamp(a.decided_at)}${a.ai_level ? ` · 그때 AI 판정 ${a.ai_level}` : ""}`,
+    when: stamp(a.decided_at),
     say: a.comment,
   }));
   if (r.revocation) {

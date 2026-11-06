@@ -6,7 +6,6 @@ import { PersonPanel } from "@/features/requests/PersonPanel";
 import { ReviewPanel } from "@/features/review/ReviewPanel";
 import { NodesPanel } from "@/features/nodes/NodesPanel";
 import { LogsPanel } from "@/features/logs/LogsPanel";
-import { AskPanel } from "@/features/ask/AskPanel";
 import { StatsPanel } from "@/features/stats/StatsPanel";
 import { UserPanel } from "@/features/accounts/UserPanel";
 import { AccessPanel } from "@/features/catalog/AccessPanel";
@@ -23,8 +22,7 @@ export function RightPanel() {
   const items = useQueue();
   const it = items.find((i) => i.key === ui.selected);
   let body: ReactNode;
-  if (ui.mainTab === "ask") body = <AskPanel />;
-  else if (ui.mainTab === "logs") body = <LogsPanel />;
+  if (ui.mainTab === "logs") body = <LogsPanel />;
   else if (ui.mainTab === "nodes") body = <NodesPanel />;
   else if (ui.mainTab === "stats" || ui.mainTab === "ustats") body = <StatsPanel />;
   else if (ui.selected === NEW_ITEM && ui.view === "users") body = <UserPanel key="new" u={null} />;
@@ -54,9 +52,9 @@ function EmptyQueuePanel({ view }: { view: View | null }) {
   const top = useMe().role === "top";
   const people = useUi().ui.stageFilter === "people";
   const [title, text] = view === "requests" && people
-    ? ["확인할 사람", <>목록에서 사람을 고르면<br />걸린 신청 · 보유 권한 · 이동이 표시됩니다.</>]
+    ? ["확인할 사람", <>사람을 고르세요</>]
     : view === "requests"
-    ? ["권한 신청 검토", <>목록에서 신청을 선택하면<br />신청 내용 · AI 판정 · 결재 기록이 표시됩니다.</>]
+    ? ["권한 신청 검토", <>신청을 고르세요</>]
     : view === "users" ? ["계정", <>목록에서 계정을 고르거나<br />[새 계정]을 누르세요.</>]
       : view === "access" ? ["권한", <>목록에서 권한을 고르거나<br />[권한 등록]을 누르세요.</>]
         : view === "docs" ? ["기준 문서", top ? <>목록에서 문서를 고르거나<br />[문서 업로드]를 누르세요.</> : <>목록에서 문서를 고르면<br />원문을 봅니다.</>]

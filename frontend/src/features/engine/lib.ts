@@ -39,11 +39,11 @@ export const jobName = (d: Pick<QueueDetail, "labels">, kind: string): string =>
 
 // 잡 key 는 "종류:대상" 이고, 권한 신청은 신청 번호 그대로, 재검토는 grant:신청 번호:이동 id 입니다.
 export function jobTarget(j: Pick<QueueJob, "kind" | "key" | "close">): string {
-  if (j.close) return "마무리 · 저장";
+  if (j.close) return "저장";
   if (j.kind === "request") return j.key;
   if (j.kind === "index") return "docs/";
   const [, ...rest] = j.key.split(":");
-  if (j.kind === "grant") return rest.length === 2 ? `${rest[0]} · 이동 ${rest[1]}` : j.key;
+  if (j.kind === "grant") return rest.length === 2 ? `${rest[0]} (이동 ${rest[1]})` : j.key;
   return rest.join(":") || j.key;
 }
 

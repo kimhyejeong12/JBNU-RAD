@@ -60,12 +60,21 @@ export function History({ steps }: { steps: HistoryStep[] }) {
     <div className={cn(box, "flex flex-col gap-2")}>
       {steps.map((s, i) => (
         <div className="text-[12.5px]" key={i}>
-          <b className="font-bold">{s.title}</b>{" · "}{s.who}{" "}
+          <b className="font-bold">{s.title}</b>{" "}{s.who}{" "}
           <span className="text-[11.5px] text-ink-dim">{s.when}</span>
           {s.say ? <>{" "}<span className="mt-0.5 block text-ink-soft">{s.say}</span></> : null}
         </div>
       ))}
     </div>
+  );
+}
+
+// 구분 기호 없이 간격으로 나눈 한 줄 정보입니다.
+export function Meta({ items, className }: { items: ReactNode[]; className?: string }) {
+  return (
+    <span className={cn("inline-flex flex-wrap items-center gap-x-2.5 gap-y-0.5", className)}>
+      {items.filter((x) => x !== "" && x != null && x !== false).map((x, i) => <span key={i}>{x}</span>)}
+    </span>
   );
 }
 

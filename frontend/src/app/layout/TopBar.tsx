@@ -38,12 +38,12 @@ export function TopBar() {
       <div className="flex items-center gap-2.25 text-[17px] font-extrabold tracking-[-0.3px]"><Icon name="shield" className="size-6 stroke-risk stroke-[2.2]" />SentinelAI</div>
       <div className="ml-auto flex items-center gap-2">
         <span className="flex items-center whitespace-nowrap rounded-[7px] bg-white px-2.75 py-1.25 text-[12.5px] font-bold text-risk" id="engine-warn" hidden={!problems.length}
-          data-tip={`점검 항목|${problems.join(" · ")}. 저장된 판정 결과는 계속 볼 수 있습니다`}>
+          data-tip={`점검 필요|${problems.join(", ")}`}>
           <LevelDot level="위험" />AI 엔진 점검 필요
         </span>
         <div className="flex items-center gap-1.5 text-[12.5px] text-bar-ink" id="who">
           {/* 누구로 로그인했는지는 다른 곳에 없어 이름을 숨기지 않습니다. */}
-          <span id="who-name">{me.display_name} · {ROLE_LABEL[me.role]}{me.is_root ? " (루트)" : ""}</span>
+          <span id="who-name">{me.display_name} <span className="opacity-70">{ROLE_LABEL[me.role]}{me.is_root ? " (루트)" : ""}</span></span>
           <button className={TOP_BTN} id="btn-password" onClick={() => auth.showPassword(false)}>비밀번호 변경</button>
           <button className={TOP_BTN} id="btn-logout" onClick={() => void logout()}>로그아웃</button>
         </div>
@@ -69,7 +69,7 @@ function AlertPop({ ref, open, risks, onPick }: { ref: Ref<HTMLDivElement>; open
       {risks.length
         ? risks.map((it) => (
           <div className="cursor-pointer border-t border-line px-0 py-1.5 text-[12.5px] hover:text-risk" key={it.key} onClick={() => onPick(it.key)}>
-            <LevelDot level="위험" />{it.id} · {it.who}
+            <LevelDot level="위험" />{it.id} <span className="text-ink-dim">{it.who}</span>
           </div>
         ))
         : <p className="m-0 text-[12.5px] text-ink-dim">결정을 기다리는 위험 건이 없습니다.</p>}

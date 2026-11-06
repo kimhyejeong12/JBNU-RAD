@@ -21,10 +21,10 @@ export function StatsPanel() {
   const { kind, sys, usr } = useStatsData();
   const sel = ui.stats.selected;
   const d = kind === "stats" ? sys.data : usr.data;
-  if (!d || !sel) return <Body title={STAT_TITLES[kind]} subject="표의 줄 · 이름을 고르세요"><p className={note}>표의 줄이나 안전 점수 옆 이름을 누르면 자세한 내용이 나옵니다.</p></Body>;
+  if (!d || !sel) return <Body title={STAT_TITLES[kind]} subject="항목을 고르세요" />;
   if (sel.kind === "node" && sys.data) return <NodePanel d={sys.data} node={sel.key} />;
   if (sel.kind === "suspect" && usr.data) return <SuspectPanel d={usr.data} suspectKey={sel.key} />;
-  return <Body title={STAT_TITLES[kind]} subject="표의 줄 · 이름을 고르세요"><p className={note}>표의 줄이나 안전 점수 옆 이름을 누르면 자세한 내용이 나옵니다.</p></Body>;
+  return <Body title={STAT_TITLES[kind]} subject="항목을 고르세요" />;
 }
 
 function Body({ title, subject, children }: { title: string; subject: string; children?: ReactNode }) {
@@ -48,7 +48,7 @@ function NodePanel({ d, node }: { d: Stats; node: string }) {
     return (
       <Body title="서버 등급 변화" subject={node}>
         <KvTable rows={[["마지막 등급", now?.level || "판정 없음"], ...stale]} />
-        <p className={note}>이 기간에는 서버 점검 결과가 없습니다.</p>
+        <p className={note}>점검 결과 없음</p>
         {go}
       </Body>
     );
@@ -71,53 +71,53 @@ function NodePanel({ d, node }: { d: Stats; node: string }) {
 function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
   const { navigate, openLogs, gotoActiveGrant, gotoEvent } = useUi();
   const p = d.suspects.find((x) => x.key === suspectKey);
-  if (!p) return <Body title="위협 예측" subject="예측에 없는 사용자입니다" />;
+  if (!p) return <Body title="의심 점수" subject="예측 없음" />;
   const g = p.signals || {};
   const r = p.records || {};
   const found = p.log_id ? d.events.users.find((u) => u.log_id === p.log_id) : undefined;
   const tone = SUSPECT_COLOR[p.level];
   return (
-    <Body title="위협 예측" subject={p.subject}>
+    <Body title="의심 점수" subject={p.subject}>
       {p.failed ? <div className={box}>예측 실패: {p.error || ""}</div> : (
         <>
-          <div className={cn(recLine, levelText[tone])}><Icon name={LEVEL_ICON[tone]} className="size-5" />의심 {p.score}점 · {p.level}</div>
+          <div className={cn(recLine, levelText[tone])}><Icon name={LEVEL_ICON[tone]} className="size-5" />{p.score}점 {p.level}</div>
           <Section icon="activity" title="예측 이유"><div className={box}>{p.reason}</div></Section>
           <Section icon="ok" title="확인할 점"><div className={box}>{p.watch}</div></Section>
         </>
       )}
       <Section icon="key" title="지금 가진 권한">
-        {p.held == null ? <p className={note}>계정 미연결 — 권한을 확인할 수 없습니다.</p>
+        {p.held == null ? <p className={note}>계정 미연결</p>
           : p.held.length ? (
             <div className="grid gap-1.5">
               {p.held.map((h) => (
                 <button className={HELD_ROW} key={h.request_no} onClick={() => gotoActiveGrant(h.request_no)}>
                   <b>{h.access}</b>
-                  <span className={HELD_SUB}>{[h.system, h.category].filter(Boolean).join(" · ") || h.code || ""}</span>
+                  <span className={HELD_SUB}>{[h.system, h.category].filter(Boolean).join(", ") || h.code || ""}</span>
                   <span className={cn(HELD_SUB, "col-start-2 row-start-1")}>{h.period_end ? `${h.period_end}까지` : "기간 없음"}</span>
                 </button>
               ))}
             </div>
-          ) : <p className={note}>승인된 유효 권한이 없습니다.</p>}
+          ) : <p className={note}>없음</p>}
       </Section>
-      <Section icon="warn" title="행동 신호 (최근 7일 vs 이전 4주)">
-        {g.highlights?.length ? <div className={boxPre}>{g.highlights.join("\n")}</div> : <p className={note}>눈에 띄는 신호가 없습니다.</p>}
+      <Section icon="warn" title="행동 신호 (최근 7일)">
+        {g.highlights?.length ? <div className={boxPre}>{g.highlights.join("\n")}</div> : <p className={note}>없음</p>}
         {g.subject ? (
-          <KvTable rows={[["최근 · 평소 로그", `${g.recent_events}건 · ${g.baseline_events}건`],
+          <KvTable rows={[["로그 (최근 / 평소)", `${g.recent_events} / ${g.baseline_events}건`],
             ["하루 양", `${g.baseline_daily_volume} → ${g.recent_daily_volume}${g.volume_ratio != null ? ` (${g.volume_ratio}배)` : ""}`],
-            ["근무 시간 밖 · 예외", `${Math.round((g.off_hours_ratio ?? 0) * 100)}% · ${Math.round((g.exception_ratio ?? 0) * 100)}%`],
+            ["근무 시간 밖", `${Math.round((g.off_hours_ratio ?? 0) * 100)}%`], ["예외 승인", `${Math.round((g.exception_ratio ?? 0) * 100)}%`],
             ["민감 문서", `${g.sensitive_events}건${g.sensitive_words?.length ? ` (${g.sensitive_words.join(", ")})` : ""}`],
-            ["30분 안 최대", `${g.max_burst_30min}건`], ["첫 · 마지막 로그", `${stamp(g.first_seen)} · ${stamp(g.last_seen)}`]]} />
-        ) : <p className={note}>로그가 없습니다 (권한 신청 기록만).</p>}
+            ["30분 안 최대", `${g.max_burst_30min}건`], ["로그 기간", `${stamp(g.first_seen)} ~ ${stamp(g.last_seen)}`]]} />
+        ) : <p className={note}>로그 없음</p>}
       </Section>
-      <Section icon="list" title="판정 · 신청 기록 (35일)">
-        <KvTable rows={[["로그 감시", `위험 ${r["로그 위험"] || 0} · 주의 ${r["로그 주의"] || 0}`],
-          ["권한 신청", `${r["신청"] || 0}건 · AI 위험 ${r["신청 위험"] || 0} · 반려 ${r["반려"] || 0} · 회수 ${r["회수"] || 0}`],
-          ["계정", p.login_id || "계정 미연결 — 계정 관리에서 로그 사용자 ID 를 적으면 이어집니다"]]} />
+      <Section icon="list" title="기록 (35일)">
+        <KvTable rows={[["로그 감시", `위험 ${r["로그 위험"] || 0}, 주의 ${r["로그 주의"] || 0}`],
+          ["권한 신청", `${r["신청"] || 0}건`], ["반려", `${r["반려"] || 0}건`], ["회수", `${r["회수"] || 0}건`],
+          ["계정", p.login_id || "미연결"]]} />
       </Section>
       <Section icon="activity" title="의심 점수 흐름"><ScoreTrend p={p} /></Section>
-      <p className={note}>{stamp(p.created_at)} 예측</p>
+      <p className={note}>{stamp(p.created_at)}</p>
       <div className="mt-4.5">
-        {g.subject && <button className={toolButton} id="stat-go" onClick={() => { navigate("events"); openLogs({ user: g.subject!, period: "month" }); }}><Icon name="search" small />이 사용자의 로그 조회</button>}
+        {g.subject && <button className={toolButton} id="stat-go" onClick={() => { navigate("events"); openLogs({ user: g.subject!, period: "month" }); }}><Icon name="search" small />로그 조회</button>}
         {found && <button className={toolButton} id="stat-go2" onClick={() => gotoEvent(`event:${found.keys[found.keys.length - 1]}`)}><Icon name="list" small />로그 감시 판정 보기</button>}
       </div>
     </Body>
@@ -126,7 +126,7 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
 
 function ScoreTrend({ p }: { p: Suspect }) {
   const t = p.trend || [];
-  if (t.length < 2) return <p className={note}>예측이 한 번뿐이라 흐름이 아직 없습니다.</p>;
+  if (t.length < 2) return <p className={note}>기록 1회</p>;
   return (
     <>
       <Sparkline width={(t.length - 1) * 20} height={40} stroke="var(--color-risk)" style={{ width: "100%", height: 40 }} ariaLabel="의심 점수 흐름"

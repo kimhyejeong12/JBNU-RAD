@@ -43,8 +43,8 @@ const MIXED = new Set<ItemType>(["policy", "server"]);
 const ROW = "min-h-14 w-full border-0 border-b border-l-[3px] border-b-line border-l-transparent bg-surface py-2 pr-4.5 pl-3.75 text-left";
 function Row({ it, current, onSelect }: { it: QueueItem; current: boolean; onSelect: () => void }) {
   const d = it.decision;
-  const sub = d ? `${d.decider_name} · ${DECISIONS[d.action]}${d.carried_from ? " (이어짐)" : ""}` : it.sub;
-  const tag = [it.typeLabel ?? (MIXED.has(it.type) ? TYPE_LABEL[it.type] : ""), it.id && !it.who.includes(it.id) ? it.id : ""].filter(Boolean).join(" · ");
+  const sub = d ? `${DECISIONS[d.action]} (${d.decider_name})` : it.sub;
+  const tag = [it.typeLabel ?? (MIXED.has(it.type) ? TYPE_LABEL[it.type] : ""), it.id && !it.who.includes(it.id) ? it.id : ""].filter(Boolean).join(" ");
   const cells = (
     <>
       <span className="min-w-0">

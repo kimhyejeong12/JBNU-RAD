@@ -10,7 +10,7 @@ export function NodeKey({ n, d }: { n: NodeRow; d?: NodeDetail }) {
   const input = useRef<HTMLInputElement>(null);
   const [labels, setLabels] = useState<Record<string, string>>({});
   if (!d || !n.key_issued) return null;
-  if (!d.key) return <Section icon="lock" title="노드 키"><p className={note}>예전 방식으로 발급해 볼 수 없는 키입니다. [키 다시 발급]을 하면 여기에 보입니다.</p></Section>;
+  if (!d.key) return <Section icon="lock" title="노드 키"><p className={note}>볼 수 없는 키입니다. [키 다시 발급]을 누르세요.</p></Section>;
   const cmd = `sudo sh node/install.sh --server ${location.origin} --key ${d.key}`;
 
   // 사내망 http 화면에서는 클립보드 API 를 못 쓸 수 있어 키 칸을 골라 둡니다.
@@ -31,7 +31,6 @@ export function NodeKey({ n, d }: { n: NodeRow; d?: NodeDetail }) {
         {/* font 축약형이 굵기 · 줄 높이도 normal 로 되돌리던 것과 같게 */}
         <input id="issued-key" ref={input} readOnly value={d.key} aria-label="노드 키"
           className="w-full rounded-md border border-line bg-surface px-2 py-1.75 text-[12.5px] font-normal text-black font-[ui-monospace,monospace] leading-[normal]" />
-        <p className={note}>점검할 서버에서:</p>
         <div className={boxPre}>{cmd}</div>
         <div className={cn(nodeActions, "mt-2")}>
           <button className={toolButton} onClick={() => copy("key", d.key!)}>{labels.key ?? "키 복사"}</button>

@@ -11,7 +11,7 @@ import type { RequestRow, Role } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { STAGE_LABEL, STEP, period, requester } from "@/shared/lib/request";
-import { History, KvTable, Section } from "@/shared/ui/base/parts";
+import { History, KvTable, Meta, Section } from "@/shared/ui/base/parts";
 import { Icon } from "@/shared/ui/base/Icon";
 import { cn } from "@/shared/lib/cn";
 import {
@@ -65,7 +65,7 @@ export function RequestPanel({ it }: { it: RequestItem }) {
         <div className={cn(recLine, it.level && levelText[it.level])}>
           {it.level && <Icon name={LEVEL_ICON[it.level]} className="size-5" />}{it.judge}
         </div>
-        <div className={meta}>{no} · {STAGE_LABEL[r.stage]}</div>
+        <div className={meta}><Meta items={[no, STAGE_LABEL[r.stage]]} /></div>
         <Section icon="file" title="신청 내용"><KvTable rows={rows} /></Section>
         <AiVerdict it={it} />
         {r.grant_review && <GrantReview it={it} />}
@@ -83,13 +83,13 @@ export function RequestPanel({ it }: { it: RequestItem }) {
 
 function AiVerdict({ it }: { it: RequestItem }) {
   const v = it.raw.ai_verdict;
-  if (it.raw.judging) return <Section icon="activity" title="AI 판정"><div className={box}>AI가 판정하고 있습니다… (수십 초)</div></Section>;
+  if (it.raw.judging) return <Section icon="activity" title="AI 판정"><div className={box}>AI 판정 중…</div></Section>;
   if (!v) return <Section icon="activity" title="AI 판정"><div className={box}>아직 판정이 없습니다.</div></Section>;
-  if (v.failed) return <Section icon="activity" title="AI 판정"><div className={cn(box, "text-risk")}>판정 실패 — {v.error || "원인 불명"}. 수동으로 검토하거나 다시 판정하세요.</div></Section>;
+  if (v.failed) return <Section icon="activity" title="AI 판정"><div className={cn(box, "text-risk")}>판정 실패: {v.error || "원인 불명"}</div></Section>;
   return (
     <>
-      <Section icon="activity" title="AI 판단 이유"><div className={box}>{v.reason}</div></Section>
-      <Section icon="ok" title="AI 권고"><div className={box}>{v.recommendation}</div></Section>
+      <Section icon="activity" title="판단 이유"><div className={box}>{v.reason}</div></Section>
+      <Section icon="ok" title="권고"><div className={box}>{v.recommendation}</div></Section>
       <Section icon="db" title="근거 조항"><SourceChips itemKey={it.key} sources={v.sources} /></Section>
       <p className={note}>{stamp(v.judged_at)} 판정</p>
     </>
@@ -101,12 +101,12 @@ function GrantReview({ it }: { it: RequestItem }) {
   const v = g.verdict;
   const why = g.cause === "leave" ? `${g.left_on} 퇴사` : `이동 ${moveText(g.move!)}`;
   const title = "보유 권한 재검토";
-  if (!v) return <Section icon="activity" title={title}><div className={box}>{why} — {g.judging ? "AI가 새 업무에 맞는지 판정하고 있습니다… (수십 초)" : "판정을 기다리고 있습니다."}</div></Section>;
-  if (v.failed) return <Section icon="activity" title={title}><div className={cn(box, "text-risk")}>{why} — 판정 실패: {v.error || "원인 불명"}. 수동으로 검토하세요.</div></Section>;
+  if (!v) return <Section icon="activity" title={title}><div className={box}>{why} — {g.judging ? "AI 판정 중…" : "판정 대기"}</div></Section>;
+  if (v.failed) return <Section icon="activity" title={title}><div className={cn(box, "text-risk")}>{why} — 판정 실패: {v.error || "원인 불명"}</div></Section>;
   return (
     <Section icon="activity" title={title}>
       <div className={cn(recLine, levelText[v.level])}><Icon name={LEVEL_ICON[v.level]} className="size-5" />{v.level}</div>
-      <p className={note}>{why}{v.by === "code" ? " — 퇴사일로 정해지는 판정입니다 (AI 아님)" : ` · ${stamp(v.judged_at)} AI 판정`}</p>
+      <p className={note}><Meta items={[why, v.by === "code" ? "퇴사일 기준" : `${stamp(v.judged_at)} 판정`]} /></p>
       <div className={box}>{v.reason}</div>
       <div className={cn(box, "mt-1.5")}>{v.recommendation}</div>
       {v.sources.length > 0 && <SourceChips itemKey={`${it.key}:grant`} sources={v.sources} />}
@@ -124,7 +124,6 @@ function RequestFoot({ r, role, draft, onDraft, act }: { r: RequestRow; role: Ro
           <button className={cn(actionButton, goodButton, "flex-1")} onClick={() => act("approve")}>승인</button>
           <button className={cn(actionButton, dangerButton, "flex-1")} onClick={() => act("reject")}>반려</button>
         </div>
-        <p className={note}>AI는 권고만 합니다.</p>
       </>
     );
   }
@@ -141,7 +140,7 @@ function RequestFoot({ r, role, draft, onDraft, act }: { r: RequestRow; role: Ro
     <>
       <h4 className={panelFootTitle}>{STAGE_LABEL[r.stage]}</h4>
       <p className={note}>
-        {r.stage === "manager" || r.stage === "top" ? `${STAGE_LABEL[r.stage]} — 내 결재 단계가 아닙니다.` : "더 할 결재가 없습니다."}
+        {r.stage === "manager" || r.stage === "top" ? "내 결재 단계가 아닙니다." : "결재가 끝났습니다."}
       </p>
     </>
   );

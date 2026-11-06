@@ -14,7 +14,7 @@ test("보안 총책임자는 전부 받는다 (내 신청만 빼고)", () => {
 });
 
 test("사이드바 구역 — 역할 메뉴 순서대로 묶고, 관리 메뉴는 구역 대신 [관리] 하나로 뺀다", () => {
-  const groups = [["결재", ["requests"]], ["보안 운영", ["policies", "events", "stats", "qa"]]];
+  const groups = [["결재", ["requests"]], ["보안 운영", ["policies", "events", "stats"]]];
   expect(navGroups(ROLE_VIEWS.manager)).toEqual(groups);
   expect(navGroups(ROLE_VIEWS.top)).toEqual(groups);
   expect(ROLE_VIEWS.top.filter(isAdminView)).toEqual(["access", "users", "docs", "jobs"]);

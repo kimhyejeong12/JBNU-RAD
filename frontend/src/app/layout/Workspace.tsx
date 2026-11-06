@@ -10,8 +10,8 @@ import { cn } from "@/shared/lib/cn";
 
 import { NodesTab } from "@/features/nodes/NodesTab";
 import { LogsTab } from "@/features/logs/LogsTab";
-import { AskTab } from "@/features/ask/AskTab";
 import { StatsTab } from "@/features/stats/StatsTab";
+import { RiskTab } from "@/features/risk/RiskTab";
 import { EngineTab } from "@/features/engine/EngineTab";
 
 export const workspace = "grid min-h-0 grid-cols-[minmax(0,1fr)_430px] gap-4.5 px-5.5 pt-4.5 pb-5.5 narrow:grid-cols-[1fr] narrow:px-4 narrow:py-3.5";
@@ -24,15 +24,15 @@ export function Workspace() {
   const wide = panelIdle(ui);
   const stat = ui.mainTab === "stats" || ui.mainTab === "ustats";
   return (
-    <div className={cn(workspace, wide && "grid-cols-[minmax(0,1fr)] narrow:grid-cols-[minmax(0,1fr)]", noPanel && "grid-cols-[minmax(0,1fr)]")}>
+    <div className={cn(workspace, wide && "grid-cols-[minmax(0,1fr)] narrow:grid-cols-[minmax(0,1fr)]", noPanel ? "grid-cols-[minmax(0,1fr)]" : "pb-21 narrow:pb-21")}>
       <div className="flex min-h-0 flex-col gap-3.5 overflow-auto narrow:overflow-visible *:shrink-0">
         <Seg />
         <MainTabs />
         <QueueTab />
         {ui.mainTab === "nodes" ? <NodesTab /> : <section id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes" hidden />}
+        {ui.mainTab === "risk" ? <RiskTab /> : <section id="view-risk" role="tabpanel" aria-labelledby="tab-risk" hidden />}
         {stat ? <StatsTab /> : <div id="view-stats" role="tabpanel" aria-labelledby="tab-stats" hidden />}
         {ui.mainTab === "logs" ? <LogsTab /> : <section id="view-logs" role="tabpanel" aria-labelledby="tab-logs" hidden />}
-        {ui.mainTab === "ask" ? <AskTab /> : <section id="view-ask" role="tabpanel" aria-labelledby="tab-ask" hidden />}
         {ui.mainTab === "engine" ? <EngineTab /> : <section id="view-engine" role="tabpanel" aria-labelledby="tab-engine" hidden />}
         <Footer />
       </div>

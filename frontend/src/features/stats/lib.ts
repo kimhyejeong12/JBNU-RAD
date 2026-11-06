@@ -3,7 +3,7 @@ import type { Level, StatPeriod, SuspectLevel, Suspect } from "@/shared/api/type
 import { card } from "@/shared/ui/base/styles";
 
 export const STAT_PERIODS: [StatPeriod, string][] = [["week", "일주일"], ["month", "한 달"], ["quarter", "3개월"], ["all", "전체"]];
-export const STAT_TITLES: Record<StatKind, string> = { stats: "보안 통계", ustats: "사용자 위협" };
+export const STAT_TITLES: Record<StatKind, string> = { stats: "시스템", ustats: "사용자" };
 
 export const SUSPECT_COLOR: Record<SuspectLevel, Level> = { "높음": "위험", "보통": "주의", "낮음": "정상" };
 
@@ -11,17 +11,10 @@ export function trendMark(trend?: { score: number; at?: string; day?: string }[]
   const t = trend || [];
   if (t.length < 2) return "";
   const diff = t[t.length - 1].score - t[t.length - 2].score;
-  return diff > 10 ? ` · ▲${diff}` : diff < -10 ? ` · ▼${-diff}` : "";
+  return diff > 10 ? ` ▲${diff}` : diff < -10 ? ` ▼${-diff}` : "";
 }
 
 export const safetyTone = (score: number): Level => (score >= 80 ? "정상" : score >= 50 ? "주의" : "위험");
-
-// 전체 기간이면 첫 로그 날부터 오늘까지를 분모로 씁니다.
-export function periodDays(period: StatPeriod, days: Record<string, number>, now: number = Date.now()): number {
-  if (period !== "all") return { week: 7, month: 30, quarter: 90 }[period];
-  const keys = Object.keys(days).sort();
-  return keys.length ? Math.max(1, Math.round((now - new Date(keys[0]).getTime()) / 86400000)) : 0;
-}
 
 export interface DayCount { "위험": number; "주의": number; total: number }
 
@@ -35,7 +28,7 @@ export function mergeDays(logDays: Record<string, number>, eventDays: { day: str
 export function verdictsText(p: Suspect): string {
   const r = p.records || {};
   return ([["위험", r["로그 위험"]], ["주의", r["로그 주의"]]] as [string, number | undefined][])
-    .filter(([, n]) => n).map(([k, n]) => `${k} 판정 ${n}`).join(" · ");
+    .filter(([, n]) => n).map(([k, n]) => `${k} ${n}`).join(", ");
 }
 
 export const statCard = `${card} flex flex-col`;

@@ -12,6 +12,7 @@ import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { Workspace, workspace } from "./Workspace";
 import { TooltipLayer } from "@/app/overlays/TooltipLayer";
+import { AskDock } from "@/features/ask/AskDock";
 import type { Me } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { card, empty } from "@/shared/ui/base/styles";
@@ -80,6 +81,7 @@ function Shell() {
       {boot.error ? <LoadError message={boot.error} /> : <Workspace />}
       <div id="drawer-back" onClick={store.closePanel}
         className={cn("hidden", ui.drawerOpen && "narrow:fixed narrow:inset-0 narrow:z-45 narrow:block narrow:bg-[rgba(17,17,17,.4)]")} />
+      {!boot.error && <AskDock />}
       <TooltipLayer />
     </UiContext.Provider>
   );

@@ -25,6 +25,7 @@ export interface UiState {
   panelMsg: string;
   expanded: ReadonlySet<string>;
   askSource: AskSource | null;
+  askOpen: boolean;
   conversation: string;
   drawerOpen: boolean;
   nodes: { selected: string | null; adding: boolean };
@@ -34,7 +35,7 @@ export interface UiState {
 
 export const initialUi: UiState = {
   view: null, lastAdmin: null, mainTab: "queue", filter: "전체", stageFilter: "pending", query: "", selected: null, panelMsg: "",
-  expanded: new Set(), askSource: null, conversation: newConversation(), drawerOpen: false,
+  expanded: new Set(), askSource: null, askOpen: false, conversation: newConversation(), drawerOpen: false,
   nodes: { selected: null, adding: false },
   logs: { period: "week", user: "", solution: "", how: "", page: 1, selected: null },
   stats: { period: "month", kind: null, selected: null },
@@ -61,23 +62,23 @@ export type UiAction =
   | { type: "SET_LOGS"; patch: Partial<UiState["logs"]> }
   | { type: "SET_STATS"; patch: Partial<UiState["stats"]> }
   | { type: "SET_ASK_SOURCE"; src: AskSource | null }
+  | { type: "SET_ASK_OPEN"; open: boolean }
   | { type: "SET_CONVERSATION"; id: string };
 
 export const isStatTab = (t: MainTab): t is StatKind => t === "stats" || t === "ustats";
-export const panelOnDemand = (tab: MainTab): boolean => tab === "ask" || isStatTab(tab);
-// 관리의 큐 탭은 오른쪽 패널 없이 넓게 씁니다.
+export const panelOnDemand = (tab: MainTab): boolean => isStatTab(tab);
+// 관리의 큐 탭 · 권한 변동 탭은 오른쪽 패널 없이 넓게 씁니다.
 export const panelIdle = (s: UiState): boolean =>
-  s.mainTab === "engine" || (panelOnDemand(s.mainTab) && !(s.mainTab === "ask" ? s.askSource : s.stats.selected));
+  s.mainTab === "engine" || s.mainTab === "risk" || (panelOnDemand(s.mainTab) && !s.stats.selected);
 
 function withTab(s: UiState, tab: MainTab): UiState {
-  const askSource = tab !== s.mainTab ? null : s.askSource;
   const stats = isStatTab(tab) && s.stats.kind !== tab ? { ...s.stats, kind: tab, selected: null } : s.stats;
-  return { ...s, mainTab: tab, askSource, stats };
+  return { ...s, mainTab: tab, stats };
 }
 
 function withView(s: UiState, view: View): UiState {
   if (view === s.view) return s;
-  return { ...s, view, lastAdmin: isAdminView(view) ? view : s.lastAdmin, filter: "전체", panelMsg: "", askSource: null };
+  return { ...s, view, lastAdmin: isAdminView(view) ? view : s.lastAdmin, filter: "전체", panelMsg: "" };
 }
 
 export function uiReducer(s: UiState, a: UiAction): UiState {
@@ -121,7 +122,6 @@ export function uiReducer(s: UiState, a: UiAction): UiState {
       const t = { ...s, drawerOpen: false };
       if (s.mainTab === "nodes") return { ...t, nodes: { selected: null, adding: false } };
       if (s.mainTab === "logs") return { ...t, logs: { ...s.logs, selected: null } };
-      if (s.mainTab === "ask") return { ...t, askSource: null };
       if (isStatTab(s.mainTab)) return { ...t, stats: { ...s.stats, selected: null } };
       return t;
     }
@@ -137,6 +137,8 @@ export function uiReducer(s: UiState, a: UiAction): UiState {
       return { ...s, stats: { ...s.stats, ...a.patch } };
     case "SET_ASK_SOURCE":
       return { ...s, askSource: a.src };
+    case "SET_ASK_OPEN":
+      return { ...s, askOpen: a.open };
     case "SET_CONVERSATION":
       return { ...s, conversation: a.id, askSource: null };
   }

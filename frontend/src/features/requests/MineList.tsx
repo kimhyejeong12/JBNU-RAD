@@ -62,7 +62,7 @@ function MineRow({ r, on, open, onNote }: { r: RequestRow; on: string; open: boo
       <span className="truncate text-[13.5px] font-semibold phone:col-start-1 phone:row-start-1">{r.requested_access}</span>
       <span className="truncate text-[12.5px] text-ink-soft phone:col-span-full phone:row-start-3 phone:text-[12px] phone:text-ink-dim">{r.reason || "—"}</span>
       <span className="text-[12.5px] font-semibold phone:col-start-2 phone:row-start-1 phone:text-right">{mineStatus(r, on)}</span>
-      <span className="text-[12px] text-ink-dim tabular-nums phone:col-start-1 phone:row-start-2">{r.request_no}<span className="min-[761px]:hidden"> · {shortDate(r.submitted_at.slice(0, 10), on)}</span></span>
+      <span className="text-[12px] text-ink-dim tabular-nums phone:col-start-1 phone:row-start-2">{r.request_no}<span className="ml-2 min-[761px]:hidden">{shortDate(r.submitted_at.slice(0, 10), on)}</span></span>
       <span className="flex justify-end gap-3 phone:col-start-2 phone:row-start-2">
         <WithdrawButton r={r} />
         {note && <button type="button" className={linkButton} aria-expanded={open} onClick={onNote}>{open ? "사유 접기" : "사유 보기"}</button>}

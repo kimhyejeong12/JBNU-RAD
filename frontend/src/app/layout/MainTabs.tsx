@@ -5,14 +5,15 @@ import { stageCounts } from "@/app/queue/select";
 import type { StageFilter } from "@/app/ui/state/uiReducer";
 import { useUi } from "@/app/ui/state/UiContext";
 import { Icon } from "@/shared/ui/base/Icon";
+import { cn } from "@/shared/lib/cn";
 
 const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
   { tab: "queue", icon: "list", label: "검토 현황", panel: "view-queue" },
   { tab: "nodes", icon: "server", label: "노드", panel: "view-nodes" },
-  { tab: "stats", icon: "activity", label: "보안 통계", panel: "view-stats" },
-  { tab: "ustats", icon: "warn", label: "사용자 위협", panel: "view-stats" },
+  { tab: "risk", icon: "bad", label: "권한 변동", panel: "view-risk" },
+  { tab: "stats", icon: "activity", label: "시스템", panel: "view-stats" },
+  { tab: "ustats", icon: "warn", label: "사용자", panel: "view-stats" },
   { tab: "logs", icon: "search", label: "로그 조회", panel: "view-logs" },
-  { tab: "ask", icon: "chat", label: "질의", panel: "view-ask" },
   { tab: "engine", icon: "list", label: "작업 큐", panel: "view-engine" },
 ];
 
@@ -53,7 +54,7 @@ export function MainTabs() {
   return (
     <nav className={BAR} role="tablist" aria-label="보기 전환" hidden={tabs.length < 2}>
       {TABS.map((t) => (
-        <button key={t.tab} role="tab" className={TAB} id={`tab-${t.tab}`} aria-selected={ui.mainTab === t.tab} aria-controls={t.panel}
+        <button key={t.tab} role="tab" className={cn(TAB, "whitespace-nowrap phone:gap-1 phone:px-2")} id={`tab-${t.tab}`} aria-selected={ui.mainTab === t.tab} aria-controls={t.panel}
           hidden={!tabs.includes(t.tab)} onClick={() => setMainTab(t.tab)}>
           <Icon name={t.icon} small />
           {t.label}

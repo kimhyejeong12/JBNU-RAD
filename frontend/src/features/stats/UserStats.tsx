@@ -24,15 +24,15 @@ export function UserHead({ d, onSelect }: Props) {
   return (
     <>
       <div className={statSafety} id="stat-safety">
-        <SafetyBand label="사용자 안전 점수 · 지금" safety={d.safety} onSelect={onSelect} names={0}
+        <SafetyBand label="사용자 안전 점수" safety={d.safety} onSelect={onSelect} names={0}
           groups={[["의심 높음", susGroup("높음"), "suspect", "위험"], ["의심 보통", susGroup("보통"), "suspect", "주의"]]} />
       </div>
       <div className={statTiles} id="stat-tiles">
-        <Tile label="위협 사용자" big={`${ev.users.length}명`} note={`주의 · 위험 판정을 받은 사람 · 위험 ${ev.users.filter((u) => u["위험"]).length}명 · 두 번 이상 ${repeat}명`} />
-        <Tile label="신청 중 위험 비율" big={pct(ai["위험"] || 0, judged)} note={`위험 ${ai["위험"] || 0} · 주의 ${ai["주의"] || 0} / 판정 ${judged}건`}>
+        <Tile label="위협 사용자" big={`${ev.users.length}명`} note={`위험 ${ev.users.filter((u) => u["위험"]).length}명, 반복 ${repeat}명`} />
+        <Tile label="신청 중 위험 비율" big={pct(ai["위험"] || 0, judged)} note={`위험 ${ai["위험"] || 0}, 주의 ${ai["주의"] || 0} / ${judged}건`}>
           {judged ? <Meter segs={[["위험", ai["위험"] || 0], ["주의", ai["주의"] || 0], ["정상", ai["정상"] || 0]]} total={judged} /> : null}
         </Tile>
-        <Tile label="AI와 결재가 엇갈린 신청" big={`${rq.mismatches}건`} note="AI 위험인데 승인 · AI 정상인데 반려" />
+        <Tile label="AI와 결재가 엇갈린 신청" big={`${rq.mismatches}건`} note="위험 승인, 정상 반려" />
       </div>
     </>
   );
@@ -47,22 +47,21 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
   return (
     <section className={statCard} id="stat-suspects">
       <div className={cardHead}>
-        <h3 className={cardTitle}>위협 예측 — 의심 점수</h3>
+        <h3 className={cardTitle}>의심 점수</h3>
         {/* 둘 다 오른쪽으로 밀면 버튼이 가운데로 떠서 버튼만 오른쪽 끝에 둡니다. */}
-        <span className={cn(cardCount, "ml-0")}>{sus.length ? `${sus.length}명 · ${stamp(latest)} 예측` : ""}</span>
+        <span className={cn(cardCount, "ml-0")}>{sus.length ? `${sus.length}명, ${stamp(latest)}` : ""}</span>
         <button className={toolButton} id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
           <Icon name="activity" small />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
         </button>
         <JobReset />
       </div>
-      <p className={statSub}>앞으로 보안 위협이 될 가능성(0~100, 높음 70 이상 · 보통 40~69 · 낮음 40 미만)으로, 먼저 살펴볼 사람을 고르는 예측입니다. 줄을 누르면 오른쪽에 예측 이유 · 확인할 점 · 가진 권한이 열립니다.</p>
       {sus.length ? (
         <DataTable head={["사용자", "의심 점수", "로그 감시 판정", "눈에 띄는 신호", "계정"]} empty=""
           rows={sus.map((p) => ({
             key: p.key, current: selected?.kind === "suspect" && selected.key === p.key, onSelect: () => onSelect("suspect", p.key),
-            cells: [p.subject, p.failed ? "예측 실패" : <ScoreCell key="s" p={p} />, verdictsText(p) || "—", (p.signals.highlights || []).join(" · ") || "—", p.login_id || "계정 미연결"],
+            cells: [p.subject, p.failed ? "예측 실패" : <ScoreCell key="s" p={p} />, verdictsText(p) || "—", (p.signals.highlights || []).join(", ") || "—", p.login_id || "계정 미연결"],
           }))} />
-      ) : <p className={statSub}>아직 예측이 없습니다. [지금 예측]을 누르세요.</p>}
+      ) : <p className={statSub}>예측 없음</p>}
     </section>
   );
 }
