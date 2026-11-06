@@ -5,7 +5,6 @@ import { stageCounts } from "@/app/queue/select";
 import type { StageFilter } from "@/app/ui/state/uiReducer";
 import { useUi } from "@/app/ui/state/UiContext";
 import { Icon } from "@/shared/ui/base/Icon";
-import { cn } from "@/shared/lib/cn";
 
 const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
   { tab: "queue", icon: "list", label: "검토 현황", panel: "view-queue" },
@@ -18,7 +17,7 @@ const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
 ];
 
 // 아래 테두리 2px 가 탭 줄의 선과 겹치게 1px 내립니다.
-const TAB = "-mb-px inline-flex items-center gap-1.75 border-0 border-b-2 border-transparent bg-transparent px-3.5 py-2.25 text-[14px] font-bold text-ink-dim hover:text-ink aria-selected:border-b-ink aria-selected:text-ink";
+const TAB = "-mb-px inline-flex whitespace-nowrap phone:gap-1 phone:px-2 phone:text-[13px] phone:[&>svg]:hidden items-center gap-1.75 border-0 border-b-2 border-transparent bg-transparent px-3.5 py-2.25 text-[14px] font-bold text-ink-dim hover:text-ink aria-selected:border-b-ink aria-selected:text-ink";
 const BAR = "flex gap-1 border-b border-line";
 
 const STAGES: [StageFilter, string, string][] = [["pending", "결재 대기", "list"], ["active", "유효 권한", "key"], ["people", "확인할 사람", "users"], ["all", "전체", "file"]];
@@ -54,7 +53,7 @@ export function MainTabs() {
   return (
     <nav className={BAR} role="tablist" aria-label="보기 전환" hidden={tabs.length < 2}>
       {TABS.map((t) => (
-        <button key={t.tab} role="tab" className={cn(TAB, "whitespace-nowrap phone:gap-1 phone:px-2")} id={`tab-${t.tab}`} aria-selected={ui.mainTab === t.tab} aria-controls={t.panel}
+        <button key={t.tab} role="tab" className={TAB} id={`tab-${t.tab}`} aria-selected={ui.mainTab === t.tab} aria-controls={t.panel}
           hidden={!tabs.includes(t.tab)} onClick={() => setMainTab(t.tab)}>
           <Icon name={t.icon} small />
           {t.label}

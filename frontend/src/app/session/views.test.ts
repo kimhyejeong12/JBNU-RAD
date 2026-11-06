@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { ROLE_VIEWS, dataNeeds, defaultNavWide, isAdminView, navGroups, restorable } from "./views";
+import { ROLE_VIEWS, dataNeeds, isAdminView, navGroups, restorable } from "./views";
 
 test("일반 사용자는 내 신청과 권한 목록만 받고 운영자용 데이터는 받지 않는다", () => {
   expect(dataNeeds("user")).toEqual({ operator: false, requests: false, mine: true, users: false, catalog: true, results: false });
@@ -18,12 +18,6 @@ test("사이드바 구역 — 역할 메뉴 순서대로 묶고, 관리 메뉴�
   expect(navGroups(ROLE_VIEWS.manager)).toEqual(groups);
   expect(navGroups(ROLE_VIEWS.top)).toEqual(groups);
   expect(ROLE_VIEWS.top.filter(isAdminView)).toEqual(["access", "users", "docs", "jobs"]);
-});
-
-test("사이드바 처음 모양 — 1440px 이상은 펼치고, 그보다 좁으면 접는다", () => {
-  expect(defaultNavWide(1440)).toBe(true);
-  expect(defaultNavWide(1920)).toBe(true);
-  expect(defaultNavWide(1439)).toBe(false);
 });
 
 test("새로고침 뒤 마지막 화면 — 이 역할에 있는 메뉴 · 탭만 쓰고, 없으면 null 이나 첫 탭", () => {

@@ -97,5 +97,3 @@ export function restorable(raw: unknown, role: Role): SavedPage | null {
   };
 }
 
-// 1440px 이상이면 펼쳐도 목록(최소 760px) · 오른쪽 패널(430px)이 들어갑니다.
-export const defaultNavWide = (width: number): boolean => width >= 1440;

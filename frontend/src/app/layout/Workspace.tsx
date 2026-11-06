@@ -1,7 +1,6 @@
 import { useMe } from "@/app/session/me";
 import { useUi } from "@/app/ui/state/UiContext";
 import { panelIdle } from "@/app/ui/state/uiReducer";
-import { Seg } from "./Sidebar";
 import { MainTabs } from "./MainTabs";
 import { QueueTab } from "@/app/queue/QueueTab";
 import { RightPanel } from "./RightPanel";
@@ -26,7 +25,6 @@ export function Workspace() {
   return (
     <div className={cn(workspace, wide && "grid-cols-[minmax(0,1fr)] narrow:grid-cols-[minmax(0,1fr)]", noPanel ? "grid-cols-[minmax(0,1fr)]" : "pb-21 narrow:pb-21")}>
       <div className="flex min-h-0 flex-col gap-3.5 overflow-auto narrow:overflow-visible *:shrink-0">
-        <Seg />
         <MainTabs />
         <QueueTab />
         {ui.mainTab === "nodes" ? <NodesTab /> : <section id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes" hidden />}

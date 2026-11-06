@@ -9,7 +9,6 @@ import { useBoot } from "@/app/session/useBoot";
 import { useJobsWatcher } from "@/app/session/useJobsWatcher";
 import { useQueue } from "@/app/queue/useQueue";
 import { TopBar } from "./TopBar";
-import { Sidebar } from "./Sidebar";
 import { Workspace, workspace } from "./Workspace";
 import { TooltipLayer } from "@/app/overlays/TooltipLayer";
 import { AskDock } from "@/features/ask/AskDock";
@@ -17,7 +16,6 @@ import type { Me } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { card, empty } from "@/shared/ui/base/styles";
 import { useMediaQuery } from "@/shared/lib/hooks";
-import { useNavWide } from "./useNavWide";
 
 export function AppShell({ me }: { me: Me }) {
   return (
@@ -36,11 +34,7 @@ function Shell() {
   const boot = useBoot();
   useJobsWatcher(useNeeds().results);
   const narrow = useMediaQuery(NARROW);
-  const [navWide, toggleNav] = useNavWide();
 
-  const solo = views.length < 2;
-  useEffect(() => toggleBody("solo", solo), [solo]);
-  useEffect(() => toggleBody("navWide", navWide && !solo), [navWide, solo]);
   useEffect(() => toggleBody("drawerOpen", ui.drawerOpen), [ui.drawerOpen]);
   // 넓은 화면으로 바뀌면 서랍 상태를 풀어 배경 막이 남지 않게 합니다.
   useEffect(() => {
@@ -77,7 +71,6 @@ function Shell() {
   return (
     <UiContext.Provider value={store}>
       <TopBar />
-      <Sidebar wide={navWide} onToggle={toggleNav} />
       {boot.error ? <LoadError message={boot.error} /> : <Workspace />}
       <div id="drawer-back" onClick={store.closePanel}
         className={cn("hidden", ui.drawerOpen && "narrow:fixed narrow:inset-0 narrow:z-45 narrow:block narrow:bg-[rgba(17,17,17,.4)]")} />
@@ -87,7 +80,7 @@ function Shell() {
   );
 }
 
-function toggleBody(key: "solo" | "drawerOpen" | "navWide", on: boolean) {
+function toggleBody(key: "drawerOpen", on: boolean) {
   if (on) document.body.dataset[key] = "true";
   else delete document.body.dataset[key];
   return () => { delete document.body.dataset[key]; };

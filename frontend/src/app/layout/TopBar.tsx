@@ -12,6 +12,7 @@ import { Icon } from "@/shared/ui/base/Icon";
 import { LevelDot } from "@/shared/ui/base/parts";
 import type { QueueItem } from "@/app/queue/types";
 import { cn } from "@/shared/lib/cn";
+import { TopNav } from "./TopNav";
 
 export function TopBar() {
   const me = useMe();
@@ -36,6 +37,7 @@ export function TopBar() {
   return (
     <header data-tip-instant className="col-span-full flex items-center gap-4.5 bg-ink px-5 py-0 text-white narrow:flex-wrap narrow:gap-y-2 narrow:px-4 narrow:py-2.5">
       <div className="flex items-center gap-2.25 text-[17px] font-extrabold tracking-[-0.3px]"><Icon name="shield" className="size-6 stroke-risk stroke-[2.2]" />SentinelAI</div>
+      <TopNav />
       <div className="ml-auto flex items-center gap-2">
         <span className="flex items-center whitespace-nowrap rounded-[7px] bg-white px-2.75 py-1.25 text-[12.5px] font-bold text-risk" id="engine-warn" hidden={!problems.length}
           data-tip={`점검 필요|${problems.join(", ")}`}>
@@ -59,7 +61,7 @@ export function TopBar() {
   );
 }
 
-const TOP_BTN = "rounded-[7px] border border-bar-line bg-transparent px-2.5 py-1 text-[12px] text-bar-ink hover:border-bar-line-hover hover:text-white";
+const TOP_BTN = "whitespace-nowrap rounded-[7px] border border-bar-line bg-transparent px-2.5 py-1 text-[12px] text-bar-ink hover:border-bar-line-hover hover:text-white";
 
 function AlertPop({ ref, open, risks, onPick }: { ref: Ref<HTMLDivElement>; open: boolean; risks: QueueItem[]; onPick: (key: string) => void }) {
   return (

@@ -158,19 +158,13 @@
     overflow: hidden;
     display: grid;
     grid-template-rows: 56px minmax(0, 1fr);
-    grid-template-columns: 60px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     background: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
-  }
-  body[data-solo] {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  body[data-nav-wide] {
-    grid-template-columns: 184px minmax(0, 1fr);
   }
   #root {
     display: contents;
@@ -179,14 +173,7 @@
     body {
       height: auto;
       overflow: auto;
-      grid-template-columns: 1fr;
       grid-template-rows: auto auto;
-    }
-    body[data-solo] {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    body[data-nav-wide] {
-      grid-template-columns: 1fr;
     }
     body[data-drawer-open] {
       overflow: hidden;
