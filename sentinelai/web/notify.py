@@ -1,15 +1,16 @@
-"""알림 — 결재할 신청은 결재자 Slack 으로, 결재 결과는 신청자 메일로 보냅니다 (설정이 비면 끔)."""
+"""알림 — 결재할 신청 · 로그 감시 위험은 운영자 Slack 으로, 결재 결과는 신청자 메일로 보냅니다 (설정이 비면 끔)."""
 from __future__ import annotations
 
 import json
 import logging
 import smtplib
 import ssl
+import threading
 import urllib.request
 from dataclasses import dataclass
 from email.message import EmailMessage
 
-from sentinelai.db import Database, auth
+from sentinelai.db import Database, auth, results
 from sentinelai.engine.settings import BOOT_ENV, Settings
 
 log = logging.getLogger(__name__)
@@ -132,3 +133,61 @@ def send_mail(mail: Mail, to: str, subject: str, body: str) -> None:
             server.send_message(msg)
     except Exception as exc:  # noqa: BLE001
         log.warning("결재 결과 메일을 보내지 못했습니다 (%s): %s", to, exc)
+
+
+# --- 로그 감시 위험 → 운영자 Slack 채널 ---------------------------------------------
+
+RISK_POLL_SEC = 30
+STAGE_TEXT = {"fast": "1차 판정", "final": "확정"}
+
+
+def risk_message(stage: str, count: int) -> str:
+    # 바깥 서비스로 나가므로 사람 · 로그 내용은 넣지 않습니다.
+    return f"[로그 감시 위험 · {STAGE_TEXT[stage]}] {count}건\nSentinelAI 로그 감시에서 확인하세요"
+
+
+def _same(a: dict, b: dict) -> bool:
+    return a["user"] == b["user"] and a["first_event_at"] <= b["last_event_at"] and b["first_event_at"] <= a["last_event_at"]
+
+
+class RiskWatcher:
+    """새 위험 판정을 주기마다 읽어 알립니다. 엔진을 건드리지 않으려고 결과 DB 를 지켜봅니다."""
+
+    def __init__(self, url: str, db: Database, every: float = RISK_POLL_SEC) -> None:
+        self.url, self.db, self.every = url, db, every
+        # 웹이 뜨기 전 판정은 알리지 않습니다 (다시 띄울 때마다 예전 위험이 다시 가지 않게).
+        self.after = results.last_finding_id(db)
+        self.alerted: list[dict] = []
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def check(self) -> list[str]:
+        """보낸 문장들. 확정은 1차 때 알린 사람 · 로그 구간과 겹치면 넘깁니다."""
+        rows = results.findings_after(self.db, self.after)
+        if not rows:
+            return []
+        self.after = rows[-1]["id"]
+        fast = [r for r in rows if r["stage"] == "fast"]
+        final = [r for r in rows if r["stage"] == "final" and not any(_same(r, a) for a in self.alerted)]
+        self.alerted = (self.alerted + fast)[-500:]
+        texts = [risk_message(stage, len(group)) for stage, group in (("fast", fast), ("final", final)) if group]
+        for text in texts:
+            send_slack(self.url, text)
+        return texts
+
+    def _run(self) -> None:
+        while not self._stop.wait(self.every):
+            try:
+                self.check()
+            except Exception as exc:  # noqa: BLE001
+                log.warning("로그 감시 위험 알림을 확인하지 못했습니다: %s", exc)
+
+    def start(self) -> None:
+        if self.url:
+            self._thread = threading.Thread(target=self._run, name="risk-watcher", daemon=True)
+            self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=5)
