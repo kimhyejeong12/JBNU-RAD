@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from sentinelai.cli import add_regulations
+from sentinelai.dev import add_regulations
 from sentinelai.db import Denied, regulations
 from sentinelai.engine.rag import DocumentStore
 
@@ -29,8 +29,7 @@ def test_import_keeps_existing(main_db, people, tmp_path):
     (tmp_path / "b.txt").write_text("나", encoding="utf-8")
     (tmp_path / "c.pptx").write_bytes(b"x")
     regulations.create(main_db, people["top"], "a.md", "있던 글")
-    added, kept = add_regulations(SimpleNamespace(main_db=main_db), tmp_path)
-    assert (added, kept) == (["b.txt"], ["a.md"])
+    assert add_regulations(SimpleNamespace(main_db=main_db), tmp_path) == ["b.txt"]
     assert regulations.texts(main_db) == {"a.md": "있던 글", "b.txt": "나"}
 
 

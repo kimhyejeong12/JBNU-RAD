@@ -54,7 +54,7 @@ SK쉴더스 산학협력 문제 제안서(2026. 8.)가 이 과제의 기준.
 JBNU-RAD/
 ├── sentinelai/               SentinelAI 패키지. __init__.py 는 ROOT · 버전만 (하위 패키지를 가져오지 않음)
 │   ├── dev.py                  로컬 시험 환경 `python -m sentinelai.dev` — setup · web · test · targets (11/5, 예전 scripts/)
-│   ├── __main__.py · cli.py    CLI `python -m sentinelai` — 웹이 꺼져 있을 때 쓰는 최소 명령 (health · index · import-regulations · review-policies · check-nodes · monitor · import-snapshots · create-root). 모두 Engine 기능을 부름
+│   ├── __main__.py · cli.py    CLI `python -m sentinelai` — 화면에 없는 일만 (index --rebuild · monitor · import-snapshots · create-root, 11/9 정리). 모두 Engine 기능을 부름
 │   ├── engine/                 엔진 (양현성) — 자원 · 이슈어 · 종류별 큐 · 워커 · 인터페이스 (11/5 사용자 정리)
 │   │   ├── interface.py          Engine — 넷을 엮는 입구. 웹 · CLI 가 부르는 이름(health · index · run_* · start · start_job · enqueue_* · job_status · stats · browse_logs · receive_snapshot …)만. run_* 는 CLI 용으로 묶음을 쌓고 그 자리에서 워커를 돌림(drain). 질의(ask)는 질의 에이전트를 큐 밖에서 부름
 │   │   ├── resource.py           Resources — LLM 연결(생각 켬 · 끔) · 체인 · 벡터 DB · 두 DB · 데이터 계층 · 프롬프트 모듈을 한 번만 열고, 상태 확인(health)
@@ -118,7 +118,7 @@ JBNU-RAD/
 │       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
 │       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(질의 팝업 AskDock — 오른쪽 아래 버튼으로 어느 화면에서든 열고, 대화 · 근거 칩 · 도구별 근거 보기, 예시 질문은 config.ts) · stats · risk(보안 현황의 권한 변동 탭 — 사람 카드 · 회수) · catalog · accounts · regulations(기준 문서) · engine(관리의 큐 탭). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
 ├── data/                     DLP 로그 (위치는 .env) · 예시 기준 문서. 컨테이너에는 읽기만으로 붙음
-│   └── example-regulations/    예시 기준 문서(.md · .txt) · 참고 pptx — 웹은 읽지 않음. 시험 환경 setup 과 `import-regulations` 가 권한 DB 에 넣음 (11/9, 예전 docs/ → examples/regulations/)
+│   └── example-regulations/    예시 기준 문서(.md · .txt) · 참고 pptx — 웹은 읽지 않음. 시험 환경 setup 이 권한 DB 에 넣음, 운영은 화면에서 올림 (11/9, 예전 docs/ → examples/regulations/)
 │       ├── 접근권한_관리기준.md     3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │       └── 정책_운영기준.md         5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
 ├── node/                     수집 노드 — 점검 대상 서버에 까는 데몬 (패키지와 따로, 표준 라이브러리만, Python 3.8+). 설치 · 사용은 node/README.md
@@ -181,7 +181,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 - 판정은 모두 엔진(`sentinelai.engine`)이 함 — 이슈어가 읽어 쌓고, 워커 하나가 꺼내 판정 · 저장
 - CLI와 웹이 같은 `Engine` 기능을 부르고, 결과는 AI 결과 DB(`SENTINELAI_RESULTS_DB_PATH`의 스키마 `results`)에 실행마다 쌓음
 - 판정 실패 시 2회 재시도(`worker.attempt`). 그래도 실패하면 `failed` · `error`로 남기고 화면에는 "주의"로 올림 (이유 칸에 원인)
-- 벡터 DB는 compose 의 Milvus 서버 (`SENTINELAI_MILVUS_URI`, 파일 경로를 넣으면 Milvus Lite). 웹이 떠 있으면 판정은 웹 작업(`/api/jobs`)으로, 꺼져 있으면 CLI로 — CLI 는 따로 큐를 돌려 웹과 함께 돌면 모델을 함께 침. 둘 다 같은 AI 결과 DB에 쌓음
+- 벡터 DB는 compose 의 Milvus 서버 (`SENTINELAI_MILVUS_URI`, 파일 경로를 넣으면 Milvus Lite). 판정은 웹 작업(`/api/jobs`)으로. CLI 판정은 cron 용 로그 감시(`monitor`)뿐 — 따로 큐를 돌려 웹과 함께 돌면 모델을 함께 침. 둘 다 같은 AI 결과 DB에 쌓음
 - 판정 입력: `sentinelai.sources`가 대상 · 사람 · 규정 RAG(조항) · 운영자 결정을 모으고, `sentinelai.context`가 글로 씀. 입력 예산 = (`NUM_CTX` − `NUM_PREDICT`) × 1.4자 − 프롬프트 글. 넘치면 신청 기록 · 운영자 결정 → 로그 줄 → 위협 기록 순으로 오래된 줄부터 빼고 "오래된 N줄은 입력 한도로 뺐습니다"를 그 칸에 적음. 대상 · 조항은 빼지 않음. 판정 결과 dict의 `input`(글자 수 · 한도 · 뺀 줄)은 저장하지 않음
 - **판정 근거 확인** (11/9): 워커가 `engine/ground.py` 로 판정이 댄 근거 조항(문서 이름 · 조항 번호)이 판정 입력의 조항 칸에 실제로 있는지 보고 `grounding.checks`(어긋난 것)로 판정과 함께 저장. 어긋나도 판정은 그대로 두고 적기만 함 (다시 묻지 않음). 모델 입력은 바꾸지 않음 — 입력 줄 번호 · `evidence` 칸은 시험해 보고 뺐음 (§9). 화면에는 아직 안 보임
 - **선례 검토** (11/9, LLM-as-a-Judge — 권한 신청 · 보유 권한 재검토 · 정밀 감시 · 서버 점검 · 정책 관리 검토, 빠른 감시 · 위협 예측은 뺌): 1차 판정 뒤 `sources.precedents` 가 비슷한 지난 사례에 사람이 정한 것만 고름(권한 신청 = 같은 권한 3 · 분류 2 · 시스템 1 + 같은 부서 1, 정밀 감시 = 다른 사람 판정에 정한 것 중 솔루션 · 어디서 · 행위 · 예외 승인이 겹치는 것, 서버 점검 = 다른 노드 판정 중 차이 항목이 겹치는 것, 정책 관리 검토 = 조항 · 유형이 겹치는 문제). 선례가 없으면 건너뜀. 있으면 판사 모델(같은 판정 모델, `PRECEDENT_JUDGE` → `PrecedentReview`)이 사례(대상 칸만) · 1차 판정 · 선례를 보고 맞음 · 어긋남과 어긋난 선례 번호를 냄. 어긋남이고 실제 선례 번호를 대면 그 평가를 원래 판정 프롬프트 뒤에 붙여(`PRECEDENT_REJUDGE`) 한 번 다시 판정하고 두 번째 판정을 씀 (사용자 결정). 번호를 안 대면 다시 판정하지 않고 checks 에 적음. 기록은 `grounding.precedent`(선례 줄 · 평가 · rejudged · 1차 판정 · 초). 다시 판정할 몫(3,800자)은 판정 입력 예산에서 미리 뺌. 판정 한 건에 모델 호출 1~3번. 화면에는 아직 안 보임
@@ -246,7 +246,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 - 예전 버그를 도구가 막음: 사람 이름이 `keyword` 로 오면 `user` 로 옮김, 로그 처음 · 끝으로 채운 기간은 비움, 솔루션 · 어디서 · 행위에 로그에 없는 값은 빼고 쉼표는 '또는', 0건이면 조건 하나씩의 건수를 돌려줘 다시 부르게 함. 답의 `**` · `<think>` 는 코드가 걷어냄
 - 검증(`ask/check.py`): 답의 숫자가 고른 근거 · 질문에 있는지, 인용한 문서가 고른 근거에 있는지 (판단 단계가 본 것만으로) → `checks`, 화면에 경고. 날짜에 든 숫자와 구분하지 못해 약함 (§8 8)
 - `find_logs` 를 부를 때마다 감사 기록 `log_view` (`via: ask`). 큐 밖에서 웹 요청 자리에서 돎 — 판정 워커와 모델을 함께 씀
-- CLI `python -m sentinelai ask "질문"` — 모델 평가용, 감사 기록 없음
+- CLI 질의는 11/9에 뺐음 (화면 팝업과 겹침). 모델 평가는 `Engine().ask(질문, None)` 을 부르는 스크립트로
 
 ### API
 
@@ -304,18 +304,18 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 | `./sentinel 명령` | 떠 있는 컨테이너 안에서 `python -m sentinelai 명령`. 터미널이 없으면(cron) `-T`로 붙음 |
 | `./sentinel create-root --login 아이디 --name 이름 [--department 부서]` | 첫 루트 계정(보안 총책임자) — 한 번만. 비밀번호는 화면 표시 없이 입력 |
 | `./sentinel import-snapshots 폴더 --node 이름` | 망이 막힌 노드의 `export` 파일 넣기 (폴더를 컨테이너로 복사해 넣음, 벡터 DB를 안 써서 웹이 떠 있어도 됨) |
-| `./sentinel import-regulations 폴더` | 폴더의 .md · .txt 를 권한 DB 기준 문서로 넣고 적재 — 같은 이름은 덮어쓰지 않음. 처음 설치 때 `data/example-regulations` |
-| `python -m sentinelai health` · `index [--rebuild]` · `review-policies` · `check-nodes` · `monitor [--since 시각] [--full]` · `ask "질문"` | 웹이 꺼져 있을 때만 (venv). 연결 확인 · 권한 DB 의 기준 문서를 RAG 에 적재(`--rebuild`는 컬렉션을 비우고 새로) · 정책 관리 검토 · 서버 점검 · 로그 감시 1회(cron용, `--full`이면 처음부터) · 질의 1회(모델 평가용) |
+| `./sentinel index --rebuild` | RAG 컬렉션을 비우고 권한 DB 의 기준 문서를 전부 새로 적재 (바뀐 문서만 맞추는 것은 웹이 뜰 때 · 화면에서 올릴 때 알아서 함) |
+| `./sentinel monitor [--since 시각] [--until 시각] [--full]` | 로그 감시 1회 (cron 용, 웹이 꺼져 있을 때, `--full`이면 처음부터). 웹이 떠 있으면 웹 작업 큐와 따로 모델을 침. venv 에서는 `python -m sentinelai monitor` |
 | `python -m sentinelai.dev setup [--reset]` | **로컬 시험 환경**을 `sentinelai_dev` DB · `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 예시 기준 문서(`data/example-regulations`)를 넣고 모델 서버에 닿으면 적재 |
 | `python -m sentinelai.dev web [--check-min 5]` | 시험 환경으로 웹 (http://127.0.0.1:8001, `sentinelai_dev` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 됨). 로그 감시 · 서버 점검은 `--check-min`분마다 |
-| `python -m sentinelai.dev test` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움 |
+| `python -m sentinelai.dev test [pytest 인자]` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움. 뒤에 붙인 인자는 pytest 에 그대로 (예: `test -k ground -x`) |
 | `python -m sentinelai.dev targets [up\|down]` | **진짜 수집** — podman compose로 점검 대상 컨테이너 2대(`target-weak`: 약한 설정 / `target-strict`: 잠근 설정)를 올리고 내림. 값은 `node/testenv/targets.env`(git 제외: `SERVER` · `KEY_WEAK` · `KEY_STRICT` · `INTERVAL`, 없으면 시험 환경 키로 만듦). SentinelAI를 바깥에 열지 않고(pasta `--map-host-loopback`) ufw가 실제로 켜짐(NET_ADMIN). 사용자 podman 소켓 필요. 10/20 시험: weak 위험 · strict 정상 |
 | `npm ci` · `npm run dev` · `npm test && npm run typecheck && npm run lint` (`frontend/`) | 화면 개발 — npm 의존성(처음 한 번) · 개발 서버 http://localhost:5173 (`/api`는 8001로) · 시험 · 타입 검사 · 린트 |
 | `npm run build` (`frontend/`) | 화면 빌드 → `sentinelai/web/static/` (**커밋**함 — 팀 서버에 Node · 외부망이 없어도 새 화면). 깨끗이 설치해(`npm ci`) 빌드한 뒤 `git status sentinelai/web/static`이 비면 커밋된 것과 같음 |
 
 - venv 준비(처음 한 번): `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && cp .env.example .env`. 팀 서버처럼 PostgreSQL 이 따로 있으면 `.env` 주소만
 - 10/20에 CLI를 줄였음 — `config` · `models` · `search` · `ask` · `chat` · `index-policies` · `review-requests` · `ask-logs` 없앰 (11/5에 `ask` 를 질의 에이전트로 다시 붙임)
-- **웹이 떠 있을 때 CLI 판정**: 벡터 DB가 Milvus 서버라 CLI `review-policies` · `check-nodes` · `monitor`도 돌지만 웹 작업 큐와 따로 모델을 침. 웹이 떠 있을 때는 웹이 돌림 (Milvus Lite 를 쓰면 잠금 때문에 아예 실패)
+- **CLI 는 화면에 없는 일만** (11/9): 연결 확인 · 기준 문서 넣기 · 정책 관리 검토 · 서버 점검 · 위협 예측 · 질의는 화면에서 함 (`/api/health` · 기준 문서 · 작업 버튼 · 질의 팝업). 시험 환경의 예시 기준 문서는 `python -m sentinelai.dev setup` 이 넣음
 - Milvus 컨테이너가 healthy 가 된 뒤 웹이 뜸. 시험 환경(`python -m sentinelai.dev`)도 같은 Milvus 의 `sentinelai_dev` 컬렉션을 써서 compose 의 milvus 가 떠 있어야 함
 
 설정은 `.env` 한 곳. 코드에 주소 · 모델명을 하드코딩하지 않음. 두 환경 모두에서 동작해야 함.
@@ -400,7 +400,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 ## 7. 시연 기록 (9/30 산학 자문 멘토링)
 
 - 9/30 시연은 사전 계산 결과(`results.json` · `ask_results.json`) · 시연용 위험 예시 4건 · 예시 답 로딩 연출로 했음. 10/8에 모두 걷어내고 화면이 코어 작업을 직접 돌리게 바꿨음
-- 다음 시연 순서: 팀 서버 연결 → `python -m sentinelai health` → `docker compose up` → 정책 관리 검토(기준 문서 적재 포함)
+- 다음 시연 순서: 팀 서버 연결 → `docker compose up` → 화면 상단의 연결 상태 확인 → 정책 관리 검토(기준 문서 적재 포함)
 - 판정 한 건에 1~3분이라 미리 돌려 둠. 결과는 AI 결과 DB에 남아 서버를 다시 띄워도 보임
 
 ---
@@ -471,7 +471,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 - `SENTINELAI_MODEL` — 판정: 권한 신청 · 재검토 · 정책 관리 검토 · 서버 점검 · 로그 감시 · 위협 예측 (워커)
 - `SENTINELAI_QA_MODEL` — 질답: 질의 에이전트 (생각 켬, `Resources.qa_llm`)
 - 나눈 이유: 판정은 오탐이 적어야 하고(정상을 정상으로), 질답은 빨리 답해야 함 — 요구가 달라 모델을 따로 고를 수 있게 했음
-- CLI `health` · `/api/health`는 두 모델을 모두 확인함
+- `/api/health`는 두 모델을 모두 확인함
 - 지금은 둘 다 `qwen3:14b` (아래 모델 비교)
 
 #### `SENTINELAI_NUM_PREDICT` (10/11 4096 → 10/22 8192)
