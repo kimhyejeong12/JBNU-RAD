@@ -110,10 +110,10 @@ JBNU-RAD/
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
 │       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
 │       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(질의 팝업 AskDock — 오른쪽 아래 버튼으로 어느 화면에서든 열고, 대화 · 근거 칩 · 도구별 근거 보기, 예시 질문은 config.ts) · stats · risk(보안 현황의 권한 변동 탭 — 사람 카드 · 회수) · catalog · accounts · regulations(기준 문서) · engine(관리의 큐 탭). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
-├── examples/regulations/     예시 기준 문서(.md · .txt) · 참고 pptx — 웹은 읽지 않음. 시험 환경 setup 과 `import-regulations` 가 권한 DB 에 넣음 (11/6, 예전 docs/)
-│   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
-│   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
-├── data/                     DLP 로그 (위치는 .env)
+├── data/                     DLP 로그 (위치는 .env) · 예시 기준 문서. 컨테이너에는 읽기만으로 붙음
+│   └── example-regulations/    예시 기준 문서(.md · .txt) · 참고 pptx — 웹은 읽지 않음. 시험 환경 setup 과 `import-regulations` 가 권한 DB 에 넣음 (11/9, 예전 docs/ → examples/regulations/)
+│       ├── 접근권한_관리기준.md     3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
+│       └── 정책_운영기준.md         5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
 ├── node/                     수집 노드 — 점검 대상 서버에 까는 데몬 (패키지와 따로, 표준 라이브러리만, Python 3.8+). 설치 · 사용은 node/README.md
 │   ├── sentinel_node/          collect(모듈별 원문 읽기) · client(보내기 · 못 보낸 것 쌓기 · 키 저장) · config · __main__(run · once · show · export)
 │   ├── install.sh              /opt/sentinel-node · /etc/sentinel-node/node.conf · systemd 설치 · 제거
@@ -292,9 +292,9 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 | `./sentinel 명령` | 떠 있는 컨테이너 안에서 `python -m sentinelai 명령`. 터미널이 없으면(cron) `-T`로 붙음 |
 | `./sentinel create-root --login 아이디 --name 이름 [--department 부서]` | 첫 루트 계정(보안 총책임자) — 한 번만. 비밀번호는 화면 표시 없이 입력 |
 | `./sentinel import-snapshots 폴더 --node 이름` | 망이 막힌 노드의 `export` 파일 넣기 (폴더를 컨테이너로 복사해 넣음, 벡터 DB를 안 써서 웹이 떠 있어도 됨) |
-| `./sentinel import-regulations 폴더` | 폴더의 .md · .txt 를 권한 DB 기준 문서로 넣고 적재 — 같은 이름은 덮어쓰지 않음. 처음 설치 때 `examples/regulations` (폴더를 컨테이너로 복사해 넣음) |
+| `./sentinel import-regulations 폴더` | 폴더의 .md · .txt 를 권한 DB 기준 문서로 넣고 적재 — 같은 이름은 덮어쓰지 않음. 처음 설치 때 `data/example-regulations` |
 | `python -m sentinelai health` · `index [--rebuild]` · `review-policies` · `check-nodes` · `monitor [--since 시각] [--full]` · `ask "질문"` | 웹이 꺼져 있을 때만 (venv). 연결 확인 · 권한 DB 의 기준 문서를 RAG 에 적재(`--rebuild`는 컬렉션을 비우고 새로) · 정책 관리 검토 · 서버 점검 · 로그 감시 1회(cron용, `--full`이면 처음부터) · 질의 1회(모델 평가용) |
-| `python -m sentinelai.dev setup [--reset]` | **로컬 시험 환경**을 `sentinelai_dev` DB · `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 예시 기준 문서(`examples/regulations`)를 넣고 모델 서버에 닿으면 적재 |
+| `python -m sentinelai.dev setup [--reset]` | **로컬 시험 환경**을 `sentinelai_dev` DB · `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 예시 기준 문서(`data/example-regulations`)를 넣고 모델 서버에 닿으면 적재 |
 | `python -m sentinelai.dev web [--check-min 5]` | 시험 환경으로 웹 (http://127.0.0.1:8001, `sentinelai_dev` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 됨). 로그 감시 · 서버 점검은 `--check-min`분마다 |
 | `python -m sentinelai.dev test` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움 |
 | `python -m sentinelai.dev targets [up\|down]` | **진짜 수집** — podman compose로 점검 대상 컨테이너 2대(`target-weak`: 약한 설정 / `target-strict`: 잠근 설정)를 올리고 내림. 값은 `node/testenv/targets.env`(git 제외: `SERVER` · `KEY_WEAK` · `KEY_STRICT` · `INTERVAL`, 없으면 시험 환경 키로 만듦). SentinelAI를 바깥에 열지 않고(pasta `--map-host-loopback`) ufw가 실제로 켜짐(NET_ADMIN). 사용자 podman 소켓 필요. 10/20 시험: weak 위험 · strict 정상 |
@@ -401,7 +401,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 4. **알림(Notifier)** — 로그 감시의 주의 · 위험 판정을 운영자에게 보냄. 자리(`Notifier`)만 `sentinelai/engine/worker.py`에 있고 같은 파일의 로그 감시 저장(`_save_events`)에 부를 곳을 표시했음. 결재 대기 알림은 11/04에 웹(`web/notify.py`)에서 Slack 채널로 보냄 (11/04 팀 결정: 채널, Slack 먼저) — 같은 채널을 쓰면 됨. 결재 결과는 같은 날 신청자 이메일로 (SMTP, 시연은 Gmail · 사내 이전 때 사내 SMTP). 계정 관리 화면의 이메일 칸은 리디자인 때 (그 전에는 `PATCH /api/users/{id}`)
 5. **출력 · 매체 반출 조항 없음** — 로그 감시가 근거 없이 판정함. 절차서 14 · 17번(예외처리 · 매체 반출입) 원문 필요. 10/20 시나리오 B · D가 이 때문에 "정상"으로 나와 검토에서 빠졌음. **코드 규칙(출력량 · 시간대 · 새 계정)으로 올리지 않고 절차서 원문을 RAG에 넣기로 했음 (10/20).** 원문을 받으면 7번 경로로 넣고 시나리오로 다시 확인
 6. **로그 감시 이력 화면** — 같은 사용자의 반복 주의 · 위험, 솔루션 · 행위별 추이, 마지막 감시 시각 · 판정 못한 로그. 데이터가 쌓이고 5번 조항이 들어온 뒤에 만듦
-7. **문서 데이터 읽기** — 지금 `DocumentStore`는 `.md` · `.txt`만 적재. 사내 정책 원문(pptx · pdf · docx 등)을 기준 조항으로 넣음. `examples/regulations/보안 정책 관리 업무 프로세스.pptx`는 글자 없는 이미지 4장이라 OCR 필요. 5번 절차서도 이 경로로
+7. **문서 데이터 읽기** — 지금 `DocumentStore`는 `.md` · `.txt`만 적재. 사내 정책 원문(pptx · pdf · docx 등)을 기준 조항으로 넣음. `data/example-regulations/보안 정책 관리 업무 프로세스.pptx`는 글자 없는 이미지 4장이라 OCR 필요. 5번 절차서도 이 경로로
 8. **할루시네이션 검증** — 모델 출력이 근거와 맞는지 코드로 확인. 예: `sources`의 조항 번호 · 정책 ID가 실제 검색 근거에 있는지, 로그 질의 답의 숫자가 `summarize`와 같은지, 로그 조건(사용자 · 기간)이 질문에 있는 말인지. 어긋나면 알리거나 다시 시도. 10/11에 질문에 없는 기간을 채워 답이 틀린 적 있음 (§9)
 9. **내부 상태 API** — 10/20에 `/internal/status`로 작업 큐 · 예약 · 판정 대기열을 화면과 분리했음. 남은 것: `/api/health`도 옮길지, 자동 감시가 연달아 실패하면 알릴지
 10. **보안 대시보드** (10/21 TODO) — 권한 신청 · 정책 관리 · 서버 점검 · 로그 감시를 한눈에. 통계 메뉴(10/21)와 겹치지 않게, 운영자가 무엇을 결정하는 데 쓰는지부터 정함
@@ -787,5 +787,5 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - 원문은 권한 DB `regulations`(이름 · 원문 · 고친 시각 · 고친 사람), RAG(Milvus)는 그 사본 (사용자 결정) — Milvus 볼륨이 비어도 웹이 뜰 때 다시 채움. 사람이 올린 근거라 결정자와 같은 DB
 - `DocumentStore.index(이름 → 원문)` 하나로 맞춤 — 바뀐 문서만 임베딩, 없는 문서의 조각은 뺌. 그래서 `DocumentStore.remove` · `Engine.remove_document` · 폴더 읽기(`read`)를 지웠음
 - 올리기 · 고치기 · 지우기는 원문을 쓰고 적재하는 한 일로 큐에 들어가고, 적재가 실패하면 원문을 되돌림 (예전 파일 되돌리기와 같음). 감사 기록은 그대로
-- 예전 `docs/`는 `examples/regulations/`로 옮겨 예시로 둠 (사용자 결정) — 시험 환경 setup 이 넣고, 운영은 `./sentinel import-regulations examples/regulations`로 한 번 넣음. compose 의 `docs` 볼륨은 뺐음 (지우려면 `docker volume rm jbnu-rad_docs`)
+- 예전 `docs/`는 `examples/regulations/`로 옮겨 예시로 둠 (사용자 결정) — 시험 환경 setup 이 넣고, 운영은 `./sentinel import-regulations data/example-regulations`로 한 번 넣음 (11/9에 `data/example-regulations/`로 옮겼음 — data/ 는 컨테이너에 읽기만으로 붙어 이미지에 따로 넣지 않음). compose 의 `docs` 볼륨은 뺐음 (지우려면 `docker volume rm jbnu-rad_docs`)
 - 같은 날 엔진이 남기는 시각(작업 큐 · 예약 · 정책 관리 검토 · 로그 감시 실행)에 시간대를 붙였음 — 컨테이너는 UTC 인데 시간대 없이 남겨 화면이 한국 시각으로 읽어 9시간 이르게 보였음 ("작업 큐가 주기적으로 안 돈다"로 보였으나 예약은 제때 돌았음)

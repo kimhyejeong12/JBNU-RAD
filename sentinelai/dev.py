@@ -12,7 +12,7 @@ from . import ROOT
 
 DEV = ROOT / ".dev"
 # 시험 환경에 넣는 예시 기준 문서입니다. 운영 웹은 읽지 않습니다.
-EXAMPLES = ROOT / "examples" / "regulations"
+EXAMPLES = ROOT / "data" / "example-regulations"
 PORT = os.environ.get("DEV_PORT", "8001")
 DEV_URL = os.environ.get("DEV_DATABASE_URL", "postgresql://sentinelai:sentinelai-dev@127.0.0.1:5432/sentinelai_dev")
 TEST_URL = os.environ.get("TEST_DATABASE_URL", "postgresql://sentinelai:sentinelai-dev@127.0.0.1:5432/sentinelai_test")

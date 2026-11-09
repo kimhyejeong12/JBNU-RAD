@@ -173,7 +173,7 @@ def parser() -> argparse.ArgumentParser:
     cmd.add_argument("--rebuild", action="store_true", help="컬렉션을 비우고 전부 새로")
     cmd.set_defaults(run=index)
     cmd = sub.add_parser("import-regulations", help="폴더의 기준 문서(.md · .txt)를 권한 DB 에 넣고 적재 — 같은 이름은 그대로")
-    cmd.add_argument("folder", help="문서 파일 · 폴더 (예: examples/regulations)")
+    cmd.add_argument("folder", help="문서 파일 · 폴더 (예: data/example-regulations)")
     cmd.set_defaults(run=import_regulations)
     sub.add_parser("review-policies", help="정책 관리 검토 — 기준 문서 적재 + 기준 문서 간 검토").set_defaults(run=review_policies)
     sub.add_parser("check-nodes", help="서버 점검 — 새 수집이 온 노드만").set_defaults(run=check_nodes)
