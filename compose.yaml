@@ -1,4 +1,4 @@
-# SentinelAI 웹(app) + PostgreSQL + Milvus(벡터 DB) — DB 비밀번호는 .env 의 SENTINELAI_DB_PASSWORD (없으면 개발용 기본값).
+# SentinelAI 웹(app) + PostgreSQL + Milvus(벡터 DB) + etcd(Milvus 메타데이터) — DB 비밀번호는 .env 의 SENTINELAI_DB_PASSWORD (없으면 개발용 기본값).
 services:
   postgres:
     image: postgres:18
@@ -19,14 +19,27 @@ services:
       timeout: 3s
       retries: 10
 
+  # Milvus 메타데이터 저장소 — 내장 etcd 는 다시 뜰 때 리더를 뽑는 사이에 Milvus 가 읽다 죽어 따로 띄웁니다.
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.18
+    command: ["etcd", "--name", "milvus", "--data-dir", "/etcd",
+              "--listen-client-urls", "http://0.0.0.0:2379", "--advertise-client-urls", "http://etcd:2379",
+              "--quota-backend-bytes", "4294967296", "--auto-compaction-mode", "revision", "--auto-compaction-retention", "1000"]
+    volumes:
+      - etcd-data:/etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   milvus:
     image: milvusdb/milvus:v3.0.3
     command: ["milvus", "run", "standalone"]
-    # etcd · 저장소를 따로 띄우지 않고 컨테이너 하나로 돕니다.
+    # 저장소(MinIO)는 따로 띄우지 않고 볼륨에 둡니다.
     environment:
-      ETCD_USE_EMBED: "true"
-      ETCD_DATA_DIR: /var/lib/milvus/etcd
-      ETCD_CONFIG_PATH: /milvus/configs/embedEtcd.yaml
+      ETCD_ENDPOINTS: etcd:2379
       COMMON_STORAGETYPE: local
       DEPLOY_MODE: STANDALONE
     security_opt:
@@ -34,14 +47,17 @@ services:
     ports:
       - "127.0.0.1:19530:19530"
     volumes:
-      - milvus-data:/var/lib/milvus
-      - ./milvus/embedEtcd.yaml:/milvus/configs/embedEtcd.yaml:ro,z
+      - milvus-store:/var/lib/milvus
+    depends_on:
+      etcd:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
       interval: 10s
       timeout: 5s
       start_period: 90s
       retries: 6
+    restart: unless-stopped
 
   app:
     build: .
@@ -74,4 +90,5 @@ services:
 
 volumes:
   pgdata:
-  milvus-data:
+  etcd-data:
+  milvus-store:

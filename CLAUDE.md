@@ -121,8 +121,7 @@ JBNU-RAD/
 ├── tests/                    DB 시험 (pytest, 시험마다 새 스키마) — python -m sentinelai.dev test
 ├── .dev/                     로컬 시험 환경 파일 (git 제외)
 ├── .env · .env.example       설정. .env 는 git 제외, 처음에 예시를 복사함
-├── compose.yaml              웹(app) + PostgreSQL 18 + Milvus(벡터 DB, 단독 실행 — 내장 etcd · 로컬 저장소) (docker compose up). DB sentinelai · sentinelai_dev · sentinelai_test, 컬렉션 sentinelai_policies · sentinelai_dev. 벡터 DB · PostgreSQL은 볼륨, data/는 읽기만 (기준 문서 볼륨 `docs`는 11/6에 뺐음)
-├── milvus/embedEtcd.yaml     Milvus 내장 etcd 설정 (compose 가 넣음)
+├── compose.yaml              웹(app) + PostgreSQL 18 + Milvus(벡터 DB, 단독 실행 — 로컬 저장소) + etcd(Milvus 메타데이터, 11/9) (docker compose up). DB sentinelai · sentinelai_dev · sentinelai_test, 컬렉션 sentinelai_policies · sentinelai_dev. 벡터 DB(`milvus-store`) · etcd · PostgreSQL은 볼륨, data/는 읽기만 (기준 문서 볼륨 `docs`는 11/6에 뺐음)
 ├── sentinel                  CLI — 떠 있는 컨테이너 안에서 `python -m sentinelai` (11/5, Makefile 대신)
 ├── requirements.txt · requirements-dev.txt
 └── Dockerfile · README.md    컨테이너 이미지(웹 · 엔진 · data · db · CLI, 11/04에 웹을 넣음) · 저장소 소개
@@ -789,3 +788,11 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - 올리기 · 고치기 · 지우기는 원문을 쓰고 적재하는 한 일로 큐에 들어가고, 적재가 실패하면 원문을 되돌림 (예전 파일 되돌리기와 같음). 감사 기록은 그대로
 - 예전 `docs/`는 `examples/regulations/`로 옮겨 예시로 둠 (사용자 결정) — 시험 환경 setup 이 넣고, 운영은 `./sentinel import-regulations data/example-regulations`로 한 번 넣음 (11/9에 `data/example-regulations/`로 옮겼음 — data/ 는 컨테이너에 읽기만으로 붙어 이미지에 따로 넣지 않음). compose 의 `docs` 볼륨은 뺐음 (지우려면 `docker volume rm jbnu-rad_docs`)
 - 같은 날 엔진이 남기는 시각(작업 큐 · 예약 · 정책 관리 검토 · 로그 감시 실행)에 시간대를 붙였음 — 컨테이너는 UTC 인데 시간대 없이 남겨 화면이 한국 시각으로 읽어 9시간 이르게 보였음 ("작업 큐가 주기적으로 안 돈다"로 보였으나 예약은 제때 돌았음)
+
+### Milvus 메타데이터 etcd 를 따로 (11/9)
+
+- 증상: compose 의 Milvus 가 뜨자마자 `panic: etcdserver: leader changed` 로 죽음(종료 코드 134), 다시 띄워도 매번 같음. Milvus 에 `restart` 가 없어 그대로 멈추고 웹은 Milvus healthy 를 기다리며 Created 에 머묾
+- 원인: 내장 etcd(`ETCD_USE_EMBED`)가 쌓인 데이터로 다시 뜨면 혼자 리더를 다시 뽑는 데 약 1.3초 걸리는데, Milvus 3.0.3 이 그 사이에 세션을 읽다 실패하면 다시 묻지 않고 죽음. 11/6 에는 같은 볼륨으로 다시 떴음 — 무엇이 바뀌었는지는 못 찾음
+- 내장 etcd 의 선거 시간을 줄여(`election-timeout` 50ms) 리더가 0.24초에 뽑혀도 Milvus 가 먼저 읽어 같은 패닉 → 설정으로는 못 막음
+- 조치: etcd 를 컨테이너로 따로 띄우고(`quay.io/coreos/etcd:v3.5.18`) Milvus 는 etcd 가 healthy 가 된 뒤 뜸 (사용자 결정). `milvus/embedEtcd.yaml` 지움, Milvus · etcd 에 `restart: unless-stopped`
+- Milvus 볼륨은 새 이름(`milvus-store`)으로 새로 시작 — 예전 볼륨의 조각은 내장 etcd 메타데이터와 묶여 있어 그대로 못 씀. RAG 는 권한 DB 의 기준 문서 사본이라 웹이 뜰 때 다시 채움. 예전 볼륨 `jbnu-rad_milvus-data` 는 남겨 둠 (지우려면 `docker volume rm jbnu-rad_milvus-data`)
