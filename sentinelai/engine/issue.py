@@ -152,7 +152,7 @@ class Issuer:
     def every(self, kind: str, minutes: int) -> None:
         """지금 한 번, 그 뒤 minutes 분마다 (0 이하면 끔). 같은 종류가 열려 있으면 그 차례는 건너뜁니다."""
         if minutes > 0:
-            self._schedule[kind] = {"every_min": minutes, "next_at": datetime.now()}
+            self._schedule[kind] = {"every_min": minutes, "next_at": datetime.now().astimezone()}
 
     def schedule(self) -> dict[str, dict[str, Any]]:
         return {k: {"every_min": v["every_min"], "next_at": v["next_at"].isoformat(timespec="seconds")} for k, v in self._schedule.items()}
@@ -167,13 +167,13 @@ class Issuer:
 
     def _loop(self) -> None:
         while not self._stopping:
-            now = datetime.now()
+            now = datetime.now().astimezone()
             for kind, s in list(self._schedule.items()):
                 if s["next_at"] <= now:
                     s["next_at"] = now + timedelta(minutes=s["every_min"])
                     self.issue(kind, auto=True)
             due = min((s["next_at"] for s in self._schedule.values()), default=now + timedelta(minutes=1))
-            self._wake.wait(max(0.1, min((due - datetime.now()).total_seconds(), 60)))
+            self._wake.wait(max(0.1, min((due - datetime.now().astimezone()).total_seconds(), 60)))
 
     # --- 수집 받기 ---
 

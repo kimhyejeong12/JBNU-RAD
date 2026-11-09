@@ -27,7 +27,7 @@ Progress = Callable[[int, int, dict[str, Any]], None]
 
 
 def _now() -> str:
-    return datetime.now().isoformat(timespec="seconds")
+    return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 @dataclass(eq=False)

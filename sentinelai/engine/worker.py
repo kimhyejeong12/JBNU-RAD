@@ -135,7 +135,7 @@ def band(score: int) -> str:
 
 
 def _now() -> str:
-    return datetime.now().isoformat(timespec="seconds")
+    return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 class Worker:
