@@ -110,7 +110,7 @@ class Agent:
     def ask(self, question: str, history: list[dict[str, Any]] | None = None, user: User | None = None,
             ip: str | None = None) -> dict[str, Any]:
         started = time.monotonic()
-        ctx = Context(self.sources, user=user, ip=ip)
+        ctx = Context(self.sources, user=user, ip=ip, llm=self.llm)
         steps: list[dict[str, Any]] = []
         texts: list[str] = []
         restarts = 0

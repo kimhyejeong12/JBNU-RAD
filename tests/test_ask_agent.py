@@ -51,7 +51,7 @@ def test_tool_then_answer(sources, people):
     out = Agent(model, sources).ask("재무 정다은이 출력을 몇 번 했어?", user=people["manager"])
     assert not out["failed"] and out["answer"] == f"재무 정다은은 출력을 {count}번 했습니다." and out["checks"] == []
     assert [s["tool"] for s in out["steps"]] == ["find_logs"] and out["steps"][0]["criteria"]["user"] == "재무 정다은"
-    assert {t["function"]["name"] for t in model.tools} == {"search_regulations", "find_logs", "servers", "person", "findings"}
+    assert {t["function"]["name"] for t in model.tools} == {"search_regulations", "find_logs", "servers", "person", "findings", "query"}
     system, *_, tool_msg = model.calls[1]
     assert isinstance(system, SystemMessage) and "재무 정다은" in system.content and isinstance(tool_msg, ToolMessage)
 
