@@ -26,7 +26,7 @@ SK쉴더스 산학협력 문제 제안서(2026. 8.)가 이 과제의 기준.
 
 | 요구 | 지금 구현 | 빈 곳 |
 |---|---|---|
-| 로컬 LLM · RAG — 보안정책 · 접근통제 · 권한 부여 기준 · 운영 가이드를 Vector DB에 | Ollama · Milvus(compose) · `docs/` 기준 문서 2개 | 운영 가이드 · 사내 원문 pptx · pdf (§8 7) |
+| 로컬 LLM · RAG — 보안정책 · 접근통제 · 권한 부여 기준 · 운영 가이드를 Vector DB에 | Ollama · Milvus(compose) · 기준 문서 2개(권한 DB 원문, 화면에서 올림) | 운영 가이드 · 사내 원문 pptx · pdf (§8 7) |
 | 정책 검토 — 공통 형식으로 표준화, 충돌 · 중복 · 과도한 허용 · 기준 위반과 개선안 | `review_policies` — RAG에 올라간 기준 문서끼리 견줌 (11/5, 솔루션 정책 파일 읽기는 뺐음) | 실제 솔루션 정책을 RAG에 올리는 길 (§8 2) |
 | 권한 적정성 — 부서 · 직무 · 기존 권한 · 신청 권한 → 승인 · 추가 검토 · 반려 권고 | `judge_request` (정상 → 승인 권고 · 주의 → 추가 검토 · 위험 → 반려 권고). 직무 · 신청 사유 · 사용 기간 · 최근 이동을 봄 (11/3). 받은 뒤 이동하면 `judge_grant`로 다시, 퇴사하면 코드가 위험 | 직무 기준 문서 (직무별 필요 권한) |
 | 대시보드 · 알림 — 정상 · 주의 · 위험, 위험이면 운영자 알림(이메일 · 메신저 포함), 고칠 것 설명 | 웹 대시보드 · 종 배지 · 결재 대기 Slack 채널 알림 · 결재 결과 신청자 메일(11/04) | 위험 판정 알림 (§8 4) |
@@ -54,7 +54,7 @@ SK쉴더스 산학협력 문제 제안서(2026. 8.)가 이 과제의 기준.
 JBNU-RAD/
 ├── sentinelai/               SentinelAI 패키지. __init__.py 는 ROOT · 버전만 (하위 패키지를 가져오지 않음)
 │   ├── dev.py                  로컬 시험 환경 `python -m sentinelai.dev` — setup · web · test · targets (11/5, 예전 scripts/)
-│   ├── __main__.py · cli.py    CLI `python -m sentinelai` — 웹이 꺼져 있을 때 쓰는 최소 명령 (health · index · review-policies · check-nodes · monitor · import-snapshots · create-root). 모두 Engine 기능을 부름
+│   ├── __main__.py · cli.py    CLI `python -m sentinelai` — 웹이 꺼져 있을 때 쓰는 최소 명령 (health · index · import-regulations · review-policies · check-nodes · monitor · import-snapshots · create-root). 모두 Engine 기능을 부름
 │   ├── engine/                 엔진 (양현성) — 자원 · 이슈어 · 종류별 큐 · 워커 · 인터페이스 (11/5 사용자 정리)
 │   │   ├── interface.py          Engine — 넷을 엮는 입구. 웹 · CLI 가 부르는 이름(health · index · run_* · start · start_job · enqueue_* · job_status · stats · browse_logs · receive_snapshot …)만. run_* 는 CLI 용으로 묶음을 쌓고 그 자리에서 워커를 돌림(drain). 질의(ask)는 질의 에이전트를 큐 밖에서 부름
 │   │   ├── resource.py           Resources — LLM 연결(생각 켬 · 끔) · 체인 · 벡터 DB · 두 DB · 데이터 계층 · 프롬프트 모듈을 한 번만 열고, 상태 확인(health)
@@ -62,7 +62,7 @@ JBNU-RAD/
 │   │   ├── queue.py              Queues — 종류별 길(기준 문서 적재 · 권한 신청 · 재검토 0 → 빠른 감시 1 → 정밀 감시 · 서버 점검 · 위협 예측 · 정책 관리 검토 2), 묶음(Batch)과 닫기 잡, 같은 key 한 번만, 취소 · 강제 중지, 화면 · 내부 상태 모양
 │   │   ├── worker.py             Worker — 잡을 꺼내 규정 RAG → 프롬프트 모듈(context) → 모델(JUDGMENTS 표: 종류마다 프롬프트 · 출력 타입 · 생각 켬/끔) → 저장. 묶음은 닫기 잡이 마무리(로그 감시는 여기서 한 번에 저장). 출력 타입 Verdict · ServerReview · SuspectScore · PolicyReview 와 알림 자리 Notifier(구현 없음, §8 4)도 여기
 │   │   ├── settings.py           Settings(.env · SENTINELAI_ 환경변수)
-│   │   └── rag.py                DocumentStore — 기준 문서(docs/)를 조각내 한 컬렉션에. 검색 · 조각 전부(문서 · 원래 순서) · 폴더에 없는 문서의 조각 빼기
+│   │   └── rag.py                DocumentStore — 기준 문서(이름 → 원문)를 조각내 한 컬렉션에. 검색 · 조각 전부(문서 · 원래 순서) · 없는 문서의 조각 빼기. 파일을 읽지 않음
 │   ├── ask/                    질의 에이전트 (11/5) — tools(읽기 전용 도구 다섯, MCP 도구 모양) · agent(도구 호출 루프 · 대화 이어 가기) · check(답 검증)
 │   ├── sources/                데이터 계층 (양현성) — DLP 로그 · 서버 상태(수집 노드) · DB 의 사용자 데이터 · RAG 기준 문서 넷만 읽음. 모듈마다 독립(공통 베이스 없음), 입구 `Sources`(hub.py)는 모으기만. 엔진을 모름 (11/5, 예전 data/)
 │   │   ├── hub.py                Sources — events(DLP) · pending_servers(서버 상태) · people · 운영자 결정(DB) · regulations(RAG). `Engine.sources`
@@ -81,12 +81,14 @@ JBNU-RAD/
 │   │   ├── core.py               연결 풀 · 스키마 적용(schema_version) · 쓰기 차례(advisory lock) · 트리거 · 제약 위반 → Denied
 │   │   ├── main.sql              권한 DB — 사용자 · 세션 · 감사 기록 · 신청(1건 = 1행: 신청 · AI 판정 · 1차 · 최종 결재 · 회수) · 권한 목록 · 운영자 결정 · 수집 노드 · 직무 · 퇴사일 · 이동 기록 · 보유 권한 재검토(11/3). 결재 순서 · 역할은 트리거가 강제 (11/03 SQLite 마이그레이션 11개를 하나로)
 │   │   ├── main_email.sql        main.sql 뒤에 적용 — 계정에 알림 받을 이메일 칸 (11/04)
+│   │   ├── main_regulations.sql  그 뒤에 적용 — 기준 문서 원문(`regulations`, 11/6). RAG 는 이 표의 사본
 │   │   ├── results.sql           AI 결과 DB — 정책 관리 검토 · 로그 감시 판정 · 서버 점검 · 수집 기록 · 의심 점수 · 질의 기록 (쌓기만, 로그 자체는 안 쌓음)
 │   │   ├── results_ask.sql       results.sql 뒤에 적용 — 질의 기록에 대화 id · 도구 단계 · 검증 칸 (11/5)
 │   │   ├── postgres-init.sql     시험 DB(sentinelai_dev · sentinelai_test) 만들기 — compose 의 PostgreSQL 이 처음 뜰 때
 │   │   ├── auth.py               Argon2id · 로그인 잠금 · 세션 2일 · 계정 관리는 보안 총책임자 (루트 계정은 루트만)
 │   │   ├── permissions.py        신청(권한 목록 코드로, 현재 보유 권한은 승인된 유효 신청에서 읽어 남김) · AI 판정 저장(1차 결재 전까지만) · 철회 · 결재 · 회수
 │   │   ├── decisions.py          정책 관리 · 로그 감시의 운영자 결정 (쌓기만, 마지막 기록이 지금 결정)
+│   │   ├── regulations.py        기준 문서 원문 — 올리기 · 고치기 · 지우기는 보안 총책임자, 적재 실패 때 되돌리기
 │   │   ├── catalog.py            권한 목록 — 일반 사용자는 켜진 권한만 신청. 보안 총책임자가 등록 · 고치기 · 끄기 (지우지 않음, 코드 못 바꿈) (10/20)
 │   │   ├── nodes.py              수집 노드 등록부 — 노드마다 키 발급(해시로 찾고 화면에서 다시 볼 수 있게 키도 둠) · 다시 발급 · 끄기 (10/20)
 │   │   └── results.py            AI 결과 DB 저장 · 조회 — 정책 관리 검토 · 로그 감시(다음 감시 시작점 포함) · 내 질의 기록 · 보안 통계(threat_stats). CLI · 웹이 같은 DB를 씀
@@ -108,7 +110,7 @@ JBNU-RAD/
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
 │       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
 │       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(질의 팝업 AskDock — 오른쪽 아래 버튼으로 어느 화면에서든 열고, 대화 · 근거 칩 · 도구별 근거 보기, 예시 질문은 config.ts) · stats · risk(보안 현황의 권한 변동 탭 — 사람 카드 · 회수) · catalog · accounts · regulations(기준 문서) · engine(관리의 큐 탭). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
-├── docs/                     판정 근거 기준 문서(.md · .txt) — 보안 총책임자가 화면에서 올리고(10/30) 고치고(11/2) 지움(11/3), 코드 작업으로는 고치지 않음 (CLI `index` · 정책 관리 검토가 RAG에 적재)
+├── examples/regulations/     예시 기준 문서(.md · .txt) · 참고 pptx — 웹은 읽지 않음. 시험 환경 setup 과 `import-regulations` 가 권한 DB 에 넣음 (11/6, 예전 docs/)
 │   ├── 접근권한_관리기준.md       3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
 │   └── 정책_운영기준.md           5.1 DENY 우선 · 5.2 ANY 금지 · 5.3 중복 · 6.1 DLP>SWG · 6.2 PAM · 6.3 만료
 ├── data/                     DLP 로그 (위치는 .env)
@@ -119,7 +121,7 @@ JBNU-RAD/
 ├── tests/                    DB 시험 (pytest, 시험마다 새 스키마) — python -m sentinelai.dev test
 ├── .dev/                     로컬 시험 환경 파일 (git 제외)
 ├── .env · .env.example       설정. .env 는 git 제외, 처음에 예시를 복사함
-├── compose.yaml              웹(app) + PostgreSQL 18 + Milvus(벡터 DB, 단독 실행 — 내장 etcd · 로컬 저장소) (docker compose up). DB sentinelai · sentinelai_dev · sentinelai_test, 컬렉션 sentinelai_policies · sentinelai_dev. 벡터 DB · 기준 문서 · PostgreSQL은 볼륨, data/는 읽기만
+├── compose.yaml              웹(app) + PostgreSQL 18 + Milvus(벡터 DB, 단독 실행 — 내장 etcd · 로컬 저장소) (docker compose up). DB sentinelai · sentinelai_dev · sentinelai_test, 컬렉션 sentinelai_policies · sentinelai_dev. 벡터 DB · PostgreSQL은 볼륨, data/는 읽기만 (기준 문서 볼륨 `docs`는 11/6에 뺐음)
 ├── milvus/embedEtcd.yaml     Milvus 내장 etcd 설정 (compose 가 넣음)
 ├── sentinel                  CLI — 떠 있는 컨테이너 안에서 `python -m sentinelai` (11/5, Makefile 대신)
 ├── requirements.txt · requirements-dev.txt
@@ -133,7 +135,7 @@ JBNU-RAD/
 | DLP 로그 | `SENTINELAI_EVENTS_SOURCE` — Microsoft Sentinel 내보내기 (`TimeGenerated`, `WHO` · `WHERE` · `HOW` 등, `sentinelai/sources/logs.py`) | `data/연습용_로그_원본+합성.csv` |
 | 서버 상태 | 수집 노드가 보낸 원문 → AI 결과 DB `server_snapshots` | 시험 컨테이너 2대 |
 | 사용자 데이터 | 권한 DB — 계정 · 이동 · 신청 · 결재 · 운영자 결정 | — |
-| 기준 문서 | RAG — `docs/`를 적재 (보안 총책임자가 화면에서 올리고 고침) | 2개 |
+| 기준 문서 | 권한 DB `regulations` 원문 → RAG 에 적재 (보안 총책임자가 화면에서 올리고 고치고 지움) | 2개 |
 
 - 로그 위치가 폴더면 안의 `.csv` · `.json` · `.jsonl`을 모두 읽음 (솔루션 · 도구마다 내보낸 파일을 그대로 둠). 컬럼이 맞지 않는 파일은 건너뛰고 화면 하단에 알림
 - 솔루션 정책 파일(`SENTINELAI_POLICIES_SOURCE`) · 서버 현황 표(`SENTINELAI_SERVERS_SOURCE`)는 11/5에 뺐음 — 10/20부터 둘 다 비어 있었고, 정책은 RAG에 올려 검색하기로 함 (§9)
@@ -178,7 +180,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 
 **이슈어 · 큐 · 워커** (`engine/issue.py` · `queue.py` · `worker.py`, 11/5)
 - 잡 하나 = 판정 한 건(사용자 묶음 · 노드 · 사람 · 신청). 한 번의 실행(로그 감시 1회 등)은 묶음 — 잡 여럿 + 마지막 닫기 잡
-- 웹이 뜰 때마다 기준 문서(`docs/`)를 RAG 에 맞춤 — 맨 먼저 쌓아 판정보다 앞섬. 바뀐 파일만 임베딩해 그대로면 금방 끝남. 임베딩 모델에 닿지 않으면 그 잡만 실패하고 웹은 뜸
+- 웹이 뜰 때마다 기준 문서(권한 DB)를 RAG 에 맞춤 — 맨 먼저 쌓아 판정보다 앞섬. 바뀐 문서만 임베딩해 그대로면 금방 끝남. 임베딩 모델에 닿지 않으면 그 잡만 실패하고 웹은 뜸
 - 길 순서: 기준 문서 적재 · 권한 신청 · 보유 권한 재검토(0) → 빠른 감시(1) → 정밀 감시 · 서버 점검 · 위협 예측 · 정책 관리 검토(2). 같은 길은 먼저 들어온 것부터. 판정이 한 건씩이라 급한 일은 다음 차례에 바로 끼어듦
 - 워커 하나 — 모델 · 벡터 DB 를 동시에 치지 않음. 규정 RAG 검색도 워커가 함
 - 데이터(로그 · 사람 · 운영자 결정 · 신청)는 이슈어가 쌓을 때 읽어 잡에 담음. 신청은 웹 요청 자리에서 읽어 응답이 로그 읽기만큼 늦음 (실제 로그가 커지면 워커로 미룸). 로그를 못 읽으면 잡에 오류를 담아 판정 실패로 남김 — 웹 시작 · 신청 응답은 막지 않고 다음 시작 때 다시
@@ -190,7 +192,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 ### 판정 기능
 
 **정책 관리** `review_policies` — 화면 [정책 관리 검토 실행]
-- 기준 문서(`docs/`)를 RAG에 맞춤 (바뀐 것만, 폴더에 없는 문서의 조각은 뺌) → RAG에 쌓인 조각 전부(문서 · 원래 순서) + 지난 검토의 문제에 운영자가 정한 것(유형 · 조항 · 결정 · 의견) → `policy_chain` → `PolicyReview`
+- 기준 문서(권한 DB)를 RAG에 맞춤 (바뀐 것만, 지운 문서의 조각은 뺌) → RAG에 쌓인 조각 전부(문서 · 원래 순서) + 지난 검토의 문제에 운영자가 정한 것(유형 · 조항 · 결정 · 의견) → `policy_chain` → `PolicyReview`
 - 기준 문서끼리의 중복 · 충돌 · 과도한 허용과 관련 조항(`policy_ids` 칸에 "문서 이름 조항 번호") · 개선안. 문서 전부를 넣으므로 문서가 입력 한도를 넘으면 자르지 못함 — 문서가 늘면 조각마다 비슷한 조각을 찾아 견주는 방식으로 바꿈
 - 실행마다 쌓고 화면은 마지막 실행을 봄
 
@@ -253,7 +255,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `GET /api/stats?period=week\|month\|quarter\|all` | 보안 통계 (기본 한 달, 모델 없이 셈, `results.threat_stats`) — `logs`(기간 안 로그 수 · 날짜별, 비율의 분모) · `events`(주의 · 위험 판정에 묶인 로그 줄 · 날짜별) · `servers`(노드별 등급 · 위험 · 주의 항목, 모듈별 위협 항목, 걸린 조항 — 노드마다 기간 안 마지막 점검) · `safety`(시스템 안전 점수, 아래) |
 | `GET /api/user-stats?period=` | 사용자 위협 — `suspects`(사람마다 마지막 의심 점수 · 등급 · 이유 · 확인할 점 · 행동 신호 · 흐름 · 지금 가진 권한 `held`, 계정 미연결은 null, 기간과 무관) · `safety`(사용자 안전 점수) · `events.users`(사용자별 위협 로그 줄 · 판정 수 · 로그 사용자 ID) · `requests`(신청 수 · AI 등급별 · AI와 결재가 엇갈린 수) |
 | `GET /api/health` | 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` (보안 운영자 이상) |
-| `GET /api/regulations` · `POST /api/regulations` · `PUT /api/regulations/{이름}` · `DELETE /api/regulations/{이름}` | `docs/` 원문 · 고친 시각(보안 운영자 이상) · 올리기 · 고치기 · 지우기(보안 총책임자). 지우기는 `{reason}` → 파일을 지우고 그 문서의 조각만 RAG 에서 뺌(`Engine.remove_document`), 지운 원문 · 사유는 감사 기록(`regulation_remove`)에. 마지막 문서는 400. 올리기는 `{name, content}`(.md · .txt, 1MB, 같은 이름 400 — 덮어쓰지 않음) → 바뀐 파일만 적재. 고치기는 `{content, reason}`(없는 문서 404, 같은 내용 400) → 그 문서만 다시 적재, 고치기 전 원문 · 사유는 감사 기록(`regulation_edit`)에. 파일 쓰기 · 적재를 한 일로 큐에 넣고 차례를 기다림(10분 넘거나 기다리는 중에 화면이 끊으면 빼고 409), AI 엔진(임베딩)에 닿지 않으면 바로 503 |
+| `GET /api/regulations` · `POST /api/regulations` · `PUT /api/regulations/{이름}` · `DELETE /api/regulations/{이름}` | 권한 DB 의 원문 · 고친 시각(보안 운영자 이상) · 올리기 · 고치기 · 지우기(보안 총책임자). 지우기는 `{reason}` → 원문을 지우고 RAG 를 다시 맞춰 그 문서의 조각을 뺌, 지운 원문 · 사유는 감사 기록(`regulation_remove`)에. 마지막 문서는 400. 올리기는 `{name, content}`(.md · .txt, 1MB, 같은 이름 400 — 덮어쓰지 않음) → 바뀐 문서만 적재. 고치기는 `{content, reason}`(없는 문서 404, 같은 내용 400) → 그 문서만 다시 적재, 고치기 전 원문 · 사유는 감사 기록(`regulation_edit`)에. 원문 쓰기 · 적재를 한 일로 큐에 넣고 (적재가 실패하면 원문을 되돌림) 차례를 기다림(10분 넘거나 기다리는 중에 화면이 끊으면 빼고 409), AI 엔진(임베딩)에 닿지 않으면 바로 503 |
 | `GET · POST /api/users` · `PATCH /api/users/{id}` · `POST /api/users/{id}/reset-password` | 계정 관리 (보안 총책임자). `PATCH`로 로그 사용자 ID(`log_id`, 계정마다 하나, 겹치면 400) · 직무(`job`) · 퇴사일(`left_on`, YYYY-MM-DD) · 이메일(`email`, 결재 결과 알림용, 만들 때도 받음, 빈 값이면 안 보냄, 형식이 틀리면 400). 부서 · 직무가 바뀌면 이동 기록 + 보유 권한 재검토를 판정 큐에. 루트 계정은 루트만, 자기 역할 · 활성은 못 바꿈 |
 | `GET /api/access-catalog` · `POST /api/access-catalog` · `PATCH /api/access-catalog/{코드}` | 권한 목록 — 보기(일반 사용자 · 보안 운영자는 켜진 것만) · 등록 · 고치기 · 끄기(보안 총책임자, 감사 기록) |
 | `POST /api/requests` · `GET /api/requests[?stage=&mine=]` | 신청(일반 사용자, 본문 `access_code` · `reason`(필수, 비면 400) — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400, 현재 보유 권한은 서버가 채움) · 목록(일반 사용자는 자기 것만). 신청 · 1차 승인 뒤 응답을 보내고 Slack 채널에 결재 대기 알림, 결재가 끝나면 신청자 이메일로 결과 메일(실패해도 신청 · 결재는 그대로). 응답에 `ai_verdict` · `judging` · `grant_review`(유효 권한의 재검토 — 퇴사 `leave` · 이동 `move`, 일반 사용자에게는 뺌) |
@@ -290,8 +292,9 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 | `./sentinel 명령` | 떠 있는 컨테이너 안에서 `python -m sentinelai 명령`. 터미널이 없으면(cron) `-T`로 붙음 |
 | `./sentinel create-root --login 아이디 --name 이름 [--department 부서]` | 첫 루트 계정(보안 총책임자) — 한 번만. 비밀번호는 화면 표시 없이 입력 |
 | `./sentinel import-snapshots 폴더 --node 이름` | 망이 막힌 노드의 `export` 파일 넣기 (폴더를 컨테이너로 복사해 넣음, 벡터 DB를 안 써서 웹이 떠 있어도 됨) |
-| `python -m sentinelai health` · `index [경로] [--rebuild]` · `review-policies` · `check-nodes` · `monitor [--since 시각] [--full]` · `ask "질문"` | 웹이 꺼져 있을 때만 (venv). 연결 확인 · 기준 문서 적재(`--rebuild`는 컬렉션을 비우고 새로) · 정책 관리 검토 · 서버 점검 · 로그 감시 1회(cron용, `--full`이면 처음부터) · 질의 1회(모델 평가용) |
-| `python -m sentinelai.dev setup [--reset]` | **로컬 시험 환경**을 `sentinelai_dev` DB · `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 모델 서버에 닿으면 기준 문서도 적재 |
+| `./sentinel import-regulations 폴더` | 폴더의 .md · .txt 를 권한 DB 기준 문서로 넣고 적재 — 같은 이름은 덮어쓰지 않음. 처음 설치 때 `examples/regulations` (폴더를 컨테이너로 복사해 넣음) |
+| `python -m sentinelai health` · `index [--rebuild]` · `review-policies` · `check-nodes` · `monitor [--since 시각] [--full]` · `ask "질문"` | 웹이 꺼져 있을 때만 (venv). 연결 확인 · 권한 DB 의 기준 문서를 RAG 에 적재(`--rebuild`는 컬렉션을 비우고 새로) · 정책 관리 검토 · 서버 점검 · 로그 감시 1회(cron용, `--full`이면 처음부터) · 질의 1회(모델 평가용) |
+| `python -m sentinelai.dev setup [--reset]` | **로컬 시험 환경**을 `sentinelai_dev` DB · `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 예시 기준 문서(`examples/regulations`)를 넣고 모델 서버에 닿으면 적재 |
 | `python -m sentinelai.dev web [--check-min 5]` | 시험 환경으로 웹 (http://127.0.0.1:8001, `sentinelai_dev` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 됨). 로그 감시 · 서버 점검은 `--check-min`분마다 |
 | `python -m sentinelai.dev test` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움 |
 | `python -m sentinelai.dev targets [up\|down]` | **진짜 수집** — podman compose로 점검 대상 컨테이너 2대(`target-weak`: 약한 설정 / `target-strict`: 잠근 설정)를 올리고 내림. 값은 `node/testenv/targets.env`(git 제외: `SERVER` · `KEY_WEAK` · `KEY_STRICT` · `INTERVAL`, 없으면 시험 환경 키로 만듦). SentinelAI를 바깥에 열지 않고(pasta `--map-host-loopback`) ufw가 실제로 켜짐(NET_ADMIN). 사용자 podman 소켓 필요. 10/20 시험: weak 위험 · strict 정상 |
@@ -318,7 +321,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 
 ## 4. 규칙
 
-- ❌ `sentinelai/engine/` 수정 · `docs/`를 코드 작업으로 고치기 (기준 문서는 보안 총책임자가 화면에서 올리고 고치고 지움, 10/30 · 11/2 · 11/3). 프롬프트(`sentinelai/context/prompts.py`)도 엔진 담당자와 상의 없이 안 바꿈
+- ❌ `sentinelai/engine/` 수정 · 기준 문서를 코드 작업으로 고치기 (보안 총책임자가 화면에서 올리고 고치고 지움, 10/30 · 11/2 · 11/3, 원문은 11/6부터 권한 DB). 프롬프트(`sentinelai/context/prompts.py`)도 엔진 담당자와 상의 없이 안 바꿈
 - ❌ 엔진 기능 재구현 · 엔진 타입을 대체하는 웹 전용 스키마
 - ❌ 서버 주소 · 모델명 하드코딩 — 전부 `Settings`
 - ❌ CDN · 웹폰트 · 외부 이미지 (외부망 차단 전제). 화면은 React + Vite, 빌드 결과를 커밋 (서버에 Node 불필요). 화면 소스를 고치면 `npm run build` 결과를 같은 커밋에. 스타일은 Tailwind v4 유틸리티. shadcn/ui 부품 등 새 의존성은 리디자인 때 정함
@@ -398,7 +401,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 4. **알림(Notifier)** — 로그 감시의 주의 · 위험 판정을 운영자에게 보냄. 자리(`Notifier`)만 `sentinelai/engine/worker.py`에 있고 같은 파일의 로그 감시 저장(`_save_events`)에 부를 곳을 표시했음. 결재 대기 알림은 11/04에 웹(`web/notify.py`)에서 Slack 채널로 보냄 (11/04 팀 결정: 채널, Slack 먼저) — 같은 채널을 쓰면 됨. 결재 결과는 같은 날 신청자 이메일로 (SMTP, 시연은 Gmail · 사내 이전 때 사내 SMTP). 계정 관리 화면의 이메일 칸은 리디자인 때 (그 전에는 `PATCH /api/users/{id}`)
 5. **출력 · 매체 반출 조항 없음** — 로그 감시가 근거 없이 판정함. 절차서 14 · 17번(예외처리 · 매체 반출입) 원문 필요. 10/20 시나리오 B · D가 이 때문에 "정상"으로 나와 검토에서 빠졌음. **코드 규칙(출력량 · 시간대 · 새 계정)으로 올리지 않고 절차서 원문을 RAG에 넣기로 했음 (10/20).** 원문을 받으면 7번 경로로 넣고 시나리오로 다시 확인
 6. **로그 감시 이력 화면** — 같은 사용자의 반복 주의 · 위험, 솔루션 · 행위별 추이, 마지막 감시 시각 · 판정 못한 로그. 데이터가 쌓이고 5번 조항이 들어온 뒤에 만듦
-7. **문서 데이터 읽기** — 지금 `DocumentStore`는 `.md` · `.txt`만 적재. 사내 정책 원문(pptx · pdf · docx 등)을 기준 조항으로 넣음. `docs/보안 정책 관리 업무 프로세스.pptx`는 글자 없는 이미지 4장이라 OCR 필요. 5번 절차서도 이 경로로
+7. **문서 데이터 읽기** — 지금 `DocumentStore`는 `.md` · `.txt`만 적재. 사내 정책 원문(pptx · pdf · docx 등)을 기준 조항으로 넣음. `examples/regulations/보안 정책 관리 업무 프로세스.pptx`는 글자 없는 이미지 4장이라 OCR 필요. 5번 절차서도 이 경로로
 8. **할루시네이션 검증** — 모델 출력이 근거와 맞는지 코드로 확인. 예: `sources`의 조항 번호 · 정책 ID가 실제 검색 근거에 있는지, 로그 질의 답의 숫자가 `summarize`와 같은지, 로그 조건(사용자 · 기간)이 질문에 있는 말인지. 어긋나면 알리거나 다시 시도. 10/11에 질문에 없는 기간을 채워 답이 틀린 적 있음 (§9)
 9. **내부 상태 API** — 10/20에 `/internal/status`로 작업 큐 · 예약 · 판정 대기열을 화면과 분리했음. 남은 것: `/api/health`도 옮길지, 자동 감시가 연달아 실패하면 알릴지
 10. **보안 대시보드** (10/21 TODO) — 권한 신청 · 정책 관리 · 서버 점검 · 로그 감시를 한눈에. 통계 메뉴(10/21)와 겹치지 않게, 운영자가 무엇을 결정하는 데 쓰는지부터 정함
@@ -414,7 +417,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 ## 9. 작업 메모 — 설정 값의 이유 · 결정 경위 · 측정
 
 - 이유 · 경위 · 측정 결과는 주석 대신 여기에 적음 (11/5에 `NOTES.md`를 이 절로 합쳤음)
-- `docs/`에 두지 않는 이유: `python -m sentinelai index`가 `docs/*.md`를 RAG에 적재함
+- 기준 문서와 섞지 않으려고 여기에 적음 (예전 docs/ 는 RAG 적재 폴더였음)
 
 ### DB 설계 (10/11~11/3, 11/5에 `design/`을 이 절로 합쳤음)
 
@@ -660,7 +663,7 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - 재검토는 신청 행의 AI 칸에 쓰지 않고 `grant_reviews`에 쌓음 — AI 칸은 1차 결재 뒤 트리거로 굳고, 결재자가 본 판정을 바꾸면 안 돼서
 - 비어 있던 부서 · 직무를 처음 채우는 것은 이동으로 치지 않음 — 직무 칸이 새로 생겨 기존 계정이 모두 빈 값이라, 채울 때마다 전 권한이 재검토되면 안 돼서
 - 회수는 자동으로 하지 않음 (★ 원칙: AI는 근거와 등급만)
-- 한계: 직무별 필요 권한을 적은 기준 문서가 없어 모델이 상식으로 판단함 (`docs/`에 직무 기준이 들어오면 조항 검색이 찾음)
+- 한계: 직무별 필요 권한을 적은 기준 문서가 없어 모델이 상식으로 판단함 (직무 기준 문서를 올리면 조항 검색이 찾음)
 
 ### 판정에 사용자 기록 (11/3)
 
@@ -777,3 +780,12 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - 처리할 일 건수는 메뉴 옆 빨간 배지. [관리](보안 총책임자) · [기준 문서](보안 운영자)는 구분선 뒤 끝에
 - 1150px 이하에서는 메뉴가 막대 아래 줄로 내려가 옆으로 밂 — 좁은 화면용 메뉴 고르기(`Seg`)는 뺐음
 - 휴대폰 폭에서 탭 이름이 글자마다 줄을 바꾸던 것을 고쳤음 (줄 바꿈 없음, 아이콘 숨김)
+
+### 기준 문서를 권한 DB 로 (11/6)
+
+- 이유: 엔진이 `docs/` 폴더를 읽어 RAG 에 적재해, 화면에서 올린 문서가 저장소 작업 트리 · compose 볼륨에 파일로 남고 폴더 경로가 엔진 · 웹 두 곳에 박혀 있었음 → 기준 문서는 화면으로만 올리고 파일과 떼기로 함 (사용자 결정)
+- 원문은 권한 DB `regulations`(이름 · 원문 · 고친 시각 · 고친 사람), RAG(Milvus)는 그 사본 (사용자 결정) — Milvus 볼륨이 비어도 웹이 뜰 때 다시 채움. 사람이 올린 근거라 결정자와 같은 DB
+- `DocumentStore.index(이름 → 원문)` 하나로 맞춤 — 바뀐 문서만 임베딩, 없는 문서의 조각은 뺌. 그래서 `DocumentStore.remove` · `Engine.remove_document` · 폴더 읽기(`read`)를 지웠음
+- 올리기 · 고치기 · 지우기는 원문을 쓰고 적재하는 한 일로 큐에 들어가고, 적재가 실패하면 원문을 되돌림 (예전 파일 되돌리기와 같음). 감사 기록은 그대로
+- 예전 `docs/`는 `examples/regulations/`로 옮겨 예시로 둠 (사용자 결정) — 시험 환경 setup 이 넣고, 운영은 `./sentinel import-regulations examples/regulations`로 한 번 넣음. compose 의 `docs` 볼륨은 뺐음 (지우려면 `docker volume rm jbnu-rad_docs`)
+- 같은 날 엔진이 남기는 시각(작업 큐 · 예약 · 정책 관리 검토 · 로그 감시 실행)에 시간대를 붙였음 — 컨테이너는 UTC 인데 시간대 없이 남겨 화면이 한국 시각으로 읽어 9시간 이르게 보였음 ("작업 큐가 주기적으로 안 돈다"로 보였으나 예약은 제때 돌았음)
