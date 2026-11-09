@@ -85,20 +85,23 @@ def mail_settings() -> Mail:
 
 def result_message(req: dict) -> tuple[str, str] | None:
     """(제목, 본문). 결재가 끝나거나 회수된 것이 아니면 None 입니다."""
+    why = ""
     if req["stage"] == "approved":
         head, first = "승인", "신청하신 권한이 승인되었습니다."
     elif req["stage"] == "rejected":
-        step = "1차" if any(a["step"] == "manager" and a["action"] == "reject" for a in req["approvals"]) else "최종"
-        head, first = "반려", f"신청하신 권한이 {step} 결재에서 반려되었습니다."
+        rejected = next(a for a in req["approvals"] if a["action"] == "reject")
+        head, first = "반려", f"신청하신 권한이 {'1차' if rejected['step'] == 'manager' else '최종'} 결재에서 반려되었습니다."
+        why = f"반려 의견: {rejected['comment'] or '(적지 않음)'}\n"
     elif req["stage"] == "revoked":
         head, first = "회수", "승인됐던 권한이 회수되었습니다."
+        why = f"회수 사유: {req['revocation']['reason']}\n"
     else:
         return None
-    # 사내 밖 메일 서버를 거칠 수 있으므로 반려 의견 · 회수 사유 · 신청 사유는 넣지 않습니다.
+    # 반려 의견 · 회수 사유는 다시 신청하거나 알아보는 데 필요해 넣고, 신청 사유 · 결재자 · AI 판정은 넣지 않습니다.
     return (f"[SentinelAI] 권한 신청 {req['request_no']} {head}",
             f"{first}\n\n"
-            f"신청 번호: {req['request_no']}\n권한: {req['requested_access']}\n\n"
-            "자세한 내용(결재 의견, 회수 사유 등)은 SentinelAI 내 신청에서 확인하세요.\n"
+            f"신청 번호: {req['request_no']}\n권한: {req['requested_access']}\n{why}\n"
+            "자세한 내용은 SentinelAI 내 신청에서 확인하세요.\n"
             "이 메일은 보내기 전용입니다.")
 
 
