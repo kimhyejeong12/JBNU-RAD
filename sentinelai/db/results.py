@@ -31,10 +31,11 @@ def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
     """→ policy_reviews.id"""
     with db.transaction() as conn:
         rid = conn.execute(
-            "INSERT INTO policy_reviews (source, load_issues, rules, summary, failed, error, model, elapsed_sec, created_at)"
-            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            "INSERT INTO policy_reviews (source, load_issues, rules, summary, failed, error, model, elapsed_sec, created_at, grounding)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (str(review.get("source", "")), _json(review.get("load_issues", [])), _json(review.get("rules", [])),
-             review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now()),
+             review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now(),
+             _json(review.get("grounding", {}))),
         ).fetchone()[0]
         conn.cursor().executemany(
             "INSERT INTO policy_issues (review_id, seq, kind, level, policy_ids, reason, recommendation) VALUES (%s,%s,%s,%s,%s,%s,%s)",
@@ -79,6 +80,7 @@ def latest_policy_review(db: Database) -> dict[str, Any] | None:
         "error": row["error"],
         "model": row["model"],
         "elapsed_sec": row["elapsed_sec"],
+        "grounding": json.loads(row["grounding"]),
         "issues": [
             {"key": f"policy_issues/{i['id']}", "seq": i["seq"], "kind": i["kind"], "level": i["level"],
              "policy_ids": json.loads(i["policy_ids"]), "reason": i["reason"], "recommendation": i["recommendation"]}
@@ -146,11 +148,11 @@ def save_node_finding(db: Database, f: dict[str, Any], model: str) -> int:
     with db.transaction() as conn:
         return conn.execute(
             "INSERT INTO node_findings (node, snapshot_id, host, ip, state, matched, level, summary, gaps, unjudged, sources,"
-            " failed, error, elapsed_sec, model, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            " failed, error, elapsed_sec, model, created_at, grounding) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (f["node"], f["snapshot_id"], f.get("host", ""), f.get("ip", ""), _json(f.get("state", {})), f.get("matched", ""),
              f.get("level"), f.get("summary", ""), _json(f.get("gaps", [])), _json(f.get("unjudged", [])),
              _json(list(dict.fromkeys(g["source"] for g in f.get("gaps", []) if g.get("source")))),
-             int(f["failed"]), f.get("error"), f.get("elapsed_sec"), model, now()),
+             int(f["failed"]), f.get("error"), f.get("elapsed_sec"), model, now(), _json(f.get("grounding", {}))),
         ).fetchone()[0]
 
 
@@ -166,6 +168,7 @@ def latest_node_findings(db: Database) -> list[dict[str, Any]]:
              "state": json.loads(r["state"]), "matched": r["matched"], "level": r["level"], "summary": r["summary"],
              "gaps": json.loads(r["gaps"]), "unjudged": json.loads(r["unjudged"]), "sources": json.loads(r["sources"]),
              "failed": bool(r["failed"]), "error": r["error"], "elapsed_sec": r["elapsed_sec"], "created_at": r["created_at"],
+             "grounding": json.loads(r["grounding"]),
              "snapshot": {"collected_at": r["collected_at"], "collected_by": r["collected_by"],
                           "modules": json.loads(r["modules"]), "changes": json.loads(r["changes"])}}
             for r in rows]
@@ -379,10 +382,11 @@ def save_suspect(db: Database, person: dict[str, Any], result: dict[str, Any], m
     with db.transaction() as conn:
         return conn.execute(
             "INSERT INTO suspect_scores (person, subject, log_id, login_id, score, level, reason, watch, signals, records, failed, error,"
-            " elapsed_sec, model, created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            " elapsed_sec, model, created_at, grounding) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (person["key"], f"{person['department']} {person['name']}".strip(), person["log_id"] or "", person["login_id"],
              result.get("score"), result.get("level"), result.get("reason", ""), result.get("watch", ""),
-             _json(person["signals"] or {}), _json(records), int(result["failed"]), result.get("error"), result.get("elapsed_sec"), model, now()),
+             _json(person["signals"] or {}), _json(records), int(result["failed"]), result.get("error"), result.get("elapsed_sec"), model, now(),
+             _json(result.get("grounding", {}))),
         ).fetchone()[0]
 
 
@@ -400,6 +404,7 @@ def latest_suspects(db: Database, history: int = 12) -> list[dict[str, Any]]:
                     "score": last["score"], "level": last["level"], "reason": last["reason"], "watch": last["watch"],
                     "signals": json.loads(last["signals"]), "records": json.loads(last["records"]),
                     "failed": bool(last["failed"]), "error": last["error"], "created_at": last["created_at"], "model": last["model"],
+                    "grounding": json.loads(last["grounding"]),
                     "trend": [{"score": r["score"], "at": r["created_at"]} for r in rs[-history:] if not r["failed"]]})
     return sorted(out, key=lambda p: (-(p["score"] or 0), p["subject"]))
 
@@ -418,10 +423,10 @@ def save_monitor_run(db: Database, run: dict[str, Any], model: str,
         ).fetchone()[0]
         conn.cursor().executemany(
             "INSERT INTO event_findings (run_id, \"user\", subject, first_event_at, last_event_at, events, level, reason,"
-            " recommendation, sources, failed, error, elapsed_sec) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            " recommendation, sources, failed, error, elapsed_sec, grounding) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             [(rid, f["user"], f.get("subject", ""), _utc(f["first_event_at"]), _utc(f["last_event_at"]), f.get("events", ""),
               f.get("level"), f.get("reason", ""), f.get("recommendation", ""), _json(f.get("sources", [])),
-              int(f["failed"]), f.get("error"), f.get("elapsed_sec"))
+              int(f["failed"]), f.get("error"), f.get("elapsed_sec"), _json(f.get("grounding", {})))
              for f in run.get("findings", [])],
         )
     return rid
@@ -458,7 +463,7 @@ def monitor_findings(db: Database) -> dict[str, Any] | None:
              "subject": r["subject"], "first_event_at": r["first_event_at"], "last_event_at": r["last_event_at"],
              "events": r["events"], "level": r["level"], "reason": r["reason"], "recommendation": r["recommendation"],
              "sources": json.loads(r["sources"]), "failed": bool(r["failed"]), "error": r["error"],
-             "elapsed_sec": r["elapsed_sec"], "stage": r["stage"]}
+             "elapsed_sec": r["elapsed_sec"], "stage": r["stage"], "grounding": json.loads(r["grounding"])}
             for r in rows
         ],
     }

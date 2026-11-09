@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from ..context import Built, Prompts
 from ..db import permissions, regulations, results
 from .queue import Batch, Job, Queues
+from .ground import ground
 from .rag import IndexReport
 from .resource import Resources
 
@@ -215,7 +216,7 @@ class Worker:
         return inputs.policy(regs.everything(), d["decided"])
 
     def judge(self, kind: str, data: dict[str, Any], batch: Batch | None = None) -> dict[str, Any]:
-        """판정 실패는 failed · error 로 남깁니다. input(글자 수 · 한도 · 뺀 줄)은 저장하지 않습니다."""
+        """판정 실패는 failed · error 로 남깁니다. input(글자 수 · 한도 · 뺀 줄)은 저장하지 않습니다. grounding = 근거 조항 확인."""
         chain, built = self._chain(kind), self._built(kind, data, batch)
         verdict, error, elapsed = attempt(lambda: chain.invoke(built.inputs))
         if built.trimmed:
@@ -225,6 +226,7 @@ class Worker:
                   "input": {"chars": built.chars, "limit": built.limit, "trimmed": built.trimmed}}
         if kind == "suspects" and verdict is not None:
             result["level"] = band(result["score"])
+        result["grounding"] = ground(result, built) if verdict is not None else {"checks": []}
         return result
 
     def _model(self, kind: str) -> str:
