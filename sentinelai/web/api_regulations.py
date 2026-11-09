@@ -1,12 +1,10 @@
-"""기준 문서 API — 지난 판정의 근거였으므로 고치거나 지운 원문 · 사유를 감사 기록에 남깁니다."""
+"""기준 문서 API — 원문은 권한 DB, RAG 는 그 사본. 지난 판정의 근거였으므로 고치거나 지운 원문 · 사유를 감사 기록에 남깁니다."""
 
 from __future__ import annotations
 
 import asyncio
 import json
 import re
-from datetime import datetime, timezone
-from pathlib import Path
 from collections.abc import Callable
 from typing import Annotated, Any
 
@@ -14,14 +12,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, StringConstraints
 
-from sentinelai import ROOT
-from sentinelai.db import User
+from sentinelai.db import User, regulations as regs
 from sentinelai.db.core import audit
 
 from .api_permissions import role
 
-DOCS_DIR = ROOT / "docs"
-SUFFIXES = (".md", ".txt")
 MAX_CHARS = 1_000_000
 # 위협 예측 · 정책 관리 검토가 수 분 걸려 넉넉히 기다립니다.
 WAIT_LIMIT_SEC = 600
@@ -31,18 +26,6 @@ NAME = re.compile(r"[^./\\\x00][^/\\\x00]{0,95}\.(md|txt)", re.IGNORECASE)
 
 router = APIRouter(prefix="/api/regulations", tags=["regulations"])
 Top = Annotated[User, Depends(role("top"))]
-
-
-def _files() -> list[Path]:
-    return sorted(p for p in DOCS_DIR.iterdir() if p.is_file() and p.suffix.lower() in SUFFIXES)
-
-
-def _entry(p: Path) -> dict[str, str]:
-    return {
-        "name": p.name,
-        "content": p.read_text(encoding="utf-8"),
-        "updated_at": datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc).isoformat(),
-    }
 
 
 async def _exclusive(request: Request, work: Callable[[], Any], failed: str) -> Any:
@@ -74,8 +57,8 @@ def _audit(request: Request, user: User, action: str, name: str, detail: dict[st
 
 
 @router.get("", dependencies=[Depends(role("manager", "top"))])
-def regulations() -> list[dict[str, str]]:
-    return [_entry(p) for p in _files()]
+def regulations(request: Request) -> list[dict[str, str]]:
+    return regs.list_all(request.app.state.main_db)
 
 
 class NewRegulation(BaseModel):
@@ -85,27 +68,27 @@ class NewRegulation(BaseModel):
 
 @router.post("", status_code=201)
 async def upload(body: NewRegulation, request: Request, user: Top) -> dict[str, str]:
-    """같은 이름은 덮어쓰지 않고, 적재가 실패하면 올린 파일을 지웁니다."""
+    """같은 이름은 덮어쓰지 않고, 적재가 실패하면 올린 문서를 지웁니다."""
     if not NAME.fullmatch(body.name):
         raise HTTPException(status_code=400, detail="기준 문서는 .md · .txt 파일만 올립니다 (이름에 / 없이 100자까지)")
     if not body.content.strip():
         raise HTTPException(status_code=400, detail="빈 문서는 올릴 수 없습니다")
-    path = DOCS_DIR / body.name
-    if path.exists():
+    db, engine = request.app.state.main_db, request.app.state.engine
+    if regs.get(db, body.name):
         raise HTTPException(status_code=400, detail="같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요")
-    engine = request.app.state.engine
 
     def work() -> None:
-        path.write_text(body.content, encoding="utf-8")
+        if not regs.create(db, user, body.name, body.content):
+            raise ValueError("같은 이름의 기준 문서가 있습니다")
         try:
             engine.index()
         except Exception:
-            path.unlink(missing_ok=True)
+            regs.restore(db, body.name, None)
             raise
 
     await _exclusive(request, work, "적재하지 못해 올리지 않았습니다")
     _audit(request, user, "regulation_upload", body.name, {"chars": len(body.content)})
-    return _entry(path)
+    return regs.get(db, body.name)
 
 
 
@@ -117,28 +100,28 @@ class EditRegulation(BaseModel):
 @router.put("/{name}")
 async def edit(name: str, body: EditRegulation, request: Request, user: Top) -> dict[str, str]:
     """그 문서만 다시 적재하고, 실패하면 원래 글로 되돌립니다."""
-    path = DOCS_DIR / name
-    if not NAME.fullmatch(name) or not path.is_file():
+    db, engine = request.app.state.main_db, request.app.state.engine
+    row = regs.get(db, name)
+    if row is None:
         raise HTTPException(status_code=404, detail="그 기준 문서가 없습니다")
     if not body.content.strip():
         raise HTTPException(status_code=400, detail="빈 문서로 고칠 수 없습니다")
-    before = path.read_text(encoding="utf-8")
+    before = row["content"]
     if body.content == before:
         raise HTTPException(status_code=400, detail="바뀐 내용이 없습니다")
-    engine = request.app.state.engine
 
     def work() -> None:
-        path.write_text(body.content, encoding="utf-8")
+        regs.update(db, user, name, body.content)
         try:
             engine.index()
         except Exception:
             # RAG 에서 예전 조각이 빠졌어도 다음 적재 때 원래 글로 다시 들어갑니다.
-            path.write_text(before, encoding="utf-8")
+            regs.restore(db, name, before)
             raise
 
     await _exclusive(request, work, "적재하지 못해 고치지 않았습니다")
     _audit(request, user, "regulation_edit", name, {"reason": body.reason, "chars": len(body.content), "before": before})
-    return _entry(path)
+    return regs.get(db, name)
 
 
 class RemoveRegulation(BaseModel):
@@ -147,21 +130,21 @@ class RemoveRegulation(BaseModel):
 
 @router.delete("/{name}")
 async def remove(name: str, body: RemoveRegulation, request: Request, user: Top) -> dict[str, str]:
-    """RAG 에서 빼지 못하면 파일을 되돌립니다. 마지막 문서는 지우지 않습니다."""
-    path = DOCS_DIR / name
-    if not NAME.fullmatch(name) or not path.is_file():
+    """RAG 에서 빼지 못하면 문서를 되돌립니다. 마지막 문서는 지우지 않습니다."""
+    db, engine = request.app.state.main_db, request.app.state.engine
+    row = regs.get(db, name)
+    if row is None:
         raise HTTPException(status_code=404, detail="그 기준 문서가 없습니다")
-    if len(_files()) <= 1:
+    if len(regs.texts(db)) <= 1:
         raise HTTPException(status_code=400, detail="마지막 기준 문서는 지울 수 없습니다. 새 문서를 먼저 올리세요")
-    before = path.read_text(encoding="utf-8")
-    engine = request.app.state.engine
+    before = row["content"]
 
     def work() -> None:
-        path.unlink()
+        regs.delete(db, user, name)
         try:
-            engine.remove_document(name)
+            engine.index()
         except Exception:
-            path.write_text(before, encoding="utf-8")
+            regs.restore(db, name, before)
             raise
 
     await _exclusive(request, work, "RAG 에서 빼지 못해 지우지 않았습니다")

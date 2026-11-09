@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import sys
+from pathlib import Path
 from typing import Any
 
 from . import db
@@ -38,13 +39,37 @@ def health(engine: Engine, args: argparse.Namespace) -> int:
     for label, key, name in (("판정 모델", "model_ready", s.model), ("질답 모델", "qa_model_ready", s.qa_model),
                              ("임베딩 모델", "embedding_ready", s.embedding_model)):
         print(f"{label:9s}: {name} {'OK' if h[key] else '없음'}")
-    print(f"벡터 DB     : {s.milvus_target} — {'OK' if h['index_ready'] else '비어 있음 (index 로 적재)'}")
+    print(f"벡터 DB     : {s.milvus_target} — {'OK' if h['index_ready'] else '비어 있음 (화면에서 기준 문서를 올리거나 import-regulations)'}")
     print(f"권한 DB     : {db.core.describe(s.db_path)} (스키마 main) · AI 결과 DB: {db.core.describe(s.results_db_path)} (스키마 results)")
     return 0 if h["ok"] else 1
 
 
+SUFFIXES = (".md", ".txt")
+
+
+def add_regulations(engine: Engine, folder: str | Path) -> tuple[list[str], list[str]]:
+    """폴더의 .md · .txt 를 권한 DB 에 넣습니다 — 같은 이름은 덮어쓰지 않습니다. → (넣은 것, 있던 것)"""
+    root = Path(folder)
+    files = [root] if root.is_file() else sorted(p for p in root.iterdir() if p.suffix.lower() in SUFFIXES)
+    if not files:
+        raise FileNotFoundError(f"넣을 기준 문서가 없습니다: {root} ({', '.join(SUFFIXES)})")
+    added, kept = [], []
+    for f in files:
+        (added if db.regulations.create(engine.main_db, None, f.name, f.read_text(encoding="utf-8")) else kept).append(f.name)
+    return added, kept
+
+
+def import_regulations(engine: Engine, args: argparse.Namespace) -> int:
+    added, kept = add_regulations(engine, args.folder)
+    for name in added:
+        print(f"  넣음   {name}")
+    for name in kept:
+        print(f"  있음   {name} (덮어쓰지 않음)")
+    return index(engine, argparse.Namespace(rebuild=False))
+
+
 def index(engine: Engine, args: argparse.Namespace) -> int:
-    report = engine.index(args.source, rebuild=args.rebuild)
+    report = engine.index(rebuild=args.rebuild)
     print(report)
     for name in report.indexed:
         print(f"  갱신   {name}")
@@ -144,10 +169,12 @@ def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="sentinelai", description="SentinelAI — 웹이 꺼져 있을 때 서버에서 쓰는 명령")
     sub = p.add_subparsers(dest="command", required=True)
     sub.add_parser("health", help="Ollama 연결 · 모델 · 벡터 DB 확인").set_defaults(run=health)
-    cmd = sub.add_parser("index", help="기준 문서(docs/) 적재 — 바뀐 파일만")
-    cmd.add_argument("source", nargs="?", help="문서 파일 · 폴더 (.md · .txt). 없으면 docs/")
+    cmd = sub.add_parser("index", help="권한 DB 의 기준 문서를 RAG 에 적재 — 바뀐 문서만")
     cmd.add_argument("--rebuild", action="store_true", help="컬렉션을 비우고 전부 새로")
     cmd.set_defaults(run=index)
+    cmd = sub.add_parser("import-regulations", help="폴더의 기준 문서(.md · .txt)를 권한 DB 에 넣고 적재 — 같은 이름은 그대로")
+    cmd.add_argument("folder", help="문서 파일 · 폴더 (예: examples/regulations)")
+    cmd.set_defaults(run=import_regulations)
     sub.add_parser("review-policies", help="정책 관리 검토 — 기준 문서 적재 + 기준 문서 간 검토").set_defaults(run=review_policies)
     sub.add_parser("check-nodes", help="서버 점검 — 새 수집이 온 노드만").set_defaults(run=check_nodes)
     cmd = sub.add_parser("monitor", help="로그 감시 — 지난 감시 이후 로그만 (cron 용)")

@@ -13,16 +13,14 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
 from pydantic import BaseModel, Field
 
-from .. import ROOT
 from ..context import Built, Prompts
-from ..db import permissions, results
+from ..db import permissions, regulations, results
 from .queue import Batch, Job, Queues
 from .rag import IndexReport
 from .resource import Resources
 
 log = logging.getLogger(__name__)
 
-DOCS_DIR = ROOT / "docs"
 RETRIES = 2
 BANDS = ((70, "높음"), (40, "보통"))
 
@@ -193,9 +191,9 @@ class Worker:
             self._chains[kind] = self.res.chain(j.prompt, j.schema, j.think)
         return self._chains[kind]
 
-    def index(self, source: Any = None, rebuild: bool = False) -> IndexReport:
-        """바뀐 파일만 적재하고, 폴더에 없는 파일의 조각은 뺍니다."""
-        return self.res.documents.index(source or DOCS_DIR, rebuild=rebuild)
+    def index(self, rebuild: bool = False) -> IndexReport:
+        """권한 DB 의 기준 문서를 RAG 에 맞춥니다 — 바뀐 문서만 임베딩하고, 지운 문서의 조각은 뺍니다."""
+        return self.res.documents.index(regulations.texts(self.res.main_db), rebuild=rebuild)
 
     def _built(self, kind: str, d: dict[str, Any], batch: Batch | None) -> Built:
         """규정 RAG 검색 → 프롬프트 모듈. 서버 점검 · 정책 관리 검토는 묶음마다 처음에 기준 문서를 RAG 에 맞춥니다."""
@@ -290,5 +288,5 @@ class Worker:
         return batch.context.get("review")
 
 
-__all__ = ["DOCS_DIR", "JUDGMENTS", "Notifier", "PolicyIssue", "PolicyReview", "RiskLevel", "ServerGap", "ServerReview",
+__all__ = ["JUDGMENTS", "Notifier", "PolicyIssue", "PolicyReview", "RiskLevel", "ServerGap", "ServerReview",
            "SuspectScore", "Verdict", "Worker", "attempt", "band"]

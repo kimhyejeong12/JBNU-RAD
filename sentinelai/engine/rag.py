@@ -1,10 +1,9 @@
-"""RAG 저장소 — 기준 문서(docs/)를 조각내 Milvus 컬렉션에 쌓고 찾습니다."""
+"""RAG 저장소 — 기준 문서(원문은 권한 DB)를 조각내 Milvus 컬렉션에 쌓고 찾습니다."""
 from __future__ import annotations
 
 import hashlib
 import threading
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from langchain_core.documents import Document
@@ -25,16 +24,15 @@ class IndexReport:
 
     def __str__(self) -> str:
         return (
-            f"{len(self.indexed)}개 파일 갱신({self.chunks}청크), "
-            f"{len(self.skipped)}개 파일 변경 없음"
-            + (f", {len(self.removed)}개 파일 뺌 ({', '.join(self.removed)})" if self.removed else "")
+            f"{len(self.indexed)}개 문서 갱신({self.chunks}청크), "
+            f"{len(self.skipped)}개 문서 변경 없음"
+            + (f", {len(self.removed)}개 문서 뺌 ({', '.join(self.removed)})" if self.removed else "")
         )
 
 
 class DocumentStore:
-    """조각마다 source(파일 이름) · doc_hash 를 두고, id 는 "파일 이름|순번"의 해시라 순번을 되짚을 수 있습니다."""
+    """조각마다 source(문서 이름) · doc_hash 를 두고, id 는 "문서 이름|순번"의 해시라 순번을 되짚을 수 있습니다."""
 
-    SUFFIXES = {".md", ".txt"}
     ALL = "pk != ''"
     # 한 번에 꺼내는 조각 수의 상한입니다 (기준 문서 전체를 읽을 때).
     MAX_CHUNKS = 10000
@@ -103,28 +101,6 @@ class DocumentStore:
             return None
         return rows[0].metadata.get("doc_hash") if rows else None
 
-    def read(self, source: str | Path) -> list[Document]:
-        root = Path(source)
-        files = (
-            [root]
-            if root.is_file()
-            else sorted(p for p in root.rglob("*") if p.suffix.lower() in self.SUFFIXES)
-        )
-        if not files:
-            raise FileNotFoundError(
-                f"읽을 문서가 없습니다: {root} (지원 확장자: {', '.join(sorted(self.SUFFIXES))})"
-            )
-        documents = []
-        for f in files:
-            text = f.read_text(encoding="utf-8")
-            documents.append(
-                Document(
-                    page_content=text,
-                    metadata={"source": f.name, "doc_hash": self._digest(text)},
-                )
-            )
-        return documents
-
     def split(self, docs: list[Document]) -> list[Document]:
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=self.settings.chunk_size,
@@ -133,28 +109,19 @@ class DocumentStore:
         )
         return splitter.split_documents(docs)
 
-    def index(self, source: str | Path, rebuild: bool = False) -> IndexReport:
-        """바뀐 파일만 다시 임베딩합니다. 폴더면 그 폴더에 없는 파일의 조각은 지웁니다. rebuild 면 컬렉션을 비우고 새로 적재합니다."""
-        documents = self.read(source)
+    def index(self, texts: dict[str, str], rebuild: bool = False) -> IndexReport:
+        """이름 → 원문을 RAG 에 맞춥니다 — 바뀐 문서만 다시 임베딩하고, 없는 문서의 조각은 뺍니다. rebuild 면 컬렉션을 비우고 새로."""
         if rebuild:
             with self._lock:
                 self._store = self._open(drop_old=True)
-
         report = IndexReport()
-        for doc in documents:
-            self._replace(doc.metadata["source"], doc.metadata["doc_hash"], self.split([doc]), report, rebuild)
-        if Path(source).is_dir():
-            for name in self.names() - {d.metadata["source"] for d in documents}:
-                self.store.delete(expr=self._expr(name))
-                report.removed.append(name)
+        for name, text in texts.items():
+            doc = Document(page_content=text, metadata={"source": name, "doc_hash": self._digest(text)})
+            self._replace(name, doc.metadata["doc_hash"], self.split([doc]), report, rebuild)
+        for name in self.names() - set(texts):
+            self.store.delete(expr=self._expr(name))
+            report.removed.append(name)
         return report
-
-    def remove(self, name: str) -> bool:
-        """기준 문서 하나의 조각을 지웁니다. 지운 게 있으면 True"""
-        if not self.store.search_by_metadata(expr=self._expr(name), limit=1):
-            return False
-        self.store.delete(expr=self._expr(name))
-        return True
 
     def chunks(self) -> list[Document]:
         """쌓인 조각 전부 — 파일 이름 · 원래 순서대로."""

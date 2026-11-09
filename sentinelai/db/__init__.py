@@ -4,7 +4,7 @@ from __future__ import annotations
 import atexit
 import threading
 
-from . import auth, catalog, decisions, nodes, permissions, results
+from . import auth, catalog, decisions, nodes, permissions, regulations, results
 from .auth import User
 from .core import Database, Denied
 
@@ -34,7 +34,7 @@ def _close_all() -> None:
 
 def open_main_db(url: str, schema: str = "main") -> Database:
     """처음이면 스키마를 만듭니다."""
-    return _open(url, schema, "main.sql", "main_email.sql")
+    return _open(url, schema, "main.sql", "main_email.sql", "main_regulations.sql")
 
 
 def open_results_db(url: str, schema: str = "results") -> Database:
@@ -42,4 +42,4 @@ def open_results_db(url: str, schema: str = "results") -> Database:
     return _open(url, schema, "results.sql", "results_ask.sql")
 
 
-__all__ = ["Database", "Denied", "User", "auth", "catalog", "decisions", "nodes", "open_main_db", "open_results_db", "permissions", "results"]
+__all__ = ["Database", "Denied", "User", "auth", "catalog", "decisions", "nodes", "open_main_db", "open_results_db", "permissions", "regulations", "results"]

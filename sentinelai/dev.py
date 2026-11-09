@@ -11,6 +11,8 @@ import urllib.request
 from . import ROOT
 
 DEV = ROOT / ".dev"
+# 시험 환경에 넣는 예시 기준 문서입니다. 운영 웹은 읽지 않습니다.
+EXAMPLES = ROOT / "examples" / "regulations"
 PORT = os.environ.get("DEV_PORT", "8001")
 DEV_URL = os.environ.get("DEV_DATABASE_URL", "postgresql://sentinelai:sentinelai-dev@127.0.0.1:5432/sentinelai_dev")
 TEST_URL = os.environ.get("TEST_DATABASE_URL", "postgresql://sentinelai:sentinelai-dev@127.0.0.1:5432/sentinelai_test")
@@ -60,6 +62,7 @@ def _reset_db(url: str, schema: str) -> None:
 
 def setup(reset: bool) -> int:
     _use_dev()
+    from .cli import add_regulations
     from .db import User, auth, catalog
     from .engine import Engine, Settings
 
@@ -86,10 +89,11 @@ def setup(reset: bool) -> int:
     for item in CATALOG:
         catalog.create(db, root, *item)
 
+    added, _ = add_regulations(engine, EXAMPLES)
     try:
-        indexed = str(engine.index())
-    except Exception as exc:  # 모델 서버가 꺼져 있어도 계정으로 화면은 볼 수 있습니다.
-        indexed = f"건너뜀 ({type(exc).__name__}: {exc}) — 모델 서버를 켠 뒤 화면의 [정책 관리 검토 실행]이 적재합니다"
+        indexed = f"{', '.join(added)} — {engine.index()}"
+    except Exception as exc:  # 모델 서버가 꺼져 있어도 계정으로 화면은 볼 수 있습니다. 웹이 뜰 때 적재합니다.
+        indexed = f"{', '.join(added)} 넣음, 적재는 건너뜀 ({type(exc).__name__}: {exc})"
     finally:
         engine.documents.close()
 

@@ -41,7 +41,7 @@ export const jobName = (d: Pick<QueueDetail, "labels">, kind: string): string =>
 export function jobTarget(j: Pick<QueueJob, "kind" | "key" | "close">): string {
   if (j.close) return "저장";
   if (j.kind === "request") return j.key;
-  if (j.kind === "index") return "docs/";
+  if (j.kind === "index") return "기준 문서";
   const [, ...rest] = j.key.split(":");
   if (j.kind === "grant") return rest.length === 2 ? `${rest[0]} (이동 ${rest[1]})` : j.key;
   return rest.join(":") || j.key;

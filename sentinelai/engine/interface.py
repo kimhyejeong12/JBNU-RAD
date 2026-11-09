@@ -136,18 +136,14 @@ class Engine:
             raise RuntimeError(batch.error)
         return batch.result
 
-    def index(self, source: str | Path | None = None, rebuild: bool = False) -> IndexReport:
-        return self.worker.index(source, rebuild)
+    def index(self, rebuild: bool = False) -> IndexReport:
+        return self.worker.index(rebuild)
 
     def _reindex(self) -> IndexReport:
-        """뜰 때마다 docs/ 를 RAG 에 맞춥니다 — 바뀐 파일만 임베딩해 그대로면 금방 끝납니다."""
+        """뜰 때마다 기준 문서를 RAG 에 맞춥니다 — 바뀐 문서만 임베딩해 그대로면 금방 끝납니다."""
         report = self.worker.index()
         log.info("기준 문서 적재 — %s", report)
         return report
-
-    def remove_document(self, name: str) -> bool:
-        """RAG 에서만 뺍니다. docs/ 의 파일은 부르는 쪽이 지웁니다."""
-        return self.res.documents.remove(name)
 
     def run_policies(self, progress: Progress | None = None) -> dict[str, Any]:
         return self._run("policies", progress)
