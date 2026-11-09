@@ -96,7 +96,7 @@ JBNU-RAD/
 │       ├── api_regulations.py    기준 문서 API — 보기 · 올리기 · 고치기(보안 총책임자, 감사 기록). 엔진의 공개 기능(index)만 씀 (/api/regulations)
 │       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 줌
 │       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
-│       ├── notify.py             결재 대기 → Slack 채널 (새 신청 = 1차 결재 대기, 1차 승인 = 최종 결재 대기). `SENTINELAI_SLACK_WEBHOOK_URL`, 비우면 끔. 신청 번호 · 부서 · 권한만, 결과(승인 · 반려)는 채널에 안 보냄. 결재 결과(1차 반려 · 최종 승인 · 최종 반려) → 신청자 계정 이메일(`users.email`), SMTP `SENTINELAI_SMTP_*`, 비우면 끔, 신청 번호 · 권한 · 결과만 (11/04). 로그 감시 위험 → 같은 Slack 채널 (`RiskWatcher` — 결과 DB를 30초마다 봄, 1차 판정 + 확정 중 1차 때 안 알린 것, 단계 · 건수만) (11/08)
+│       ├── notify.py             결재 대기 → Slack 채널 (새 신청 = 1차 결재 대기, 1차 승인 = 최종 결재 대기). `SENTINELAI_SLACK_WEBHOOK_URL`, 비우면 끔. 신청 번호 · 부서 · 권한만, 결과(승인 · 반려)는 채널에 안 보냄. 결재 결과(1차 반려 · 최종 승인 · 최종 반려) · 회수(11/09) → 신청자 계정 이메일(`users.email`), SMTP `SENTINELAI_SMTP_*`, 비우면 끔, 신청 번호 · 권한 · 결과만 (11/04). 로그 감시 위험 → 같은 Slack 채널 (`RiskWatcher` — 결과 DB를 30초마다 봄, 1차 판정 + 확정 중 1차 때 안 알린 것, 단계 · 건수만) (11/08)
 │       └── static/               화면 빌드 결과 — frontend/ 에서 `npm run build` 로 만들어 커밋. 서버는 그대로 서빙
 ├── frontend/                 React 화면 소스 (김혜정) — TypeScript · Vite · TanStack Query · Vitest · Tailwind v4. 10/29에 옛 index.html 을 기능 · 모양 그대로 옮기고 10/30에 CSS를 Tailwind로 바꿨음 (화면 그대로, 리디자인은 다음)
 │   └── src/
@@ -259,7 +259,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `POST /api/requests` · `GET /api/requests[?stage=&mine=]` | 신청(일반 사용자, 본문 `access_code` · `reason`(필수, 비면 400) — 목록에 없거나 꺼진 권한 · 이미 가진 권한 · 결재 중인 같은 권한은 400, 현재 보유 권한은 서버가 채움) · 목록(일반 사용자는 자기 것만). 신청 · 1차 승인 뒤 응답을 보내고 Slack 채널에 결재 대기 알림, 결재가 끝나면 신청자 이메일로 결과 메일(실패해도 신청 · 결재는 그대로). 응답에 `ai_verdict` · `judging` · `grant_review`(유효 권한의 재검토 — 퇴사 `leave` · 이동 `move`, 일반 사용자에게는 뺌) |
 | `GET /api/risk-people` | 권한 변동 (보안 운영자 이상, 코드가 셈, 화면은 30초마다) — 최근 90일에 부서 · 직무를 옮긴 사람(이동 · 보유 권한 재검토 · 가장 이른 이동 뒤 그 사람의 로그 감시 주의 · 위험 판정, 1차 포함)과 90일 안에 사용 기간이 끝났는데 회수 기록이 없는 권한(`expired`, `permissions.expired_grants`)이 남은 일반 사용자. 퇴사 · 결재 중 신청은 뺌(확인할 사람에 있음). `{generated_at, people[{…, flags, log_id, log_user}], log_error}` (`Issuer.risk_people`) |
 | `GET /api/people` | 확인할 사람 (보안 운영자 이상, 코드가 셈) — 퇴사 · 최근 90일 이동 · 위험 · 주의인 결재 중 신청 · 보유 권한(이동 뒤 재검토 · 승인 때 AI 판정)이 걸린 일반 사용자. 사람마다 `flags`(kind · level · at · text · request_no) · `level` (`permissions.watch_people`) |
-| `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(보안 운영자 = 1차, 보안 총책임자 = 최종) · 회수 · 다시 판정 |
+| `POST /api/requests/{no}/withdraw` · `decision` · `revoke` · `rejudge` | 철회(신청자, 1차 결재 전) · 결재(보안 운영자 = 1차, 보안 총책임자 = 최종) · 회수(응답 뒤 신청자 이메일로 회수 메일, 11/09) · 다시 판정 |
 | `GET /internal/status` | **서버 자신(127.0.0.1)만** — 작업 큐 · 자동 실행 예약 · 권한 신청 판정 대기열. 로그인 없음, 밖에서 오거나 전달 헤더(`X-Forwarded-For` 등)가 붙으면 404. `curl -s localhost:8000/internal/status` |
 
 - **모든 API는 로그인 필요** (`/api/auth/login` 제외). 정책 관리 · 로그 감시 API(`results` · `jobs` · `ask` · `logs` · `stats` · `user-stats` · `qa` · `regulations`)는 보안 운영자 이상
@@ -787,3 +787,10 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - **문장**: `[로그 감시 위험 · 1차 판정|확정] N건` + "SentinelAI 로그 감시에서 확인하세요". 결재 대기처럼 바깥 서비스라 사람 · 로그 내용은 넣지 않음
 - 판정 실패(`failed`)는 위험이 아니라 알리지 않음. Slack 주소가 비면 지켜보기도 안 띄움
 - **시험**: 결과 DB 함수 · 지켜보기 규칙 pytest (`tests/test_risk_alert.py`). 엔진만 흉내 낸 채 `main.py`의 시작 · 끝으로 띄워 가짜 Slack 서버가 1차 1건 · 확정 1건(겹친 사람은 넘김)을 받고, 끝낼 때 스레드가 멈추는 것을 봄. 팀 Ollama 가 닿지 않아(11/06~) 이 컴퓨터의 `qwen3:4b`(CPU)로 띄운 시험 스택에서 빠른 감시 7묶음 중 위험 1건 → 저장 7초 뒤 1차 알림 1건을 받음. 정밀 감시는 묶음당 약 9분이라 2/7에서 멈춰 확정 알림은 진짜 판정으로 아직 안 봄
+
+### 회수 메일 (11/09)
+
+- 결재 결과 메일(11/04)은 승인 · 반려만 보내 승인 메일을 받은 사람이 나중에 회수된 것을 몰랐음 → 회수도 신청자 이메일로 (사용자 요청)
+- 회수 API(`POST /api/requests/{no}/revoke`)가 응답 뒤 `notify.notify_result`를 부름. 권한 변동 탭의 [회수](만료 · 이동)도 같은 API라 함께 감
+- 문장: 제목 `[SentinelAI] 권한 신청 REQ-… 회수`, 본문 첫 줄 "승인됐던 권한이 회수되었습니다." + 신청 번호 · 권한. 회수 사유 · 회수자는 넣지 않음 (반려 의견과 같은 이유 — 바깥 메일 서버)
+- 시험: pytest(실제 신청 → 승인 → 회수 흐름, 이메일 없는 사람은 안 보냄), 엔진만 흉내 낸 FastAPI 앱에서 회수 API → 승인 · 회수 메일 두 통. 실제 SMTP 로는 안 보냄
