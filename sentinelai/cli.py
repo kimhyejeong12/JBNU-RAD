@@ -128,8 +128,17 @@ def monitor(engine: Engine, args: argparse.Namespace) -> int:
 
 def ask(engine: Engine, args: argparse.Namespace) -> int:
     out = engine.ask(args.question, None)
+    stages = out.get("stages") or {}
+    if stages.get("plan"):
+        print(f"[기준]\n{stages['plan']['text']}\n")
     for step in out["steps"]:
         print(f"[{step['tool']}] {step.get('criteria') or step['args']} → {step['summary']}{' — ' + step['error'] if step.get('error') else ''}")
+    if "spotted" in stages:
+        print(f"\n[근거] 모은 {stages['pool']}줄 중 {len(stages['spotted'])}줄{' (골라내지 못해 전부)' if stages['fallback'] else ''}")
+        for p in stages["spotted"]:
+            print(f"  {p['id']} {p['line'][:120]}{' — ' + p['why'] if p['why'] else ''}")
+    if stages.get("times"):
+        print("[단계 시간] " + ", ".join(f"{k} {v}초" for k, v in stages["times"].items()))
     if out["failed"]:
         print(f"질의 실패: {out['error']} ({out['elapsed_sec']}초)", file=sys.stderr)
         return 1

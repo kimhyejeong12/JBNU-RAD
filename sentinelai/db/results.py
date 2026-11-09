@@ -476,19 +476,19 @@ def save_qa(db: Database, kind: str, question: str, result: dict[str, Any], mode
     with db.transaction() as conn:
         return conn.execute(
             "INSERT INTO qa_records (kind, question, answer, sources, criteria, facts, evidence, failed, error, model,"
-            " elapsed_sec, asker_id, asker_name, asker_department, asked_at, conversation_id, steps, checks)"
-            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            " elapsed_sec, asker_id, asker_name, asker_department, asked_at, conversation_id, steps, checks, stages)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (kind, question, result.get("answer", ""), _json(result.get("sources", [])), _json(result.get("criteria", {})),
              _json(result["facts"]) if result.get("facts") is not None else None, _json(result.get("evidence", [])),
              int(bool(result.get("failed"))), result.get("error"), model, result.get("elapsed_sec"),
              asker.id, asker.display_name, asker.department, now(), conversation_id,
-             _json(result.get("steps", [])), _json(result.get("checks", []))),
+             _json(result.get("steps", [])), _json(result.get("checks", [])), _json(result.get("stages", {}))),
         ).fetchone()[0]
 
 
 def _qa(r: Any) -> dict[str, Any]:
     record = dict(r)
-    for k in ("sources", "criteria", "evidence", "steps", "checks"):
+    for k in ("sources", "criteria", "evidence", "steps", "checks", "stages"):
         record[k] = json.loads(record[k])
     record["facts"] = json.loads(record["facts"]) if record["facts"] is not None else None
     record["failed"] = bool(record["failed"])
