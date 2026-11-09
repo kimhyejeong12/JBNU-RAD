@@ -9,6 +9,7 @@ from ..db import Database, nodes, results
 from . import decisions
 from .logs import LoadResult, load_events
 from .people import People
+from .precedents import Precedents
 from .regulations import Regulations
 from .snapshots import ServerSnapshot
 
@@ -64,6 +65,11 @@ class Sources:
         return decisions.policy(self.main_db, self.results_db)
 
     # --- RAG 기준 문서 ---
+
+    @cached_property
+    def precedents(self) -> Precedents:
+        """선례 — 비슷한 지난 사례에 사람이 정한 것."""
+        return Precedents(self.main_db, self.results_db)
 
     @cached_property
     def regulations(self) -> Regulations:

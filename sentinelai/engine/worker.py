@@ -14,6 +14,7 @@ from langchain_core.runnables import Runnable
 from pydantic import BaseModel, Field
 
 from ..context import Built, Prompts
+from ..context import precedent as prec
 from ..db import permissions, regulations, results
 from .queue import Batch, Job, Queues
 from .ground import ground
@@ -85,6 +86,15 @@ class PolicyReview(BaseModel):
     summary: str = Field(description="검토 요약")
 
 
+class PrecedentReview(BaseModel):
+    """1차 판정이 사람이 정한 선례와 맞는지에 대한 평가."""
+
+    consistent: bool = Field(description="1차 판정이 선례와 맞으면 true, 어긋나면 false")
+    conflicts: list[str] = Field(description="어긋나는 선례 번호 (예: P2). 맞으면 빈 목록")
+    reason: str = Field(description="평가 이유 — 어느 선례의 어떤 사실이 같거나 다르고 사람이 어떻게 정했는지")
+    suggestion: str = Field(description="다시 판정할 때 볼 점. 맞으면 빈 글")
+
+
 class Notifier(Protocol):
     """로그 감시의 주의 · 위험을 운영자에게 알리는 자리입니다 (아직 구현 없음)."""
 
@@ -110,6 +120,10 @@ JUDGMENTS = {
     "nodes": Judgment(Prompts.SERVER_REVIEW, ServerReview),
     "policies": Judgment(Prompts.POLICY_CONFLICT, PolicyReview),
 }
+
+
+# 선례 검토가 붙는 판정 — 운영자 결정 · 결재가 있는 것만 (빠른 감시 · 위협 예측은 뺍니다).
+PRECEDENT_KINDS = ("request", "grant", "events", "nodes", "policies")
 
 
 class Cancelled(Exception):
@@ -216,7 +230,7 @@ class Worker:
         return inputs.policy(regs.everything(), d["decided"])
 
     def judge(self, kind: str, data: dict[str, Any], batch: Batch | None = None) -> dict[str, Any]:
-        """판정 실패는 failed · error 로 남깁니다. input(글자 수 · 한도 · 뺀 줄)은 저장하지 않습니다. grounding = 근거 조항 확인."""
+        """판정 실패는 failed · error 로 남깁니다. input(글자 수 · 한도 · 뺀 줄)은 저장하지 않습니다. grounding = 근거 조항 확인 · 선례 검토."""
         chain, built = self._chain(kind), self._built(kind, data, batch)
         verdict, error, elapsed = attempt(lambda: chain.invoke(built.inputs))
         if built.trimmed:
@@ -226,8 +240,71 @@ class Worker:
                   "input": {"chars": built.chars, "limit": built.limit, "trimmed": built.trimmed}}
         if kind == "suspects" and verdict is not None:
             result["level"] = band(result["score"])
+        review = None
+        if verdict is not None and kind in PRECEDENT_KINDS:
+            found = self._precedents(kind, data, result)
+            if found:
+                review, again = self._review(kind, built, result, found)
+                if again is not None:
+                    result = {**result, **again, "elapsed_sec": round(result["elapsed_sec"] + review["elapsed_sec"], 1)}
+                else:
+                    result["elapsed_sec"] = round(result["elapsed_sec"] + review["elapsed_sec"], 1)
         result["grounding"] = ground(result, built) if verdict is not None else {"checks": []}
+        if review is not None:
+            result["grounding"]["precedent"] = review
+            result["grounding"]["checks"] += review.pop("checks", [])
         return result
+
+    # --- 선례 검토 ---
+
+    def _precedents(self, kind: str, d: dict[str, Any], result: dict[str, Any]) -> list[dict[str, Any]]:
+        p = self.res.sources.precedents
+        if kind == "request":
+            return p.for_request(d["row"])
+        if kind == "grant":
+            return p.for_grant(d["row"])
+        if kind == "events":
+            return p.for_events(d["events"], d["finding"]["user"])
+        if kind == "nodes":
+            return p.for_server(d["row"]["node"], [g["item"] for g in result.get("gaps", []) if g.get("level") != "정상"])
+        return p.for_policy(result.get("issues", []))
+
+    def _review(self, kind: str, built: Built, result: dict[str, Any],
+                found: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        """판사 모델이 1차 판정을 선례와 견주고, 어긋난 선례를 대면 그 평가를 넣어 한 번 다시 판정합니다.
+        → (선례 검토 기록, 다시 낸 판정 또는 None)"""
+        lines = prec.precedent_lines(found)
+        listed, verdict = "\n".join(lines), prec.verdict_text(result)
+        if "judge" not in self._chains:
+            self._chains["judge"] = self.res.chain(Prompts.PRECEDENT_JUDGE, PrecedentReview, True)
+        review, error, sec = attempt(lambda: self._chains["judge"].invoke(
+            {"case": prec.case_text(kind, built.inputs), "verdict": verdict, "precedents": listed}))
+        info: dict[str, Any] = {"precedents": lines, "rejudged": False, "elapsed_sec": round(sec, 1), "checks": []}
+        if review is None:
+            info["checks"].append(f"선례 검토 실패: {error}")
+            return info, None
+        info["review"] = review.model_dump()
+        shown = {f"P{n}" for n in range(1, len(found) + 1)}
+        conflicts = [c.strip().strip("[]") for c in review.conflicts if c.strip().strip("[]") in shown]
+        if review.consistent:
+            return info, None
+        if not conflicts:
+            info["checks"].append("선례 검토가 어긋났다고 했지만 어긋난 선례를 대지 않아 다시 판정하지 않았습니다")
+            return info, None
+        key = f"{kind}:rejudge"
+        if key not in self._chains:
+            j = JUDGMENTS[kind]
+            prompt = ChatPromptTemplate.from_messages([*j.prompt.messages, ("human", Prompts.PRECEDENT_REJUDGE)])
+            self._chains[key] = self.res.chain(prompt, j.schema, j.think)
+        said = prec.review_text({**info["review"], "conflicts": conflicts})
+        again, error, sec = attempt(lambda: self._chains[key].invoke(
+            {**built.inputs, "verdict": verdict, "precedents": listed, "precedent_review": said}))
+        info["elapsed_sec"] = round(info["elapsed_sec"] + sec, 1)
+        if again is None:
+            info["checks"].append(f"선례 검토 뒤 다시 판정하지 못해 1차 판정을 그대로 둡니다: {error}")
+            return info, None
+        info.update(rejudged=True, first={k: result.get(k) for k in ("level", "reason", "sources", "summary") if k in result})
+        return info, again.model_dump()
 
     def _model(self, kind: str) -> str:
         return self.res.settings.model + ("" if JUDGMENTS[kind].think else " (생각 끔)")
@@ -290,5 +367,5 @@ class Worker:
         return batch.context.get("review")
 
 
-__all__ = ["JUDGMENTS", "Notifier", "PolicyIssue", "PolicyReview", "RiskLevel", "ServerGap", "ServerReview",
+__all__ = ["JUDGMENTS", "Notifier", "PolicyIssue", "PolicyReview", "PrecedentReview", "RiskLevel", "ServerGap", "ServerReview",
            "SuspectScore", "Verdict", "Worker", "attempt", "band"]

@@ -46,15 +46,15 @@ def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
 
 
 def findings_by_key(db: Database, keys: Any) -> dict[str, dict[str, Any]]:
-    """`policy_issues/{id}` · `node_findings/{id}` key → 그 판정 행 (결정 이어받기용)."""
-    ids: dict[str, list[int]] = {"policy_issues": [], "node_findings": []}
+    """`policy_issues/{id}` · `node_findings/{id}` · `event_findings/{id}` key → 그 판정 행 (결정 이어받기 · 선례용)."""
+    ids: dict[str, list[int]] = {"policy_issues": [], "node_findings": [], "event_findings": []}
     for key in keys:
         table, _, num = str(key).partition("/")
         if table in ids and num.isdigit():
             ids[table].append(int(num))
     out: dict[str, dict[str, Any]] = {}
     with db.connection() as conn:
-        for table, nums in ids.items():   # 표 이름은 위의 정해진 둘뿐이라 SQL 에 넣어도 됩니다
+        for table, nums in ids.items():   # 표 이름은 위의 정해진 셋뿐이라 SQL 에 넣어도 됩니다
             if nums:
                 rows = conn.execute(f"SELECT * FROM {table} WHERE id = ANY(%s)", (nums,)).fetchall()
                 out.update({f"{table}/{r['id']}": dict(r) for r in rows})

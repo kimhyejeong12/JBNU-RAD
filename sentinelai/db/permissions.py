@@ -378,6 +378,18 @@ def user_requests(db: Database, since: str | None = None) -> list[dict[str, Any]
              "revoke_reason": r["revoke_reason"], "at": r["submitted_at"]} for r in rows]
 
 
+def decided_requests(db: Database, exclude: str = "") -> list[dict[str, Any]]:
+    """선례용 — 사람이 결재 · 회수한 신청 (AI 칸은 고르지 않습니다)."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT r.request_no, r.requester_department, r.requester_job, r.access_code, r.requested_access, r.reason, r.period_end,"
+            " r.stage, r.manager_action, r.manager_comment, r.top_action, r.top_comment, r.revoke_reason, r.closed_at,"
+            " c.system, c.category FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code"
+            " WHERE r.stage IN ('approved', 'rejected', 'revoked') AND r.request_no <> %s ORDER BY r.closed_at DESC NULLS LAST, r.id DESC",
+            (exclude,)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def held_by_account(db: Database) -> dict[int, list[dict[str, Any]]]:
     """계정마다 지금 가진 권한 (_held 와 같은 조건)입니다."""
     with db.connection() as conn:
