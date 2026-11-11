@@ -4,7 +4,9 @@ import { VIEWS, isAdminView, type MainTab, type SavedPage, type View } from "@/a
 // 서버 데이터는 TanStack Query 에 있고 여기에는 보고 있는 메뉴 · 탭 · 항목만 둡니다.
 
 // 대화 id 는 화면이 만듭니다 (서버는 기록이 없는 id 를 새 대화로 봅니다).
-export const newConversation = (): string => crypto.randomUUID().replaceAll("-", "");
+// randomUUID 는 HTTPS · localhost 에서만 있어 http://IP 로 열면 화면이 멈춰 getRandomValues 를 씁니다.
+export const newConversation = (): string =>
+  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
 
 export const NEW_ITEM = "new";
 
