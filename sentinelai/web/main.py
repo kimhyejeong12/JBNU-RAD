@@ -31,12 +31,16 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 async def lifespan(app: FastAPI):
     # Milvus Lite 는 한 프로세스만 열 수 있어 Engine 을 한 번만 만들고 AI 작업은 모두 그 통합 큐로 돌립니다.
     engine = Engine()
+    app.state.slack_url = notify.slack_url()
+    # 엔진이 뜨자마자 돌리는 로그 감시부터 알리도록 엔진보다 먼저 시작점을 잡습니다.
+    risk = notify.RiskWatcher(app.state.slack_url, engine.results_db)
     engine.start()
+    risk.start()
     app.state.engine = engine
     app.state.main_db, app.state.results_db = engine.main_db, engine.results_db
-    app.state.slack_url = notify.slack_url()
     app.state.mail = notify.mail_settings()
     yield
+    risk.stop()
     engine.stop()
 
 

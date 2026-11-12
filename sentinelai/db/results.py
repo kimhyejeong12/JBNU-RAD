@@ -464,6 +464,22 @@ def monitor_findings(db: Database) -> dict[str, Any] | None:
     }
 
 
+def last_finding_id(db: Database) -> int:
+    """로그 감시 판정의 마지막 id(없으면 0) — 알림이 여기서부터 새 판정을 셉니다."""
+    with db.connection() as conn:
+        return conn.execute("SELECT coalesce(max(id), 0) FROM event_findings").fetchone()[0]
+
+
+def findings_after(db: Database, after: int, level: str = "위험") -> list[dict[str, Any]]:
+    """after 뒤로 쌓인 그 등급의 로그 감시 판정(실패 제외) — id · 사용자 · 로그 구간 · 단계(fast · final)."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT f.id, f.\"user\", f.first_event_at, f.last_event_at, m.stage FROM event_findings f"
+            " JOIN monitor_runs m ON m.id = f.run_id WHERE f.id > %s AND f.level = %s AND f.failed = 0 ORDER BY f.id",
+            (after, level)).fetchall()
+    return [dict(r) for r in rows]
+
+
 # --- 질의 기록 ---
 
 QA_KINDS = ("policy", "logs", "servers", "agent")
