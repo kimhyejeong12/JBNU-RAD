@@ -1,4 +1,4 @@
-"""웹이 꺼져 있을 때 쓰는 CLI — 웹이 떠 있으면 판정이 웹 작업 큐와 따로 돌아 모델을 함께 칩니다. Milvus Lite(파일)면 잠금 때문에 아예 실패합니다."""
+"""화면에 없는 일만 하는 CLI — 첫 계정 · 망이 막힌 노드 수집 넣기 · RAG 다시 만들기 · cron 로그 감시."""
 from __future__ import annotations
 
 import argparse
@@ -12,18 +12,13 @@ from .engine import Engine
 
 
 def _show(item: dict[str, Any]) -> None:
-    """Verdict · ServerReview 한 건을 출력합니다."""
+    """로그 감시 판정 한 건을 출력합니다."""
     if item["failed"]:
         print(f"  판정 실패: {item['error']}")
         return
-    print(f"  {item['level']} ({item['elapsed_sec']}초) {item.get('summary') or item.get('reason', '')}")
-    for gap in item.get("gaps", []):
-        print(f"  - {gap['level']} {gap['item']}: {gap['current']} → {gap['required']} ({gap['source']})")
-        print(f"    바꿀 것: {gap['change']}")
+    print(f"  {item['level']} ({item['elapsed_sec']}초) {item.get('reason', '')}")
     if item.get("recommendation"):
         print(f"  권고: {item['recommendation']}")
-    if item.get("unjudged"):
-        print(f"  조항이 없어 판단하지 않음: {', '.join(item['unjudged'])}")
 
 
 def _issues(issues: list[str]) -> None:
@@ -31,20 +26,17 @@ def _issues(issues: list[str]) -> None:
         print(f"  읽기 실패 {issue}")
 
 
-def health(engine: Engine, args: argparse.Namespace) -> int:
-    h = engine.health()
-    s = engine.settings
-    print(f"서버        : {h['base_url']} — {'연결됨' if h['connected'] else f'연결 실패 ({h['error']})'}")
-    for label, key, name in (("판정 모델", "model_ready", s.model), ("질답 모델", "qa_model_ready", s.qa_model),
-                             ("임베딩 모델", "embedding_ready", s.embedding_model)):
-        print(f"{label:9s}: {name} {'OK' if h[key] else '없음'}")
-    print(f"벡터 DB     : {s.milvus_target} — {'OK' if h['index_ready'] else '비어 있음 (index 로 적재)'}")
-    print(f"권한 DB     : {db.core.describe(s.db_path)} (스키마 main) · AI 결과 DB: {db.core.describe(s.results_db_path)} (스키마 results)")
-    return 0 if h["ok"] else 1
+def _saved(engine: Engine, items: list[dict[str, Any]], empty: str) -> int:
+    """판정 묶음의 끝 — 저장한 곳과 실패 건수를 적고, 실패가 있으면 1."""
+    if not items:
+        print(empty)
+    failed = sum(bool(i["failed"]) for i in items)
+    print(f"\n{engine.results_db.label} 에 저장 — 판정 {len(items)}건, 실패 {failed}건")
+    return 1 if failed else 0
 
 
 def index(engine: Engine, args: argparse.Namespace) -> int:
-    report = engine.index(args.source, rebuild=args.rebuild)
+    report = engine.index(rebuild=args.rebuild)
     print(report)
     for name in report.indexed:
         print(f"  갱신   {name}")
@@ -53,35 +45,6 @@ def index(engine: Engine, args: argparse.Namespace) -> int:
     for name in report.removed:
         print(f"  뺌     {name}")
     return 0
-
-
-def review_policies(engine: Engine, args: argparse.Namespace) -> int:
-    def progress(n: int, total: int, item: dict[str, Any]) -> None:
-        if item["failed"]:
-            print(f"정책 간 검토 실패: {item['error']}")
-            return
-        print(f"{item['summary']} ({item['elapsed_sec']}초)")
-        for issue in item["issues"]:
-            print(f"  {issue['kind']} · {issue['level']} {' ↔ '.join(issue['policy_ids'])}: {issue['reason']}")
-
-    review = engine.run_policies(progress)
-    _issues(review["load_issues"])
-    print(f"\n{engine.results_db.label} 에 저장")
-    return 1 if review["failed"] else 0
-
-
-def check_nodes(engine: Engine, args: argparse.Namespace) -> int:
-    def progress(n: int, total: int, item: dict[str, Any]) -> None:
-        print(f"\n[{n}/{total}] 노드 {item['node']} ({item['host']})")
-        _show(item)
-
-    run = engine.run_nodes(progress)
-    _issues(run["load_issues"])
-    if not run["findings"]:
-        print("새 수집이 온 노드가 없습니다.")
-    failed = sum(f["failed"] for f in run["findings"])
-    print(f"\n{engine.results_db.label} 에 저장 — 판정 실패 {failed}건")
-    return 1 if failed else 0
 
 
 def monitor(engine: Engine, args: argparse.Namespace) -> int:
@@ -94,27 +57,7 @@ def monitor(engine: Engine, args: argparse.Namespace) -> int:
     if run["since"]:
         print(f"({run['since']} 이후 로그)")
     _issues(run["load_issues"])
-    if not run["findings"]:
-        print("판정할 새 로그가 없습니다.")
-    failed = sum(f["failed"] for f in run["findings"])
-    print(f"\n{engine.results_db.label} 에 저장 — 판정 실패 {failed}건")
-    return 1 if failed else 0
-
-
-def ask(engine: Engine, args: argparse.Namespace) -> int:
-    out = engine.ask(args.question, None)
-    for step in out["steps"]:
-        print(f"[{step['tool']}] {step.get('criteria') or step['args']} → {step['summary']}{' — ' + step['error'] if step.get('error') else ''}")
-    if out["failed"]:
-        print(f"질의 실패: {out['error']} ({out['elapsed_sec']}초)", file=sys.stderr)
-        return 1
-    print(f"\n{out['answer']}\n")
-    if out["sources"]:
-        print(f"근거: {', '.join(out['sources'])}")
-    for c in out["checks"]:
-        print(f"검증: {c}")
-    print(f"({out['elapsed_sec']}초{f' · 도구 없이 답해 처음부터 {out['restarts']}번 다시' if out['restarts'] else ''})")
-    return 0
+    return _saved(engine, run["findings"], "판정할 새 로그가 없습니다.")
 
 
 def import_snapshots(engine: Engine, args: argparse.Namespace) -> int:
@@ -126,9 +69,9 @@ def import_snapshots(engine: Engine, args: argparse.Namespace) -> int:
 
 def create_root(engine: Engine, args: argparse.Namespace) -> int:
     # 터미널이 아니면(파이프) 화면 표시 없이 한 줄씩 읽습니다.
-    ask = getpass.getpass if sys.stdin.isatty() else (lambda prompt: sys.stdin.readline().rstrip("\n"))
-    password = ask("비밀번호: ")
-    if password != ask("비밀번호 확인: "):
+    read = getpass.getpass if sys.stdin.isatty() else (lambda prompt: sys.stdin.readline().rstrip("\n"))
+    password = read("비밀번호: ")
+    if password != read("비밀번호 확인: "):
         print("두 비밀번호가 다릅니다.", file=sys.stderr)
         return 1
     try:
@@ -141,23 +84,16 @@ def create_root(engine: Engine, args: argparse.Namespace) -> int:
 
 
 def parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="sentinelai", description="SentinelAI — 웹이 꺼져 있을 때 서버에서 쓰는 명령")
+    p = argparse.ArgumentParser(prog="sentinelai", description="SentinelAI — 화면에 없는 일만 하는 서버 명령. monitor 는 웹이 떠 있으면 웹 작업 큐와 따로 모델을 칩니다")
     sub = p.add_subparsers(dest="command", required=True)
-    sub.add_parser("health", help="Ollama 연결 · 모델 · 벡터 DB 확인").set_defaults(run=health)
-    cmd = sub.add_parser("index", help="기준 문서(docs/) 적재 — 바뀐 파일만")
-    cmd.add_argument("source", nargs="?", help="문서 파일 · 폴더 (.md · .txt). 없으면 docs/")
+    cmd = sub.add_parser("index", help="권한 DB 의 기준 문서를 RAG 에 적재 — 바뀐 문서만")
     cmd.add_argument("--rebuild", action="store_true", help="컬렉션을 비우고 전부 새로")
     cmd.set_defaults(run=index)
-    sub.add_parser("review-policies", help="정책 관리 검토 — 기준 문서 적재 + 기준 문서 간 검토").set_defaults(run=review_policies)
-    sub.add_parser("check-nodes", help="서버 점검 — 새 수집이 온 노드만").set_defaults(run=check_nodes)
     cmd = sub.add_parser("monitor", help="로그 감시 — 지난 감시 이후 로그만 (cron 용)")
-    cmd.add_argument("--since", help="이 시각 이후 (UTC, ISO 8601)")
-    cmd.add_argument("--until", help="이 시각까지 (UTC, ISO 8601)")
+    cmd.add_argument("--since", help="이 시각 이후 (ISO 8601, 시간대 없으면 UTC)")
+    cmd.add_argument("--until", help="이 시각까지 (ISO 8601, 시간대 없으면 UTC)")
     cmd.add_argument("--full", action="store_true", help="지난 감시 시각을 무시하고 처음부터")
     cmd.set_defaults(run=monitor)
-    cmd = sub.add_parser("ask", help="질의 — 기준 문서 · 로그 · 서버를 도구로 찾아 답함 (모델 평가용, 감사 기록 없음)")
-    cmd.add_argument("question", help="질문")
-    cmd.set_defaults(run=ask)
     cmd = sub.add_parser("import-snapshots", help="망이 막힌 노드가 export 한 수집 파일(*.json) 넣기")
     cmd.add_argument("folder", help="수집 파일 폴더")
     cmd.add_argument("--node", help="이 파일들의 노드 이름 (노드는 본문에 이름을 싣지 않습니다. 화면에 등록한 이름)")

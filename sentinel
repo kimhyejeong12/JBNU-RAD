@@ -9,12 +9,16 @@ tty=-T
 if [ -t 0 ] && [ -t 1 ]; then tty=; fi
 
 # 컨테이너는 이 폴더를 못 보므로 넣을 폴더를 먼저 복사합니다.
-if [ "${1:-}" = import-snapshots ] && [ -d "${2:-}" ]; then
-  dir=$2
-  shift 2
-  $DOCKER compose exec -T app rm -rf /tmp/import-snapshots
-  $DOCKER compose cp "$dir" app:/tmp/import-snapshots
-  set -- import-snapshots /tmp/import-snapshots "$@"
-fi
+case "${1:-}" in
+  import-snapshots)
+    if [ -e "${2:-}" ]; then
+      cmd=$1 dir=$2
+      shift 2
+      $DOCKER compose exec -T app rm -rf "/tmp/$cmd"
+      $DOCKER compose cp "$dir" "app:/tmp/$cmd"
+      set -- "$cmd" "/tmp/$cmd" "$@"
+    fi
+    ;;
+esac
 
 exec $DOCKER compose exec $tty app python -m sentinelai "$@"

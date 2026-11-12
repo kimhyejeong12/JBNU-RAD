@@ -7,10 +7,13 @@ import shutil
 import subprocess
 import sys
 import urllib.request
+from pathlib import Path
 
 from . import ROOT
 
 DEV = ROOT / ".dev"
+# 시험 환경에 넣는 예시 기준 문서입니다. 운영 웹은 읽지 않습니다.
+EXAMPLES = ROOT / "data" / "example-regulations"
 PORT = os.environ.get("DEV_PORT", "8001")
 DEV_URL = os.environ.get("DEV_DATABASE_URL", "postgresql://sentinelai:sentinelai-dev@127.0.0.1:5432/sentinelai_dev")
 TEST_URL = os.environ.get("TEST_DATABASE_URL", "postgresql://sentinelai:sentinelai-dev@127.0.0.1:5432/sentinelai_test")
@@ -58,6 +61,14 @@ def _reset_db(url: str, schema: str) -> None:
         conn.execute(f"DROP SCHEMA IF EXISTS {schema} CASCADE")
 
 
+def add_regulations(engine, folder: Path) -> list[str]:
+    """폴더의 .md · .txt 를 권한 DB 기준 문서로 넣습니다 — 같은 이름은 덮어쓰지 않습니다. → 넣은 이름"""
+    from .db import regulations
+
+    files = sorted(p for p in folder.iterdir() if p.suffix.lower() in (".md", ".txt"))
+    return [f.name for f in files if regulations.create(engine.main_db, None, f.name, f.read_text(encoding="utf-8"))]
+
+
 def setup(reset: bool) -> int:
     _use_dev()
     from .db import User, auth, catalog
@@ -86,10 +97,11 @@ def setup(reset: bool) -> int:
     for item in CATALOG:
         catalog.create(db, root, *item)
 
+    added = add_regulations(engine, EXAMPLES)
     try:
-        indexed = str(engine.index())
-    except Exception as exc:  # 모델 서버가 꺼져 있어도 계정으로 화면은 볼 수 있습니다.
-        indexed = f"건너뜀 ({type(exc).__name__}: {exc}) — 모델 서버를 켠 뒤 화면의 [정책 관리 검토 실행]이 적재합니다"
+        indexed = f"{', '.join(added)} — {engine.index()}"
+    except Exception as exc:  # 모델 서버가 꺼져 있어도 계정으로 화면은 볼 수 있습니다. 웹이 뜰 때 적재합니다.
+        indexed = f"{', '.join(added)} 넣음, 적재는 건너뜀 ({type(exc).__name__}: {exc})"
     finally:
         engine.documents.close()
 
@@ -148,9 +160,11 @@ def main() -> int:
     sub = p.add_subparsers(dest="command", required=True)
     sub.add_parser("setup").add_argument("--reset", action="store_true", help="있던 시험 환경을 지우고 새로")
     sub.add_parser("web").add_argument("--check-min", type=int, default=5, help="서버 점검 · 로그 감시 간격 (분)")
-    sub.add_parser("test")
+    sub.add_parser("test", help="뒤에 붙인 인자는 pytest 에 그대로 넘깁니다 (예: test -k ground -x)")
     sub.add_parser("targets").add_argument("action", nargs="?", choices=["up", "down"], default="up")
-    args = p.parse_args()
+    args, extra = p.parse_known_args()
+    if extra and args.command != "test":
+        p.error(f"모르는 인자: {' '.join(extra)}")
 
     if args.command == "setup":
         return setup(args.reset)
@@ -161,7 +175,7 @@ def main() -> int:
         return subprocess.call([sys.executable, "-m", "uvicorn", "sentinelai.web.main:app", "--reload", "--port", PORT],
                                env=dev_env(args.check_min), cwd=ROOT)
     if args.command == "test":
-        return subprocess.call([sys.executable, "-m", "pytest", "tests"], env={**os.environ, "SENTINELAI_TEST_DATABASE_URL": TEST_URL}, cwd=ROOT)
+        return subprocess.call([sys.executable, "-m", "pytest", "tests", *extra], env={**os.environ, "SENTINELAI_TEST_DATABASE_URL": TEST_URL}, cwd=ROOT)
     return targets(args.action)
 
 

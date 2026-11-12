@@ -31,7 +31,7 @@ docker compose up -d --build --wait
 ## 사용
  
 1. http://localhost:8000 에서 만든 계정으로 로그인
-2. 정책 관리 → [정책 관리 검토 실행]을 한 번 누름 (기준 문서를 RAG에 적재) 
+2. 관리 → 기준 문서에서 정책 문서(.md, .txt)를 올림 — 올리면 RAG에 적재됨. 예시 문서는 `data/example-regulations/`에 있음
 3. 노드 감시기 설치는 `node/README.md` 참조.
 
 

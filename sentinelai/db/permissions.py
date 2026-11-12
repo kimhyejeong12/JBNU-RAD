@@ -83,6 +83,7 @@ def _detail(conn: psycopg.Connection[Row], rid: int) -> dict:
         "level": row["ai_level"], "reason": row["ai_reason"], "recommendation": row["ai_recommendation"],
         "sources": json.loads(row["ai_sources"]), "failed": bool(row["ai_failed"]), "error": row["ai_error"],
         "model": row["ai_model"], "elapsed_sec": row["ai_elapsed_sec"], "judged_at": row["ai_judged_at"],
+        "grounding": json.loads(row["ai_grounding"]),
     }
     # 1차 결재 뒤에는 AI 칸이 굳어 두 결재자가 본 판정이 같습니다.
     seen = row["ai_level"] if row["ai_judged_at"] and not row["ai_failed"] else None
@@ -137,7 +138,7 @@ def _grant_review(conn: psycopg.Connection[Row], row: Any) -> dict[str, Any] | N
     return {"cause": "move", "move": _move(move), "verdict": None if g is None else {
         "level": g["level"], "reason": g["reason"], "recommendation": g["recommendation"], "sources": json.loads(g["sources"]),
         "failed": bool(g["failed"]), "error": g["error"], "model": g["model"], "elapsed_sec": g["elapsed_sec"],
-        "judged_at": g["judged_at"], "by": "ai"}}
+        "judged_at": g["judged_at"], "grounding": json.loads(g["grounding"]), "by": "ai"}}
 
 
 LEVEL_RANK = {"정상": 0, "주의": 1, "위험": 2}
@@ -260,10 +261,10 @@ def save_grant_review(db: Database, request_no: str, move_id: int, result: dict,
             return False
         conn.execute(
             "INSERT INTO grant_reviews (request_id, move_id, level, reason, recommendation, sources, failed, error, model,"
-            " elapsed_sec, judged_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            " elapsed_sec, judged_at, grounding) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
             (row["id"], move_id, result.get("level"), result.get("reason", ""), result.get("recommendation", ""),
              json.dumps(result.get("sources", []), ensure_ascii=False), int(result["failed"]), result.get("error"),
-             model, result.get("elapsed_sec"), now()))
+             model, result.get("elapsed_sec"), now(), json.dumps(result.get("grounding", {}), ensure_ascii=False)))
     return True
 
 
@@ -377,6 +378,18 @@ def user_requests(db: Database, since: str | None = None) -> list[dict[str, Any]
              "revoke_reason": r["revoke_reason"], "at": r["submitted_at"]} for r in rows]
 
 
+def decided_requests(db: Database, exclude: str = "") -> list[dict[str, Any]]:
+    """선례용 — 사람이 결재 · 회수한 신청 (AI 칸은 고르지 않습니다)."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT r.request_no, r.requester_department, r.requester_job, r.access_code, r.requested_access, r.reason, r.period_end,"
+            " r.stage, r.manager_action, r.manager_comment, r.top_action, r.top_comment, r.revoke_reason, r.closed_at,"
+            " c.system, c.category FROM access_requests r LEFT JOIN access_catalog c ON c.code = r.access_code"
+            " WHERE r.stage IN ('approved', 'rejected', 'revoked') AND r.request_no <> %s ORDER BY r.closed_at DESC NULLS LAST, r.id DESC",
+            (exclude,)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def held_by_account(db: Database) -> dict[int, list[dict[str, Any]]]:
     """계정마다 지금 가진 권한 (_held 와 같은 조건)입니다."""
     with db.connection() as conn:
@@ -399,11 +412,11 @@ def save_ai_verdict(db: Database, request_no: str, result: dict, model: str) -> 
     with db.transaction() as conn:
         updated = conn.execute(
             "UPDATE access_requests SET ai_level = %s, ai_reason = %s, ai_recommendation = %s, ai_sources = %s, ai_failed = %s,"
-            " ai_error = %s, ai_model = %s, ai_elapsed_sec = %s, ai_judged_at = %s"
+            " ai_error = %s, ai_model = %s, ai_elapsed_sec = %s, ai_judged_at = %s, ai_grounding = %s"
             " WHERE request_no = %s AND stage = 'manager' AND manager_action IS NULL",
             (result.get("level"), result.get("reason", ""), result.get("recommendation", ""),
              json.dumps(result.get("sources", []), ensure_ascii=False), int(result["failed"]), result.get("error"),
-             model, result.get("elapsed_sec"), now(), request_no),
+             model, result.get("elapsed_sec"), now(), json.dumps(result.get("grounding", {}), ensure_ascii=False), request_no),
         ).rowcount
     return updated == 1
 

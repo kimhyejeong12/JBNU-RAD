@@ -42,11 +42,11 @@ class Built:
     limit: int
 
 
-def limit(settings: Any, prompt: Any) -> int:
-    """num_ctx 에서 출력 몫(num_predict)과 프롬프트 글을 빼고 남는 글자 수입니다."""
+def limit(settings: Any, prompt: Any, reserve: int = 0) -> int:
+    """num_ctx 에서 출력 몫(num_predict)과 프롬프트 글(+ reserve)을 빼고 남는 글자 수입니다."""
     template = sum(len(getattr(m, "prompt", m).template) for m in prompt.messages if hasattr(getattr(m, "prompt", m), "template"))
     tokens = settings.num_ctx - settings.num_predict
-    return max(MIN_CHARS, int(tokens * CHARS_PER_TOKEN) - template)
+    return max(MIN_CHARS, int(tokens * CHARS_PER_TOKEN) - template - reserve)
 
 
 def _size(sections: list[Section]) -> int:

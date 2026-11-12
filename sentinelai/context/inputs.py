@@ -6,6 +6,7 @@ from typing import Any
 from ..sources import Person, SecurityEvent, ServerSnapshot
 from . import builders
 from .budget import Built, Section, fit, limit
+from .precedent import RESERVE
 from .prompts import Prompts
 
 
@@ -13,8 +14,9 @@ class Inputs:
     def __init__(self, settings: Any) -> None:
         self.settings = settings
 
-    def _fit(self, prompt: Any, sections: list[Section]) -> Built:
-        return fit(sections, limit(self.settings, prompt))
+    def _fit(self, prompt: Any, sections: list[Section], reserve: int = RESERVE) -> Built:
+        """선례 검토가 붙는 판정은 다시 판정할 몫을 미리 뺍니다."""
+        return fit(sections, limit(self.settings, prompt, reserve))
 
     def request(self, row: dict[str, Any], person: Person, clauses: str) -> Built:
         return self._fit(Prompts.ACCESS_REVIEW, builders.request(row, person, clauses))
@@ -23,10 +25,10 @@ class Inputs:
         return self._fit(Prompts.GRANT_REVIEW, builders.grant(row, person, clauses))
 
     def events(self, group: list[SecurityEvent], person: Person, clauses: str, fast: bool = False) -> Built:
-        return self._fit(Prompts.EVENT_REVIEW, builders.events(group, person, clauses, fast))
+        return self._fit(Prompts.EVENT_REVIEW, builders.events(group, person, clauses, fast), 0 if fast else RESERVE)
 
     def suspect(self, info: dict[str, Any], person: Person, clauses: str) -> Built:
-        return self._fit(Prompts.SUSPECT, builders.suspect(info, person, clauses))
+        return self._fit(Prompts.SUSPECT, builders.suspect(info, person, clauses), 0)
 
     def server(self, snapshot: ServerSnapshot, changed: list[str], clauses: str, decided: list[dict[str, Any]]) -> Built:
         return self._fit(Prompts.SERVER_REVIEW, builders.server(snapshot, changed, clauses, decided))
