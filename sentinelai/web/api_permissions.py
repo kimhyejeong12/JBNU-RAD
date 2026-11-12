@@ -284,11 +284,13 @@ class RevokeBody(BaseModel):
 
 
 @router.post("/requests/{request_no}/revoke")
-def revoke(request_no: str, body: RevokeBody, request: Request, user: Approver) -> dict[str, Any]:
+def revoke(request_no: str, body: RevokeBody, request: Request, background: BackgroundTasks, user: Approver) -> dict[str, Any]:
     try:
-        return _with_verdict(request, permissions.revoke(request.app.state.main_db, user, request_no, body.reason), user)
+        req = permissions.revoke(request.app.state.main_db, user, request_no, body.reason)
     except Denied as exc:
         raise _denied(exc) from None
+    background.add_task(notify.notify_result, request.app.state.mail, request.app.state.main_db, req)
+    return _with_verdict(request, req, user)
 
 
 @router.post("/requests/{request_no}/rejudge", status_code=202)
