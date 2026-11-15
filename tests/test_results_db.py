@@ -49,6 +49,25 @@ def test_monitor_runs(results_db):
     assert {v["log_id"] for v in results.finding_users(results_db, [*ids, 999]).values()} == {"kim.hj"}
 
 
+def test_findings_after(results_db):
+    assert results.last_finding_id(results_db) == 0
+    base = {"user": "kim.hj", "subject": "인사팀 김혜정", "first_event_at": "2026-11-01T10:00:00+00:00",
+            "last_event_at": "2026-11-01T11:00:00+00:00", "events": "- 로그", "level": "위험", "failed": False}
+    results.save_monitor_run(results_db, {"last_event_at": "2026-11-01T11:00:00+00:00", "findings": [base]}, "m", stage="fast")
+    start = results.last_finding_id(results_db)
+    results.save_monitor_run(results_db, {"last_event_at": "2026-11-01T12:00:00+00:00", "findings": [
+        {**base, "user": "lee", "level": "주의"},
+        {**base, "user": "park", "level": None, "failed": True, "error": "모델 응답 없음"},
+        {**base, "user": "choi"},
+    ]}, "m")
+
+    found = results.findings_after(results_db, start)
+    assert [(f["user"], f["stage"]) for f in found] == [("choi", "final")]
+    assert found[0]["first_event_at"] == "2026-11-01T10:00:00+00:00"
+    assert [f["user"] for f in results.findings_after(results_db, 0)] == ["kim.hj", "choi"]
+    assert [f["user"] for f in results.findings_after(results_db, start, "주의")] == ["lee"]
+
+
 def test_snapshots_and_node_findings(results_db):
     snap = {"node": "web-01", "host": "web-01", "ip": "10.0.0.5", "collected_at": "2026-11-03T10:00:00+09:00",
             "collected_by": "root", "modules": {"ssh": {"permitrootlogin": "yes"}}, "sections": {}, "changes": ["root 로그인 열림"]}
