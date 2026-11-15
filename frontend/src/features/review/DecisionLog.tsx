@@ -1,4 +1,4 @@
-import { DECISIONS } from "./lib";
+import { DECISIONS } from "@/app/ui/panel/decision";
 import type { ReviewItem } from "./api";
 import type { Decision } from "@/shared/api/types";
 import { person, stamp } from "@/shared/lib/format";

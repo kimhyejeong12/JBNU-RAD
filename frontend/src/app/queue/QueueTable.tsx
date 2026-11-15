@@ -5,7 +5,7 @@ import { useUi } from "@/app/ui/state/UiContext";
 import { useQueue } from "./useQueue";
 import { inView, visible, emptyText } from "./select";
 import type { QueueItem } from "./types";
-import { DECISIONS } from "@/features/review/lib";
+import { DECISIONS } from "@/app/ui/panel/decision";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";

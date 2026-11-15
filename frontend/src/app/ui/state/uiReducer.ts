@@ -69,9 +69,9 @@ export type UiAction =
 
 export const isStatTab = (t: MainTab): t is StatKind => t === "stats" || t === "ustats";
 export const panelOnDemand = (tab: MainTab): boolean => isStatTab(tab);
-// 관리의 큐 탭 · 권한 변동 탭은 오른쪽 패널 없이 넓게 씁니다.
+// 관리의 큐 탭 · 종합 탭 · 권한 변동 탭은 오른쪽 패널 없이 넓게 씁니다.
 export const panelIdle = (s: UiState): boolean =>
-  s.mainTab === "engine" || s.mainTab === "risk" || (panelOnDemand(s.mainTab) && !s.stats.selected);
+  s.mainTab === "engine" || s.mainTab === "overview" || s.mainTab === "risk" || (panelOnDemand(s.mainTab) && !s.stats.selected);
 
 function withTab(s: UiState, tab: MainTab): UiState {
   const stats = isStatTab(tab) && s.stats.kind !== tab ? { ...s.stats, kind: tab, selected: null } : s.stats;

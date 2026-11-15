@@ -1,20 +1,20 @@
 import { useState } from "react";
-import { DECISIONS, DECISION_SET, compactLog, decisionTone } from "./lib";
-import { useDecide, type ReviewItem } from "./api";
+import { compactLog } from "./lib";
+import type { ReviewItem } from "./api";
 import { DecisionLog } from "./DecisionLog";
 import { useResults } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
-import { PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
+import { PanelHead } from "@/app/ui/panel/Panel";
+import { DecisionBadge, DecisionFoot, JudgeState } from "@/app/ui/panel/DecisionFoot";
 import { SourceChips } from "@/app/ui/panel/SourceChips";
 import type { EventFinding, ServerFinding, Snapshot } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { LEVEL_ICON } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/base/Icon";
 import { LevelDot, Meta, Section } from "@/shared/ui/base/parts";
 import { ModuleChanges, ModuleTables } from "@/shared/ui/server/ModuleTables";
 import { cn } from "@/shared/lib/cn";
 import {
-  box, boxPre, input, kvTable, kvTd, kvTh, levelText, note, panelBody, panelFoot, panelFootTitle, recLine, subject, toolButton,
+  box, boxPre, kvTable, kvTd, kvTh, note, panelBody, panelFoot, panelFootTitle, subject, toolButton,
 } from "@/shared/ui/base/styles";
 
 export function ReviewPanel({ it }: { it: ReviewItem }) {
@@ -24,20 +24,22 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
   // 10/14 전 서버 점검 결과(recommendation 이 있음)는 예전 칸으로 보입니다.
   const gapped = it.type === "server" && !it.raw.failed && !it.raw.recommendation;
   const title = it.type === "policy" ? `${it.who} ${it.raw.kind}` : it.raw.title;
+  const fast = it.type === "event" && it.raw.stage === "fast";
 
   return (
     <>
-      <PanelHead title="AI 판단 근거" />
+      <PanelHead title="AI 분석" />
       <div className={panelBody}>
         <p className={subject}>{title}</p>
-        <div className={cn(recLine, it.level && levelText[it.level])}><Icon name={(it.level && LEVEL_ICON[it.level]) || "warn"} className="size-5" />{it.level}</div>
+        <JudgeState level={it.level}>{fast ? <span className="text-[12px] font-bold text-ink-dim">확정 대기</span> : <DecisionBadge decision={it.decision} />}</JudgeState>
 
         {/* 원자료가 길어 결론이 밀려나지 않게 결론을 먼저 둡니다. */}
+        {it.type === "event" && <EventWhat f={it.raw} />}
         {gapped && it.type === "server" ? <GapSections itemKey={it.key} f={it.raw} /> : (
           <>
-            <Section icon="activity" title="판단 이유"><div className={box}>{r.reason}</div></Section>
-            <Section icon="ok" title="권고 조치"><div className={box}>{r.recommendation}</div></Section>
-            <Section icon="db" title="근거 조항"><SourceChips itemKey={it.key} sources={it.type === "policy" ? it.raw.policy_ids : r.sources} /></Section>
+            <Section icon="activity" title="이유"><div className={box}>{r.reason}</div></Section>
+            <Section icon="db" title="관련 규정"><SourceChips itemKey={it.key} sources={it.type === "policy" ? it.raw.policy_ids : r.sources} /></Section>
+            <Section icon="ok" title="조치 방법"><div className={box}>{r.recommendation}</div></Section>
           </>
         )}
 
@@ -46,47 +48,24 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
         {results.decision_log && <DecisionLog log={results.decision_log} it={it} />}
       </div>
 
-      {it.type === "event" && it.raw.stage === "fast" ? (
+      {fast ? (
         <div className={panelFoot}>
           <h4 className={panelFootTitle}>1차 판정 (확정 대기)</h4>
         </div>
-      ) : <DecisionFoot it={it} />}
+      ) : <DecisionFoot decision={it.decision} target={{ kind: it.type, itemKey: it.itemKey!, level: it.level || null, subject: title }} />}
     </>
   );
 }
 
-function DecisionFoot({ it }: { it: ReviewItem }) {
-  const decide = useDecide();
-  const [comment, setComment] = useState("");
-  const decision = it.decision;
-  const act = (action: string) => decide.mutate({ it, action, comment }, { onSuccess: () => setComment("") });
-  const choices = Object.entries(DECISION_SET[it.type]);
+// 누가 어디서 무엇을 했는지 한 줄로 — 원문 줄은 아래에 접어 둡니다.
+function EventWhat({ f }: { f: EventFinding }) {
+  const log = compactLog(f.detail?.events ?? "");
   return (
-    <div className={panelFoot}>
-      <h4 className={panelFootTitle}>의사결정</h4>
-      <textarea className={cn(input, "min-h-14 resize-y")} id="review-comment" maxLength={2000} placeholder="결정 의견 (선택)" value={comment} onChange={(e) => setComment(e.target.value)} />
-      <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${choices.length}, minmax(0, 1fr))` }}>
-        {choices.map(([a, color]) => (
-          <button key={a} aria-pressed={decision?.action === a} onClick={() => act(a)}
-            className={cn("h-9 rounded-lg border border-solid text-[13.5px] font-bold hover:brightness-[0.97] aria-pressed:outline-2 aria-pressed:outline-offset-1 aria-pressed:outline-ink", decisionTone[color])}>
-            {DECISIONS[a]}
-          </button>
-        ))}
+    <Section icon="eye" title="무슨 일">
+      <div className={box}>
+        <Meta items={[log.head || f.title, `로그 ${log.lines.length}줄`, f.detail?.last_event_at && `마지막 ${stamp(f.detail.last_event_at)}`]} />
       </div>
-      <div className="mt-2 flex items-center gap-2 text-[12px] text-ink-dim">
-        {decision ? (
-          <>
-            <span className="min-w-0 flex-1">
-              <Meta items={[<b key="a" className="text-ink">{DECISIONS[decision.action]}</b>, decision.decider_name, stamp(decision.decided_at),
-                decision.carried_from && "이전 결정"]} />
-              {decision.comment && <span className="block">{decision.comment}</span>}
-            </span>
-            <button id="undo" onClick={() => act("cancel")} className="shrink-0 self-start border-none bg-transparent p-0 text-[12px] whitespace-nowrap text-ink-dim underline">취소</button>
-          </>
-        ) : null}
-      </div>
-      <PanelMsg />
-    </div>
+    </Section>
   );
 }
 
@@ -117,16 +96,22 @@ function ModuleFold({ snap }: { snap: Snapshot }) {
 }
 
 function EventSection({ f, onLogs }: { f: EventFinding; onLogs: () => void }) {
+  const [open, setOpen] = useState(false);
   const [all, setAll] = useState(false);
   const log = compactLog(f.detail?.events ?? "");
   const shown = all ? log.lines : log.lines.slice(-RECENT_LOGS);
   const hidden = log.lines.length - shown.length;
   return (
     <Section icon="file" title={`판정한 로그 ${log.lines.length}줄`}>
-      {log.head && <p className={cn(note, "mb-1.5")}>{log.head}</p>}
-      <div className={boxPre}>{shown.join("\n") || "로그 없음"}</div>
+      {open && (
+        <>
+          {log.head && <p className={cn(note, "mb-1.5")}>{log.head}</p>}
+          <div className={boxPre}>{shown.join("\n") || "로그 없음"}</div>
+        </>
+      )}
       <div className="mt-2 flex flex-wrap gap-2">
-        {hidden > 0 && <button className={cn(toolButton, "ml-0")} onClick={() => setAll(true)}>앞의 {hidden}줄 더 보기</button>}
+        <button className={cn(toolButton, "ml-0")} id="log-raw" aria-expanded={open} onClick={() => setOpen(!open)}><Icon name="file" small />{open ? "원문 접기" : "원문 보기"}</button>
+        {open && hidden > 0 && <button className={cn(toolButton, "ml-0")} onClick={() => setAll(true)}>앞의 {hidden}줄 더 보기</button>}
         <button className={cn(toolButton, "ml-0")} id="to-logs" onClick={onLogs}><Icon name="search" small />이 사용자의 최근 한 달 로그</button>
       </div>
     </Section>
@@ -137,8 +122,8 @@ const GAP_TH = "w-13";
 function GapSections({ itemKey, f }: { itemKey: string; f: ServerFinding }) {
   return (
     <>
-      <Section icon="activity" title="요약"><div className={box}>{f.reason}</div></Section>
-      <Section icon="warn" title={`정책과 다른 곳 ${f.gaps.length}`}>
+      <Section icon="activity" title="이유"><div className={box}>{f.reason}</div></Section>
+      <Section icon="db" title={`기준과 다른 곳 ${f.gaps.length}`}>
         {f.gaps.length ? f.gaps.map((g, n) => (
           <div className="mb-2 rounded-lg border border-line px-3 py-2.5" key={n}>
             <div className="mb-1.5 text-[13px] font-bold"><LevelDot level={g.level} />{g.item}</div>
