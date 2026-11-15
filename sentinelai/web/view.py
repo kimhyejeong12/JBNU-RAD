@@ -77,7 +77,8 @@ def results(policies: dict[str, Any] | None, events: dict[str, Any] | None, node
         # 구역마다 따로 돌아 마지막 실행 시각 · 읽기 실패를 따로 둡니다.
         "sections": {
             name: {"generated_at": s["generated_at"], "source": s["source"], "load_issues": s["load_issues"]} if s else None
-            for name, s in (("policies", policies), ("events", events),
+            for name, s in (("policies", policies and {"generated_at": policies["generated_at"], "source": "기준 문서", "load_issues": []}),
+                            ("events", events),
                             ("servers", nodes_at and {"generated_at": nodes_at, "source": "수집 노드", "load_issues": []}))
         },
         "policy_review": policy_review,

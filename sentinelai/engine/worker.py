@@ -367,7 +367,7 @@ class Worker:
         return {"key": d["info"]["key"], **result}
 
     def _save_policies(self, _d: dict[str, Any], result: dict[str, Any], batch: Batch | None) -> dict[str, Any]:
-        review = {"generated_at": _now(), "source": "RAG 기준 문서", "load_issues": [], "rules": [], **result}
+        review = {"generated_at": _now(), **result}
         results.save_policy_review(self.res.results_db, review, self._model("policies"))
         if batch is not None:
             batch.context["review"] = review

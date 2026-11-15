@@ -31,10 +31,9 @@ def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
     """→ policy_reviews.id"""
     with db.transaction() as conn:
         rid = conn.execute(
-            "INSERT INTO policy_reviews (source, load_issues, rules, summary, failed, error, model, elapsed_sec, created_at, grounding)"
-            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
-            (str(review.get("source", "")), _json(review.get("load_issues", [])), _json(review.get("rules", [])),
-             review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now(),
+            "INSERT INTO policy_reviews (summary, failed, error, model, elapsed_sec, created_at, grounding)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            (review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now(),
              _json(review.get("grounding", {}))),
         ).fetchone()[0]
         conn.cursor().executemany(
@@ -68,13 +67,9 @@ def latest_policy_review(db: Database) -> dict[str, Any] | None:
         if row is None:
             return None
         issues = conn.execute("SELECT * FROM policy_issues WHERE review_id = %s ORDER BY seq", (row["id"],)).fetchall()
-        servers = conn.execute("SELECT * FROM server_findings WHERE review_id = %s ORDER BY seq", (row["id"],)).fetchall()
     return {
         "id": row["id"],
         "generated_at": row["created_at"],
-        "source": row["source"],
-        "load_issues": json.loads(row["load_issues"]),
-        "rules": json.loads(row["rules"]),
         "summary": row["summary"],
         "failed": bool(row["failed"]),
         "error": row["error"],
@@ -86,18 +81,6 @@ def latest_policy_review(db: Database) -> dict[str, Any] | None:
              "policy_ids": json.loads(i["policy_ids"]), "reason": i["reason"], "recommendation": i["recommendation"]}
             for i in issues
         ],
-        "servers": {
-            "source": row["servers_source"],
-            "load_issues": json.loads(row["servers_load_issues"]),
-            "findings": [
-                {"key": f"server_findings/{s['id']}", "seq": s["seq"], "host": s["host"], "ip": s["ip"],
-                 "state": json.loads(s["state"]), "matched": s["matched"], "level": s["level"], "reason": s["reason"],
-                 "recommendation": s["recommendation"], "sources": json.loads(s["sources"]), "failed": bool(s["failed"]),
-                 "error": s["error"], "elapsed_sec": s["elapsed_sec"], "gaps": json.loads(s["gaps"]),
-                 "unjudged": json.loads(s["unjudged"]), "snapshot": json.loads(s["snapshot"])}
-                for s in servers
-            ],
-        },
     }
 
 
