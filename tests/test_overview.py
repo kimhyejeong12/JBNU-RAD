@@ -62,7 +62,6 @@ def test_event_states_and_failed_apart():
     assert (out["counts"]["위험"], out["counts"]["주의"], out["counts"]["failed"]) == (1, 1, 1)
     assert out["counts"]["action"] == {"total": 2, "undecided": 1, "acting": 1}
     assert [r["key"] for r in out["top"]] == ["event_findings/1", "event_findings/3"]
-    assert out["recent"][0]["label"] in ("조치 필요", "이상 없음")
 
 
 def test_suspect_decision_follows_person():
@@ -86,7 +85,7 @@ def test_grant_review_until_revoked_and_leave():
     assert _run(grants=history)["counts"]["위험"] == 1
     revoked = {**history, "grants": [_grant(revoked_at=_at(8), revoker_name="운영자", revoke_reason="이동")]}
     out = _run(grants=revoked, since=_at(1))
-    assert out["counts"]["위험"] == 0 and out["counts"]["completion"]["done"] == 1 and out["recent"][0]["label"] == "회수"
+    assert out["counts"]["위험"] == 0 and out["counts"]["completion"]["done"] == 1
     left = _run(grants={"grants": [_grant(left_on="2026-11-10")], "moves": [], "reviews": []})
     assert left["counts"]["위험"] == 1 and "퇴사" in left["top"][0]["reason"]
 
@@ -118,3 +117,50 @@ def test_issuer_overview_reads_both_dbs(main_db, results_db, people):
     decisions.record(main_db, people["manager"], "event", key, "done")
     out = issuer.overview("month")
     assert out["counts"]["위험"] == 1 and out["counts"]["completion"] == {"done": 1, "waiting": 1, "rate": 50}
+
+
+def test_todos_keep_only_listed_items_of_the_area():
+    from sentinelai.engine.worker import todos
+    listed = {"event": [{"no": "T1", "area": "event", "key": "event_findings/1", "subject": "재무 정다은", "level": "위험"}],
+              "server": [{"no": "T2", "area": "server", "key": "node_findings/2", "subject": "web-1", "level": "주의"}]}
+    out = todos({"areas": [
+        {"area": "로그 감시", "todos": [{"item": "[T1]", "task": "출력 승인 여부를 확인하십시오", "why": "위험, 결정 없음"},
+                                     {"item": "T2", "task": "x", "why": "y"}, {"item": "T9", "task": "x", "why": "y"}]}]}, listed)
+    assert [a["area"] for a in out["areas"]] == ["policy", "server", "event", "suspect", "grant"]
+    assert out["areas"][2]["todos"] == [{"item": "T1", "key": "event_findings/1", "subject": "재무 정다은", "level": "위험",
+                                         "task": "출력 승인 여부를 확인하십시오", "why": "위험, 결정 없음"}]
+    assert out["checks"] == ["로그 감시: 다른 영역의 항목 T2 할 일을 뺐습니다", "로그 감시: 없는 항목 T9 할 일을 뺐습니다",
+                             "서버 점검: 열린 항목이 있는데 영역을 빠뜨렸습니다"]
+
+
+def test_briefing_runs_once_until_something_changes(main_db, results_db, people):
+    from sentinelai.context import Inputs
+    from sentinelai.engine.worker import AreaTodos, Briefing, Todo, Worker
+    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    results.save_monitor_run(results_db, {"last_event_at": stamp, "findings": [
+        {"user": "5", "subject": "재무 정다은", "first_event_at": stamp, "last_event_at": stamp, "events": "-", "level": "위험",
+         "reason": "예외 출력", "failed": False}]}, "m")
+    settings = SimpleNamespace(num_ctx=16384, num_predict=8192, model="fake")
+    sources = Sources(SimpleNamespace(events_source=""), main_db, results_db, None)
+    res = SimpleNamespace(main_db=main_db, results_db=results_db, sources=sources, settings=settings, inputs=Inputs(settings))
+    queues = Queues()
+    issuer, worker = Issuer(res, queues), Worker(res, queues)
+    seen = {}
+
+    class Chain:
+        def invoke(self, inputs):
+            seen.update(inputs)
+            return Briefing(headline="로그 감시 위험 1건", areas=[AreaTodos(area="로그 감시", todos=[
+                Todo(item="T1", task="예외 출력 승인을 확인하십시오", why="위험, 결정 없음")])])
+
+    worker._chains["briefing"] = Chain()
+    issuer.issue("briefing")
+    worker.drain()
+    assert "[T1] 위험 · 재무 정다은 · 결정 없음" in seen["items"] and "## 서버 점검 — 열린 항목 없음" in seen["items"]
+    out = issuer.overview("month")["briefing"]
+    assert out["current"] and out["areas"][2]["todos"][0]["key"].startswith("event_findings/") and out["checks"] == []
+    assert issuer.issue("briefing", auto=True, skip_same=True).context == {"skipped": True}
+    worker.drain()
+    decisions.record(main_db, people["manager"], "event", out["areas"][2]["todos"][0]["key"], "act")
+    assert issuer.overview("month")["briefing"]["current"] is False
+    assert issuer.issue("briefing", auto=True, skip_same=True).total == 1

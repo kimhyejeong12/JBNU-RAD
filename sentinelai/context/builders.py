@@ -98,3 +98,22 @@ def policy(documents: str, decided: list[dict[str, Any]]) -> list[Section]:
 
 
 __all__ = ["events", "grant", "period_text", "policy", "policy_decision_lines", "request", "server", "server_decision_lines", "suspect"]
+
+
+STATES = {"open": "결정 없음", "acting": "조치 필요로 정함"}
+
+
+def briefing(summary: dict[str, Any], listed: dict[str, list[dict[str, Any]]]) -> list[Section]:
+    """summary = sources.overview.summarize, listed = 영역 → 번호(no)를 붙인 열린 항목."""
+    c = summary["counts"]
+    counts = [f"- 위험 {c['위험']}, 주의 {c['주의']}, 조치 필요 {c['action']['total']} (결정 없음 {c['action']['undecided']}, "
+              f"조치 필요로 정함 {c['action']['acting']}), 판정 실패 {c['failed']}",
+              *(f"- {a['label']}: 위험 {a['위험']}, 주의 {a['주의']}, 판정 실패 {a['failed']}" for a in summary["areas"])]
+    trend = [f"- {t['day']} 위험 {t['위험']}, 주의 {t['주의']}" for t in summary["trend"]]
+    items: list[str] = []
+    for a in summary["areas"]:
+        rows = listed.get(a["area"], [])
+        items.append(f"## {a['label']}" + ("" if rows else " — 열린 항목 없음"))
+        items += [f"- [{r['no']}] {r['level']} · {r['subject']} · {STATES[r['state']]} · {r['opened_at'][:10]} · "
+                  + r["reason"].replace("\n", " ") for r in rows]
+    return [Section("counts", counts), Section("trend", trend, empty="- 기록 없음"), Section("items", items)]

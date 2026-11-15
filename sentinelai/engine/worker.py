@@ -86,6 +86,31 @@ class PolicyReview(BaseModel):
     summary: str = Field(description="검토 요약")
 
 
+AreaName = Literal["정책 관리", "서버 점검", "로그 감시", "위협 예측", "보유 권한 재검토"]
+
+
+class Todo(BaseModel):
+    """보안 운영자가 할 일 하나."""
+
+    item: str = Field(description="할 일의 대상 — 열린 항목 번호 (예: T3)")
+    task: str = Field(description="무엇을 확인하거나 정할지 — 최종 결정은 사람이 한다는 말투로")
+    why: str = Field(description="먼저 해야 하는 이유 한 줄")
+
+
+class AreaTodos(BaseModel):
+    """한 영역의 할 일."""
+
+    area: AreaName = Field(description="영역 이름")
+    todos: list[Todo] = Field(description="이 영역에서 먼저 할 일 최대 3개, 먼저 할 것부터. 열린 항목이 없으면 빈 목록")
+
+
+class Briefing(BaseModel):
+    """보안 운영자에게 영역마다 다음에 할 일을 알려 주는 AI 비서."""
+
+    headline: str = Field(description="지금 상황 한 줄")
+    areas: list[AreaTodos] = Field(description="영역마다 할 일")
+
+
 class PrecedentReview(BaseModel):
     """1차 판정이 사람이 정한 선례와 맞는지에 대한 평가."""
 
@@ -119,6 +144,7 @@ JUDGMENTS = {
     "suspects": Judgment(Prompts.SUSPECT, SuspectScore),
     "nodes": Judgment(Prompts.SERVER_REVIEW, ServerReview),
     "policies": Judgment(Prompts.POLICY_CONFLICT, PolicyReview),
+    "briefing": Judgment(Prompts.BRIEFING, Briefing),
 }
 
 
@@ -227,6 +253,8 @@ class Worker:
         if kind == "nodes":
             snap, changes = d["row"]["snapshot"], d["row"]["changes"]
             return inputs.server(snap, changes, regs.for_server(snap, changes), d["decided"])
+        if kind == "briefing":
+            return inputs.briefing(d["summary"], d["listed"])
         return inputs.policy(regs.everything(), d["decided"])
 
     def judge(self, kind: str, data: dict[str, Any], batch: Batch | None = None) -> dict[str, Any]:
@@ -345,6 +373,13 @@ class Worker:
             batch.context["review"] = review
         return result
 
+    def _save_briefing(self, d: dict[str, Any], result: dict[str, Any], _batch: Batch | None) -> dict[str, Any]:
+        briefing = {**result, **todos(result, d["listed"]), "fingerprint": d["fingerprint"]}
+        briefing.setdefault("grounding", {"checks": []})
+        briefing["grounding"]["checks"] = [*briefing["grounding"].get("checks", []), *briefing.pop("checks")]
+        results.save_briefing(self.res.results_db, briefing, self._model("briefing"))
+        return briefing
+
     # --- 묶음 닫기 ---
 
     def _close_events(self, batch: Batch) -> dict[str, Any]:
@@ -367,5 +402,36 @@ class Worker:
         return batch.context.get("review")
 
 
-__all__ = ["JUDGMENTS", "Notifier", "PolicyIssue", "PolicyReview", "PrecedentReview", "RiskLevel", "ServerGap", "ServerReview",
-           "SuspectScore", "Verdict", "Worker", "attempt", "band"]
+    def _close_briefing(self, batch: Batch) -> dict[str, Any]:
+        return batch.items[0] if batch.items else {"skipped": True}
+
+
+AREA_KEYS = {"정책 관리": "policy", "서버 점검": "server", "로그 감시": "event", "위협 예측": "suspect", "보유 권한 재검토": "grant"}
+TODOS_PER_AREA = 3
+
+
+def todos(result: dict[str, Any], listed: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    """모델이 댄 번호를 실제 항목으로 바꿉니다 — 없는 번호 · 다른 영역 번호 · 넘친 할 일은 빼고 checks 에 적습니다. 영역은 늘 다섯, 정한 순서로."""
+    rows = {r["no"]: r for area_rows in listed.values() for r in area_rows}
+    found: dict[str, list[dict[str, Any]]] = {area: [] for area in AREA_KEYS.values()}
+    checks: list[str] = []
+    for group in result.get("areas") or []:
+        area = AREA_KEYS[group["area"]]
+        for t in group.get("todos") or []:
+            no = t["item"].strip().strip("[]")
+            row = rows.get(no)
+            if row is None or row["area"] != area:
+                checks.append(f"{group['area']}: {'다른 영역의' if row else '없는'} 항목 {t['item']} 할 일을 뺐습니다")
+            elif len(found[area]) >= TODOS_PER_AREA:
+                checks.append(f"{group['area']}: {TODOS_PER_AREA}개를 넘는 할 일 {no} 을 뺐습니다")
+            elif all(x["item"] != no for x in found[area]):
+                found[area].append({"item": no, "key": row["key"], "subject": row["subject"], "level": row["level"],
+                                    "task": t["task"], "why": t["why"]})
+    named = {AREA_KEYS[g["area"]] for g in result.get("areas") or []}
+    checks += [f"{label}: 열린 항목이 있는데 영역을 빠뜨렸습니다" for label, a in AREA_KEYS.items()
+               if result.get("areas") is not None and a not in named and listed.get(a)]
+    labels = {v: k for k, v in AREA_KEYS.items()}
+    return {"areas": [{"area": a, "label": labels[a], "todos": found[a]} for a in AREA_KEYS.values()], "checks": checks}
+
+__all__ = ["JUDGMENTS", "Briefing", "Notifier", "PolicyIssue", "PolicyReview", "PrecedentReview", "RiskLevel", "ServerGap", "ServerReview",
+           "SuspectScore", "Verdict", "Worker", "attempt", "band", "todos"]

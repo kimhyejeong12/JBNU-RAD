@@ -489,6 +489,26 @@ def judgment_history(db: Database) -> dict[str, list[dict[str, Any]]]:
             "events": [dict(r) for r in events], "suspects": [dict(r) for r in suspects]}
 
 
+def save_briefing(db: Database, briefing: dict[str, Any], model: str) -> int:
+    with db.transaction() as conn:
+        return conn.execute(
+            "INSERT INTO briefings (headline, areas, fingerprint, failed, error, model, elapsed_sec, created_at, grounding)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            (briefing.get("headline", ""), _json(briefing.get("areas", [])), briefing.get("fingerprint", ""), int(briefing["failed"]),
+             briefing.get("error"), model, briefing.get("elapsed_sec"), now(), _json(briefing.get("grounding", {}))),
+        ).fetchone()[0]
+
+
+def latest_briefing(db: Database) -> dict[str, Any] | None:
+    with db.connection() as conn:
+        r = conn.execute("SELECT * FROM briefings ORDER BY id DESC LIMIT 1").fetchone()
+    if r is None:
+        return None
+    return {"headline": r["headline"], "areas": json.loads(r["areas"]), "fingerprint": r["fingerprint"], "failed": bool(r["failed"]),
+            "error": r["error"], "model": r["model"], "elapsed_sec": r["elapsed_sec"], "created_at": r["created_at"],
+            "checks": json.loads(r["grounding"]).get("checks", [])}
+
+
 # --- 질의 기록 ---
 
 QA_KINDS = ("policy", "logs", "servers", "agent")

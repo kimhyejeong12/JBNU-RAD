@@ -57,7 +57,7 @@ class Engine:
         """기준 문서 적재 · 판정 못한 신청 · 재검토를 먼저 쌓고, 자동 작업은 뜨자마자 한 번 그 뒤 정한 간격마다 돕니다."""
         self.exclusive(self._reindex)
         self.issuer.resume()
-        for kind in ("events", "nodes", "suspects"):
+        for kind in ("events", "nodes", "suspects", "briefing"):
             self.issuer.every(kind, self.settings.monitor_interval_min)
         self.issuer.every("events_fast", self.settings.fast_interval_min)
         self.worker.start()
