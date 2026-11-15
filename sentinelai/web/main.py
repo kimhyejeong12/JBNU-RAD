@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, StringConstraints  # noqa: E402
 
 from sentinelai.db import User, decisions, results as results_db  # noqa: E402
+from sentinelai.sources import decisions as carry  # noqa: E402
 from sentinelai.db.core import audit  # noqa: E402
 from sentinelai.engine import KINDS, MANUAL, Engine  # noqa: E402
 
@@ -77,13 +78,11 @@ def results(request: Request, user: Approver) -> dict[str, Any]:
 def _carry(rdb: Any, out: dict[str, Any], log: dict[str, dict[str, list[dict]]]) -> None:
     """다시 판정됐지만 결과가 그대로인 항목에 지난 결정을 잇습니다 (carried_from)."""
     current = {
-        "server": [(s["key"], view.server_signature(s["id"], s["level"], s["gaps"])) for s in out["servers"]],
-        "policy": [(i["key"], view.policy_signature(i["kind"], i["level"], i["policy_ids"])) for i in (out["policy_review"] or {}).get("issues", [])],
+        "server": [(s["key"], carry.server_signature(s["id"], s["level"], s["gaps"])) for s in out["servers"]],
+        "policy": [(i["key"], carry.policy_signature(i["kind"], i["level"], i["policy_ids"])) for i in (out["policy_review"] or {}).get("issues", [])],
     }
-    rows = results_db.findings_by_key(rdb, [k for kind in current for k in out["decisions"][kind]])
-    signatures = {k: sig for k, row in rows.items() if (sig := view.row_signature(k, row)) is not None}
-    for kind, items in current.items():
-        out["decisions"][kind].update(view.carry_decisions(items, out["decisions"][kind], signatures, set(log[kind])))
+    for kind, found in carry.carried(rdb, current, out["decisions"], log).items():
+        out["decisions"][kind].update(found)
 
 
 @app.get("/api/jobs", dependencies=analyst)
