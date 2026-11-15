@@ -172,6 +172,9 @@ class Engine:
     def user_stats(self, period: str) -> dict[str, Any]:
         return self.issuer.user_stats(period)
 
+    def overview(self, period: str) -> dict[str, Any]:
+        return self.issuer.overview(period)
+
     def risk_people(self) -> dict[str, Any]:
         return self.issuer.risk_people()
 

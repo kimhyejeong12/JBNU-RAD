@@ -469,6 +469,26 @@ def monitor_findings(db: Database) -> dict[str, Any] | None:
     }
 
 
+# --- 보안 현황 ---
+
+
+def judgment_history(db: Database) -> dict[str, list[dict[str, Any]]]:
+    """보안 현황용 — 정책 관리 검토 · 서버 점검 · 정밀 감시 · 의심 점수 판정 전부, 오래된 것부터."""
+    with db.connection() as conn:
+        reviews = conn.execute("SELECT id, created_at, failed, error FROM policy_reviews ORDER BY id").fetchall()
+        issues = conn.execute("SELECT id, review_id, kind, level, policy_ids, reason FROM policy_issues ORDER BY review_id, seq").fetchall()
+        nodes = conn.execute("SELECT id, node, host, level, failed, error, summary, gaps, created_at FROM node_findings ORDER BY id").fetchall()
+        events = conn.execute(
+            "SELECT f.id, f.\"user\", f.subject, f.level, f.failed, f.error, f.reason, m.created_at, f.last_event_at"
+            " FROM event_findings f JOIN monitor_runs m ON m.id = f.run_id WHERE m.stage = 'final' ORDER BY f.id"
+        ).fetchall()
+        suspects = conn.execute("SELECT id, person, subject, level, failed, error, reason, created_at FROM suspect_scores ORDER BY id").fetchall()
+    return {"reviews": [dict(r) for r in reviews],
+            "issues": [{**dict(r), "policy_ids": json.loads(r["policy_ids"])} for r in issues],
+            "nodes": [{**dict(r), "gaps": json.loads(r["gaps"])} for r in nodes],
+            "events": [dict(r) for r in events], "suspects": [dict(r) for r in suspects]}
+
+
 # --- 질의 기록 ---
 
 QA_KINDS = ("policy", "logs", "servers", "agent")

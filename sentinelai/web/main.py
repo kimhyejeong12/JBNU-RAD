@@ -161,6 +161,15 @@ def stats(request: Request, user: Approver, period: str = "month") -> dict[str, 
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
+@app.get("/api/overview")
+def overview(request: Request, user: Approver, period: str = "month") -> dict[str, Any]:
+    """보안 현황 종합 — 열린 것은 기간과 무관, 완료율 · 추이만 기간 안에서 셉니다."""
+    try:
+        return _engine(request).overview(period)
+    except ValueError as exc:  # 없는 기간
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
 @app.get("/api/risk-people")
 def risk_people(request: Request, user: Approver) -> dict[str, Any]:
     """이동 · 퇴사한 사람의 위험 — 코드가 셈, 화면이 자주 다시 받습니다."""

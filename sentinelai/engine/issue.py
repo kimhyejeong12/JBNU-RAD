@@ -9,9 +9,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from ..db import User, auth, nodes, permissions, results
+from ..db import User, auth, decisions, nodes, permissions, results
 from ..sources import (FORMAT, Collected, People, between, browse, group_by_user, group_subject, latest, load_collected,
-                       period_since, snapshot_row)
+                       overview, period_since, snapshot_row)
 from .queue import Batch, Job, Progress, Queues
 from .resource import Resources
 
@@ -238,6 +238,16 @@ class Issuer:
             p["held"] = held.get(int(p["key"].split(":", 1)[1]), []) if p["key"].startswith("account:") else None
         return {"period": period, "since": at, "events": {"users": results.threat_stats(results_db, at)["events"]["users"]},
                 "requests": permissions.request_stats(main_db, at), "suspects": suspects, "safety": results.user_safety(results_db, at)}
+
+    def overview(self, period: str) -> dict[str, Any]:
+        """보안 현황 종합 — 정책 관리 · 서버 점검 · 로그 감시 · 위협 예측 · 보유 권한 재검토의 열린 것 · 완료율 · 비중 · 추이."""
+        main_db, results_db = self.res.main_db, self.res.results_db
+        now = datetime.now(timezone.utc)
+        _, at = self._since(period)
+        grants = permissions.grant_history(main_db)
+        items = overview.collect(results.judgment_history(results_db), grants, now.isoformat(timespec="seconds"))
+        log = {kind: decisions.history(main_db, kind) for kind in decisions.ACTIONS}
+        return {"period": period, **overview.summarize(items, log, overview.revokes(items, grants), now, at)}
 
     def risk_people(self) -> dict[str, Any]:
         """부서 · 직무를 옮겼거나 사용 기간이 끝난 권한이 남은 일반 사용자 — 이동 뒤 보유 권한 재검토 · 로그 감시 판정을 더합니다."""
