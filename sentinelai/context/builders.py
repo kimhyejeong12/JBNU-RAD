@@ -10,7 +10,7 @@ from .budget import COMMENT_CHARS, DECISION_LINES, Section
 from .person import DECIDED
 
 NO_DECISION = "운영자 결정 없음"
-POLICY_DECIDED = {"approve": "승인", "cond": "조건부 승인", "reject": "반려 확정"}
+POLICY_DECIDED = {"approve": "승인", "cond": "조건부 승인", "reject": "반려 확정", "done": "조치 완료"}
 
 
 def period_text(row: dict[str, Any]) -> str:
