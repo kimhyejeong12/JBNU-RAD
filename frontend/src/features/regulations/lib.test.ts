@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { docItem, editProblem, removeProblem, uploadProblem } from "./lib";
+import { docItem, draftProblem, editProblem, removeProblem, textName, uploadProblem } from "./lib";
 
 const doc = {
   name: "접근권한_관리기준.md",
@@ -18,10 +18,13 @@ test("제목 줄이 없으면 파일 이름, 조항이 없으면 없음", () => 
   expect(docItem({ name: "메모.txt", content: "그냥 글" })).toMatchObject({ who: "메모.txt", judge: "없음", when: "" });
 });
 
-test("올릴 파일 확인 — .md · .txt 만, 1MB 까지, 같은 이름은 안 됨", () => {
+test("올릴 파일 확인 — .md · .txt 1MB, .pdf 20MB 까지, 같은 이름은 안 됨", () => {
   expect(uploadProblem({ name: "개인정보_처리기준.md", size: 2048 }, ["접근권한_관리기준.md"])).toBeNull();
   expect(uploadProblem({ name: "메모.TXT", size: 10 }, [])).toBeNull();
-  expect(uploadProblem({ name: "절차서.pdf", size: 10 }, [])).toBe(".md, .txt 파일만 올릴 수 있습니다");
+  expect(uploadProblem({ name: "절차서.pdf", size: 5_000_000 }, [])).toBeNull();
+  expect(uploadProblem({ name: "절차서.pdf", size: 20_000_001 }, [])).toBe("PDF 는 20MB 까지 올릴 수 있습니다");
+  expect(uploadProblem({ name: "절차서.pdf", size: 10 }, ["절차서.txt"])).toBe("같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요");
+  expect(uploadProblem({ name: "발표.pptx", size: 10 }, [])).toBe(".md, .txt, .pdf 파일만 올릴 수 있습니다");
   expect(uploadProblem({ name: "큰문서.md", size: 1_000_001 }, [])).toBe("1MB 까지 올릴 수 있습니다");
   expect(uploadProblem({ name: "접근권한_관리기준.md", size: 10 }, ["접근권한_관리기준.md"])).toBe("같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요");
 });
@@ -41,4 +44,15 @@ test("지우기 확인 — 마지막 문서는 안 되고, 사유 · 파일 이�
   expect(removeProblem(doc, 1, ok)).toBe("마지막 기준 문서는 지울 수 없습니다. 새 문서를 먼저 올리세요");
   expect(removeProblem(doc, 2, { ...ok, reason: " " })).toBe("지우는 사유를 적으세요");
   expect(removeProblem(doc, 2, { ...ok, typed: "접근권한" })).toBe("확인 칸에 파일 이름을 똑같이 입력하세요");
+});
+
+test("PDF 에서 꺼낸 글 — .txt 이름으로, 이름 · 빈 글 · 같은 이름 확인", () => {
+  expect(textName("매체_반출입.PDF")).toBe("매체_반출입.txt");
+  expect(draftProblem({ name: "매체_반출입.txt", content: "17.1 반출 승인" }, [])).toBeNull();
+  expect(draftProblem({ name: "매체_반출입.md", content: "글" }, [])).toBeNull();
+  expect(draftProblem({ name: "매체_반출입.pdf", content: "글" }, [])).toBe("이름은 .md, .txt 로 끝나야 합니다 (/ 없이 100자까지)");
+  expect(draftProblem({ name: "a/b.txt", content: "글" }, [])).toBe("이름은 .md, .txt 로 끝나야 합니다 (/ 없이 100자까지)");
+  expect(draftProblem({ name: ".txt", content: "글" }, [])).toBe("이름은 .md, .txt 로 끝나야 합니다 (/ 없이 100자까지)");
+  expect(draftProblem({ name: "매체_반출입.txt", content: " \n" }, [])).toBe("빈 문서는 올릴 수 없습니다");
+  expect(draftProblem({ name: "매체_반출입.txt", content: "글" }, ["매체_반출입.txt"])).toBe("같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요");
 });

@@ -13,6 +13,9 @@ uvicorn[standard]>=0.32
 # 비밀번호 해시 (Argon2id)
 argon2-cffi>=23.1
 
+# 기준 문서 PDF 글자 꺼내기 (스캔본 OCR 은 없음)
+pypdf>=5.0
+
 # PostgreSQL
 psycopg[binary]>=3.2
 psycopg-pool>=3.2
