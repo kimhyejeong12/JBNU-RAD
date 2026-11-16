@@ -4,6 +4,7 @@ import { useUi } from "@/app/ui/state/UiContext";
 import { getJSON, send } from "@/shared/api/http";
 import { regulationsQuery } from "@/shared/api/queries";
 import type { Regulation } from "@/shared/api/types";
+import type { XlsxTable } from "./lib";
 
 export function useUploadRegulation() {
   const qc = useQueryClient();
@@ -30,6 +31,16 @@ export function useExtractPdf() {
   return useMutation({
     mutationFn: (file: File) =>
       getJSON<PdfText>("/api/regulations/extract", { method: "POST", headers: { "Content-Type": "application/pdf" }, body: file }),
+  });
+}
+
+// 저장하지 않고 표만 받습니다.
+export function useExtractXlsx() {
+  return useMutation({
+    mutationFn: (file: File) =>
+      getJSON<{ tables: XlsxTable[] }>("/api/regulations/extract-xlsx", {
+        method: "POST", headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }, body: file,
+      }),
   });
 }
 

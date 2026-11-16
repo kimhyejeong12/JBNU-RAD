@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { docItem, draftProblem, editProblem, removeProblem, textName, uploadProblem } from "./lib";
+import { docItem, draftProblem, editProblem, removeProblem, tablesText, textName, uploadProblem, type XlsxTable } from "./lib";
 
 const doc = {
   name: "접근권한_관리기준.md",
@@ -24,7 +24,10 @@ test("올릴 파일 확인 — .md · .txt 1MB, .pdf 20MB 까지, 같은 이름�
   expect(uploadProblem({ name: "절차서.pdf", size: 5_000_000 }, [])).toBeNull();
   expect(uploadProblem({ name: "절차서.pdf", size: 20_000_001 }, [])).toBe("PDF 는 20MB 까지 올릴 수 있습니다");
   expect(uploadProblem({ name: "절차서.pdf", size: 10 }, ["절차서.txt"])).toBe("같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요");
-  expect(uploadProblem({ name: "발표.pptx", size: 10 }, [])).toBe(".md, .txt, .pdf 파일만 올릴 수 있습니다");
+  expect(uploadProblem({ name: "정책현황.xlsx", size: 5_000_000 }, [])).toBeNull();
+  expect(uploadProblem({ name: "정책현황.xlsx", size: 20_000_001 }, [])).toBe("엑셀은 20MB 까지 올릴 수 있습니다");
+  expect(uploadProblem({ name: "정책현황.xlsx", size: 10 }, ["정책현황.txt"])).toBe("같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요");
+  expect(uploadProblem({ name: "발표.pptx", size: 10 }, [])).toBe(".md, .txt, .pdf, .xlsx 파일만 올릴 수 있습니다");
   expect(uploadProblem({ name: "큰문서.md", size: 1_000_001 }, [])).toBe("1MB 까지 올릴 수 있습니다");
   expect(uploadProblem({ name: "접근권한_관리기준.md", size: 10 }, ["접근권한_관리기준.md"])).toBe("같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요");
 });
@@ -55,4 +58,25 @@ test("PDF 에서 꺼낸 글 — .txt 이름으로, 이름 · 빈 글 · 같은 �
   expect(draftProblem({ name: ".txt", content: "글" }, [])).toBe("이름은 .md, .txt 로 끝나야 합니다 (/ 없이 100자까지)");
   expect(draftProblem({ name: "매체_반출입.txt", content: " \n" }, [])).toBe("빈 문서는 올릴 수 없습니다");
   expect(draftProblem({ name: "매체_반출입.txt", content: "글" }, ["매체_반출입.txt"])).toBe("같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요");
+});
+
+test("엑셀 표 — 첫 칸으로 묶어 조항 번호를 붙이고, 고른 표가 여럿이면 번호를 이어 감", () => {
+  const policy: XlsxTable = {
+    sheet: "보안관리", title: "■ 통제 정책 현황", intro: ["- 대상 : PC"], personal: false,
+    columns: ["구분", "통제 기능", "정책 적용 현황"],
+    rows: [
+      { cells: ["매체제어", "이동식 저장 매체 차단", "USB 읽기\n- CD 차단"], notes: [] },
+      { cells: ["E-DLP", "데이터 보호", "WEB/APP"], notes: [] },
+      { cells: ["E-DLP", "데이터 보호", "REMOVABLE STORAGE"], notes: ["정책 적용 현황: 반출 승인 필요"] },
+    ],
+  };
+  const extra: XlsxTable = { sheet: "보안관리", title: "[SWG]", intro: [], personal: false, columns: ["구분", "예외 정책"], rows: [{ cells: ["로컬", "M365 허용"], notes: [] }] };
+  expect(textName("정책현황.XLSX")).toBe("정책현황.txt");
+  expect(tablesText("정책현황", [policy, extra])).toBe([
+    "# 정책현황", "", "■ 통제 정책 현황", "- 대상 : PC",
+    "", "## 1. 매체제어", "", "### 1.1 이동식 저장 매체 차단", "정책 적용 현황:\nUSB 읽기\n- CD 차단",
+    "", "## 2. E-DLP", "", "### 2.1 데이터 보호 WEB/APP", "정책 적용 현황: WEB/APP",
+    "", "### 2.2 데이터 보호 REMOVABLE STORAGE", "정책 적용 현황: REMOVABLE STORAGE", "메모 정책 적용 현황: 반출 승인 필요",
+    "", "[SWG]", "", "## 3. 로컬", "", "### 3.1 M365 허용", "예외 정책: M365 허용", "",
+  ].join("\n"));
 });
