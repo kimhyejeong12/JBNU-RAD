@@ -53,7 +53,7 @@ SK쉴더스 산학협력 문제 제안서(2026. 8.)가 이 과제의 기준.
 ```
 JBNU-RAD/
 ├── sentinelai/               SentinelAI 패키지. __init__.py 는 ROOT · 버전만 (하위 패키지를 가져오지 않음)
-│   ├── dev.py                  로컬 시험 환경 `python -m sentinelai.dev` — setup · web · test · targets · api-types(응답 모델 → 화면 타입, 11/16) (11/5, 예전 scripts/)
+│   ├── dev.py                  로컬 시험 환경 `python -m sentinelai.dev` — setup · web · test · targets · api-types(응답 모델 → 화면 타입) · api-check(실제 서버 응답 대조, 11/16) (11/5, 예전 scripts/)
 │   ├── __main__.py · cli.py    CLI `python -m sentinelai` — 화면에 없는 일만 (index --rebuild · monitor · import-snapshots · create-root, 11/9 정리). 모두 Engine 기능을 부름
 │   ├── engine/                 엔진 (양현성) — 자원 · 이슈어 · 종류별 큐 · 워커 · 인터페이스 (11/5 사용자 정리)
 │   │   ├── interface.py          Engine — 넷을 엮는 입구. 웹 · CLI 가 부르는 이름(health · index · run_* · start · start_job · enqueue_* · job_status · stats · browse_logs · receive_snapshot …)만. run_* 는 CLI 용으로 묶음을 쌓고 그 자리에서 워커를 돌림(drain). 질의(ask)는 질의 에이전트를 큐 밖에서 부름
@@ -110,6 +110,7 @@ JBNU-RAD/
 │       ├── api_regulations.py    기준 문서 API — 보기 · 올리기 · 고치기 · 지우기(보안 운영자 이상, 감사 기록). 엔진의 공개 기능(index)만 씀 (/api/regulations)
 │       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 줌
 │       ├── responses.py          API 가 돌려주는 모양 — 명세(/openapi.json)와 화면 타입(schema.ts)의 출처. 판정 결과는 엔진 출력 타입을 물려받음 (11/16, §9)
+│       ├── contract.py           돌려준 값이 선언과 같은지 대조 — 시험과 `dev api-check` 가 함께 씀 (11/16)
 │       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
 │       ├── notify.py             결재 대기 → Slack 채널 (새 신청 = 1차 결재 대기, 1차 승인 = 최종 결재 대기). `SENTINELAI_SLACK_WEBHOOK_URL`, 비우면 끔. 신청 번호 · 부서 · 권한만, 결과(승인 · 반려)는 채널에 안 보냄. 결재 결과(1차 반려 · 최종 승인 · 최종 반려) · 회수(11/09) → 신청자 계정 이메일(`users.email`), SMTP `SENTINELAI_SMTP_*`, 비우면 끔, 신청 번호 · 권한 · 결과 · 반려 의견 · 회수 사유 (11/04, 사유는 11/09). 로그 감시 위험 → 같은 Slack 채널 (`RiskWatcher` — 결과 DB를 30초마다 봄, 1차 판정 + 확정 중 1차 때 안 알린 것, 단계 · 건수만) (11/08). 예외 상황 → 같은 Slack 채널 (`ExceptionWatcher` — 권한 DB를 30초마다 봄: 계정 역할 변경 · 정지 · 다시 켬 · 보안 운영자 이상 계정 만듦, 이동 뒤 보유 권한 재검토 위험 · 퇴사일이 지난 계정에 남은 권한, AI 위험인데 최종 승인, 기준 문서 · 권한 목록 · 수집 노드 키 · 켜기/끄기 · 작업 강제 중지 · 큐 초기화. 이름 · 로그인 아이디는 안 넣음) (11/13)
 │       └── static/               화면 빌드 결과 — frontend/ 에서 `npm run build` 로 만들어 커밋. 서버는 그대로 서빙
@@ -317,6 +318,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 | `python -m sentinelai.dev setup [--reset]` | **로컬 시험 환경**을 `sentinelai_dev` DB · `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 예시 기준 문서(`data/example-regulations`)를 넣고 모델 서버에 닿으면 적재 |
 | `python -m sentinelai.dev web [--check-min 5]` | 시험 환경으로 웹 (http://127.0.0.1:8001, `sentinelai_dev` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 됨). 로그 감시 · 서버 점검은 `--check-min`분마다 |
 | `python -m sentinelai.dev api-types` | 백엔드의 요청 · 응답 모델(Pydantic)에서 화면 타입 `frontend/src/shared/api/schema.ts` 를 다시 만듦 (Node 없이). **응답 모델을 고치면 같은 커밋에** — 안 돌리면 `tests/test_api_contract.py` 가 실패함 |
+| `python -m sentinelai.dev api-check 주소 --login 아이디` | 떠 있는 서버의 실제 응답이 선언과 같은지 대조 (읽기만, 보안 운영자 이상 계정, 비밀번호는 화면 표시 없이 물음). 읽기 API 18개와 노드 상세 · 대화 한 건을 받아 어긋난 칸을 줄마다 적음. 선언을 바꾼 뒤나 새 환경에 올리기 전에. 로그 조회는 그 서버의 감사 기록에 조회로 남음 |
 | `python -m sentinelai.dev test [pytest 인자]` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움. 뒤에 붙인 인자는 pytest 에 그대로 (예: `test -k ground -x`) |
 | `python -m sentinelai.dev targets [up\|down]` | **진짜 수집** — podman compose로 점검 대상 컨테이너 2대(`target-weak`: 약한 설정 / `target-strict`: 잠근 설정)를 올리고 내림. 값은 `node/testenv/targets.env`(git 제외: `SERVER` · `KEY_WEAK` · `KEY_STRICT` · `INTERVAL`, 없으면 시험 환경 키로 만듦). SentinelAI를 바깥에 열지 않고(pasta `--map-host-loopback`) ufw가 실제로 켜짐(NET_ADMIN). 사용자 podman 소켓 필요. 10/20 시험: weak 위험 · strict 정상 |
 | `npm ci` · `npm run dev` · `npm test && npm run typecheck && npm run lint` (`frontend/`) | 화면 개발 — npm 의존성(처음 한 번) · 개발 서버 http://localhost:5173 (`/api`는 8001로) · 시험 · 타입 검사 · 린트 |
@@ -929,6 +931,7 @@ ExecStartPre=+/usr/bin/nvidia-smi
   - `response_model` 쪽: 선언의 칸이 DB 가 주는 칸과 같은지
   - `responses` 쪽: 판정 성공 · 실패 · 결재 · 회수 · 퇴사 · 이동 · 결정 이어받기 · 빠른 감시 · 큐에 잡이 도는 상태 · 질의 성공 · 실패를 만들어 넣고 **실제 라우트 함수**를 불러, 돌려준 값이 선언과 엄격히 같은지(종류가 다른 칸 · 선언에 없는 칸 · 빠진 칸). 참 · 거짓과 숫자도 다른 종류로 봄
   - 11/16: 8000번 DB · 시험 DB 의 실제 값으로도 대조해 어긋남 0
+- 실제 서버 대조: `python -m sentinelai.dev api-check 주소 --login 아이디` — 떠 있는 서버에 로그인해 읽기 API 를 받아 같은 대조를 함. `response_model` 쪽은 맞추다 실패할 값(올리면 500)과 선언에 없어 빠질 칸을, `responses` 쪽은 어긋난 칸 전부를 짚음. 11/16 시험 웹에서 18개 + 노드 상세 일치. 팀 서버(더 큰 모델의 판정 · 실제 서버 점검 기록)로는 아직 안 돌렸음 — 돌려서 어긋남이 없으면 `responses` 쪽 23개도 `response_model` 로 옮겨 방식을 하나로 할 수 있음
 - 생성기를 직접 둔 이유: `openapi-typescript` 는 TypeScript 5 의 컴파일러 API 에 기대는데 화면은 TypeScript 7 — 함께 깔면 실행에서 죽음(`ts.factory` 없음). FastAPI 가 내는 모양만 다루는 60줄 안팎의 변환을 `dev.py` 에 둠 (새 의존성 없음, Node 없이 됨)
   - 한계: 타입만 만들고 주소와 타입의 짝(`getJSON<UserRow[]>("/api/users")`)은 호출하는 쪽이 손으로 고름
   - 대안(확인함): `npx -p typescript@5.9.3 -p openapi-typescript@7.13.0 openapi-typescript …` 처럼 TypeScript 5 를 따로 붙이면 표준 도구가 돌고 주소 단위 타입도 나옴. 타입을 다시 만들 때 Node 와 npm 저장소가 필요함. 넘기기 전에 바꿀지 정함 — 바꿔도 `responses.py` 는 그대로 쓰임

@@ -54,9 +54,7 @@ from datetime import datetime, timedelta, timezone  # noqa: E402
 from types import SimpleNamespace  # noqa: E402
 
 import pytest  # noqa: E402
-from fastapi.encoders import jsonable_encoder  # noqa: E402
 from langchain_core.messages import AIMessage  # noqa: E402
-from pydantic import TypeAdapter, ValidationError  # noqa: E402
 
 from sentinelai.ask import Agent  # noqa: E402
 from sentinelai.db import results  # noqa: E402
@@ -67,42 +65,10 @@ from sentinelai.engine.resource import Resources  # noqa: E402
 from sentinelai.sources import Sources, behavior_signals, load_events  # noqa: E402
 from sentinelai.web import api_nodes, api_permissions, main  # noqa: E402
 from sentinelai.web import responses as R  # noqa: E402
+from sentinelai.web.contract import declared, mismatch, unfit  # noqa: E402
 from tests.test_ask_agent import DONE, PLAN, FakeDocs, FakeModel, call  # noqa: E402
 
 LOG = "data/연습용_로그_원본+합성.csv"   # 재무 정다은 = 로그 사용자 ID "5"
-
-
-def _diff(wire, back, at="$") -> list[str]:
-    """실제 값(wire)과 선언을 거친 값(back)의 다른 곳 — 참 · 거짓과 숫자는 다른 종류로 봅니다."""
-    if isinstance(wire, dict) and isinstance(back, dict):
-        out = []
-        for k in wire.keys() | back.keys():
-            if k not in back:
-                out.append(f"{at}.{k}: 선언에 없는 칸")
-            elif k not in wire:
-                out.append(f"{at}.{k}: 실제에 없는 칸을 선언이 만듦")
-            else:
-                out += _diff(wire[k], back[k], f"{at}.{k}")
-        return out
-    if isinstance(wire, list) and isinstance(back, list):
-        if len(wire) != len(back):
-            return [f"{at}: 길이 {len(wire)} != {len(back)}"]
-        return [d for i, (x, y) in enumerate(zip(wire, back)) for d in _diff(x, y, f"{at}[{i}]")]
-    number = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)  # noqa: E731
-    if number(wire) and number(back):
-        return [] if wire == back else [f"{at}: {wire!r} != {back!r}"]
-    return [] if type(wire) is type(back) and wire == back else [f"{at}: {wire!r} != {back!r}"]
-
-
-def mismatch(model, payload) -> list[str]:
-    """payload 가 그대로 나갈 때 model 과 어긋나는 곳 — 종류가 다른 칸, 선언에 없는 칸, 빠진 칸."""
-    wire = jsonable_encoder(payload)
-    adapter = TypeAdapter(model)
-    try:
-        parsed = adapter.validate_python(wire, strict=True)
-    except ValidationError as exc:
-        return [f"{'.'.join(map(str, e['loc']))}: {e['msg']}" for e in exc.errors()]
-    return _diff(wire, adapter.dump_python(parsed, mode="json", exclude_unset=True))
 
 
 def test_mismatch_catches_what_it_should():
@@ -112,6 +78,12 @@ def test_mismatch_catches_what_it_should():
     assert mismatch(R.SnapshotReceipt, {"node": "web-01", "stored": 1}) != []      # 1 은 참이 아닙니다
     assert mismatch(R.SnapshotReceipt, {"node": "web-01"}) != []                    # 빠진 칸
     assert mismatch(R.Rejudging, {"request_no": 3, "judging": True}) != []          # 숫자는 글자가 아닙니다
+    # 응답을 선언에 맞추는 API 는 1 을 참으로 바꿔 주므로 그건 넘어가고, 빠질 칸과 못 맞출 값만 짚습니다.
+    assert unfit(R.SnapshotReceipt, {"node": "web-01", "stored": 1}) == []
+    assert unfit(R.SnapshotReceipt, {**ok, "more": 1}) == ["$.more: 선언에 없는 칸"]
+    assert unfit(R.SnapshotReceipt, {"node": "web-01", "stored": "글자"}) != []
+    paths = {path: enforced for path, _, enforced in declared(main.app)}
+    assert paths["/api/users"] is True and paths["/api/results"] is False and "/api/nodes/{name}" not in paths
 
 
 def _at(days: float = 0) -> str:

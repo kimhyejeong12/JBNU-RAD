@@ -218,6 +218,62 @@ def api_types() -> int:
     return 0
 
 
+# 조건이 있어야 답하는 조회입니다 — 로그 조회는 서버의 감사 기록에 조회로 남습니다.
+CHECK_QUERY = {"/api/logs": "?period=week"}
+CHECK_SKIP = {"/api/audit"}
+CHECK_NODES = 5
+
+
+def api_check(base: str, login: str) -> int:
+    """떠 있는 서버에 로그인해 읽기 API 를 하나씩 받아 선언과 대조합니다 — 선언을 바꾼 뒤나 새 환경에 올리기 전에 돌립니다."""
+    import getpass
+    import http.cookiejar
+    import urllib.error
+    from urllib.parse import quote
+
+    from .web import contract
+    from .web import responses as shapes
+    from .web.main import app
+
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+
+    def call(path: str, body: dict | None = None):
+        data = json.dumps(body).encode() if body is not None else None
+        request = urllib.request.Request(base.rstrip("/") + path, data=data, headers={"Content-Type": "application/json"})
+        with opener.open(request, timeout=120) as response:
+            return json.load(response)
+
+    password = os.environ.get("SENTINELAI_CHECK_PASSWORD") or getpass.getpass(f"{login} 비밀번호: ")
+    try:
+        call("/api/auth/login", {"login_id": login, "password": password})
+    except urllib.error.HTTPError as exc:
+        print(f"로그인하지 못했습니다 ({exc.code})")
+        return 1
+
+    checks = [(path + CHECK_QUERY.get(path, ""), model, enforced) for path, model, enforced in contract.declared(app) if path not in CHECK_SKIP]
+    bad = missing = 0
+    while checks:
+        path, model, enforced = checks.pop(0)
+        try:
+            payload = call(path)
+        except urllib.error.HTTPError as exc:
+            missing += 1
+            print(f"- {path}: 받지 못함 ({exc.code})")
+            continue
+        found = (contract.unfit if enforced else contract.mismatch)(model, payload)
+        bad += bool(found)
+        print(f"{'✗' if found else '✓'} {path}{'' if enforced else ' (응답 그대로)'}: {f'어긋남 {len(found)}' if found else '일치'}")
+        for line in found[:10]:
+            print(f"    {line}")
+        # 목록에서 하나씩 들어가는 조회도 봅니다.
+        if path == "/api/nodes":
+            checks += [(f"/api/nodes/{quote(n['name'])}", shapes.NodeDetail, False) for n in payload[:CHECK_NODES]]
+        if path == "/api/qa" and payload:
+            checks.append((f"/api/qa?conversation={payload[0]['conversation_id']}", model, False))
+    print(f"어긋난 API {bad}개" + (f", 받지 못한 API {missing}개 (이 서버가 예전 코드면 없는 API)" if missing else ""))
+    return 1 if bad else 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="python -m sentinelai.dev", description=__doc__.split("\n\n")[0])
     sub = p.add_subparsers(dest="command", required=True)
@@ -226,6 +282,9 @@ def main() -> int:
     sub.add_parser("test", help="뒤에 붙인 인자는 pytest 에 그대로 넘깁니다 (예: test -k ground -x)")
     sub.add_parser("targets").add_argument("action", nargs="?", choices=["up", "down"], default="up")
     sub.add_parser("api-types", help="백엔드의 요청 · 응답 모델에서 화면 타입(frontend/src/shared/api/schema.ts)을 다시 만듭니다")
+    check = sub.add_parser("api-check", help="떠 있는 서버의 실제 응답이 선언한 모양과 같은지 대조합니다 (읽기만)")
+    check.add_argument("url", help="서버 주소 (예: http://localhost:8000)")
+    check.add_argument("--login", required=True, help="보안 운영자 이상 계정의 아이디 — 비밀번호는 화면 표시 없이 묻습니다")
     args, extra = p.parse_known_args()
     if extra and args.command != "test":
         p.error(f"모르는 인자: {' '.join(extra)}")
@@ -242,6 +301,8 @@ def main() -> int:
         return subprocess.call([sys.executable, "-m", "pytest", "tests", *extra], env={**os.environ, "SENTINELAI_TEST_DATABASE_URL": TEST_URL}, cwd=ROOT)
     if args.command == "api-types":
         return api_types()
+    if args.command == "api-check":
+        return api_check(args.url, args.login)
     return targets(args.action)
 
 
