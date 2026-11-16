@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AreaDonut, Issues, Tile, Trend } from "./OverviewTab";
+import { AreaDonut, Issues, Trend } from "./OverviewTab";
 import { useGo, type Go } from "./useGo";
 import { AREA_COLOR, PERIODS, delta, deltaText, firstTodos, rateText } from "./lib";
 import { useQueue } from "@/app/queue/useQueue";
@@ -12,7 +12,7 @@ import type { Briefing, Overview, StatPeriod } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
 import { STEP } from "@/shared/lib/request";
-import { LevelDot, Periods } from "@/shared/ui/base/parts";
+import { LevelDot, Periods, Tile } from "@/shared/ui/base/parts";
 import { DataTable } from "@/shared/ui/charts/parts";
 import { card, cardCount, cardHead, cardTitle, levelText } from "@/shared/ui/base/styles";
 

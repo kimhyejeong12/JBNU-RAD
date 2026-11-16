@@ -34,6 +34,23 @@ export function KvTable({ rows }: { rows: [label: string, value: ReactNode][] })
   );
 }
 
+const TILE = "flex min-w-0 flex-col gap-0.5 rounded-[10px] border border-line px-3.5 py-3 text-left";
+
+// 큰 숫자 하나 — onClick 을 주면 누르는 타일이고, pressed 는 목록을 이 타일로 거르는 중인지입니다.
+export function Tile({ label, big, tone, onClick, pressed, children }: {
+  label: ReactNode; big: ReactNode; tone?: string; onClick?: () => void; pressed?: boolean; children?: ReactNode;
+}) {
+  const body = (
+    <>
+      <span className="text-[12px] font-semibold text-ink-dim">{label}</span>
+      <span className={cn("text-[26px] font-extrabold tracking-[-0.6px] tabular-nums", tone)}>{big}</span>
+      {children != null && <span className="text-[11.5px] text-ink-dim">{children}</span>}
+    </>
+  );
+  if (!onClick) return <div className={TILE}>{body}</div>;
+  return <button type="button" className={cn(TILE, "bg-surface hover:bg-row-hover aria-pressed:border-ink aria-pressed:shadow-[inset_0_0_0_1px_var(--color-ink)]")} aria-pressed={pressed} onClick={onClick}>{body}</button>;
+}
+
 export function Periods<K extends string>({ id, labels, value, onChange, label = "기간" }: { id: string; labels: [K, ReactNode][]; value: K; onChange: (k: K) => void; label?: string }) {
   return (
     <div className="flex flex-wrap gap-0.5 rounded-lg bg-canvas p-0.75" id={id} role="group" aria-label={label}>

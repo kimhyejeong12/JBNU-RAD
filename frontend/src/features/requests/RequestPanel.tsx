@@ -3,13 +3,14 @@ import { ask } from "@/app/ui/confirm/ask";
 import { useRequestAction, type RequestAct } from "./api";
 import { approvalSteps, moveText } from "./lib";
 import { useMe } from "@/app/session/me";
+import { JudgeState } from "@/app/ui/panel/DecisionFoot";
 import { PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
 import { SourceChips } from "@/app/ui/panel/SourceChips";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { QueueItem } from "@/app/queue/types";
 import type { RequestRow, Role } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { LEVEL_ICON } from "@/shared/lib/labels";
+import { LEVEL_ICON, LEVEL_TIP } from "@/shared/lib/labels";
 import { STAGE_LABEL, STEP, period, requester } from "@/shared/lib/request";
 import { History, KvTable, Meta, Section } from "@/shared/ui/base/parts";
 import { Icon } from "@/shared/ui/base/Icon";
@@ -51,7 +52,6 @@ export function RequestPanel({ it }: { it: RequestItem }) {
     ["신청 사유", r.reason || "—"],
     ["사용 기간", period(r)],
     ["신청 시각", stamp(r.submitted_at)],
-    ["상태", STAGE_LABEL[r.stage]],
   ];
   const steps = approvalSteps(r);
 
@@ -62,10 +62,10 @@ export function RequestPanel({ it }: { it: RequestItem }) {
       </PanelHead>
       <div className={panelBody}>
         <p className={subject}>{r.requested_access}</p>
-        <div className={cn(recLine, it.level && levelText[it.level])}>
-          {it.level && <Icon name={LEVEL_ICON[it.level]} className="size-5" />}{it.judge}
-        </div>
-        <div className={meta}><Meta items={[no, STAGE_LABEL[r.stage]]} /></div>
+        <div className={meta}><Meta items={[no, requester(r)]} /></div>
+        <JudgeState level={it.level} label={it.level ? undefined : it.judge}>
+          <span className="inline-flex items-center rounded-full border border-solid border-line px-2 py-0.25 text-[12px] font-bold whitespace-nowrap text-ink-soft">{STAGE_LABEL[r.stage]}</span>
+        </JudgeState>
         <Section icon="file" title="신청 내용"><KvTable rows={rows} /></Section>
         <AiVerdict it={it} />
         {r.grant_review && <GrantReview it={it} />}
@@ -89,7 +89,7 @@ function AiVerdict({ it }: { it: RequestItem }) {
   return (
     <>
       <Section icon="activity" title="판단 이유"><div className={box}>{v.reason}</div></Section>
-      <Section icon="ok" title="권고"><div className={box}>{v.recommendation}</div></Section>
+      <Section icon="ok" title="권고"><div className={box}><b className={cn("block", levelText[v.level])}>{LEVEL_TIP[v.level]}</b>{v.recommendation}</div></Section>
       <Section icon="db" title="근거 조항"><SourceChips itemKey={it.key} sources={v.sources} /></Section>
       <p className={note}>{stamp(v.judged_at)} 판정</p>
     </>

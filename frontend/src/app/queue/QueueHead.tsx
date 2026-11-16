@@ -1,22 +1,19 @@
-import type { ReactNode } from "react";
 import { useMe } from "@/app/session/me";
 import { useJobs } from "@/app/session/data";
 import { LEVEL_VIEWS, VIEWS } from "@/app/session/views";
 import { useUi } from "@/app/ui/state/UiContext";
 import { JobReset } from "@/app/ui/jobs/JobReset";
-import { NEW_ITEM, type LevelFilter } from "@/app/ui/state/uiReducer";
+import { NEW_ITEM } from "@/app/ui/state/uiReducer";
 import { runButton, useStartJob } from "@/shared/api/jobs";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
-import { searchBox, searchInput, toolButton } from "@/shared/ui/base/styles";
-import { LevelDot, Periods } from "@/shared/ui/base/parts";
+import { levelText, searchBox, searchInput, toolButton } from "@/shared/ui/base/styles";
+import { LevelDot, Tile } from "@/shared/ui/base/parts";
 import { LEVEL_TIP } from "@/shared/lib/labels";
 import type { Level } from "@/shared/api/types";
 import { useQueue } from "./useQueue";
 import { levelCounts } from "./select";
 
-// 버튼도 밀면 남는 자리를 나눠 검색 칸이 가운데로 뜨므로 검색 칸만 오른쪽으로 밉니다.
-const Count = ({ n }: { n: number }) => <span className="ml-1.5 tabular-nums text-ink-faint">{n}</span>;
 
 export function QueueHead() {
   const me = useMe();
@@ -50,9 +47,14 @@ export function QueueHead() {
         <button className={cn(toolButton, "ml-0")} id="add-doc" hidden={ui.view !== "docs"} onClick={() => select(NEW_ITEM)}><Icon name="plus" small />문서 업로드</button>
       </div>
       {byLevel && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Periods<LevelFilter> id="level-filter" label="AI 판정 등급" value={ui.filter} onChange={setFilter}
-            labels={[["전체", <>전체<Count n={byLevel["전체"]} /></>], ...levels.map((l): [LevelFilter, ReactNode] => [l, <span key={l} data-tip={LEVEL_TIP[l]}><LevelDot level={l} />{l}<Count n={byLevel[l]} /></span>])]} />
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-2.5" id="level-filter" role="group" aria-label="AI 판단 등급">
+          <Tile label="전체" big={byLevel["전체"]} pressed={ui.filter === "전체"} onClick={() => setFilter("전체")} />
+          {levels.map((l) => (
+            <Tile key={l} label={<><LevelDot level={l} />{l}</>} big={byLevel[l]} tone={byLevel[l] ? levelText[l] : undefined}
+              pressed={ui.filter === l} onClick={() => setFilter(ui.filter === l ? "전체" : l)}>
+              {view === "requests" ? LEVEL_TIP[l] : null}
+            </Tile>
+          ))}
         </div>
       )}
     </div>

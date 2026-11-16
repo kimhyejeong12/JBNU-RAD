@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AREA_COLOR, PERIODS, arcs, rateText } from "./lib";
 import { useGo, type Go } from "./useGo";
@@ -11,12 +11,11 @@ import type { Briefing, Overview, OverviewRow, StatPeriod } from "@/shared/api/t
 import { niceMax, stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
-import { LevelDot, Periods } from "@/shared/ui/base/parts";
+import { LevelDot, Periods, Tile } from "@/shared/ui/base/parts";
 import { DataTable, Legend, ViewSwitch } from "@/shared/ui/charts/parts";
-import { card, cardCount, cardHead, cardTitle, levelText, mark, markTone, note, toolButton } from "@/shared/ui/base/styles";
+import { card, cardCount, cardHead, cardTitle, levelText, mark, markTone, toolButton } from "@/shared/ui/base/styles";
 
 const SUB = "m-0 px-4.5 pb-3 text-[12.5px] text-ink-dim";
-const LABEL = "text-[12px] font-semibold text-ink-dim";
 
 export function OverviewTab() {
   const { ui, setStats } = useUi();
@@ -48,23 +47,6 @@ export function OverviewTab() {
       )}
     </div>
   );
-}
-
-const TILE = "flex min-w-0 flex-col gap-0.5 rounded-[10px] border border-line px-3.5 py-3 text-left";
-
-// onClick 을 주면 누르는 타일입니다 — pressed 는 아래 목록을 이 타일로 거르는 중인지.
-export function Tile({ label, big, tone, onClick, pressed, children }: {
-  label: string; big: ReactNode; tone?: string; onClick?: () => void; pressed?: boolean; children?: ReactNode;
-}) {
-  const body = (
-    <>
-      <span className={LABEL}>{label}</span>
-      <span className={cn("text-[26px] font-extrabold tracking-[-0.6px] tabular-nums", tone)}>{big}</span>
-      <span className={cn(note, "m-0")}>{children}</span>
-    </>
-  );
-  if (!onClick) return <div className={TILE}>{body}</div>;
-  return <button type="button" className={cn(TILE, "bg-surface hover:bg-row-hover aria-pressed:border-ink")} aria-pressed={pressed} onClick={onClick}>{body}</button>;
 }
 
 function Tiles({ d }: { d: Overview }) {
