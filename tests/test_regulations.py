@@ -11,12 +11,12 @@ from sentinelai.db import Denied, regulations
 from sentinelai.engine.rag import DocumentStore
 
 
-def test_only_top_manages_regulations(main_db, people):
+def test_managers_manage_regulations(main_db, people):
     assert regulations.create(main_db, people["top"], "a.md", "가")
     assert not regulations.create(main_db, people["top"], "a.md", "덮어쓰기")
     with pytest.raises(Denied):
-        regulations.create(main_db, people["manager"], "b.md", "나")
-    regulations.update(main_db, people["top"], "a.md", "가나")
+        regulations.create(main_db, people["user"], "b.md", "나")
+    regulations.update(main_db, people["manager"], "a.md", "가나")
     assert regulations.texts(main_db) == {"a.md": "가나"}
     regulations.restore(main_db, "a.md", "가")
     assert regulations.get(main_db, "a.md")["content"] == "가"

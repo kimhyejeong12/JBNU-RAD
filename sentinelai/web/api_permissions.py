@@ -96,7 +96,7 @@ def change_password(body: PasswordBody, request: Request) -> dict[str, Any]:
     return _session_user(request).public()
 
 
-# --- 계정 (보안 총책임자) ---
+# --- 계정 (일반 사용자 계정은 보안 운영자 이상, 역할과 보안 운영자 이상 계정은 보안 총책임자) ---
 
 
 class NewUser(BaseModel):
@@ -165,7 +165,7 @@ def reset_password(user_id: int, body: PasswordReset, request: Request, user: An
     return {"ok": True}
 
 
-# --- 권한 목록 (관리는 보안 총책임자) ---
+# --- 권한 목록 (관리는 보안 운영자 이상) ---
 
 
 class NewAccess(BaseModel):
@@ -190,7 +190,7 @@ def list_access(request: Request, user: Anyone) -> list[dict]:
 
 
 @router.post("/access-catalog", status_code=201)
-def create_access(body: NewAccess, request: Request, user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
+def create_access(body: NewAccess, request: Request, user: Approver) -> dict[str, Any]:
     try:
         return catalog.create(request.app.state.main_db, user, **body.model_dump())
     except Denied as exc:
@@ -198,7 +198,7 @@ def create_access(body: NewAccess, request: Request, user: Annotated[User, Depen
 
 
 @router.patch("/access-catalog/{code}")
-def update_access(code: str, body: AccessChange, request: Request, user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
+def update_access(code: str, body: AccessChange, request: Request, user: Approver) -> dict[str, Any]:
     try:
         return catalog.update(request.app.state.main_db, user, code, **body.model_dump(exclude_none=True))
     except Denied as exc:

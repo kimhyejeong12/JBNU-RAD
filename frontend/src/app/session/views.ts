@@ -41,7 +41,7 @@ export const VIEWS: Record<View, ViewMeta> = {
 
 export const ROLE_VIEWS: Record<Role, View[]> = {
   user: ["mine"],
-  manager: ["requests", "policies", "events", "stats", "docs"],
+  manager: ["requests", "policies", "events", "stats", "access", "users", "docs", "jobs"],
   top: ["requests", "policies", "events", "stats", "access", "users", "docs", "jobs"],
 };
 const ADMIN_VIEWS: readonly View[] = ["access", "users", "docs", "jobs"];

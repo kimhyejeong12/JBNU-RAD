@@ -36,6 +36,7 @@ export function UserPanel({ u }: { u: UserRow | null }) {
 }
 
 function NewUser() {
+  const top = useMe().role === "top";
   const create = useCreateUser();
   const { setPanelMsg } = useUi();
   function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -53,7 +54,7 @@ function NewUser() {
         <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
         <label className={field}>부서<input className={input} name="department" maxLength={100} /></label>
         <label className={field}>직무<input className={input} name="job" maxLength={100} placeholder="예: 서버 운영 담당" /></label>
-        <div className={WIDE_FIELD}>역할<RoleSelect value="user" /></div>
+        {top ? <div className={WIDE_FIELD}>역할<RoleSelect value="user" /></div> : <input type="hidden" name="role" value="user" />}
         <label className={WIDE_FIELD}>임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input className={input} name="password" type="password" required autoComplete="new-password" /></label>
         <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>계정 만들기</button></div>
       </form>
@@ -68,9 +69,13 @@ function EditUser({ u }: { u: UserRow }) {
   // 폼이 uncontrolled 라 저장 뒤 서버 값으로 다시 그립니다.
   const formKey = `${u.id}:${useQuery(usersQuery()).dataUpdatedAt}`;
   const self = u.id === me.id;
-  const locked = u.is_root && !me.is_root;
+  const top = me.role === "top";
+  // 역할과 보안 운영자 이상 계정은 보안 총책임자만 고칩니다.
+  const above = !top && u.role !== "user";
+  const locked = (u.is_root && !me.is_root) || above;
   const fixed = u.is_root || self;
-  const note = locked ? "루트 계정은 루트만 고칠 수 있습니다."
+  const note = above ? "보안 운영자 이상 계정은 보안 총책임자만 고칠 수 있습니다."
+    : locked ? "루트 계정은 루트만 고칠 수 있습니다."
     : u.is_root ? "루트는 역할을 바꾸거나 정지할 수 없습니다."
       : self ? "자기 계정의 역할을 바꾸거나 정지할 수 없습니다."
         : "";
@@ -92,7 +97,7 @@ function EditUser({ u }: { u: UserRow }) {
       title: "퇴사일 적기", confirm: "저장", danger: true,
       message: `${u.display_name}의 퇴사일을 ${leftOn}로 적습니다.`,
     }))) return;
-    if (!fixed) {
+    if (top && !fixed) {
       const role = f.get("role") as Role;
       // 저장하면 권한이 바로 오르내려서 역할이 바뀔 때만 묻습니다.
       if (role !== u.role && !(await ask({
@@ -137,7 +142,7 @@ function EditUser({ u }: { u: UserRow }) {
               <label className={field}>이름<input className={input} name="display_name" defaultValue={u.display_name} maxLength={100} /></label>
               <label className={field}>부서<input className={input} name="department" defaultValue={u.department ?? ""} maxLength={100} /></label>
               <label className={field}>직무<input className={input} name="job" defaultValue={u.job} maxLength={100} placeholder="예: 서버 운영 담당" /></label>
-              <div className={WIDE_FIELD}>역할<RoleSelect value={u.role} disabled={fixed} /></div>
+              {top && <div className={WIDE_FIELD}>역할<RoleSelect value={u.role} disabled={fixed} /></div>}
               <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="로그의 UserID" /></label>
               <label className={field}>퇴사일<input className={input} name="left_on" type="date" defaultValue={u.left_on} /></label>
               <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>

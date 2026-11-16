@@ -29,10 +29,32 @@ def request_no(main_db, people, item):
 # --- 계정 · 로그인 ---
 
 
-def test_only_top_creates_accounts(main_db, people):
-    with denied("계정은 보안 총책임자만 만들 수 있습니다"), main_db.transaction() as conn:
+def test_who_creates_accounts(main_db, people):
+    with denied("계정은 보안 운영자 이상만 만들 수 있습니다"), main_db.transaction() as conn:
         conn.execute("INSERT INTO users (login_id, password_hash, display_name, role, created_at, created_by)"
-                     " VALUES ('x', 'h', 'x', 'user', '2026-11-03', %s)", (people["manager"].id,))
+                     " VALUES ('x', 'h', 'x', 'user', '2026-11-03', %s)", (people["user"].id,))
+    with denied("보안 운영자 이상 계정은 보안 총책임자만 만들 수 있습니다"), main_db.transaction() as conn:
+        conn.execute("INSERT INTO users (login_id, password_hash, display_name, role, created_at, created_by)"
+                     " VALUES ('x', 'h', 'x', 'manager', '2026-11-03', %s)", (people["manager"].id,))
+
+
+def test_manager_manages_user_accounts_only(main_db, people):
+    manager, user = people["manager"], people["user"]
+    made = auth.create_user(main_db, manager, "new", PASSWORD, "새 사람", "영업팀", "user")
+    assert auth.update_user(main_db, manager, made.id, department="재무팀", is_active=0).department == "재무팀"
+    auth.reset_password(main_db, manager, user.id, "temp-pass")
+    assert len(auth.list_users(main_db, manager)) == 6
+    with denied("보안 운영자 이상 계정은 보안 총책임자만 만들 수 있습니다"):
+        auth.create_user(main_db, manager, "boss", PASSWORD, "새 운영자", "", "manager")
+    with denied("역할은 보안 총책임자만 바꿀 수 있습니다"):
+        auth.update_user(main_db, manager, user.id, role="top")
+    for target in (manager, people["top"]):
+        with denied("보안 운영자 이상 계정은 보안 총책임자만 고칠 수 있습니다"):
+            auth.update_user(main_db, manager, target.id, display_name="바꿈")
+        with denied("보안 운영자 이상 계정은 보안 총책임자만 고칠 수 있습니다"):
+            auth.reset_password(main_db, manager, target.id, "temp-pass")
+    with denied("계정 관리는 보안 운영자 이상만 할 수 있습니다"):
+        auth.list_users(main_db, user)
 
 
 def test_login_id_is_case_insensitive(main_db, people):
@@ -91,9 +113,12 @@ def test_root_is_guarded(main_db, people):
 
 
 def test_catalog_rules(main_db, people, item):
-    with denied("권한 목록은 보안 총책임자만 관리할 수 있습니다"), main_db.transaction() as conn:
+    with denied("권한 목록은 보안 운영자 이상만 관리할 수 있습니다"), main_db.transaction() as conn:
         conn.execute("INSERT INTO access_catalog (code, name, created_by, created_at, updated_at)"
-                     " VALUES ('X', 'x', %s, 'now', 'now')", (people["manager"].id,))
+                     " VALUES ('X', 'x', %s, 'now', 'now')", (people["user"].id,))
+    made = catalog.create(main_db, people["manager"], "FW_POLICY_EDIT", "방화벽 정책 변경")
+    assert catalog.update(main_db, people["manager"], made["code"], is_active=False)["is_active"] is False
+    assert [i["code"] for i in catalog.list_items(main_db, people["manager"])] == ["FW_POLICY_EDIT", "HR_SALARY_READ"]
     with denied("권한 코드는 바꿀 수 없습니다"), main_db.transaction() as conn:
         conn.execute("UPDATE access_catalog SET code = 'OTHER'")
     with denied("권한은 지우지 않고 끕니다"), main_db.transaction() as conn:

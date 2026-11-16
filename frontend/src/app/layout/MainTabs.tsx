@@ -28,7 +28,7 @@ export function MainTabs() {
   const views = useViews();
   const role = useMe().role;
   const counts = stageCounts(useQueue(), role);
-  if (isAdminView(ui.view) && role === "top") {
+  if (isAdminView(ui.view)) {
     return (
       <nav className={BAR} role="tablist" aria-label="관리">
         {views.filter(isAdminView).map((v) => (

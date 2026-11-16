@@ -14,7 +14,6 @@ import type { View } from "@/app/session/views";
 import { PanelHead } from "@/app/ui/panel/Panel";
 import { cn } from "@/shared/lib/cn";
 import { NEW_ITEM, panelIdle } from "@/app/ui/state/uiReducer";
-import { useMe } from "@/app/session/me";
 import { card, empty, panelBody } from "@/shared/ui/base/styles";
 
 export function RightPanel() {
@@ -49,7 +48,6 @@ const DRAWER_SHUT = "narrow:invisible narrow:transform-[translateX(100%)] narrow
 const DRAWER_OPEN = "narrow:visible narrow:transform-none narrow:[transition:transform_.2s_ease]";
 
 function EmptyQueuePanel({ view }: { view: View | null }) {
-  const top = useMe().role === "top";
   const people = useUi().ui.stageFilter === "people";
   const [title, text] = view === "requests" && people
     ? ["확인할 사람", <>사람을 고르세요</>]
@@ -57,7 +55,7 @@ function EmptyQueuePanel({ view }: { view: View | null }) {
     ? ["권한 신청 검토", <>신청을 고르세요</>]
     : view === "users" ? ["계정", <>목록에서 계정을 고르거나<br />[새 계정]을 누르세요.</>]
       : view === "access" ? ["권한", <>목록에서 권한을 고르거나<br />[권한 등록]을 누르세요.</>]
-        : view === "docs" ? ["기준 문서", top ? <>목록에서 문서를 고르거나<br />[문서 업로드]를 누르세요.</> : <>목록에서 문서를 고르면<br />원문을 봅니다.</>]
+        : view === "docs" ? ["기준 문서", <>목록에서 문서를 고르거나<br />[문서 업로드]를 누르세요.</>]
           : ["AI 판단 근거", <>목록에서 항목을 선택하면<br />AI 판단 근거와 권고가 표시됩니다.</>];
   return (
     <>

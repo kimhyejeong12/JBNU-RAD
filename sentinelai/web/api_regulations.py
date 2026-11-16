@@ -15,7 +15,7 @@ from pydantic import BaseModel, StringConstraints
 from sentinelai.db import User, regulations as regs
 from sentinelai.db.core import audit
 
-from .api_permissions import role
+from .api_permissions import Approver, role
 
 MAX_CHARS = 1_000_000
 # 위협 예측 · 정책 관리 검토가 수 분 걸려 넉넉히 기다립니다.
@@ -25,7 +25,6 @@ WAIT_STEP_SEC = 0.5
 NAME = re.compile(r"[^./\\\x00][^/\\\x00]{0,95}\.(md|txt)", re.IGNORECASE)
 
 router = APIRouter(prefix="/api/regulations", tags=["regulations"])
-Top = Annotated[User, Depends(role("top"))]
 
 
 async def _exclusive(request: Request, work: Callable[[], Any], failed: str) -> Any:
@@ -67,7 +66,7 @@ class NewRegulation(BaseModel):
 
 
 @router.post("", status_code=201)
-async def upload(body: NewRegulation, request: Request, user: Top) -> dict[str, str]:
+async def upload(body: NewRegulation, request: Request, user: Approver) -> dict[str, str]:
     """같은 이름은 덮어쓰지 않고, 적재가 실패하면 올린 문서를 지웁니다."""
     if not NAME.fullmatch(body.name):
         raise HTTPException(status_code=400, detail="기준 문서는 .md · .txt 파일만 올립니다 (이름에 / 없이 100자까지)")
@@ -98,7 +97,7 @@ class EditRegulation(BaseModel):
 
 
 @router.put("/{name}")
-async def edit(name: str, body: EditRegulation, request: Request, user: Top) -> dict[str, str]:
+async def edit(name: str, body: EditRegulation, request: Request, user: Approver) -> dict[str, str]:
     """그 문서만 다시 적재하고, 실패하면 원래 글로 되돌립니다."""
     db, engine = request.app.state.main_db, request.app.state.engine
     row = regs.get(db, name)
@@ -129,7 +128,7 @@ class RemoveRegulation(BaseModel):
 
 
 @router.delete("/{name}")
-async def remove(name: str, body: RemoveRegulation, request: Request, user: Top) -> dict[str, str]:
+async def remove(name: str, body: RemoveRegulation, request: Request, user: Approver) -> dict[str, str]:
     """RAG 에서 빼지 못하면 문서를 되돌립니다. 마지막 문서는 지우지 않습니다."""
     db, engine = request.app.state.main_db, request.app.state.engine
     row = regs.get(db, name)

@@ -12,9 +12,9 @@ from .core import Database, Denied, Row, audit, now
 FIELDS = ("name", "system", "category", "description")
 
 
-def _top(by: User) -> None:
-    if by.role != "top":
-        raise Denied("권한 목록은 보안 총책임자만 관리할 수 있습니다")
+def _manager(by: User) -> None:
+    if by.role not in ("manager", "top"):
+        raise Denied("권한 목록은 보안 운영자 이상만 관리할 수 있습니다")
 
 
 def _item(row: Row) -> dict:
@@ -22,8 +22,8 @@ def _item(row: Row) -> dict:
 
 
 def list_items(db: Database, by: User) -> list[dict]:
-    """보안 총책임자에게만 꺼진 권한까지 줍니다."""
-    sql = "SELECT * FROM access_catalog" + ("" if by.role == "top" else " WHERE is_active = 1") + " ORDER BY system, name, code"
+    """일반 사용자에게는 켜진 권한만 줍니다."""
+    sql = "SELECT * FROM access_catalog" + (" WHERE is_active = 1" if by.role == "user" else "") + " ORDER BY system, name, code"
     with db.connection() as conn:
         return [_item(r) for r in conn.execute(sql)]
 
@@ -36,7 +36,7 @@ def get(conn: psycopg.Connection[Row], code: str) -> Row:
 
 
 def create(db: Database, by: User, code: str, name: str, system: str = "", category: str = "", description: str = "") -> dict:
-    _top(by)
+    _manager(by)
     code, name = code.strip(), name.strip()
     if not code or not name:
         raise Denied("권한 코드와 이름을 적어 주세요")
@@ -57,7 +57,7 @@ def create(db: Database, by: User, code: str, name: str, system: str = "", categ
 
 def update(db: Database, by: User, code: str, **changes) -> dict:
     """이미 낸 신청에는 신청 때 이름이 남습니다."""
-    _top(by)
+    _manager(by)
     unknown = set(changes) - {*FIELDS, "is_active"}
     if unknown:
         raise Denied(f"바꿀 수 없는 칸입니다: {', '.join(sorted(unknown))}")

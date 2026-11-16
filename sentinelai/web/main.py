@@ -102,7 +102,7 @@ class ResetJobs(BaseModel):
 
 
 @app.post("/api/jobs/reset")
-def reset_jobs(body: ResetJobs, request: Request, user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
+def reset_jobs(body: ResetJobs, request: Request, user: Approver) -> dict[str, Any]:
     """돌던 판정 한 건은 끝날 때까지 이어지고 결과는 버립니다. rerun 이면 같은 작업을 다시 넣습니다."""
     reset = _engine(request).reset_jobs(rerun=body.rerun)
     if not reset:
@@ -114,12 +114,12 @@ def reset_jobs(body: ResetJobs, request: Request, user: Annotated[User, Depends(
 
 
 @app.get("/api/queue")
-def queue_detail(request: Request, _user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
+def queue_detail(request: Request, _user: Approver) -> dict[str, Any]:
     return _engine(request).queue_detail()
 
 
 @app.post("/api/queue/clear")
-def clear_queue(request: Request, user: Annotated[User, Depends(role("top"))]) -> dict[str, Any]:
+def clear_queue(request: Request, user: Approver) -> dict[str, Any]:
     """돌던 판정 한 건은 끝날 때까지 이어지고 결과는 버립니다. 도는 작업이 없어도 워커를 새로 띄웁니다."""
     cleared = _engine(request).clear_queue()
     with request.app.state.main_db.transaction() as conn:

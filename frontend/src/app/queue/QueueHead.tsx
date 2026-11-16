@@ -47,7 +47,7 @@ export function QueueHead() {
         {!run.hidden && <JobReset />}
         <button className={cn(toolButton, "ml-0")} id="add-user" hidden={ui.view !== "users"} onClick={() => select(NEW_ITEM)}><Icon name="plus" small />새 계정</button>
         <button className={cn(toolButton, "ml-0")} id="add-access" hidden={ui.view !== "access"} onClick={() => select(NEW_ITEM)}><Icon name="plus" small />권한 등록</button>
-        <button className={cn(toolButton, "ml-0")} id="add-doc" hidden={ui.view !== "docs" || me.role !== "top"} onClick={() => select(NEW_ITEM)}><Icon name="plus" small />문서 업로드</button>
+        <button className={cn(toolButton, "ml-0")} id="add-doc" hidden={ui.view !== "docs"} onClick={() => select(NEW_ITEM)}><Icon name="plus" small />문서 업로드</button>
       </div>
       {byLevel && (
         <div className="flex flex-wrap items-center gap-2">

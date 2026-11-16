@@ -1,4 +1,4 @@
-"""사용자 · 로그인 · 세션 — 계정은 보안 총책임자가, 초기 루트만 create_root 로 만듭니다."""
+"""사용자 · 로그인 · 세션 — 일반 사용자 계정은 보안 운영자 이상이, 역할은 보안 총책임자가 정합니다. 초기 루트만 create_root 로 만듭니다."""
 from __future__ import annotations
 
 import hashlib
@@ -82,22 +82,27 @@ def create_root(db: Database, login_id: str, password: str, display_name: str, d
         return User.of(conn.execute("SELECT * FROM users WHERE id = %s", (uid,)).fetchone())
 
 
-def _require_top(by: User) -> None:
-    if by.role != "top":
-        raise Denied("계정 관리는 보안 총책임자만 할 수 있습니다")
+def _require_manager(by: User) -> None:
+    if by.role not in ("manager", "top"):
+        raise Denied("계정 관리는 보안 운영자 이상만 할 수 있습니다")
 
 
 def _guard_target(by: User, target: Row) -> None:
     # 다른 보안 총책임자가 루트의 비밀번호를 바꾸면 루트를 가로챌 수 있어 막습니다.
     if target["is_root"] and not by.is_root:
         raise Denied("루트 계정은 루트만 고칠 수 있습니다")
+    # 보안 운영자가 결재하는 계정을 고치면 1차 · 최종 결재를 혼자 할 수 있어 일반 사용자 계정만 맡깁니다.
+    if by.role != "top" and target["role"] != "user":
+        raise Denied("보안 운영자 이상 계정은 보안 총책임자만 고칠 수 있습니다")
 
 
 def create_user(db: Database, by: User, login_id: str, password: str, display_name: str, department: str, role: str,
                 job: str = "", email: str = "") -> User:
-    _require_top(by)
+    _require_manager(by)
     if role not in ROLES:
         raise Denied(f"역할은 {', '.join(ROLES)} 중 하나입니다")
+    if by.role != "top" and role != "user":
+        raise Denied("보안 운영자 이상 계정은 보안 총책임자만 만들 수 있습니다")
     _check_password(password)
     email = _check_email(email)
     with db.transaction() as conn:
@@ -114,13 +119,15 @@ def create_user(db: Database, by: User, login_id: str, password: str, display_na
 
 def update_user(db: Database, by: User, user_id: int, **changes: object) -> User:
     """정지하면 세션을 끊고, 부서 · 직무가 바뀌면 이동 기록(user_moves)을 남깁니다."""
-    _require_top(by)
+    _require_manager(by)
     allowed = {"display_name", "department", "job", "role", "is_active", "log_id", "left_on", "email"}
     fields = {k: v for k, v in changes.items() if k in allowed and v is not None}
     if not fields:
         raise Denied("바꿀 항목이 없습니다")
     if "role" in fields and fields["role"] not in ROLES:
         raise Denied(f"역할은 {', '.join(ROLES)} 중 하나입니다")
+    if "role" in fields and by.role != "top":
+        raise Denied("역할은 보안 총책임자만 바꿀 수 있습니다")
     if "email" in fields:
         fields["email"] = _check_email(str(fields["email"]))
     for key in ("log_id", "department", "job", "left_on"):
@@ -159,7 +166,7 @@ def update_user(db: Database, by: User, user_id: int, **changes: object) -> User
 
 def reset_password(db: Database, by: User, user_id: int, temporary_password: str) -> None:
     """다음 로그인에 바꾸게 하고 기존 세션은 끊습니다."""
-    _require_top(by)
+    _require_manager(by)
     _check_password(temporary_password)
     with db.transaction() as conn:
         target = conn.execute("SELECT * FROM users WHERE id = %s", (user_id,)).fetchone()
@@ -176,7 +183,7 @@ def reset_password(db: Database, by: User, user_id: int, temporary_password: str
 
 
 def list_users(db: Database, by: User) -> list[dict]:
-    _require_top(by)
+    _require_manager(by)
     with db.connection() as conn:
         rows = conn.execute(
             "SELECT id, login_id, display_name, department, role, is_root, is_active, must_change_password,"

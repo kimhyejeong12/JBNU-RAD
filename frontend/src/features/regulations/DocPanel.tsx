@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { PanelFoot, PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
 import { useJobs, useRegulations } from "@/app/session/data";
-import { useMe } from "@/app/session/me";
 import { busyJob } from "@/shared/api/jobs";
 import type { Regulation } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
@@ -15,8 +14,7 @@ import { ask } from "@/app/ui/confirm/ask";
 
 // 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둡니다.
 export function DocPanel({ d }: { d: Regulation | null }) {
-  const top = useMe().role === "top";
-  return d ? <DocView key={d.name} d={d} canEdit={top} /> : <UploadDoc />;
+  return d ? <DocView key={d.name} d={d} /> : <UploadDoc />;
 }
 
 function UploadDoc() {
@@ -52,7 +50,7 @@ function UploadDoc() {
   );
 }
 
-function DocView({ d, canEdit }: { d: Regulation; canEdit: boolean }) {
+function DocView({ d }: { d: Regulation }) {
   const it = docItem(d);
   const [mode, setMode] = useState<"view" | "edit" | "remove">("view");
   const close = () => setMode("view");
@@ -64,12 +62,10 @@ function DocView({ d, canEdit }: { d: Regulation; canEdit: boolean }) {
         <div className={meta}><Meta items={[d.name, d.updated_at && `고친 시각 ${stamp(d.updated_at)}`, `조항 ${it.judge}`]} /></div>
         {mode === "edit" ? <EditDoc d={d} onClose={close} /> : mode === "remove" ? <RemoveDoc d={d} onClose={close} /> : (
           <>
-            {canEdit && (
-              <div className={panelActions}>
-                <button type="button" className={actionButton} onClick={() => setMode("edit")}>수정</button>
-                <button type="button" className={actionButton} onClick={() => setMode("remove")}>지우기</button>
-              </div>
-            )}
+            <div className={panelActions}>
+              <button type="button" className={actionButton} onClick={() => setMode("edit")}>수정</button>
+              <button type="button" className={actionButton} onClick={() => setMode("remove")}>지우기</button>
+            </div>
             <Section icon="book" title="원문">
               <pre className="m-0 whitespace-pre-wrap rounded-lg bg-canvas px-3.5 py-3 text-[13px] font-[inherit]">{d.content.trim()}</pre>
             </Section>

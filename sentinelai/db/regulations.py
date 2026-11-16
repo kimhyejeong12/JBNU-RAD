@@ -1,4 +1,4 @@
-"""기준 문서 원문 — 화면에서 보안 총책임자가 올리고 고치고 지웁니다. 지난 원문은 부르는 쪽이 감사 기록에 남깁니다."""
+"""기준 문서 원문 — 화면에서 보안 운영자 이상이 올리고 고치고 지웁니다. 지난 원문은 부르는 쪽이 감사 기록에 남깁니다."""
 from __future__ import annotations
 
 from .auth import User
@@ -6,8 +6,8 @@ from .core import Database, Denied, now
 
 
 def _check(by: User | None) -> None:
-    if by is not None and by.role != "top":
-        raise Denied("기준 문서는 보안 총책임자만 관리할 수 있습니다")
+    if by is not None and by.role not in ("manager", "top"):
+        raise Denied("기준 문서는 보안 운영자 이상만 관리할 수 있습니다")
 
 
 def texts(db: Database) -> dict[str, str]:
