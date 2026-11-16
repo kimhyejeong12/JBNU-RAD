@@ -47,8 +47,6 @@ def _held_text(rows: list[Row]) -> str:
 
 def submit(db: Database, by: User, access_code: str, reason: str = "", period_start: str = "", period_end: str = "") -> dict:
     """켜진 권한만 신청하고, 신청 때 이름 · 보유 권한을 행에 남겨 목록이 바뀌어도 기록은 그대로입니다."""
-    if period_start and period_end and period_end < period_start:
-        raise Denied("사용 종료일이 시작일보다 앞섭니다")
     with db.transaction() as conn:
         item = catalog.get(conn, access_code)
         if not item["is_active"]:
