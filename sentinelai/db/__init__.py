@@ -4,7 +4,7 @@ from __future__ import annotations
 import atexit
 import threading
 
-from . import auth, catalog, decisions, lookup, nodes, permissions, regulations, results
+from . import auth, catalog, decisions, lookup, nodes, permissions, regulations, results, watch
 from .auth import User
 from .core import Database, Denied
 
@@ -42,4 +42,4 @@ def open_results_db(url: str, schema: str = "results") -> Database:
     return _open(url, schema, "results.sql", "results_ask.sql", "results_ask_stages.sql", "results_grounding.sql")
 
 
-__all__ = ["Database", "Denied", "User", "auth", "catalog", "decisions", "lookup", "nodes", "open_main_db", "open_results_db", "permissions", "regulations", "results"]
+__all__ = ["Database", "Denied", "User", "auth", "catalog", "decisions", "lookup", "nodes", "open_main_db", "open_results_db", "permissions", "regulations", "results", "watch"]
