@@ -168,7 +168,17 @@ def stats(request: Request, user: Approver, period: str = "month") -> dict[str, 
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
-@app.get("/api/audit")
+class AuditRow(BaseModel):
+    """변경 이력의 한 줄 — detail 은 기록마다 칸이 다릅니다 (사유 또는 바뀐 칸과 값)."""
+
+    id: int
+    at: str
+    action: str
+    by: str
+    detail: dict[str, Any]
+
+
+@app.get("/api/audit", response_model=list[AuditRow])
 def audit_history(request: Request, _user: Approver, target_type: Literal["regulation", "user", "access"],
                   target_id: Annotated[str, Query(min_length=1, max_length=200)]) -> list[dict[str, Any]]:
     """한 기준 문서 · 계정 · 권한의 변경 이력 — 감사 기록 최근 20건."""

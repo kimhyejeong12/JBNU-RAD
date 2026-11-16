@@ -15,7 +15,7 @@ test("기준 문서 한 줄 — 제목은 첫 # 줄, 파일 이름, 고친 시�
 });
 
 test("제목 줄이 없으면 파일 이름, 조항이 없으면 없음", () => {
-  expect(docItem({ name: "메모.txt", content: "그냥 글" })).toMatchObject({ who: "메모.txt", judge: "없음", when: "" });
+  expect(docItem({ name: "메모.txt", content: "그냥 글", updated_at: "" })).toMatchObject({ who: "메모.txt", judge: "없음", when: "" });
 });
 
 test("올릴 파일 확인 — .md · .txt 만, 1MB 까지, 같은 이름은 안 됨", () => {

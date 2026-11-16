@@ -4,7 +4,7 @@ import { userItem } from "./lib";
 
 const user = (p: Partial<UserRow>): UserRow => ({
   id: 7, login_id: "dev-op", display_name: "보안 운영자", department: "보안팀", role: "manager", is_root: false, is_active: true,
-  must_change_password: false, locked_until: null, last_login_at: "2026-10-29T05:00:00+09:00", log_id: null, job: "", left_on: "", created_at: "2026-10-01T00:00:00+09:00", ...p,
+  must_change_password: false, locked_until: null, last_login_at: "2026-10-29T05:00:00+09:00", log_id: "", job: "", left_on: "", email: "", created_at: "2026-10-01T00:00:00+09:00", ...p,
 });
 
 test("userItem: 정지 · 잠김 · 활성, 비밀번호 변경 전, 루트 표시", () => {
@@ -14,7 +14,7 @@ test("userItem: 정지 · 잠김 · 활성, 비밀번호 변경 전, 루트 표�
   expect(userItem(user({ locked_until: "2000-01-01T00:00:00+09:00" })).judge).toBe("활성");
   expect(userItem(user({ must_change_password: true })).sub).toBe("비밀번호 변경 전");
   expect(userItem(user({ role: "top", is_root: true })).typeLabel).toBe("보안 총책임자 (루트)");
-  expect(userItem(user({ department: null, last_login_at: null })) ).toMatchObject({ what: "부서 없음", when: "—" });
+  expect(userItem(user({ department: "", last_login_at: null })) ).toMatchObject({ what: "부서 없음", when: "—" });
 });
 
 test("userItem: 직무는 부서 옆에, 퇴사일이 지났으면 아래 줄에 퇴사", () => {

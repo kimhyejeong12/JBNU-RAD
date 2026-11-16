@@ -1,7 +1,7 @@
 """권한 DB API — 세션 토큰은 화면 스크립트가 볼 수 없게 HttpOnly 쿠키로만 주고받습니다."""
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, StringConstraints
@@ -16,6 +16,51 @@ router = APIRouter(prefix="/api")
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+Role = Literal["user", "manager", "top"]
+
+
+# --- 응답 모양 — 여기 적은 칸이 API 명세(/openapi.json)에 나오고, 화면 타입(frontend/src/shared/api/schema.ts)은 거기서 만듭니다.
+# 적지 않은 칸은 응답에서 빠지므로 DB 가 주는 칸과 같게 둡니다 (tests/test_api_contract.py 가 봅니다).
+
+
+class Me(BaseModel):
+    """로그인한 사람 · 계정을 만들거나 고친 결과."""
+
+    id: int
+    login_id: str
+    display_name: str
+    department: str
+    role: Role
+    is_root: bool
+    must_change_password: bool
+
+
+class UserRow(Me):
+    """계정 목록의 한 줄."""
+
+    is_active: bool
+    locked_until: str | None
+    last_login_at: str | None
+    created_at: str
+    log_id: str
+    job: str
+    left_on: str
+    email: str
+
+
+class AccessItem(BaseModel):
+    """권한 목록의 한 건."""
+
+    id: int
+    code: str
+    name: str
+    system: str
+    category: str
+    description: str
+    is_active: bool
+    created_by: int
+    created_at: str
+    updated_at: str
 
 
 def _denied(exc: Denied) -> HTTPException:
@@ -57,7 +102,7 @@ class LoginBody(BaseModel):
     password: Annotated[str, StringConstraints(min_length=1, max_length=200)]
 
 
-@router.post("/auth/login")
+@router.post("/auth/login", response_model=Me)
 def login(body: LoginBody, request: Request, response: Response) -> dict[str, Any]:
     try:
         token, user = auth.login(request.app.state.main_db, body.login_id, body.password,
@@ -76,7 +121,7 @@ def logout(request: Request, response: Response) -> dict[str, bool]:
     return {"ok": True}
 
 
-@router.get("/auth/me")
+@router.get("/auth/me", response_model=Me)
 def me(request: Request) -> dict[str, Any]:
     return _session_user(request).public()
 
@@ -86,7 +131,7 @@ class PasswordBody(BaseModel):
     new: Annotated[str, StringConstraints(min_length=1, max_length=200)]
 
 
-@router.post("/auth/password")
+@router.post("/auth/password", response_model=Me)
 def change_password(body: PasswordBody, request: Request) -> dict[str, Any]:
     user = _session_user(request)
     try:
@@ -124,7 +169,7 @@ class PasswordReset(BaseModel):
     temporary_password: Annotated[str, StringConstraints(min_length=1, max_length=200)]
 
 
-@router.get("/users")
+@router.get("/users", response_model=list[UserRow])
 def list_users(request: Request, user: Anyone) -> list[dict]:
     try:
         return auth.list_users(request.app.state.main_db, user)
@@ -132,7 +177,7 @@ def list_users(request: Request, user: Anyone) -> list[dict]:
         raise HTTPException(status_code=403, detail=str(exc)) from None
 
 
-@router.post("/users", status_code=201)
+@router.post("/users", status_code=201, response_model=Me)
 def create_user(body: NewUser, request: Request, user: Anyone) -> dict[str, Any]:
     try:
         return auth.create_user(request.app.state.main_db, user, body.login_id, body.password,
@@ -141,7 +186,7 @@ def create_user(body: NewUser, request: Request, user: Anyone) -> dict[str, Any]
         raise _denied(exc) from None
 
 
-@router.patch("/users/{user_id}")
+@router.patch("/users/{user_id}", response_model=Me)
 def update_user(user_id: int, body: UserChange, request: Request, user: Anyone) -> dict[str, Any]:
     changes = body.model_dump(exclude_none=True)
     if "is_active" in changes:
@@ -184,12 +229,12 @@ class AccessChange(BaseModel):
     is_active: bool | None = None
 
 
-@router.get("/access-catalog")
+@router.get("/access-catalog", response_model=list[AccessItem])
 def list_access(request: Request, user: Anyone) -> list[dict]:
     return catalog.list_items(request.app.state.main_db, user)
 
 
-@router.post("/access-catalog", status_code=201)
+@router.post("/access-catalog", status_code=201, response_model=AccessItem)
 def create_access(body: NewAccess, request: Request, user: Approver) -> dict[str, Any]:
     try:
         return catalog.create(request.app.state.main_db, user, **body.model_dump())
@@ -197,7 +242,7 @@ def create_access(body: NewAccess, request: Request, user: Approver) -> dict[str
         raise _denied(exc) from None
 
 
-@router.patch("/access-catalog/{code}")
+@router.patch("/access-catalog/{code}", response_model=AccessItem)
 def update_access(code: str, body: AccessChange, request: Request, user: Approver) -> dict[str, Any]:
     try:
         return catalog.update(request.app.state.main_db, user, code, **body.model_dump(exclude_none=True))

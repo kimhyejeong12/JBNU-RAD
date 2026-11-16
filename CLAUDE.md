@@ -53,7 +53,7 @@ SK쉴더스 산학협력 문제 제안서(2026. 8.)가 이 과제의 기준.
 ```
 JBNU-RAD/
 ├── sentinelai/               SentinelAI 패키지. __init__.py 는 ROOT · 버전만 (하위 패키지를 가져오지 않음)
-│   ├── dev.py                  로컬 시험 환경 `python -m sentinelai.dev` — setup · web · test · targets (11/5, 예전 scripts/)
+│   ├── dev.py                  로컬 시험 환경 `python -m sentinelai.dev` — setup · web · test · targets · api-types(응답 모델 → 화면 타입, 11/16) (11/5, 예전 scripts/)
 │   ├── __main__.py · cli.py    CLI `python -m sentinelai` — 화면에 없는 일만 (index --rebuild · monitor · import-snapshots · create-root, 11/9 정리). 모두 Engine 기능을 부름
 │   ├── engine/                 엔진 (양현성) — 자원 · 이슈어 · 종류별 큐 · 워커 · 인터페이스 (11/5 사용자 정리)
 │   │   ├── interface.py          Engine — 넷을 엮는 입구. 웹 · CLI 가 부르는 이름(health · index · run_* · start · start_job · enqueue_* · job_status · stats · browse_logs · receive_snapshot …)만. run_* 는 CLI 용으로 묶음을 쌓고 그 자리에서 워커를 돌림(drain). 질의(ask)는 질의 에이전트를 큐 밖에서 부름
@@ -120,7 +120,7 @@ JBNU-RAD/
 │       │   ├── session/            로그인한 사람(me) · 역할별 메뉴(views) · 역할별 데이터 훅(data) · 부팅(useBoot) · 새로고침 뒤 마지막 화면(lastPage)
 │       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · SourceChips) · confirm/(확인 창 — ask · ConfirmLayer)
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
-│       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
+│       ├── shared/               api/(http · types · schema(백엔드 응답 모델에서 생성 — 손으로 안 고침) · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
 │       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(질의 팝업 AskDock — 오른쪽 아래 버튼으로 어느 화면에서든 열고, 대화 · 근거 칩 · 도구별 근거 보기, 예시 질문은 config.ts) · stats · risk(보안 현황의 권한 변동 탭 — 사람 카드 · 회수) · overview(보안 현황의 종합 탭 `OverviewTab` · 보안 총책임자의 현황 대시보드 `Dashboard` — 타일 · 도넛 · 추이 · 이슈 표를 함께 씀) · catalog · accounts · regulations(기준 문서) · engine(관리의 큐 탭). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
 ├── data/                     DLP 로그 (위치는 .env) · 예시 기준 문서. 컨테이너에는 읽기만으로 붙음
 │   └── example-regulations/    예시 기준 문서(.md · .txt) · 참고 pptx — 웹은 읽지 않음. 시험 환경 setup 이 권한 DB 에 넣음, 운영은 화면에서 올림 (11/9, 예전 docs/ → examples/regulations/)
@@ -315,6 +315,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 | `./sentinel monitor [--since 시각] [--until 시각] [--full]` | 로그 감시 1회 (cron 용, 웹이 꺼져 있을 때, `--full`이면 처음부터). 웹이 떠 있으면 웹 작업 큐와 따로 모델을 침. venv 에서는 `python -m sentinelai monitor` |
 | `python -m sentinelai.dev setup [--reset]` | **로컬 시험 환경**을 `sentinelai_dev` DB · `.dev/`에 — 계정 `dev-root`(보안 총책임자 · 루트) · `dev-op`(보안 운영자) · `dev-user`(일반 사용자), 비밀번호 모두 `dev-pass-1234`, 첫 로그인 변경 없음. 시험용 권한 목록 7건. 예시 기준 문서(`data/example-regulations`)를 넣고 모델 서버에 닿으면 적재 |
 | `python -m sentinelai.dev web [--check-min 5]` | 시험 환경으로 웹 (http://127.0.0.1:8001, `sentinelai_dev` DB, 모델 서버는 `.env` 그대로 — 진짜 웹과 함께 떠도 됨). 로그 감시 · 서버 점검은 `--check-min`분마다 |
+| `python -m sentinelai.dev api-types` | 백엔드의 요청 · 응답 모델(Pydantic)에서 화면 타입 `frontend/src/shared/api/schema.ts` 를 다시 만듦 (Node 없이). **응답 모델을 고치면 같은 커밋에** — 안 돌리면 `tests/test_api_contract.py` 가 실패함 |
 | `python -m sentinelai.dev test [pytest 인자]` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움. 뒤에 붙인 인자는 pytest 에 그대로 (예: `test -k ground -x`) |
 | `python -m sentinelai.dev targets [up\|down]` | **진짜 수집** — podman compose로 점검 대상 컨테이너 2대(`target-weak`: 약한 설정 / `target-strict`: 잠근 설정)를 올리고 내림. 값은 `node/testenv/targets.env`(git 제외: `SERVER` · `KEY_WEAK` · `KEY_STRICT` · `INTERVAL`, 없으면 시험 환경 키로 만듦). SentinelAI를 바깥에 열지 않고(pasta `--map-host-loopback`) ufw가 실제로 켜짐(NET_ADMIN). 사용자 podman 소켓 필요. 10/20 시험: weak 위험 · strict 정상 |
 | `npm ci` · `npm run dev` · `npm test && npm run typecheck && npm run lint` (`frontend/`) | 화면 개발 — npm 의존성(처음 한 번) · 개발 서버 http://localhost:5173 (`/api`는 8001로) · 시험 · 타입 검사 · 린트 |
@@ -912,3 +913,14 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - 관리 권한을 보안 운영자에게 넘긴 뒤(위)라 누가 고쳤는지가 화면에 보이는 것이 감독 수단이기도 함
 - 기준 문서의 지난 원문은 길어서 API가 빼고 줌 (감사 기록에는 그대로). 예시 문서처럼 CLI · setup 으로 넣은 문서는 기록이 없어 "기록 없음"
 - 남은 것: 문서별 등록 상태 · 검색 가능 여부(조각 수) — 문서별 값이 엔진 `DocumentStore` 안에만 있어 엔진 담당자에게 공개 기능을 요청해야 함. 지금은 전체 인덱스 준비 여부만 위 막대 경고로 보임
+
+### API 응답 모양을 명세로 (11/16)
+
+- 이유: 라우트가 모두 `dict` 를 돌려줘 FastAPI 명세(`/openapi.json` · `/docs`)에 응답 모양이 비어 있었고, 화면 타입(`types.ts`)을 손으로 맞췄음. 백엔드가 응답 칸을 바꿔도 타입 검사 · 시험이 못 잡음. 기업에 넘긴 뒤에는 "백엔드를 고치면 화면 타입도 손으로"를 아는 사람이 없음 (사용자 결정 — 넘기기 전에 채움)
+- 방식: 라우트에 응답 모델(`response_model`)을 선언 → `python -m sentinelai.dev api-types` 가 명세의 모델을 `schema.ts` 로 씀 → `types.ts` 는 그 타입을 다시 내보내기만 함. 화면 코드의 import 는 그대로
+- 생성기를 직접 둔 이유: `openapi-typescript` 는 TypeScript 5 의 컴파일러 API 에 기대는데 화면은 TypeScript 7 이라 설치부터 충돌함. FastAPI 가 내는 모양(객체 · 배열 · 열거 · null · 참조)만 다루는 60줄 안팎의 변환을 `dev.py` 에 둠 — 새 의존성 없음, Node 없는 서버에서도 됨
+- 지키는 시험 둘 (`tests/test_api_contract.py`): `schema.ts` 가 지금 코드에서 만든 것과 같은지, 응답 모델의 칸이 DB 가 주는 칸과 같은지. 뒤의 것은 응답 모델에 없는 칸이 응답에서 말없이 빠지기 때문
+- 이번 범위: 웹 · DB 계층이 모양을 정하는 관리 API 다섯 — 계정(`Me` · `UserRow`), 권한 목록(`AccessItem`), 기준 문서(`Regulation`), 변경 이력(`AuditRow`). 요청 모델 20개도 같이 생성됨 (화면은 아직 안 씀)
+- 바로 드러난 어긋남: 손으로 적은 타입은 부서 · 시스템 · 분류 · 로그 사용자 ID 를 `null` 일 수 있다고 봤으나 DB 는 빈 글(`NOT NULL DEFAULT ''`), `UserRow` 에 이메일 칸이 없었음, `Regulation.updated_at` 은 늘 옴. 화면 코드는 `||` 로 받아 문제없었고 시험 데이터만 고침
+- 응답이 달라진 것: 계정 목록의 `is_root` · `is_active` · `must_change_password` 가 1/0 에서 true/false 로 (화면은 참 · 거짓으로만 씀)
+- 남은 것: 나머지 라우트 40개. 판정 결과(`/api/results` · `/api/requests` 의 AI 칸 · `/api/overview` 등)는 모양을 엔진 · 데이터 계층이 정하므로 엔진의 출력 타입을 그대로 쓰는 방식으로 담당자와 맞춘 뒤 (§4 엔진 타입을 대체하는 웹 전용 스키마 금지). 응답이 바뀌는 API부터 하나씩 옮김

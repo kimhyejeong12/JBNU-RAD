@@ -30,12 +30,12 @@ test("철회는 1차 결재를 기다리는 신청만 — 그 뒤에는 결재�
 });
 
 
-const access = (code: string, system: string | null, extra: Partial<AccessItem> = {}): AccessItem =>
-  ({ code, name: `권한 ${code}`, system, category: null, description: null, is_active: true, updated_at: null, created_at: null, ...extra });
+const access = (code: string, system: string, extra: Partial<AccessItem> = {}): AccessItem =>
+  ({ id: 1, code, name: `권한 ${code}`, system, category: "", description: "", is_active: true, created_by: 1, updated_at: "", created_at: "", ...extra });
 const mine = (access_code: string, stage: RequestRow["stage"], period_end: string | null = null): RequestRow =>
   ({ access_code, stage, period_end } as RequestRow);
 
-const catalog = [access("A-1", "A"), access("A-2", "A"), access("B-1", "B"), access("OFF", "B", { is_active: false }), access("X-1", null)];
+const catalog = [access("A-1", "A"), access("A-2", "A"), access("B-1", "B"), access("OFF", "B", { is_active: false }), access("X-1", "")];
 const held = [mine("A-1", "approved"), mine("A-2", "manager"), mine("OLD", "approved", "2000-01-01")];
 
 test("시스템 순으로 늘어놓고(같은 시스템끼리 붙임) 꺼진 권한은 빼며, 시스템이 없으면 기타로 맨 뒤", () => {

@@ -3,7 +3,7 @@ import type { Regulation } from "@/shared/api/types";
 import { chipLabel, clauseText } from "./clause";
 
 const regs: Regulation[] = [
-  { name: "접근권한_관리기준.md", content: "# 제목\n\n## 4. 등급\n\n### 4.1 정상\n본문1\n\n### 4.2 위험\n본문2\n" },
+  { name: "접근권한_관리기준.md", content: "# 제목\n\n## 4. 등급\n\n### 4.1 정상\n본문1\n\n### 4.2 위험\n본문2\n", updated_at: "" },
 ];
 
 test("clauseText: 조항 여러 개를 모두 자른다", () => {

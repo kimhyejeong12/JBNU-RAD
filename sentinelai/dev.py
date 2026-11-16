@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -155,6 +157,67 @@ def targets(action: str) -> int:
     return code
 
 
+API_TYPES = ROOT / "frontend" / "src" / "shared" / "api" / "schema.ts"
+_TS_NAME = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*")
+
+
+def _ts(schema: dict) -> str:
+    """JSON Schema 한 조각 → TypeScript 타입 글 (FastAPI 가 내는 모양만 다룹니다)."""
+    if "$ref" in schema:
+        return re.sub(r"\W", "_", schema["$ref"].rsplit("/", 1)[-1])
+    for key, joiner in (("anyOf", " | "), ("oneOf", " | "), ("allOf", " & ")):
+        if key in schema:
+            return joiner.join(dict.fromkeys(_ts(s) for s in schema[key]))
+    if "enum" in schema:
+        return " | ".join(json.dumps(v, ensure_ascii=False) for v in schema["enum"])
+    if "const" in schema:
+        return json.dumps(schema["const"], ensure_ascii=False)
+    kind = schema.get("type")
+    if kind in ("integer", "number"):
+        return "number"
+    if kind in ("string", "boolean", "null"):
+        return kind
+    if kind == "array":
+        item = _ts(schema.get("items", {}))
+        return f"({item})[]" if " " in item else f"{item}[]"
+    if kind == "object" or "properties" in schema:
+        if "properties" in schema:
+            return "{ " + " ".join(_ts_fields(schema)) + " }"
+        extra = schema.get("additionalProperties")
+        return f"Record<string, {_ts(extra) if isinstance(extra, dict) else 'unknown'}>"
+    return "unknown"
+
+
+def _ts_fields(schema: dict) -> list[str]:
+    required = set(schema.get("required", []))
+    return [f"{name if _TS_NAME.fullmatch(name) else json.dumps(name, ensure_ascii=False)}{'' if name in required else '?'}: {_ts(prop)};"
+            for name, prop in schema["properties"].items()]
+
+
+def api_types_text() -> str:
+    """지금 코드의 API 명세(요청 · 응답 모델)를 화면 타입 파일의 글로 — 이름 순이라 줄 차이로 바뀐 칸이 보입니다."""
+    from .web.main import app
+
+    out = ["// 자동 생성 — 손으로 고치지 않습니다. 백엔드의 요청 · 응답 모델을 고친 뒤 `python -m sentinelai.dev api-types` 로 다시 만듭니다.", ""]
+    for name, schema in sorted(app.openapi()["components"]["schemas"].items()):
+        title = (schema.get("description") or "").strip().splitlines()
+        if title:
+            out.append(f"/** {title[0]} */")
+        name = re.sub(r"\W", "_", name)
+        if "properties" in schema:
+            out += [f"export interface {name} {{", *(f"  {line}" for line in _ts_fields(schema)), "}", ""]
+        else:
+            out += [f"export type {name} = {_ts(schema)};", ""]
+    return "\n".join(out)
+
+
+def api_types() -> int:
+    """응답 모양을 고친 뒤 돌립니다 — 화면 타입 파일을 다시 씁니다 (Node 없이 됩니다)."""
+    API_TYPES.write_text(api_types_text(), encoding="utf-8")
+    print(f"화면 타입 → {API_TYPES}")
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(prog="python -m sentinelai.dev", description=__doc__.split("\n\n")[0])
     sub = p.add_subparsers(dest="command", required=True)
@@ -162,6 +225,7 @@ def main() -> int:
     sub.add_parser("web").add_argument("--check-min", type=int, default=5, help="서버 점검 · 로그 감시 간격 (분)")
     sub.add_parser("test", help="뒤에 붙인 인자는 pytest 에 그대로 넘깁니다 (예: test -k ground -x)")
     sub.add_parser("targets").add_argument("action", nargs="?", choices=["up", "down"], default="up")
+    sub.add_parser("api-types", help="백엔드의 요청 · 응답 모델에서 화면 타입(frontend/src/shared/api/schema.ts)을 다시 만듭니다")
     args, extra = p.parse_known_args()
     if extra and args.command != "test":
         p.error(f"모르는 인자: {' '.join(extra)}")
@@ -176,6 +240,8 @@ def main() -> int:
                                env=dev_env(args.check_min), cwd=ROOT)
     if args.command == "test":
         return subprocess.call([sys.executable, "-m", "pytest", "tests", *extra], env={**os.environ, "SENTINELAI_TEST_DATABASE_URL": TEST_URL}, cwd=ROOT)
+    if args.command == "api-types":
+        return api_types()
     return targets(args.action)
 
 

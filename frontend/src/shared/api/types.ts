@@ -1,17 +1,10 @@
 // 서버는 dict 를 돌려주므로 화면이 쓰는 칸만 적습니다.
 
+// 백엔드가 응답 모델로 선언한 API 의 타입은 손으로 적지 않고 생성된 schema.ts 에서 가져옵니다.
+export type { AccessItem, AuditRow, Me, Regulation, UserRow } from "./schema";
+
 export type Role = "user" | "manager" | "top";
 export type Level = "정상" | "주의" | "위험";
-
-export interface Me {
-  id: number;
-  login_id: string;
-  display_name: string;
-  department: string | null;
-  role: Role;
-  is_root: boolean;
-  must_change_password: boolean;
-}
 
 export interface Health {
   ok: boolean;
@@ -25,13 +18,6 @@ export interface Health {
   index_ready: boolean;
 }
 
-export interface Regulation {
-  name: string;
-  content: string;
-  updated_at?: string;
-}
-
-export interface AuditRow { id: number; at: string; action: string; by: string; detail: Record<string, unknown> }
 export type AuditTarget = "regulation" | "user" | "access";
 
 export type Stage = "manager" | "top" | "approved" | "rejected" | "withdrawn" | "revoked";
@@ -129,34 +115,6 @@ export interface GrantReview {
   move?: UserMove;
   verdict: (Verdict & { by: "code" | "ai" }) | null;   // move 이고 아직 판정 전이면 null
   judging?: boolean;
-}
-
-export interface AccessItem {
-  code: string;
-  name: string;
-  system: string | null;
-  category: string | null;
-  description: string | null;
-  is_active: boolean;
-  updated_at: string | null;
-  created_at: string | null;
-}
-
-export interface UserRow {
-  id: number;
-  login_id: string;
-  display_name: string;
-  department: string | null;
-  role: Role;
-  is_root: boolean;
-  is_active: boolean;
-  must_change_password: boolean;
-  locked_until: string | null;
-  last_login_at: string | null;
-  log_id: string | null;
-  job: string;
-  left_on: string;
-  created_at: string;
 }
 
 export interface PolicyIssue {

@@ -55,7 +55,15 @@ def _audit(request: Request, user: User, action: str, name: str, detail: dict[st
               detail=json.dumps(detail or {}, ensure_ascii=False), ip=request.client.host if request.client else None)
 
 
-@router.get("", dependencies=[Depends(role("manager", "top"))])
+class Regulation(BaseModel):
+    """기준 문서 한 개 — 원문과 고친 시각."""
+
+    name: str
+    content: str
+    updated_at: str
+
+
+@router.get("", dependencies=[Depends(role("manager", "top"))], response_model=list[Regulation])
 def regulations(request: Request) -> list[dict[str, str]]:
     return regs.list_all(request.app.state.main_db)
 
