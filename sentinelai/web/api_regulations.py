@@ -6,6 +6,7 @@ import asyncio
 import json
 import re
 from collections.abc import Callable
+from dataclasses import asdict
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -16,7 +17,9 @@ from sentinelai.db import User, regulations as regs
 from sentinelai.db.core import audit
 
 from .api_permissions import Approver, role
-from .responses import Named, Regulation
+from . import xlsx_text
+from .pdf_text import MAX_BYTES, PdfProblem, extract
+from .responses import ExtractedPdf, ExtractedTables, Named, Regulation
 
 MAX_CHARS = 1_000_000
 # 위협 예측 · 정책 관리 검토가 수 분 걸려 넉넉히 기다립니다.
@@ -64,6 +67,35 @@ def regulations(request: Request) -> list[dict[str, str]]:
 class NewRegulation(BaseModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
     content: Annotated[str, StringConstraints(min_length=1, max_length=MAX_CHARS)]
+    source: Annotated[str | None, StringConstraints(strip_whitespace=True, max_length=200)] = None   # 글을 꺼낸 원본 파일 이름
+
+
+@router.post("/extract", dependencies=[Depends(role("manager"))], responses={200: {"model": ExtractedPdf}})
+async def extract_pdf(request: Request) -> dict[str, Any]:
+    """본문 = PDF 그대로. 저장하지 않고 꺼낸 글만 돌려줘 사람이 보고 고친 뒤 올리게 합니다."""
+    length = request.headers.get("content-length", "")
+    if length.isdigit() and int(length) > MAX_BYTES:
+        raise HTTPException(status_code=413, detail=f"PDF 는 {MAX_BYTES // 1_000_000}MB 까지 읽습니다")
+    data = await request.body()
+    try:
+        got = await run_in_threadpool(extract, data, MAX_CHARS)
+    except PdfProblem as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return {"text": got.text, "pages": got.pages, "empty_pages": got.empty_pages}
+
+
+@router.post("/extract-xlsx", dependencies=[Depends(role("manager"))], responses={200: {"model": ExtractedTables}})
+async def extract_xlsx(request: Request) -> dict[str, Any]:
+    """본문 = 엑셀 그대로. 저장하지 않고 표만 돌려줘 화면이 고른 표를 조항 글로 바꿔 올리게 합니다."""
+    length = request.headers.get("content-length", "")
+    if length.isdigit() and int(length) > xlsx_text.MAX_BYTES:
+        raise HTTPException(status_code=413, detail=f"엑셀은 {xlsx_text.MAX_BYTES // 1_000_000}MB 까지 읽습니다")
+    data = await request.body()
+    try:
+        tables = await run_in_threadpool(xlsx_text.extract, data, MAX_CHARS)
+    except xlsx_text.XlsxProblem as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return {"tables": [asdict(t) for t in tables]}
 
 
 @router.post("", status_code=201, response_model=Regulation)
@@ -87,7 +119,7 @@ async def upload(body: NewRegulation, request: Request, user: Approver) -> dict[
             raise
 
     await _exclusive(request, work, "적재하지 못해 올리지 않았습니다")
-    _audit(request, user, "regulation_upload", body.name, {"chars": len(body.content)})
+    _audit(request, user, "regulation_upload", body.name, {"chars": len(body.content), **({"source": body.source} if body.source else {})})
     return regs.get(db, body.name)
 
 

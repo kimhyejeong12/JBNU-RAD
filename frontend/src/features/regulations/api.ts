@@ -3,19 +3,37 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUi } from "@/app/ui/state/UiContext";
 import { getJSON, send } from "@/shared/api/http";
 import { regulationsQuery } from "@/shared/api/queries";
-import type { Regulation } from "@/shared/api/types";
+import type { ExtractedPdf, ExtractedTables, Regulation } from "@/shared/api/types";
 
 export function useUploadRegulation() {
   const qc = useQueryClient();
   const { selectSilent, setPanelMsg } = useUi();
   return useMutation({
-    mutationFn: async (file: File) => send<Regulation>("/api/regulations", { name: file.name, content: await file.text() }),
+    mutationFn: (body: { name: string; content: string; source?: string }) => send<Regulation>("/api/regulations", body),
     onSuccess: async (made) => {
       setPanelMsg(`✓ ${made.name} 를 올렸습니다`);
       await qc.invalidateQueries({ queryKey: ["regulations"] });
       selectSilent(`doc:${made.name}`);
     },
     onError: (e) => setPanelMsg(e.message),
+  });
+}
+
+// 저장하지 않고 꺼낸 글만 받습니다.
+export function useExtractPdf() {
+  return useMutation({
+    mutationFn: (file: File) =>
+      getJSON<ExtractedPdf>("/api/regulations/extract", { method: "POST", headers: { "Content-Type": "application/pdf" }, body: file }),
+  });
+}
+
+// 저장하지 않고 표만 받습니다.
+export function useExtractXlsx() {
+  return useMutation({
+    mutationFn: (file: File) =>
+      getJSON<ExtractedTables>("/api/regulations/extract-xlsx", {
+        method: "POST", headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }, body: file,
+      }),
   });
 }
 

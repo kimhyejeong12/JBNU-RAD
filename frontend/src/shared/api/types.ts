@@ -3,11 +3,11 @@
 import type * as S from "./schema";
 
 export type {
-  AccessItem, Approval, AuditRow, Briefing, Conversation, Decision, DecisionRecord, DecisionResult, EventFinding, GrantReview, Health,
+  AccessItem, Approval, AuditRow, Briefing, Conversation, Decision, DecisionRecord, DecisionResult, EventFinding, ExtractedPdf, ExtractedTables, GrantReview, Health,
   HeldAccess, Jobs, LogEvent, LogFacts, Me, NodeDetail, NodeFindingBrief, NodeRow, NodeWithKey, Overview, OverviewRow,
   PolicyIssue, Regulation, RequestRow, Results, Revocation, RiskFlag, RiskPeople, RiskPerson, SafetyScore, Section, ServerFinding,
   ServerGap, Snapshot, SnapshotState, StatModule, StatNode, Stats, Suspect, SuspectSignals, Todo, UserMove, UserRow, UserStats,
-  Verdict, WatchFlag, WatchPerson,
+  Verdict, WatchFlag, WatchPerson, XlsxTable,
 } from "./schema";
 
 export type Role = S.Me["role"];

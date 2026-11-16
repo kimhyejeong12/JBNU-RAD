@@ -199,6 +199,17 @@ export interface EventStats {
   days: ThreatDay[];
 }
 
+/** PDF 에서 꺼낸 글 — 저장하지 않고 사람이 보고 고친 뒤 올립니다. */
+export interface ExtractedPdf {
+  text: string;
+  pages: number;
+  empty_pages: number[];
+}
+
+export interface ExtractedTables {
+  tables: XlsxTable[];
+}
+
 /** 빠른 로그 감시의 상태와 예약. */
 export interface FastJobs {
   running: string | null;
@@ -386,6 +397,7 @@ export interface NewNode {
 export interface NewRegulation {
   name: string;
   content: string;
+  source?: string | null;
 }
 
 export interface NewRequest {
@@ -1088,4 +1100,19 @@ export interface WatchPerson {
   level: "정상" | "주의" | "위험";
   at: string;
   flags: WatchFlag[];
+}
+
+export interface XlsxRow {
+  cells: string[];
+  notes: string[];
+}
+
+/** 엑셀의 표 하나 — personal 은 사람 기록(사번 · 이름)이 든 표라 화면이 처음부터 빼 둡니다. */
+export interface XlsxTable {
+  sheet: string;
+  title: string;
+  intro: string[];
+  columns: string[];
+  rows: XlsxRow[];
+  personal: boolean;
 }

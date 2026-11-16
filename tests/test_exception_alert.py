@@ -10,7 +10,7 @@ from sentinelai.web import notify
 def _watcher(main_db, monkeypatch):
     sent = []
     monkeypatch.setattr(notify, "send_slack", lambda url, text: sent.append(text))
-    return notify.ExceptionWatcher("http://hook", main_db), sent
+    return notify.ExceptionWatcher(notify.Chat(slack="http://hook"), main_db), sent
 
 
 def _granted(main_db, people, who, code):
@@ -90,7 +90,7 @@ def test_risky_approval_and_settings(main_db, people, monkeypatch):
 
 
 def test_off_without_url(main_db):
-    watcher = notify.ExceptionWatcher("", main_db)
+    watcher = notify.ExceptionWatcher(notify.Chat(), main_db)
     watcher.start()
     assert watcher._thread is None
     watcher.stop()

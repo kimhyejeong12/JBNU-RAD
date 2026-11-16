@@ -88,6 +88,34 @@ class Regulation(BaseModel):
     updated_at: str
 
 
+class ExtractedPdf(BaseModel):
+    """PDF 에서 꺼낸 글 — 저장하지 않고 사람이 보고 고친 뒤 올립니다."""
+
+    text: str
+    pages: int
+    empty_pages: list[int]
+
+
+class XlsxRow(BaseModel):
+    cells: list[str]
+    notes: list[str]
+
+
+class XlsxTable(BaseModel):
+    """엑셀의 표 하나 — personal 은 사람 기록(사번 · 이름)이 든 표라 화면이 처음부터 빼 둡니다."""
+
+    sheet: str
+    title: str
+    intro: list[str]
+    columns: list[str]
+    rows: list[XlsxRow]
+    personal: bool
+
+
+class ExtractedTables(BaseModel):
+    tables: list[XlsxTable]
+
+
 class AuditRow(BaseModel):
     """변경 이력의 한 줄 — detail 은 기록마다 칸이 다릅니다 (사유 또는 바뀐 칸과 값)."""
 
