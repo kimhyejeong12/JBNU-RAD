@@ -11,11 +11,29 @@ export function docItem(d: Regulation): QueueItem {
   };
 }
 
-// 서버와 같은 조건입니다 (.md · .txt, 1MB, 같은 이름 없음).
+export const isPdf = (name: string): boolean => /\.pdf$/i.test(name);
+
+// PDF 는 글을 꺼내 .txt 로 올립니다.
+export const textName = (name: string): string => name.replace(/\.pdf$/i, ".txt");
+
+// 서버와 같은 조건입니다 (.md, .txt 1MB, .pdf 20MB, 같은 이름 없음).
 export function uploadProblem(file: { name: string; size: number }, existing: string[]): string | null {
-  if (!/\.(md|txt)$/i.test(file.name)) return ".md, .txt 파일만 올릴 수 있습니다";
-  if (file.size > 1_000_000) return "1MB 까지 올릴 수 있습니다";
-  if (existing.includes(file.name)) return "같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요";
+  if (isPdf(file.name)) {
+    if (file.size > 20_000_000) return "PDF 는 20MB 까지 올릴 수 있습니다";
+  } else {
+    if (!/\.(md|txt)$/i.test(file.name)) return ".md, .txt, .pdf 파일만 올릴 수 있습니다";
+    if (file.size > 1_000_000) return "1MB 까지 올릴 수 있습니다";
+  }
+  if (existing.includes(textName(file.name))) return "같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요";
+  return null;
+}
+
+// PDF 에서 꺼낸 글을 올리기 전 확인입니다 (서버의 이름 조건과 같음).
+export function draftProblem(draft: { name: string; content: string }, existing: string[]): string | null {
+  const name = draft.name.trim();
+  if (!/^[^./\\\0][^/\\\0]{0,95}\.(md|txt)$/i.test(name)) return "이름은 .md, .txt 로 끝나야 합니다 (/ 없이 100자까지)";
+  if (existing.includes(name)) return "같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요";
+  if (!draft.content.trim()) return "빈 문서는 올릴 수 없습니다";
   return null;
 }
 

@@ -9,13 +9,27 @@ export function useUploadRegulation() {
   const qc = useQueryClient();
   const { selectSilent, setPanelMsg } = useUi();
   return useMutation({
-    mutationFn: async (file: File) => send<Regulation>("/api/regulations", { name: file.name, content: await file.text() }),
+    mutationFn: (body: { name: string; content: string; source?: string }) => send<Regulation>("/api/regulations", body),
     onSuccess: async (made) => {
       setPanelMsg(`✓ ${made.name} 를 올렸습니다`);
       await qc.invalidateQueries({ queryKey: ["regulations"] });
       selectSilent(`doc:${made.name}`);
     },
     onError: (e) => setPanelMsg(e.message),
+  });
+}
+
+export interface PdfText {
+  text: string;
+  pages: number;
+  empty_pages: number[];
+}
+
+// 저장하지 않고 꺼낸 글만 받습니다.
+export function useExtractPdf() {
+  return useMutation({
+    mutationFn: (file: File) =>
+      getJSON<PdfText>("/api/regulations/extract", { method: "POST", headers: { "Content-Type": "application/pdf" }, body: file }),
   });
 }
 

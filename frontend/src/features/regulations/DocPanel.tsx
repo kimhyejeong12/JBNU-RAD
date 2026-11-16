@@ -9,8 +9,8 @@ import { stamp } from "@/shared/lib/format";
 import { Meta, Section } from "@/shared/ui/base/parts";
 import { actionButton, dangerButton, field, formActions, input, meta, note, panelActions, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { useEditRegulation, useRemoveRegulation, useUploadRegulation } from "./api";
-import { docItem, editProblem, removeProblem, uploadProblem } from "./lib";
+import { useEditRegulation, useExtractPdf, useRemoveRegulation, useUploadRegulation } from "./api";
+import { docItem, draftProblem, editProblem, isPdf, removeProblem, textName, uploadProblem } from "./lib";
 import { ask } from "@/app/ui/confirm/ask";
 
 // 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둡니다.
@@ -21,31 +21,67 @@ export function DocPanel({ d }: { d: Regulation | null }) {
 
 function UploadDoc() {
   const upload = useUploadRegulation();
+  const extract = useExtractPdf();
   const busy = busyJob(useJobs());
   const names = useRegulations().map((r) => r.name);
   const [file, setFile] = useState<File | null>(null);
   const [problem, setProblem] = useState("");
+  // PDF 에서 꺼낸 글은 사람이 보고 고친 뒤 올립니다.
+  const [draft, setDraft] = useState<{ name: string; content: string; pages: number; empty: number[] } | null>(null);
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
+  function onPick(f: File | null) {
+    setFile(f);
+    setDraft(null);
+    extract.reset();
+    const p = f ? uploadProblem(f, names) ?? "" : "";
+    setProblem(p);
+    if (f && !p && isPdf(f.name)) {
+      extract.mutate(f, {
+        onSuccess: (r) => setDraft({ name: textName(f.name), content: r.text, pages: r.pages, empty: r.empty_pages }),
+        onError: (e) => setProblem(e.message),
+      });
+    }
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!file) return setProblem("문서 파일을 고르세요");
+    if (isPdf(file.name)) {
+      if (!draft) return setProblem(extract.isPending ? "글을 꺼내는 중입니다" : "글을 꺼내지 못했습니다. 파일을 다시 고르세요");
+      const p = draftProblem(draft, names);
+      if (p) return setProblem(p);
+      upload.mutate({ name: draft.name.trim(), content: draft.content, source: file.name });
+      return;
+    }
     const p = uploadProblem(file, names);
     if (p) setProblem(p);
-    else upload.mutate(file);   // 올리면 새 문서가 골라져 이 양식은 닫힙니다
+    else upload.mutate({ name: file.name, content: await file.text() });   // 올리면 새 문서가 골라져 이 양식은 닫힙니다
   }
 
   return (
     <>
       <PanelHead title="기준 문서 올리기" />
-      <form className={panelBody} id="doc-upload" noValidate onSubmit={onSubmit}>
-        <label className={field}>문서 파일 (.md, .txt)
-          <input className={input} type="file" accept=".md,.txt" required
-            onChange={(e) => { const f = e.target.files?.[0] ?? null; setFile(f); setProblem(f ? uploadProblem(f, names) ?? "" : ""); }} />
+      <form className={panelBody} id="doc-upload" noValidate onKeyDown={noEnterSubmit} onSubmit={(e) => void onSubmit(e)}>
+        <label className={field}>문서 파일 (.md, .txt, .pdf)
+          <input className={input} type="file" accept=".md,.txt,.pdf" required
+            onChange={(e) => onPick(e.target.files?.[0] ?? null)} />
         </label>
+        {extract.isPending && <p className={note}>글을 꺼내는 중…</p>}
+        {draft && (
+          <div className="mt-3 flex flex-col gap-3">
+            <div className={meta}><Meta items={[`${draft.pages}쪽`, draft.empty.length > 0 && `글자 없는 쪽 ${draft.empty.join(", ")} (스캔본은 못 읽음)`]} /></div>
+            <label className={field}>저장할 이름
+              <input className={input} value={draft.name} maxLength={100} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+            </label>
+            <label className={field}>꺼낸 글
+              <textarea className={cn(input, "resize-y")} rows={18} value={draft.content} onChange={(e) => setDraft({ ...draft, content: e.target.value })} />
+            </label>
+          </div>
+        )}
         {problem && <p className={cn(note, "text-risk")}>{problem}</p>}
         <div className={cn(formActions, "mt-3")}>
           <PanelMsg />
-          <button type="submit" className={cn(actionButton, primaryButton)} disabled={upload.isPending}>{upload.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "올리는 중…") : "올리기"}</button>
+          <button type="submit" className={cn(actionButton, primaryButton)} disabled={upload.isPending || extract.isPending}>{upload.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "올리는 중…") : "올리기"}</button>
         </div>
       </form>
     </>
