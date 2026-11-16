@@ -92,9 +92,9 @@ export function RequestForm() {
         </ul>
         <div className="mt-auto flex flex-col gap-3 pt-6">
           <div className="flex gap-3">
-            <button type="button" className="flex-1 rounded-lg border border-line bg-surface py-2.5 font-medium text-ink-soft hover:bg-row-hover"
+            <button type="button" className="flex-1 rounded-lg border border-line bg-surface py-2.5 text-base font-medium text-ink-soft hover:bg-row-hover"
               onClick={() => { setForm(EMPTY); setMsg({ text: "", ok: false }); }}>초기화</button>
-            <button type="submit" className="flex-[2] rounded-lg border-none bg-brand py-2.5 font-bold text-white hover:bg-brand-hover disabled:cursor-progress disabled:opacity-60"
+            <button type="submit" className="flex-[2] rounded-lg border-none bg-brand py-2.5 text-base font-bold text-white hover:bg-brand-hover disabled:cursor-progress disabled:opacity-60"
               disabled={create.isPending}>{create.isPending ? "신청하는 중…" : "결재 신청"}</button>
           </div>
           {msg.text && <p className={cn(msg.ok ? formMsgOk : formMsg, "m-0")} id="req-form-msg" role="status">{msg.text}</p>}
@@ -112,7 +112,7 @@ function AccessSelect({ o, onPick }: { o: AccessOptions; onPick: (code: string) 
   const picked = o.items.find((a) => a.code === o.value);
   return (
     <>
-      <select id="req-access" name="access_code" className={cn(FIELD, "p-2.5", !o.value && "text-ink-dim")} value={o.value} onChange={(e) => onPick(e.target.value)}>
+      <select id="req-access" name="access_code" className={cn(FIELD, "h-11 p-2.5", !o.value && "text-ink-dim")} value={o.value} onChange={(e) => onPick(e.target.value)}>
         <option value="" disabled>신청할 권한을 고르세요</option>
         {systems.map((system) => (
           <optgroup key={system} label={system}>

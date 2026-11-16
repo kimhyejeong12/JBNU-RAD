@@ -61,7 +61,7 @@ export function Tile({ label, big, tone, extra, onClick, pressed, dot, accent, c
       <span className="mb-1 flex items-center gap-1.5 text-sm font-medium text-ink-dim">
         {dot && <i className="inline-block size-2 flex-none rounded-full" style={{ background: dot }} aria-hidden="true" />}{label}
       </span>
-      <span className={cn("text-2xl leading-tight font-bold tabular-nums", tone)}>{big}</span>
+      <span className={cn("text-2xl font-bold tabular-nums", tone)}>{big}</span>
       {extra}
       {children != null && <span className="mt-0.5 text-xs text-ink-dim">{children}</span>}
     </>

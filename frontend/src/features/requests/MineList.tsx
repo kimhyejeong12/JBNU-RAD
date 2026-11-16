@@ -59,9 +59,9 @@ export function MineList() {
     <div className="flex h-full min-w-0 flex-col gap-6">
       <div className="grid grid-cols-4 gap-4 phone:grid-cols-2" id="mine-tiles" role="group" aria-label="내 신청">
         {TILES.map(([k, label]) => (
-          <Tile key={k} label={label} big={counts[k]} pressed={group === k} dot={COLOR[k].dot} accent={COLOR[k].accent} onClick={() => { setPicked(k); setPage(1); }}>
-            {k === "done" ? endedBreakdown(mine, on) || null : null}
-          </Tile>
+          // 내역은 숫자 옆에 작게 — 아래 줄에 두면 이 타일만 높아져 네 타일 높이가 어긋납니다.
+          <Tile key={k} label={label} pressed={group === k} dot={COLOR[k].dot} accent={COLOR[k].accent} onClick={() => { setPicked(k); setPage(1); }}
+            big={<>{counts[k]}{k === "done" && counts.done > 0 && <span className="ml-2 text-sm font-normal text-ink-dim">{endedBreakdown(mine, on)}</span>}</>} />
         ))}
       </div>
       <section className={cn(card, "flex flex-1 flex-col overflow-hidden")}>
@@ -79,7 +79,7 @@ export function MineList() {
           <table className="w-full min-w-[720px] border-collapse text-left">
             <thead>
               <tr className="border-b border-line bg-canvas text-sm text-ink-dim">
-                <th className={cn(TH, "w-48")}>요청번호</th><th className={TH}>신청 권한</th><th className={cn(TH, "w-56")}>신청일, 기간</th><th className={cn(TH, "w-36 text-center")}>상태</th>
+                <th className={cn(TH, "w-48")}>요청번호</th><th className={TH}>신청 권한</th><th className={cn(TH, "w-56")}>신청일, 기간</th><th className={cn(TH, "w-48 text-center")}>상태</th>
               </tr>
             </thead>
             <tbody className="text-sm">
@@ -111,21 +111,21 @@ function MineRow({ r, on, open, onNote }: { r: RequestRow; on: string; open: boo
       <tr className={cn("border-b border-line hover:bg-row-hover", open && "border-b-0")}>
         <td className={cn(TD, "text-xs text-ink-dim tabular-nums")}>{r.request_no}</td>
         <td className={TD}>
-          <span className={cn("block font-medium", group === "done" && "text-ink-soft")}>{r.requested_access}{r.access_code ? ` (${r.access_code})` : ""}</span>
-          {r.reason && <span className="mt-0.5 block max-w-120 truncate text-xs text-ink-dim" data-tip={r.reason}>{r.reason}</span>}
+          {/* 사유는 마우스를 올리면 — 아래 줄에 두면 줄마다 높아집니다. */}
+          <span className={cn("block font-medium", group === "done" && "text-ink-soft")} data-tip={r.reason ? `신청 사유|${r.reason}` : undefined}>
+            {r.requested_access}{r.access_code ? ` (${r.access_code})` : ""}
+          </span>
         </td>
         <td className={cn(TD, "text-ink-dim tabular-nums")}>
           <span className="block">{stamp(r.submitted_at)}</span>
           <span className="mt-0.5 block text-xs">기간: {periodText(r)}</span>
         </td>
         <td className={cn(TD, "text-center")}>
-          <Pill tone={statusTone(r, group)} className="px-3 py-1.5 text-xs">{mineStatus(r, on)}</Pill>
-          {(canWithdraw(r) || note) && (
-            <span className="mt-1.5 flex justify-center gap-2.5">
-              <WithdrawButton r={r} />
-              {note && <button type="button" className={linkButton} aria-expanded={open} onClick={onNote}>{open ? "사유 접기" : "반려 사유"}</button>}
-            </span>
-          )}
+          <span className="inline-flex items-center gap-2.5">
+            <Pill tone={statusTone(r, group)} className="px-3 py-1.5 text-xs">{mineStatus(r, on)}</Pill>
+            <WithdrawButton r={r} />
+            {note && <button type="button" className={cn(linkButton, "self-center")} aria-expanded={open} onClick={onNote}>{open ? "접기" : "사유"}</button>}
+          </span>
         </td>
       </tr>
       {note && open && (
