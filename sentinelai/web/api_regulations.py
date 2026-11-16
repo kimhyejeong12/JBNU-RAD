@@ -6,6 +6,7 @@ import asyncio
 import json
 import re
 from collections.abc import Callable
+from dataclasses import asdict
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -16,6 +17,7 @@ from sentinelai.db import User, regulations as regs
 from sentinelai.db.core import audit
 
 from .api_permissions import role
+from . import xlsx_text
 from .pdf_text import MAX_BYTES, PdfProblem, extract
 
 MAX_CHARS = 1_000_000
@@ -80,6 +82,20 @@ async def extract_pdf(request: Request) -> dict[str, Any]:
     except PdfProblem as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return {"text": got.text, "pages": got.pages, "empty_pages": got.empty_pages}
+
+
+@router.post("/extract-xlsx", dependencies=[Depends(role("top"))])
+async def extract_xlsx(request: Request) -> dict[str, Any]:
+    """본문 = 엑셀 그대로. 저장하지 않고 표만 돌려줘 화면이 고른 표를 조항 글로 바꿔 올리게 합니다."""
+    length = request.headers.get("content-length", "")
+    if length.isdigit() and int(length) > xlsx_text.MAX_BYTES:
+        raise HTTPException(status_code=413, detail=f"엑셀은 {xlsx_text.MAX_BYTES // 1_000_000}MB 까지 읽습니다")
+    data = await request.body()
+    try:
+        tables = await run_in_threadpool(xlsx_text.extract, data, MAX_CHARS)
+    except xlsx_text.XlsxProblem as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return {"tables": [asdict(t) for t in tables]}
 
 
 @router.post("", status_code=201)
