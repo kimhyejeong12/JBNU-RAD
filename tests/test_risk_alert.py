@@ -19,7 +19,7 @@ def test_risk_watcher(results_db, monkeypatch):
     monkeypatch.setattr(notify, "send_slack", lambda url, text: sent.append(text))
     _run(results_db, "final", _f("old", "2026-11-01T09:00:00+00:00", "2026-11-01T09:10:00+00:00"))
 
-    watcher = notify.RiskWatcher("http://hook", results_db)
+    watcher = notify.RiskWatcher(notify.Chat(slack="http://hook"), results_db)
     assert watcher.check() == []  # 웹이 뜨기 전 판정은 알리지 않음
 
     _run(results_db, "fast", _f("kim", "2026-11-02T10:00:00+00:00", "2026-11-02T10:05:00+00:00"),
@@ -39,7 +39,7 @@ def test_risk_watcher(results_db, monkeypatch):
 
 
 def test_risk_watcher_off_without_url(results_db):
-    watcher = notify.RiskWatcher("", results_db)
+    watcher = notify.RiskWatcher(notify.Chat(), results_db)
     watcher.start()
     assert watcher._thread is None
     watcher.stop()

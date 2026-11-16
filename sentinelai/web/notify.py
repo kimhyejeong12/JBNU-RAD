@@ -1,4 +1,4 @@
-"""알림 — 결재할 신청 · 로그 감시 위험 · 예외 상황은 운영자 Slack 으로, 결재 결과는 신청자 메일로 보냅니다 (설정이 비면 끔)."""
+"""알림 — 결재할 신청 · 로그 감시 위험 · 예외 상황은 운영자 Slack · Teams 채널로, 결재 결과는 신청자 메일로 보냅니다 (설정이 비면 끔)."""
 from __future__ import annotations
 
 import json
@@ -15,15 +15,24 @@ from sentinelai.engine.settings import BOOT_ENV, Settings
 
 log = logging.getLogger(__name__)
 
-KEY = "SENTINELAI_SLACK_WEBHOOK_URL"
-
-
 def _env(key: str) -> str:
     return (BOOT_ENV.get(key) or Settings._from_file().get(key, "")).strip()
 
 
-def slack_url() -> str:
-    return _env(KEY)
+@dataclass(frozen=True)
+class Chat:
+    """운영자 채널 — 웹훅 주소가 빈 쪽은 보내지 않습니다."""
+
+    slack: str = ""
+    teams: str = ""
+
+    @property
+    def on(self) -> bool:
+        return bool(self.slack or self.teams)
+
+
+def chat_settings() -> Chat:
+    return Chat(slack=_env("SENTINELAI_SLACK_WEBHOOK_URL"), teams=_env("SENTINELAI_TEAMS_WEBHOOK_URL"))
 
 
 #: 결재 단계 → 알림 머리말 · 결재함.
@@ -40,23 +49,46 @@ def waiting_message(req: dict) -> str | None:
             f"SentinelAI 권한 신청 {inbox}에서 확인하세요")
 
 
-def notify_waiting(url: str, req: dict) -> None:
+def notify_waiting(chat: Chat, req: dict) -> None:
     text = waiting_message(req)
     if text:
-        send_slack(url, text)
+        send_chat(chat, text)
 
 
-def send_slack(url: str, text: str) -> None:
-    """실패해도 신청은 이미 저장됐으므로 로그만 남깁니다."""
-    if not url:
-        return
-    body = json.dumps({"text": text}).encode("utf-8")
+def send_chat(chat: Chat, text: str) -> None:
+    """같은 글을 켜 둔 채널마다 보냅니다."""
+    if chat.slack:
+        send_slack(chat.slack, text)
+    if chat.teams:
+        send_teams(chat.teams, text)
+
+
+def _post(url: str, payload: dict, name: str) -> None:
+    """실패해도 신청 · 결재 · 판정은 이미 저장됐으므로 로그만 남깁니다."""
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             resp.read()
     except Exception as exc:  # noqa: BLE001
-        log.warning("Slack 알림을 보내지 못했습니다: %s", exc)
+        log.warning("%s 알림을 보내지 못했습니다: %s", name, exc)
+
+
+def send_slack(url: str, text: str) -> None:
+    _post(url, {"text": text}, "Slack")
+
+
+def teams_card(text: str) -> dict:
+    """Teams 워크플로 웹훅 · 예전 수신 웹훅이 함께 받는 적응형 카드입니다. 줄마다 글 상자 하나라 줄 바꿈이 그대로 남습니다."""
+    lines = text.split("\n")
+    body = [{"type": "TextBlock", "text": line, "wrap": True, "spacing": "None", **({"weight": "Bolder"} if i == 0 else {})}
+            for i, line in enumerate(lines)]
+    card = {"$schema": "http://adaptivecards.io/schemas/adaptive-card.json", "type": "AdaptiveCard", "version": "1.4", "body": body}
+    return {"type": "message", "attachments": [{"contentType": "application/vnd.microsoft.card.adaptive", "content": card}]}
+
+
+def send_teams(url: str, text: str) -> None:
+    _post(url, teams_card(text), "Teams")
 
 
 # --- 메일 (결재 결과 → 신청자) -------------------------------------------------
@@ -157,12 +189,12 @@ def _same(a: dict, b: dict) -> bool:
 
 
 class Poller:
-    """check() 를 주기마다 돌리는 스레드입니다. Slack 주소가 없으면 띄우지 않습니다."""
+    """check() 를 주기마다 돌리는 스레드입니다. 채널이 하나도 없으면 띄우지 않습니다."""
 
     name = "poller"
 
-    def __init__(self, url: str, every: float = RISK_POLL_SEC) -> None:
-        self.url, self.every = url, every
+    def __init__(self, chat: Chat, every: float = RISK_POLL_SEC) -> None:
+        self.chat, self.every = chat, every
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -177,7 +209,7 @@ class Poller:
                 log.warning("%s 알림을 확인하지 못했습니다: %s", self.name, exc)
 
     def start(self) -> None:
-        if self.url:
+        if self.chat.on:
             self._thread = threading.Thread(target=self._run, name=self.name, daemon=True)
             self._thread.start()
 
@@ -192,8 +224,8 @@ class RiskWatcher(Poller):
 
     name = "로그 감시 위험"
 
-    def __init__(self, url: str, db: Database, every: float = RISK_POLL_SEC) -> None:
-        super().__init__(url, every)
+    def __init__(self, chat: Chat, db: Database, every: float = RISK_POLL_SEC) -> None:
+        super().__init__(chat, every)
         self.db = db
         # 웹이 뜨기 전 판정은 알리지 않습니다 (다시 띄울 때마다 예전 위험이 다시 가지 않게).
         self.after = results.last_finding_id(db)
@@ -210,7 +242,7 @@ class RiskWatcher(Poller):
         self.alerted = (self.alerted + fast)[-500:]
         texts = [risk_message(stage, len(group)) for stage, group in (("fast", fast), ("final", final)) if group]
         for text in texts:
-            send_slack(self.url, text)
+            send_chat(self.chat, text)
         return texts
 
 
@@ -257,8 +289,8 @@ class ExceptionWatcher(Poller):
 
     name = "예외 상황"
 
-    def __init__(self, url: str, db: Database, every: float = RISK_POLL_SEC) -> None:
-        super().__init__(url, every)
+    def __init__(self, chat: Chat, db: Database, every: float = RISK_POLL_SEC) -> None:
+        super().__init__(chat, every)
         self.db = db
         self.audit_after, self.grant_after = watch.cursor(db)
         self.accounts = watch.accounts(db)
@@ -296,5 +328,5 @@ class ExceptionWatcher(Poller):
             ("보안 설정 변경", setting_lines, ""),
         ) if lines]
         for text in texts:
-            send_slack(self.url, text)
+            send_chat(self.chat, text)
         return texts

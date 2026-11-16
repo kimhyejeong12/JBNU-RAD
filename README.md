@@ -25,6 +25,7 @@ docker compose up -d --build --wait
 2. 다른 컴퓨터에서 접속하려면 `.env`에 `SENTINELAI_WEB_BIND=0.0.0.0` <br />
 3. 알림은 비워 두면 꺼짐 <br />
    - `SENTINELAI_SLACK_WEBHOOK_URL` — 결재 대기 · 로그 감시 위험 · 예외 상황(계정 역할 변경 · 보유 권한 위험 · AI 위험 판정 승인 · 보안 설정 변경)을 운영자 Slack 채널로 (사람 이름 · 로그인 아이디는 안 넣음) <br />
+   - `SENTINELAI_TEAMS_WEBHOOK_URL` — 위와 같은 알림을 Teams 채널로 (채널의 워크플로 "웹후크 요청이 수신되면 채널에 게시"에서 받은 주소). Slack 과 함께 켜면 두 곳에 같은 글 <br />
    - `SENTINELAI_SMTP_*` — 결재 결과(승인 · 반려) · 회수를 신청자 메일로. 계정 관리에서 신청자의 이메일을 적어야 감 <br />
    - **메일에는 반려 의견 · 회수 사유가 들어감.** Gmail 같은 회사 밖 메일 서버를 쓰면 이 내용이 밖으로 나가므로, 실제 운영에서는 사내 SMTP를 쓸 것 (시연은 팀 Gmail) <br />
 
