@@ -1,7 +1,7 @@
 """권한 DB API — 세션 토큰은 화면 스크립트가 볼 수 없게 HttpOnly 쿠키로만 주고받습니다."""
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, StringConstraints
@@ -9,6 +9,7 @@ from pydantic import BaseModel, StringConstraints
 from sentinelai.db import Denied, User, auth, catalog, decisions, permissions
 
 from . import notify
+from .responses import AccessItem, DecisionResult, Me, Ok, Rejudging, RequestRow, UserRow, WatchPerson
 
 COOKIE = "sentinelai_session"
 
@@ -16,108 +17,6 @@ router = APIRouter(prefix="/api")
 
 Text = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
-Role = Literal["user", "manager", "top"]
-Level = Literal["정상", "주의", "위험"]
-
-
-# --- 응답 모양 — 여기 적은 칸이 API 명세(/openapi.json)에 나오고, 화면 타입(frontend/src/shared/api/schema.ts)은 거기서 만듭니다.
-# 적지 않은 칸은 응답에서 빠지므로 DB 가 주는 칸과 같게 둡니다 (tests/test_api_contract.py 가 봅니다).
-
-
-class Ok(BaseModel):
-    """돌려줄 내용 없이 끝난 일."""
-
-    ok: bool
-
-
-class Me(BaseModel):
-    """로그인한 사람 · 계정을 만들거나 고친 결과."""
-
-    id: int
-    login_id: str
-    display_name: str
-    department: str
-    role: Role
-    is_root: bool
-    must_change_password: bool
-
-
-class UserRow(Me):
-    """계정 목록의 한 줄."""
-
-    is_active: bool
-    locked_until: str | None
-    last_login_at: str | None
-    created_at: str
-    log_id: str
-    job: str
-    left_on: str
-    email: str
-
-
-class WatchFlag(BaseModel):
-    """확인할 사람에게 걸린 일 하나 — 퇴사 · 이동 · 보유 권한 · 결재 중 신청."""
-
-    kind: Literal["leave", "move", "grant", "request"]
-    level: Level
-    at: str
-    text: str
-    request_no: str | None = None
-
-
-class WatchPerson(BaseModel):
-    """확인할 사람 한 명 — level · at 은 걸린 일 중 가장 높은 등급 · 가장 늦은 날."""
-
-    id: int
-    login_id: str
-    name: str
-    department: str
-    job: str
-    is_active: bool
-    left_on: str
-    level: Level
-    at: str
-    flags: list[WatchFlag]
-
-
-class DecisionRecord(BaseModel):
-    """운영자 결정 한 건 (권한 DB 의 결정 기록 한 줄)."""
-
-    id: int
-    kind: Literal["policy", "event", "server", "suspect"]
-    item_key: str
-    subject: str
-    action: str
-    comment: str
-    ai_level: Level | None
-    decider_id: int
-    decider_name: str
-    decider_department: str
-    decided_at: str
-
-
-class DecisionResult(BaseModel):
-    """결정을 적은 결과 — decision 은 지금 결정이고 취소면 null."""
-
-    kind: str
-    item_key: str
-    decision: DecisionRecord | None
-
-
-class AccessItem(BaseModel):
-    """권한 목록의 한 건."""
-
-    id: int
-    code: str
-    name: str
-    system: str
-    category: str
-    description: str
-    is_active: bool
-    created_by: int
-    created_at: str
-    updated_at: str
-
 
 def _denied(exc: Denied) -> HTTPException:
     return HTTPException(status_code=400, detail=str(exc))
@@ -332,7 +231,7 @@ class NewRequest(BaseModel):
     period_end: Annotated[str, StringConstraints(pattern=r"^(\d{4}-\d{2}-\d{2})?$")] = ""
 
 
-@router.post("/requests", status_code=201)
+@router.post("/requests", status_code=201, responses={201: {"model": RequestRow}})
 def submit(body: NewRequest, request: Request, background: BackgroundTasks,
            user: Annotated[User, Depends(role("user"))]) -> dict[str, Any]:
     # 업무상 필요한지는 결재자가 사유를 보고 판단하므로 비면 받지 않습니다.
@@ -347,7 +246,7 @@ def submit(body: NewRequest, request: Request, background: BackgroundTasks,
     return _with_verdict(request, req, user)
 
 
-@router.get("/requests")
+@router.get("/requests", responses={200: {"model": list[RequestRow]}})
 def list_requests(request: Request, user: Anyone, stage: str | None = None, mine: bool = False) -> list[dict]:
     try:
         rows = permissions.list_requests(request.app.state.main_db, user, stage, mine)
@@ -356,7 +255,7 @@ def list_requests(request: Request, user: Anyone, stage: str | None = None, mine
     return [_with_verdict(request, r, user) for r in rows]
 
 
-@router.post("/requests/{request_no}/withdraw")
+@router.post("/requests/{request_no}/withdraw", responses={200: {"model": RequestRow}})
 def withdraw(request_no: str, request: Request, user: Anyone) -> dict[str, Any]:
     try:
         return _with_verdict(request, permissions.withdraw(request.app.state.main_db, user, request_no), user)
@@ -369,7 +268,7 @@ class DecisionBody(BaseModel):
     comment: Text = ""
 
 
-@router.post("/requests/{request_no}/decision")
+@router.post("/requests/{request_no}/decision", responses={200: {"model": RequestRow}})
 def decide(request_no: str, body: DecisionBody, request: Request, background: BackgroundTasks, user: Approver) -> dict[str, Any]:
     try:
         req = permissions.decide(request.app.state.main_db, user, request_no, body.action, body.comment)
@@ -384,7 +283,7 @@ class RevokeBody(BaseModel):
     reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
 
 
-@router.post("/requests/{request_no}/revoke")
+@router.post("/requests/{request_no}/revoke", responses={200: {"model": RequestRow}})
 def revoke(request_no: str, body: RevokeBody, request: Request, background: BackgroundTasks, user: Approver) -> dict[str, Any]:
     try:
         req = permissions.revoke(request.app.state.main_db, user, request_no, body.reason)
@@ -394,7 +293,7 @@ def revoke(request_no: str, body: RevokeBody, request: Request, background: Back
     return _with_verdict(request, req, user)
 
 
-@router.post("/requests/{request_no}/rejudge", status_code=202)
+@router.post("/requests/{request_no}/rejudge", status_code=202, responses={202: {"model": Rejudging}})
 def rejudge(request_no: str, request: Request, user: Approver) -> dict[str, Any]:
     try:
         permissions.get(request.app.state.main_db, user, request_no)

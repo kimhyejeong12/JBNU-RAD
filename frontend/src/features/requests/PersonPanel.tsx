@@ -10,7 +10,7 @@ import { box, levelText, meta, panelBody, recLine, subject, toolButton } from "@
 
 type PersonItem = Extract<QueueItem, { type: "person" }>;
 
-const KIND: Record<WatchFlag["kind"], string> = { leave: "퇴사", move: "이동", grant: "보유 권한", request: "결재 중 신청", expired: "만료 권한", event: "로그 감시" };
+const KIND: Record<WatchFlag["kind"], string> = { leave: "퇴사", move: "이동", grant: "보유 권한", request: "결재 중 신청" };
 
 export function PersonPanel({ it }: { it: PersonItem }) {
   const { setStageFilter, select } = useUi();

@@ -3,7 +3,7 @@ import type { Health, Jobs } from "@/shared/api/types";
 import { engineProblems, footerWarnings } from "./warnings";
 import { EMPTY_RESULTS } from "@/shared/api/queries";
 
-const ok: Health = { ok: true, connected: true, model: "qwen3:14b", model_ready: true, qa_model: "qwen3:14b", qa_model_ready: true, embedding_model: "e", embedding_ready: true, index_ready: true };
+const ok: Health = { base_url: "http://ollama:11434", error: null, ok: true, connected: true, model: "qwen3:14b", model_ready: true, qa_model: "qwen3:14b", qa_model_ready: true, embedding_model: "e", embedding_ready: true, index_ready: true };
 
 test("엔진 상태를 못 받으면 한 줄", () => {
   expect(engineProblems(null)).toEqual(["서버에서 엔진 상태를 받지 못했습니다"]);
@@ -25,10 +25,12 @@ test("문제가 없으면 경고가 없다", () => {
 test("판정 실패 · 읽기 문제 · 작업 실패를 차례로", () => {
   const results = {
     ...EMPTY_RESULTS,
-    summary: { failed: 2 },
-    sections: { policies: { source: "data/policies", generated_at: null, load_issues: ["x", "y"] }, events: null },
+    summary: { ...EMPTY_RESULTS.summary, failed: 2 },
+    sections: { policies: { source: "data/policies", generated_at: "2026-10-29T03:00:00+09:00", load_issues: ["x", "y"] }, events: null },
   };
-  const jobs = { running: null, kinds: { nodes: "서버 점검" }, last: { nodes: { error: "e" }, policies: { error: null } } } as Jobs;
+  const last = (error: string | null) => ({ finished_at: "2026-10-29T03:00:00+09:00", error, auto: true });
+  const jobs: Jobs = { running: null, auto: false, done: 0, total: 0, started_at: null, queued: false, waiting: [],
+    kinds: { nodes: "서버 점검" }, last: { nodes: last("e"), policies: last(null) } };
   expect(footerWarnings(results, jobs)).toEqual([
     "판정 실패 2건 — 해당 건은 '주의'로 기록되었습니다. 수동 검토가 필요합니다",
     "data/policies 읽기 문제 2건 — x",

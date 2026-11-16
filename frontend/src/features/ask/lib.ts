@@ -18,18 +18,20 @@ const CRITERIA_LABEL: Record<string, string> = {
 const KIND_LABEL: Record<string, string> = { events: "로그 감시", policies: "정책 관리 검토", suspects: "위협 예측" };
 
 // 근거는 도구가 조건으로 찾은 것이라 조건을 함께 보여줍니다.
-export function criteriaText(c: Record<string, string> | null | undefined, none = "조건 없음 (전체)"): string {
-  const parts = Object.entries(c || {}).map(([k, v]) =>
-    `${CRITERIA_LABEL[k] || k} ${k === "since" || k === "until" ? stamp(v) : k === "kind" ? KIND_LABEL[v] ?? v : v}`);
+export function criteriaText(c: Record<string, unknown> | null | undefined, none = "조건 없음 (전체)"): string {
+  const parts = Object.entries(c || {}).map(([k, value]) => {
+    const v = String(value);
+    return `${CRITERIA_LABEL[k] || k} ${k === "since" || k === "until" ? stamp(v) : k === "kind" ? KIND_LABEL[v] ?? v : v}`;
+  });
   return parts.length ? parts.join(", ") : none;
 }
 
-export const toolLabel = (s: AskStep): string => TOOLS[s.tool]?.label ?? s.tool;
-export const toolIcon = (s: AskStep): string => TOOLS[s.tool]?.icon ?? "file";
+export const toolLabel = (s: AskStep): string => TOOLS[s.tool ?? ""]?.label ?? s.tool ?? "";
+export const toolIcon = (s: AskStep): string => TOOLS[s.tool ?? ""]?.icon ?? "file";
 
 // 칩 한 줄 — "로그 48건 (사용자 재무 정다은, 행위 출력)"
 export function stepText(s: AskStep): string {
   if (s.error) return "실패";
   const c = criteriaText(s.criteria, "");
-  return c ? `${s.summary} (${c})` : s.summary;
+  return c ? `${s.summary} (${c})` : s.summary ?? "";
 }

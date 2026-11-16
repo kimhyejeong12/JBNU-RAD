@@ -76,7 +76,7 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
   const g = p.signals || {};
   const r = p.records || {};
   const found = p.log_id ? d.events.users.find((u) => u.log_id === p.log_id) : undefined;
-  const tone = p.failed ? null : SUSPECT_COLOR[p.level];
+  const tone = p.failed || !p.level ? null : SUSPECT_COLOR[p.level];
   const itemKey = `suspect/${p.key}`;
   const decision = results.decisions?.suspect?.[itemKey];
   return (

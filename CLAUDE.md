@@ -109,6 +109,7 @@ JBNU-RAD/
 │       ├── api_nodes.py          수집 노드 API — 수집 받기(키만) · 등록 · 키 발급 · 목록 · 끄기 (/api/nodes)
 │       ├── api_regulations.py    기준 문서 API — 보기 · 올리기 · 고치기 · 지우기(보안 운영자 이상, 감사 기록). 엔진의 공개 기능(index)만 씀 (/api/regulations)
 │       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 줌
+│       ├── responses.py          API 가 돌려주는 모양 — 명세(/openapi.json)와 화면 타입(schema.ts)의 출처. 판정 결과는 엔진 출력 타입을 물려받음 (11/16, §9)
 │       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
 │       ├── notify.py             결재 대기 → Slack 채널 (새 신청 = 1차 결재 대기, 1차 승인 = 최종 결재 대기). `SENTINELAI_SLACK_WEBHOOK_URL`, 비우면 끔. 신청 번호 · 부서 · 권한만, 결과(승인 · 반려)는 채널에 안 보냄. 결재 결과(1차 반려 · 최종 승인 · 최종 반려) · 회수(11/09) → 신청자 계정 이메일(`users.email`), SMTP `SENTINELAI_SMTP_*`, 비우면 끔, 신청 번호 · 권한 · 결과 · 반려 의견 · 회수 사유 (11/04, 사유는 11/09). 로그 감시 위험 → 같은 Slack 채널 (`RiskWatcher` — 결과 DB를 30초마다 봄, 1차 판정 + 확정 중 1차 때 안 알린 것, 단계 · 건수만) (11/08). 예외 상황 → 같은 Slack 채널 (`ExceptionWatcher` — 권한 DB를 30초마다 봄: 계정 역할 변경 · 정지 · 다시 켬 · 보안 운영자 이상 계정 만듦, 이동 뒤 보유 권한 재검토 위험 · 퇴사일이 지난 계정에 남은 권한, AI 위험인데 최종 승인, 기준 문서 · 권한 목록 · 수집 노드 키 · 켜기/끄기 · 작업 강제 중지 · 큐 초기화. 이름 · 로그인 아이디는 안 넣음) (11/13)
 │       └── static/               화면 빌드 결과 — frontend/ 에서 `npm run build` 로 만들어 커밋. 서버는 그대로 서빙
@@ -916,13 +917,26 @@ ExecStartPre=+/usr/bin/nvidia-smi
 
 ### API 응답 모양을 명세로 (11/16)
 
-- 이유: 라우트가 모두 `dict` 를 돌려줘 FastAPI 명세(`/openapi.json` · `/docs`)에 응답 모양이 비어 있었고, 화면 타입(`types.ts`)을 손으로 맞췄음. 백엔드가 응답 칸을 바꿔도 타입 검사 · 시험이 못 잡음. 기업에 넘긴 뒤에는 "백엔드를 고치면 화면 타입도 손으로"를 아는 사람이 없음 (사용자 결정 — 넘기기 전에 채움)
-- 방식: 라우트에 응답 모델(`response_model`)을 선언 → `python -m sentinelai.dev api-types` 가 명세의 모델을 `schema.ts` 로 씀 → `types.ts` 는 그 타입을 다시 내보내기만 함. 화면 코드의 import 는 그대로
-- 생성기를 직접 둔 이유: `openapi-typescript` 는 TypeScript 5 의 컴파일러 API 에 기대는데 화면은 TypeScript 7 이라 설치부터 충돌함. FastAPI 가 내는 모양(객체 · 배열 · 열거 · null · 참조)만 다루는 60줄 안팎의 변환을 `dev.py` 에 둠 — 새 의존성 없음, Node 없는 서버에서도 됨
-- 지키는 시험 둘 (`tests/test_api_contract.py`): `schema.ts` 가 지금 코드에서 만든 것과 같은지, 응답 모델의 칸이 DB 가 주는 칸과 같은지. 뒤의 것은 응답 모델에 없는 칸이 응답에서 말없이 빠지기 때문
-- 범위: 웹 · DB 계층이 모양을 정하는 API — 계정(`Me` · `UserRow`), 권한 목록(`AccessItem`), 기준 문서(`Regulation` · 지우기 `Named`), 변경 이력(`AuditRow`), 확인할 사람(`WatchPerson` · `WatchFlag`), 수집 노드 등록 · 목록 · 켜기/끄기 · 키 발급(`Node` · `NodeRow` · `NodeWithKey`), 운영자 결정 적기(`DecisionResult` · `DecisionRecord`), 로그아웃 · 비밀번호 초기화(`Ok`). 라우트 45개 중 22개. 요청 모델 20개도 같이 생성됨 (화면은 아직 안 씀)
-- 권한 변동(`/api/risk-people`)은 엔진이 확인할 사람에 만료 · 로그 판정 flag 와 로그 사용자를 더해 주므로, 화면의 `WatchPerson` · `WatchFlag` 는 생성된 타입을 넓힌 것 (`types.ts`)
-- 바로 드러난 어긋남: 손으로 적은 타입은 부서 · 시스템 · 분류 · 로그 사용자 ID 를 `null` 일 수 있다고 봤으나 DB 는 빈 글(`NOT NULL DEFAULT ''`), `UserRow` 에 이메일 칸이 없었음, `Regulation.updated_at` 은 늘 옴. 화면 코드는 `||` 로 받아 문제없었고 시험 데이터만 고침
-- 응답이 달라진 것: 계정 목록의 `is_root` · `is_active` · `must_change_password` 가 1/0 에서 true/false 로 (화면은 참 · 거짓으로만 씀). 확인할 사람의 flag 에 신청 번호가 없으면 칸이 빠지는 대신 `request_no: null`
-- 남은 것: 라우트 23개 — 모양을 엔진 · 데이터 계층이 정하는 것들. 판정 결과(`/api/results` · `/api/requests` 의 AI 칸 · 노드 상세의 점검 기록), 집계(`/api/overview` · `stats` · `user-stats` · `risk-people` · `logs`), 작업 큐(`/api/jobs` · `queue`), 질의(`/api/ask` · `qa`), 수집 받기 · 상태 확인. 엔진의 출력 타입을 그대로 쓰는 방식으로 담당자와 맞춘 뒤 (§4 엔진 타입을 대체하는 웹 전용 스키마 금지). 응답이 바뀌는 API부터 하나씩 옮김
-- 생성기의 한계: 타입만 만들고 주소와 타입의 짝(`getJSON<UserRow[]>("/api/users")`)은 여전히 호출하는 쪽이 손으로 고름. `openapi-typescript` 를 TypeScript 7 과 강제로 깔아 돌려 보니 `ts.factory` 가 없어 실행에서 죽음 (11/16) — 그 도구가 TypeScript 7 을 받게 되면 주소 단위 타입까지 주는 그쪽으로 바꾸는 것이 낫고, 서버의 응답 모델은 그대로 쓰임
+- 이유: 라우트가 모두 `dict` 를 돌려줘 FastAPI 명세(`/openapi.json` · `/docs`)에 응답 모양이 비어 있었고, 화면 타입(`types.ts` 517줄)을 손으로 맞췄음. 백엔드가 응답 칸을 바꿔도 타입 검사 · 시험이 못 잡음. 기업에 넘긴 뒤에는 "백엔드를 고치면 화면 타입도 손으로"를 아는 사람이 없음 (사용자 결정 — 넘기기 전에 채움)
+- 지금: 라우트 45개 모두 돌려주는 모양을 선언함. 선언은 `sentinelai/web/responses.py` 한 파일 → `python -m sentinelai.dev api-types` 가 `frontend/src/shared/api/schema.ts` 로 씀 → `types.ts` 는 그 타입을 다시 내보내고 화면만 쓰는 타입(거르기 값 · 화면 상태)만 둠
+- **붙이는 방법 둘** (어느 쪽인지는 `responses.py` 머리말에)
+  - `response_model` (22개) — 권한 DB 의 행을 그대로 돌려주는 API(계정 · 권한 목록 · 기준 문서 · 변경 이력 · 확인할 사람 · 노드 등록 · 목록 · 운영자 결정 적기). FastAPI 가 응답을 선언에 맞추므로 응답과 선언이 늘 같음. 대신 선언에 없는 칸은 응답에서 빠짐
+  - `responses={200: {"model": …}}` (23개) — 판정 · 집계 · 큐 · 질의처럼 엔진과 데이터 계층이 조립한 값. **명세에만 올리고 응답은 건드리지 않음** — 선언이 틀려도 API 는 그대로 나감(검사 실패로 500 이 나거나 칸이 빠지는 일이 없음). 모양이 크고 실패 사례가 많아 선언 실수가 곧 장애가 되는 것을 피하려고 (사용자 요청 "오류 없이")
+- 판정 결과는 엔진의 출력 타입(`engine/worker.py` 의 `Verdict` · `ServerGap` · `PolicyIssue` · `SuspectScore` · `Todo`)을 물려받아 저장하며 붙는 칸만 더함 — 엔진이 칸을 더하면 선언도 따라가고, 같은 정의를 두 벌 두지 않음 (§4 엔진 타입을 대체하는 웹 전용 스키마 금지와 같은 뜻). 엔진 코드는 고치지 않았음
+- **지키는 시험** (`tests/test_api_contract.py`)
+  - `schema.ts` 가 지금 코드에서 만든 것과 같은지 — 선언을 고치고 `api-types` 를 안 돌리면 실패
+  - 모든 라우트가 모양을 선언했는지 — 새 API 를 선언 없이 더하면 실패
+  - `response_model` 쪽: 선언의 칸이 DB 가 주는 칸과 같은지
+  - `responses` 쪽: 판정 성공 · 실패 · 결재 · 회수 · 퇴사 · 이동 · 결정 이어받기 · 빠른 감시 · 큐에 잡이 도는 상태 · 질의 성공 · 실패를 만들어 넣고 **실제 라우트 함수**를 불러, 돌려준 값이 선언과 엄격히 같은지(종류가 다른 칸 · 선언에 없는 칸 · 빠진 칸). 참 · 거짓과 숫자도 다른 종류로 봄
+  - 11/16: 8000번 DB · 시험 DB 의 실제 값으로도 대조해 어긋남 0
+- 생성기를 직접 둔 이유: `openapi-typescript` 는 TypeScript 5 의 컴파일러 API 에 기대는데 화면은 TypeScript 7 — 함께 깔면 실행에서 죽음(`ts.factory` 없음). FastAPI 가 내는 모양만 다루는 60줄 안팎의 변환을 `dev.py` 에 둠 (새 의존성 없음, Node 없이 됨)
+  - 한계: 타입만 만들고 주소와 타입의 짝(`getJSON<UserRow[]>("/api/users")`)은 호출하는 쪽이 손으로 고름
+  - 대안(확인함): `npx -p typescript@5.9.3 -p openapi-typescript@7.13.0 openapi-typescript …` 처럼 TypeScript 5 를 따로 붙이면 표준 도구가 돌고 주소 단위 타입도 나옴. 타입을 다시 만들 때 Node 와 npm 저장소가 필요함. 넘기기 전에 바꿀지 정함 — 바꿔도 `responses.py` 는 그대로 쓰임
+- **드러난 것** (손으로 적은 타입이 실제와 달랐던 곳)
+  - 로그 조회의 [내보낸 행 그대로] 칸: 화면이 읽던 `raw` 를 API 가 준 적이 없어 늘 빈 표였음 → 칸을 뺌. 되살리려면 `sources/logs.py` 가 원본 행을 돌려줘야 함
+  - 예측에 실패한 의심 점수는 `score` · `level` 이 null 인데 타입은 늘 있다고 봤음 (화면은 실패를 먼저 걸러 문제없었음)
+  - 부서 · 시스템 · 분류 · 사용 기간 · 호스트 · IP 를 null 일 수 있다고 봤으나 DB 는 빈 글. 계정 타입에 이메일, 노드 목록에 `finding_failed`, 결재 기록에 결재자 id 가 없었음
+  - 질의 답을 화면 항목에 덮어쓰며 서버의 기록 번호가 화면 항목의 id 를 바꿔, 답이 오면 그 줄이 다시 그려졌음 → 화면이 붙인 id 를 그대로 둠
+  - 화면 코드는 대부분 `||` 로 받아 동작은 같았고, 고친 것은 주로 시험용 가짜 데이터(실제와 다른 null · 빠진 칸)
+- 응답이 달라진 것(`response_model` 쪽만): 계정 목록의 `is_root` · `is_active` · `must_change_password` 가 1/0 에서 true/false 로, 확인할 사람의 flag 에 신청 번호가 없으면 `request_no: null`. `responses` 쪽 23개는 한 글자도 안 바뀜
+- 응답 모양을 바꿀 때: `responses.py` 를 고치고 `python -m sentinelai.dev api-types` → 화면 타입 검사가 고칠 곳을 알려 줌. 같은 커밋에

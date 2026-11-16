@@ -68,6 +68,7 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
 }
 
 function ScoreCell({ p }: { p: Suspect }) {
+  if (!p.level) return null;   // 예측 실패는 부르는 쪽이 따로 적습니다
   return (
     <span className="flex items-center gap-2 whitespace-nowrap">
       <span className="h-1.5 w-14 shrink-0 overflow-hidden rounded-sm bg-canvas"><span className={cn("block h-full", markTone[SUSPECT_COLOR[p.level]])} style={{ width: `${p.score}%` }} /></span>

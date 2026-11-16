@@ -10,7 +10,8 @@ from pydantic import BaseModel, StringConstraints
 from sentinelai.sources import NODE_NAME
 from sentinelai.db import Denied, nodes, results
 
-from .api_permissions import Approver, Level
+from .api_permissions import Approver
+from .responses import Node, NodeDetail, NodeRow, NodeWithKey, SnapshotReceipt
 
 router = APIRouter(prefix="/api/nodes")
 
@@ -23,7 +24,7 @@ def _known(name: str) -> str:
     return name
 
 
-@router.post("/snapshots", status_code=201)
+@router.post("/snapshots", status_code=201, responses={201: {"model": SnapshotReceipt}})
 async def receive(request: Request) -> dict[str, Any]:
     presented = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
     if not presented:
@@ -39,35 +40,6 @@ async def receive(request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail=str(exc)) from None
     except Denied as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from None
-
-
-class Node(BaseModel):
-    """수집 노드 한 대 — 키 자체는 빼고 발급 여부만."""
-
-    name: str
-    host: str
-    ip: str
-    agent_version: str
-    interval_min: int
-    registered_at: str
-    last_seen_at: str | None
-    last_collected_at: str | None
-    enabled: bool
-    key_issued: bool
-
-
-class NodeWithKey(Node):
-    """등록하거나 키를 다시 발급한 결과."""
-
-    key: str
-
-
-class NodeRow(Node):
-    """노드 목록의 한 줄 — stale 은 간격의 세 배 넘게 소식 없음, level 은 마지막 서버 점검 등급."""
-
-    stale: bool
-    level: Level | None
-    finding_failed: bool
 
 
 class NewNode(BaseModel):
@@ -91,7 +63,7 @@ def list_nodes(request: Request, user: Approver) -> list[dict[str, Any]]:
             for n in nodes.list_nodes(request.app.state.main_db)]
 
 
-@router.get("/{name}")
+@router.get("/{name}", responses={200: {"model": NodeDetail}})
 def node_detail(name: str, request: Request, user: Approver) -> dict[str, Any]:
     found = [n for n in nodes.list_nodes(request.app.state.main_db) if n["name"] == _known(name)]
     if not found:

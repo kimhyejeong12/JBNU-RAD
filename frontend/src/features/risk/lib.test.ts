@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { filterPeople, revokeReason, status, summarize } from "./lib";
-import type { WatchPerson } from "@/shared/api/types";
+import type { RiskPerson } from "@/shared/api/types";
 
-const person = (over: Partial<WatchPerson>): WatchPerson => ({
-  id: 1, login_id: "u", name: "정다은", department: "영업팀", job: "", is_active: true, left_on: "", level: "주의", at: "2026-10-01", flags: [], ...over,
+const person = (over: Partial<RiskPerson>): RiskPerson => ({
+  id: 1, login_id: "u", name: "정다은", department: "영업팀", job: "", is_active: true, left_on: "", level: "주의", at: "2026-10-01", flags: [], log_id: "", log_user: "", ...over,
 });
 
 describe("risk lib", () => {

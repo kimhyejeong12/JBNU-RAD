@@ -85,7 +85,7 @@ function AiVerdict({ it }: { it: RequestItem }) {
   const v = it.raw.ai_verdict;
   if (it.raw.judging) return <Section icon="activity" title="AI 판정"><div className={box}>AI 판정 중…</div></Section>;
   if (!v) return <Section icon="activity" title="AI 판정"><div className={box}>아직 판정이 없습니다.</div></Section>;
-  if (v.failed) return <Section icon="activity" title="AI 판정"><div className={cn(box, "text-risk")}>판정 실패: {v.error || "원인 불명"}</div></Section>;
+  if (v.failed || !v.level) return <Section icon="activity" title="AI 판정"><div className={cn(box, "text-risk")}>판정 실패: {v.error || "원인 불명"}</div></Section>;
   return (
     <>
       <Section icon="activity" title="판단 이유"><div className={box}>{v.reason}</div></Section>
@@ -102,7 +102,7 @@ function GrantReview({ it }: { it: RequestItem }) {
   const why = g.cause === "leave" ? `${g.left_on} 퇴사` : `이동 ${moveText(g.move!)}`;
   const title = "보유 권한 재검토";
   if (!v) return <Section icon="activity" title={title}><div className={box}>{why} — {g.judging ? "AI 판정 중…" : "판정 대기"}</div></Section>;
-  if (v.failed) return <Section icon="activity" title={title}><div className={cn(box, "text-risk")}>{why} — 판정 실패: {v.error || "원인 불명"}</div></Section>;
+  if (v.failed || !v.level) return <Section icon="activity" title={title}><div className={cn(box, "text-risk")}>{why} — 판정 실패: {v.error || "원인 불명"}</div></Section>;
   return (
     <Section icon="activity" title={title}>
       <div className={cn(recLine, levelText[v.level])}><Icon name={LEVEL_ICON[v.level]} className="size-5" />{v.level}</div>

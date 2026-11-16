@@ -14,7 +14,10 @@ export const queryClient = new QueryClient({
   },
 });
 
-export const EMPTY_RESULTS: Results = { summary: { failed: 0 }, sections: {}, servers: [], events: [], policy_review: null, generated_at: null };
+export const EMPTY_RESULTS: Results = {
+  summary: { total: 0, "정상": 0, "주의": 0, "위험": 0, policy_issue_count: 0, server_count: 0, event_count: 0, failed: 0 },
+  sections: {}, servers: [], events: [], policy_review: null, generated_at: null, decisions: {},
+};
 
 export const meQuery = () => queryOptions({ queryKey: ["me"], queryFn: () => getJSON<Me>("/api/auth/me") });
 

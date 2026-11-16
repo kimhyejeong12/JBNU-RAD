@@ -16,6 +16,7 @@ from sentinelai.db import User, regulations as regs
 from sentinelai.db.core import audit
 
 from .api_permissions import Approver, role
+from .responses import Named, Regulation
 
 MAX_CHARS = 1_000_000
 # 위협 예측 · 정책 관리 검토가 수 분 걸려 넉넉히 기다립니다.
@@ -53,20 +54,6 @@ def _audit(request: Request, user: User, action: str, name: str, detail: dict[st
     with request.app.state.main_db.transaction() as conn:
         audit(conn, action, user.id, login_id=user.login_id, target_type="regulation", target_id=name,
               detail=json.dumps(detail or {}, ensure_ascii=False), ip=request.client.host if request.client else None)
-
-
-class Regulation(BaseModel):
-    """기준 문서 한 개 — 원문과 고친 시각."""
-
-    name: str
-    content: str
-    updated_at: str
-
-
-class Named(BaseModel):
-    """지운 기준 문서의 이름."""
-
-    name: str
 
 
 @router.get("", dependencies=[Depends(role("manager", "top"))], response_model=list[Regulation])

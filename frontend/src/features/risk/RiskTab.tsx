@@ -5,7 +5,7 @@ import { ask } from "@/app/ui/confirm/ask";
 import { useUi } from "@/app/ui/state/UiContext";
 import { send } from "@/shared/api/http";
 import { riskPeopleQuery } from "@/shared/api/queries";
-import type { Level, WatchFlag, WatchPerson } from "@/shared/api/types";
+import type { Level, RiskFlag, RiskPerson } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
@@ -53,7 +53,7 @@ export function RiskTab() {
   );
 }
 
-function PersonCard({ p }: { p: WatchPerson }) {
+function PersonCard({ p }: { p: RiskPerson }) {
   const { gotoRequest, gotoEvent, navigate, openLogs } = useUi();
   const qc = useQueryClient();
   const [msg, setMsg] = useState("");
@@ -63,7 +63,7 @@ function PersonCard({ p }: { p: WatchPerson }) {
     onError: (e) => setMsg(e.message),
     onSettled: () => qc.invalidateQueries({ queryKey: ["requests"] }),
   });
-  const onRevoke = async (f: WatchFlag, reason: string) => {
+  const onRevoke = async (f: RiskFlag, reason: string) => {
     const ok = await ask({ title: "권한 회수", message: `${p.name}: ${f.text}\n사유: ${reason}`, confirm: "회수", danger: true });
     if (ok) revoke.mutate({ no: f.request_no!, reason });
   };

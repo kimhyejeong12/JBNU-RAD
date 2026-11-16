@@ -7,7 +7,7 @@ import { useUi } from "@/app/ui/state/UiContext";
 import { PanelHead } from "@/app/ui/panel/Panel";
 import { DecisionBadge, DecisionFoot, JudgeState } from "@/app/ui/panel/DecisionFoot";
 import { SourceChips } from "@/app/ui/panel/SourceChips";
-import type { EventFinding, ServerFinding, Snapshot } from "@/shared/api/types";
+import type { EventFinding, ServerFinding, SnapshotState } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/base/Icon";
 import { LevelDot, Meta, Section } from "@/shared/ui/base/parts";
@@ -38,7 +38,7 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
         {gapped && it.type === "server" ? <GapSections itemKey={it.key} f={it.raw} /> : (
           <>
             <Section icon="activity" title="이유"><div className={box}>{r.reason}</div></Section>
-            <Section icon="db" title="관련 규정"><SourceChips itemKey={it.key} sources={it.type === "policy" ? it.raw.policy_ids : r.sources} /></Section>
+            <Section icon="db" title="관련 규정"><SourceChips itemKey={it.key} sources={it.type === "policy" ? it.raw.policy_ids : it.raw.sources} /></Section>
             <Section icon="ok" title="조치 방법"><div className={box}>{r.recommendation}</div></Section>
           </>
         )}
@@ -85,7 +85,7 @@ function ServerSections({ f }: { f: ServerFinding }) {
 
 const RECENT_LOGS = 5;
 // 노드 탭 패널에도 같은 표가 있어 모듈 상태는 접어 둡니다.
-function ModuleFold({ snap }: { snap: Snapshot }) {
+function ModuleFold({ snap }: { snap: SnapshotState }) {
   const [open, setOpen] = useState(false);
   return (
     <>

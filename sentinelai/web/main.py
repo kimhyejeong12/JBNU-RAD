@@ -25,6 +25,8 @@ from .api_permissions import Approver, role  # noqa: E402
 from .api_permissions import router as permissions_router  # noqa: E402
 from .api_nodes import router as nodes_router  # noqa: E402
 from .api_regulations import router as regulations_router  # noqa: E402
+from .responses import (AskAnswer, AuditRow, Conversation, Health, Jobs, LogsPage, Overview, QaRecord, QueueDetail,  # noqa: E402
+                        QueueStatus, Results, RiskPeople, Stats, UserStats)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -64,12 +66,12 @@ app.include_router(regulations_router)
 analyst = [Depends(role("manager", "top"))]
 
 
-@app.get("/api/health", dependencies=analyst)
+@app.get("/api/health", dependencies=analyst, responses={200: {"model": Health}})
 def health(request: Request) -> dict[str, Any]:
     return _engine(request).health()
 
 
-@app.get("/api/results")
+@app.get("/api/results", responses={200: {"model": Results}})
 def results(request: Request, user: Approver) -> dict[str, Any]:
     """보안 총책임자에게는 결정 기록 전부(decision_log, 취소 포함)를 더 줍니다."""
     rdb, mdb = request.app.state.results_db, request.app.state.main_db
@@ -92,7 +94,7 @@ def _carry(rdb: Any, out: dict[str, Any], log: dict[str, dict[str, list[dict]]])
         out["decisions"][kind].update(found)
 
 
-@app.get("/api/jobs", dependencies=analyst)
+@app.get("/api/jobs", dependencies=analyst, responses={200: {"model": Jobs}})
 def jobs(request: Request) -> dict[str, Any]:
     return {**_engine(request).job_status(), "kinds": KINDS}
 
@@ -101,7 +103,7 @@ class ResetJobs(BaseModel):
     rerun: bool = False
 
 
-@app.post("/api/jobs/reset")
+@app.post("/api/jobs/reset", responses={200: {"model": Jobs}})
 def reset_jobs(body: ResetJobs, request: Request, user: Approver) -> dict[str, Any]:
     """돌던 판정 한 건은 끝날 때까지 이어지고 결과는 버립니다. rerun 이면 같은 작업을 다시 넣습니다."""
     reset = _engine(request).reset_jobs(rerun=body.rerun)
@@ -113,12 +115,12 @@ def reset_jobs(body: ResetJobs, request: Request, user: Approver) -> dict[str, A
     return jobs(request)
 
 
-@app.get("/api/queue")
+@app.get("/api/queue", responses={200: {"model": QueueDetail}})
 def queue_detail(request: Request, _user: Approver) -> dict[str, Any]:
     return _engine(request).queue_detail()
 
 
-@app.post("/api/queue/clear")
+@app.post("/api/queue/clear", responses={200: {"model": QueueDetail}})
 def clear_queue(request: Request, user: Approver) -> dict[str, Any]:
     """돌던 판정 한 건은 끝날 때까지 이어지고 결과는 버립니다. 도는 작업이 없어도 워커를 새로 띄웁니다."""
     cleared = _engine(request).clear_queue()
@@ -128,7 +130,7 @@ def clear_queue(request: Request, user: Approver) -> dict[str, Any]:
     return _engine(request).queue_detail()
 
 
-@app.post("/api/jobs/{kind}", status_code=202, dependencies=analyst)
+@app.post("/api/jobs/{kind}", status_code=202, dependencies=analyst, responses={202: {"model": Jobs}})
 def start_job(kind: str, request: Request) -> dict[str, Any]:
     """큐에 넣습니다 (다른 작업이 돌면 그 뒤에). 같은 작업이 이미 기다리거나 돌고 있으면 409 입니다."""
     if kind not in MANUAL:
@@ -144,7 +146,7 @@ class AskRequest(BaseModel):
     conversation_id: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{32}$")] | None = None
 
 
-@app.post("/api/ask")
+@app.post("/api/ask", responses={200: {"model": AskAnswer}})
 def ask(body: AskRequest, request: Request, user: Approver) -> dict[str, Any]:
     """질의 에이전트 — 기준 문서 · 로그 · 서버 · 사람 · AI 판정을 도구로 찾아 답합니다. 같은 대화면 앞 턴을 이어 넣습니다."""
     db = request.app.state.results_db
@@ -160,22 +162,12 @@ def ask(body: AskRequest, request: Request, user: Approver) -> dict[str, Any]:
 Filter = Annotated[str, Query(max_length=200)]
 
 
-@app.get("/api/stats")
+@app.get("/api/stats", responses={200: {"model": Stats}})
 def stats(request: Request, user: Approver, period: str = "month") -> dict[str, Any]:
     try:
         return _engine(request).stats(period)
     except ValueError as exc:  # 없는 기간
         raise HTTPException(status_code=422, detail=str(exc)) from None
-
-
-class AuditRow(BaseModel):
-    """변경 이력의 한 줄 — detail 은 기록마다 칸이 다릅니다 (사유 또는 바뀐 칸과 값)."""
-
-    id: int
-    at: str
-    action: str
-    by: str
-    detail: dict[str, Any]
 
 
 @app.get("/api/audit", response_model=list[AuditRow])
@@ -185,7 +177,7 @@ def audit_history(request: Request, _user: Approver, target_type: Literal["regul
     return watch.history(request.app.state.main_db, target_type, target_id)
 
 
-@app.get("/api/overview")
+@app.get("/api/overview", responses={200: {"model": Overview}})
 def overview(request: Request, user: Approver, period: str = "month") -> dict[str, Any]:
     """보안 현황 종합 — 열린 것은 기간과 무관, 완료율 · 추이만 기간 안에서 셉니다."""
     try:
@@ -194,13 +186,13 @@ def overview(request: Request, user: Approver, period: str = "month") -> dict[st
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
-@app.get("/api/risk-people")
+@app.get("/api/risk-people", responses={200: {"model": RiskPeople}})
 def risk_people(request: Request, user: Approver) -> dict[str, Any]:
     """이동 · 퇴사한 사람의 위험 — 코드가 셈, 화면이 자주 다시 받습니다."""
     return _engine(request).risk_people()
 
 
-@app.get("/api/user-stats")
+@app.get("/api/user-stats", responses={200: {"model": UserStats}})
 def user_stats(request: Request, user: Approver, period: str = "month") -> dict[str, Any]:
     try:
         return _engine(request).user_stats(period)
@@ -208,7 +200,7 @@ def user_stats(request: Request, user: Approver, period: str = "month") -> dict[
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
-@app.get("/api/logs")
+@app.get("/api/logs", responses={200: {"model": LogsPage}})
 def browse_logs(request: Request, user: Approver, period: str,
                 who: Annotated[str, Query(alias="user", max_length=200)] = "", solution: Filter = "", how: Filter = "",
                 page: Annotated[int, Query(ge=1)] = 1) -> dict[str, Any]:
@@ -221,7 +213,7 @@ def browse_logs(request: Request, user: Approver, period: str,
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
-@app.get("/api/qa")
+@app.get("/api/qa", responses={200: {"model": list[QaRecord] | list[Conversation]}})
 def my_qa(request: Request, user: Approver, conversation: Annotated[str, Query(pattern=r"^[0-9a-f]{32}$")] | None = None) -> list[dict[str, Any]]:
     """내 대화 목록, conversation 을 주면 그 대화의 턴. 다른 사람의 질의는 주지 않습니다."""
     db = request.app.state.results_db
@@ -239,7 +231,7 @@ def local_only(request: Request) -> None:
         raise HTTPException(status_code=404, detail="Not Found")
 
 
-@app.get("/internal/status", dependencies=[Depends(local_only)])
+@app.get("/internal/status", dependencies=[Depends(local_only)], responses={200: {"model": QueueStatus}})
 def internal_status(request: Request) -> dict[str, Any]:
     """작업 큐 · 자동 실행 예약 · 권한 신청 판정 대기열 (화면은 쓰지 않음)."""
     return _engine(request).status()

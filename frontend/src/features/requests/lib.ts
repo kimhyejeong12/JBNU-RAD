@@ -6,7 +6,7 @@ import type { HistoryStep } from "@/shared/ui/base/parts";
 
 export function requestItem(r: RequestRow): QueueItem {
   const v = r.ai_verdict;
-  const level = v && !v.failed ? v.level : undefined;
+  const level = (v && !v.failed && v.level) || undefined;
   return {
     type: "req", key: `req:${r.request_no}`, id: r.request_no, level,
     who: requester(r),

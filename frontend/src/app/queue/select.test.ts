@@ -61,7 +61,7 @@ test("firstKeyInView", () => {
   expect(firstKeyInView(items, "users", "pending", "manager")).toBeNull();
 });
 
-const jobs = { running: null, kinds: { policies: "정책 관리 검토" } } as Jobs;
+const jobs: Jobs = { running: null, auto: false, done: 0, total: 0, started_at: null, queued: false, last: {}, waiting: [], kinds: { policies: "정책 관리 검토" } };
 
 test("조건에 걸러진 것이면 그 문구", () => {
   expect(emptyText("requests", "pending", jobs, true)).toBe("조건에 맞는 항목이 없습니다.");
