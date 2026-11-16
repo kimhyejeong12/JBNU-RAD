@@ -41,25 +41,25 @@ export function TopBar() {
         <span className="text-xl font-bold tracking-wide">Sentinel<span className="font-light text-bar-ink">AI</span></span>
       </div>
       <TopNav />
-      <div className="ml-auto flex items-center gap-4">
-        <span className="flex items-center whitespace-nowrap rounded-[7px] bg-white px-2.75 py-1.25 text-[12.5px] font-bold text-risk" id="engine-warn" hidden={!problems.length}
+      {/* 좁은 화면에서는 이 묶음을 풀어 프로필 · 종은 로고 줄 오른쪽에, 버튼 둘은 그 아래 줄로 보냅니다. */}
+      <div className="ml-auto flex items-center gap-4 narrow:contents">
+        <span className="flex items-center whitespace-nowrap rounded-[7px] bg-white narrow:order-2 px-2.75 py-1.25 text-[12.5px] font-bold text-risk" id="engine-warn" hidden={!problems.length}
           data-tip={`점검 필요|${problems.join(", ")}`}>
           <LevelDot level="위험" />AI 엔진 점검 필요
         </span>
         {/* 누구로 로그인했는지는 다른 곳에 없어 이름을 숨기지 않습니다. */}
-        <div className="flex items-center gap-2 text-sm" id="who">
-          <span className="flex size-8 flex-none items-center justify-center rounded-full bg-bar-hover"><Icon name="users" small /></span>
+        <div className="flex items-center text-sm narrow:order-1 narrow:ml-auto" id="who">
           <span id="who-name" className="flex flex-col whitespace-nowrap leading-snug">
             <span className="font-medium">{me.display_name} <span className="text-xs text-bar-line-hover">({ROLE_LABEL[me.role]}{me.is_root ? ", 루트" : ""})</span></span>
             {me.department && <span className="text-xs text-bar-line-hover">{me.department}</span>}
           </span>
         </div>
-        <span className="mx-1 h-4 w-px flex-none bg-bar-line" aria-hidden="true" />
-        <div className="flex items-center gap-3">
+        <span className="mx-1 h-4 w-px flex-none bg-bar-line narrow:hidden" aria-hidden="true" />
+        <div className="flex items-center gap-3 narrow:order-2 narrow:w-full narrow:justify-end narrow:pt-1.5">
           <button className={TOP_BTN} id="btn-password" onClick={() => auth.showPassword(false)}>비밀번호 변경</button>
           <button className={TOP_BTN} id="btn-logout" onClick={() => void logout()}>로그아웃</button>
         </div>
-        <button className="relative rounded-[7px] border-none bg-transparent p-1.5 text-white hover:bg-bar-hover" id="bell" hidden={me.role === "user"} aria-label="위험 알림"
+        <button className="relative rounded-[7px] border-none bg-transparent p-1.5 text-white hover:bg-bar-hover narrow:order-1" id="bell" hidden={me.role === "user"} aria-label="위험 알림"
           data-tip={risks.length ? `위험 알림 — 미결 ${risks.length}건|눌러서 목록을 봅니다` : "위험 알림|미결 위험이 없습니다"}
           onClick={(e) => { e.stopPropagation(); setPopOpen((o) => !o); }}>
           <Icon name="bell" />
