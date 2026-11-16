@@ -25,7 +25,7 @@ export function Workspace() {
   const wide = panelIdle(ui);
   const stat = ui.mainTab === "stats" || ui.mainTab === "ustats";
   return (
-    <div className={cn(workspace, wide && "grid-cols-[minmax(0,1fr)] narrow:grid-cols-[minmax(0,1fr)]", noPanel ? "grid-cols-[minmax(0,1fr)]" : "pb-21 narrow:pb-21")}>
+    <div className={cn(workspace, wide && "grid-cols-[minmax(0,1fr)] narrow:grid-cols-[minmax(0,1fr)]", noPanel ? "grid-cols-[minmax(0,1fr)] p-0 narrow:p-0" : "pb-21 narrow:pb-21")}>
       <div className="flex min-h-0 flex-col gap-3.5 overflow-auto narrow:overflow-visible *:shrink-0">
         <MainTabs />
         <QueueTab />

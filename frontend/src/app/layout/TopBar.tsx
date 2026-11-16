@@ -35,27 +35,31 @@ export function TopBar() {
   }, [popOpen]);
 
   return (
-    <header data-tip-instant className="col-span-full flex items-center gap-4.5 bg-brand px-5 py-0 text-white narrow:flex-wrap narrow:gap-y-2 narrow:px-4 narrow:py-2.5">
-      <div className="flex items-center gap-2.25 text-[17px] font-extrabold tracking-[-0.3px]"><Icon name="shield" className="size-6 stroke-risk stroke-[2.2]" />SentinelAI</div>
+    <header data-tip-instant className="relative col-span-full flex h-16 items-center gap-6 bg-brand px-6 py-0 text-white narrow:h-auto narrow:flex-wrap narrow:gap-y-0 narrow:px-4 narrow:pt-3">
+      <div className="flex flex-none items-center gap-2">
+        <span className="flex rounded-md bg-brand-red p-1.5"><Icon name="shield" className="size-4.5 stroke-white stroke-[2.4]" /></span>
+        <span className="text-xl font-bold tracking-wide">Sentinel<span className="font-light text-bar-ink">AI</span></span>
+      </div>
       <TopNav />
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-4">
         <span className="flex items-center whitespace-nowrap rounded-[7px] bg-white px-2.75 py-1.25 text-[12.5px] font-bold text-risk" id="engine-warn" hidden={!problems.length}
           data-tip={`점검 필요|${problems.join(", ")}`}>
           <LevelDot level="위험" />AI 엔진 점검 필요
         </span>
-        <div className="flex items-center gap-1.5 text-[12.5px] text-bar-ink" id="who">
-          {/* 누구로 로그인했는지는 다른 곳에 없어 이름을 숨기지 않습니다. */}
-          <span id="who-name" className="flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-full bg-bar-hover"><Icon name="users" small /></span>
-            <span className="flex flex-col leading-tight">
-              <b className="font-semibold text-white">{me.display_name} <span className="font-normal opacity-70">{ROLE_LABEL[me.role]}{me.is_root ? " (루트)" : ""}</span></b>
-              {me.department && <span className="text-[11.5px] opacity-70">{me.department}</span>}
-            </span>
+        {/* 누구로 로그인했는지는 다른 곳에 없어 이름을 숨기지 않습니다. */}
+        <div className="flex items-center gap-2 text-sm" id="who">
+          <span className="flex size-8 flex-none items-center justify-center rounded-full bg-bar-hover"><Icon name="users" small /></span>
+          <span id="who-name" className="flex flex-col whitespace-nowrap leading-snug">
+            <span className="font-medium">{me.display_name} <span className="text-xs text-bar-line-hover">({ROLE_LABEL[me.role]}{me.is_root ? ", 루트" : ""})</span></span>
+            {me.department && <span className="text-xs text-bar-line-hover">{me.department}</span>}
           </span>
+        </div>
+        <span className="mx-1 h-4 w-px flex-none bg-bar-line" aria-hidden="true" />
+        <div className="flex items-center gap-3">
           <button className={TOP_BTN} id="btn-password" onClick={() => auth.showPassword(false)}>비밀번호 변경</button>
           <button className={TOP_BTN} id="btn-logout" onClick={() => void logout()}>로그아웃</button>
         </div>
-        <button className="relative ml-1.5 rounded-[7px] border-none bg-transparent p-1.5 text-white hover:bg-bar-hover" id="bell" hidden={me.role === "user"} aria-label="위험 알림"
+        <button className="relative rounded-[7px] border-none bg-transparent p-1.5 text-white hover:bg-bar-hover" id="bell" hidden={me.role === "user"} aria-label="위험 알림"
           data-tip={risks.length ? `위험 알림 — 미결 ${risks.length}건|눌러서 목록을 봅니다` : "위험 알림|미결 위험이 없습니다"}
           onClick={(e) => { e.stopPropagation(); setPopOpen((o) => !o); }}>
           <Icon name="bell" />
@@ -67,12 +71,12 @@ export function TopBar() {
   );
 }
 
-const TOP_BTN = "whitespace-nowrap rounded-[7px] border border-bar-line bg-transparent px-2.5 py-1 text-[12px] text-bar-ink hover:border-bar-line-hover hover:text-white";
+const TOP_BTN = "whitespace-nowrap border-none bg-transparent p-0 text-sm text-bar-line-hover hover:text-white";
 
 function AlertPop({ ref, open, risks, onPick }: { ref: Ref<HTMLDivElement>; open: boolean; risks: QueueItem[]; onPick: (key: string) => void }) {
   return (
     <div id="alert-pop" ref={ref}
-      className={cn("absolute top-12.5 right-4 z-30 w-82.5 rounded-[10px] border border-line bg-surface p-3.5 text-ink shadow-[0_12px_32px_rgba(0,0,0,.14)]", open ? "block" : "hidden")}>
+      className={cn("absolute top-15 right-4 z-30 w-82.5 rounded-[10px] border border-line bg-surface p-3.5 text-ink shadow-[0_12px_32px_rgba(0,0,0,.14)]", open ? "block" : "hidden")}>
       <h4 className="m-0 mb-2 text-[13px] font-bold">위험 알림 {risks.length ? `— 미결 ${risks.length}건` : "— 미결 없음"}</h4>
       {risks.length
         ? risks.map((it) => (

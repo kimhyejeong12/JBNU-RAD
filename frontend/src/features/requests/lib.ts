@@ -106,6 +106,12 @@ export function periodProblem(start: string, end: string, open: boolean): string
   return null;
 }
 
+// 내 신청 표의 기간 한 줄 — 빈 종료일은 기한 없음입니다.
+export function periodText(r: Pick<RequestRow, "period_start" | "period_end">): string {
+  if (r.period_end) return r.period_start ? `${r.period_start} ~ ${r.period_end}` : `${r.period_end}까지`;
+  return r.period_start ? `${r.period_start}부터, 기한 없음` : "기한 없음";
+}
+
 export function heldLabel(periodEnd: string | null, on: string = today()): string {
   return periodEnd ? `보유 중 (${shortDate(periodEnd, on)}까지)` : "보유 중";
 }

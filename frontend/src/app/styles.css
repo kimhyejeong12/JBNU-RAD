@@ -170,7 +170,7 @@
     height: var(--page-h, 100vh);
     overflow: hidden;
     display: grid;
-    grid-template-rows: 56px minmax(0, 1fr);
+    grid-template-rows: 64px minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr);
     background: var(--color-canvas);
     color: var(--color-ink);

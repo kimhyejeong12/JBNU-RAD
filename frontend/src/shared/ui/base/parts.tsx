@@ -44,7 +44,7 @@ export function KvTable({ rows }: { rows: [label: string, value: ReactNode][] })
   );
 }
 
-const TILE = "flex min-w-0 flex-col gap-0.5 rounded-[10px] border border-line px-3.5 py-3 text-left";
+const TILE = "flex min-w-0 flex-col justify-center rounded-xl border border-line p-4 text-left";
 
 // 큰 숫자 하나 — children 은 아래 작은 글, extra 는 숫자와 글 사이(막대 등)입니다.
 // onClick 을 주면 누르는 타일이고, pressed 는 목록을 이 타일로 거르는 중인지입니다.
@@ -53,10 +53,10 @@ export function Tile({ label, big, tone, extra, onClick, pressed, children }: {
 }) {
   const body = (
     <>
-      <span className="text-[12px] font-semibold text-ink-dim">{label}</span>
-      <span className={cn("text-[26px] font-extrabold tracking-[-0.6px] tabular-nums", tone)}>{big}</span>
+      <span className="mb-1 text-sm font-medium text-ink-dim">{label}</span>
+      <span className={cn("text-2xl leading-tight font-bold tabular-nums", tone)}>{big}</span>
       {extra}
-      {children != null && <span className="text-[11.5px] text-ink-dim">{children}</span>}
+      {children != null && <span className="mt-0.5 text-xs text-ink-dim">{children}</span>}
     </>
   );
   if (!onClick) return <div className={TILE}>{body}</div>;

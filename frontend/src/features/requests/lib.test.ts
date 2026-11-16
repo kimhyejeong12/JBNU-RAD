@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { RequestRow, AccessItem, Verdict } from "@/shared/api/types";
-import { requestItem, accessOptions, periodProblem, approvalSteps, canWithdraw, heldLabel, mineGroup, mineStatus, moveText, personItem, rejectNote, shortDate } from "./lib";
+import { requestItem, accessOptions, periodProblem, periodText, approvalSteps, canWithdraw, heldLabel, mineGroup, mineStatus, moveText, personItem, rejectNote, shortDate } from "./lib";
 
 const row = (p: Partial<RequestRow>): RequestRow => ({
   id: 1, request_no: "REQ-2026-0001", requester_id: 4, requester_name: "김민수", requester_department: "인사팀", requester_job: "",
@@ -153,4 +153,11 @@ test("사용 기간 — 끝나는 날이나 기한 없음 중 하나, 끝이 시
   expect(periodProblem("2026-11-20", "2026-11-01", false)).toBe("사용 종료일이 시작일보다 앞섭니다");
   expect(periodProblem("", "2026-12-31", false)).toBeNull();
   expect(periodProblem("2026-11-20", "2026-11-20", false)).toBeNull();
+});
+
+test("내 신청 표의 기간 — 빈 종료일은 기한 없음", () => {
+  expect(periodText({ period_start: "2026-11-01", period_end: "2026-12-31" })).toBe("2026-11-01 ~ 2026-12-31");
+  expect(periodText({ period_start: "", period_end: "2026-12-31" })).toBe("2026-12-31까지");
+  expect(periodText({ period_start: "2026-11-01", period_end: "" })).toBe("2026-11-01부터, 기한 없음");
+  expect(periodText({ period_start: "", period_end: "" })).toBe("기한 없음");
 });
