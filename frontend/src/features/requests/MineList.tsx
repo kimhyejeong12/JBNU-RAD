@@ -8,11 +8,12 @@ import { stamp } from "@/shared/lib/format";
 import { today } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
-import { Pill, Tile, type TileAccent } from "@/shared/ui/base/parts";
+import { Pill, Tile } from "@/shared/ui/base/parts";
 import { card, formMsg, formMsgOk, linkButton } from "@/shared/ui/base/styles";
 import { ask } from "@/app/ui/confirm/ask";
 
-const PAGE = 10;
+// 한 쪽 4건 — 노트북 화면에서도 스크롤 없이 신청서와 아래 끝이 맞게.
+const PAGE = 4;
 const TH = "p-4 font-medium";
 const TD = "p-4 align-middle";
 const PAGER = "flex size-8 items-center justify-center rounded border border-line bg-surface text-sm font-medium text-ink-soft hover:bg-row-hover disabled:cursor-default disabled:opacity-50 aria-[current=true]:border-brand aria-[current=true]:bg-brand aria-[current=true]:text-white";
@@ -20,13 +21,13 @@ const PAGER = "flex size-8 items-center justify-center rounded border border-lin
 type MineView = MineGroup | "all";
 const TILES: [MineView, string][] = [["all", "전체 신청"], ["pending", "결재 대기"], ["active", "사용 중"], ["done", "반려, 만료"]];
 
-// 상태마다 색 하나 — 타일의 점 · 고른 테두리와 표의 배지가 같은 색이라 표를 보고 어느 타일인지 이어집니다.
+// 상태마다 색 하나 — 타일 이름 앞 점과 표의 배지가 같은 색이라 표를 보고 어느 타일인지 이어집니다.
 // 결재 대기는 테마 남색 (주황은 운영자 화면에서 "주의"라 겹치지 않게).
-const COLOR: Record<MineView, { dot: string; accent: TileAccent; pill: string }> = {
-  all: { dot: "var(--color-ink-ghost)", accent: { line: "var(--color-ink-dim)", tint: "var(--color-canvas)" }, pill: "border-transparent bg-canvas text-ink-dim" },
-  pending: { dot: "var(--color-brand)", accent: { line: "var(--color-brand)", tint: "var(--color-brand-soft)" }, pill: "border-transparent bg-brand-soft text-brand" },
-  active: { dot: "var(--color-ok)", accent: { line: "var(--color-ok)", tint: "var(--color-ok-tint)" }, pill: "border-transparent bg-ok-tint text-ok" },
-  done: { dot: "var(--color-risk)", accent: { line: "var(--color-risk)", tint: "var(--color-risk-tint)" }, pill: "border-transparent bg-risk-tint text-risk" },
+const COLOR: Record<MineView, { dot: string; pill: string }> = {
+  all: { dot: "var(--color-ink-ghost)", pill: "border-transparent bg-canvas text-ink-dim" },
+  pending: { dot: "var(--color-brand)", pill: "border-transparent bg-brand-soft text-brand" },
+  active: { dot: "var(--color-ok)", pill: "border-transparent bg-ok-tint text-ok" },
+  done: { dot: "var(--color-risk)", pill: "border-transparent bg-risk-tint text-risk" },
 };
 const EMPTY: Record<MineView, string> = {
   pending: "결재 중인 신청이 없습니다.",
@@ -60,7 +61,7 @@ export function MineList() {
       <div className="grid grid-cols-4 gap-4 phone:grid-cols-2" id="mine-tiles" role="group" aria-label="내 신청">
         {TILES.map(([k, label]) => (
           // 내역은 숫자 옆에 작게 — 아래 줄에 두면 이 타일만 높아져 네 타일 높이가 어긋납니다.
-          <Tile key={k} label={label} pressed={group === k} dot={COLOR[k].dot} accent={COLOR[k].accent} onClick={() => { setPicked(k); setPage(1); }}
+          <Tile key={k} label={label} pressed={group === k} dot={COLOR[k].dot} onClick={() => { setPicked(k); setPage(1); }}
             big={<>{counts[k]}{k === "done" && counts.done > 0 && <span className="ml-1.5 text-xs font-normal text-ink-dim">{endedBreakdown(mine, on)}</span>}</>} />
         ))}
       </div>
@@ -75,7 +76,8 @@ export function MineList() {
               placeholder="권한, 번호 검색" autoComplete="off" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} />
           </label>
         </div>
-        <div className="flex-1 overflow-x-auto">
+        {/* 줄이 4건보다 적어도 4건 자리를 둠 — 거를 때마다 카드 높이가 바뀌지 않게. */}
+        <div className="min-h-84 flex-1 overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-left">
             <thead>
               <tr className="border-b border-line bg-canvas text-sm text-ink-dim">
@@ -89,15 +91,13 @@ export function MineList() {
             </tbody>
           </table>
         </div>
-        {pages > 1 && (
-          <nav className="flex items-center justify-center gap-2 border-t border-line p-4" aria-label="쪽">
-            <button type="button" className={PAGER} disabled={at === 1} onClick={() => setPage(at - 1)} aria-label="앞 쪽"><Icon name="back" small /></button>
-            {Array.from({ length: pages }, (_, n) => n + 1).map((n) => (
-              <button type="button" key={n} className={PAGER} aria-current={n === at} onClick={() => setPage(n)}>{n}</button>
-            ))}
-            <button type="button" className={PAGER} disabled={at === pages} onClick={() => setPage(at + 1)} aria-label="다음 쪽"><Icon name="chev" small /></button>
-          </nav>
-        )}
+        <nav className="flex items-center justify-center gap-2 border-t border-line p-4" aria-label="쪽">
+          <button type="button" className={PAGER} disabled={at === 1} onClick={() => setPage(at - 1)} aria-label="앞 쪽"><Icon name="back" small /></button>
+          {Array.from({ length: pages }, (_, n) => n + 1).map((n) => (
+            <button type="button" key={n} className={PAGER} aria-current={n === at} onClick={() => setPage(n)}>{n}</button>
+          ))}
+          <button type="button" className={PAGER} disabled={at === pages} onClick={() => setPage(at + 1)} aria-label="다음 쪽"><Icon name="chev" small /></button>
+        </nav>
       </section>
     </div>
   );
