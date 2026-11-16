@@ -1,11 +1,11 @@
 import type { Role } from "@/shared/api/types";
 import type { StageFilter } from "@/app/ui/state/uiReducer";
 
-export type MainTab = "queue" | "nodes" | "logs" | "overview" | "risk" | "stats" | "ustats" | "engine";
-export type View = "requests" | "policies" | "stats" | "events" | "mine" | "users" | "access" | "docs" | "jobs";
+export type MainTab = "home" | "queue" | "nodes" | "logs" | "overview" | "risk" | "stats" | "ustats" | "engine";
+export type View = "home" | "requests" | "policies" | "stats" | "events" | "mine" | "users" | "access" | "docs" | "jobs";
 export type ItemType = "req" | "person" | "server" | "user" | "access" | "policy" | "event" | "doc";
 
-export type NavGroup = "결재" | "보안 운영";
+export type NavGroup = "현황" | "결재" | "보안 운영";
 
 interface ViewMeta {
   title?: string;
@@ -19,6 +19,8 @@ interface ViewMeta {
 }
 
 export const VIEWS: Record<View, ViewMeta> = {
+  home: { group: "현황", title: "현황", label: "현황", icon: "shield", tip: "현황",
+          tabs: ["home"], cols: [], search: "" },
   requests: { group: "결재", label: "권한 신청", icon: "lock", tip: "권한 신청",
               tabs: ["queue"], cols: ["신청자", "신청 권한", "신청 시각", "AI 판정"], search: "검색" },
   policies: { group: "보안 운영", title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리",
@@ -42,7 +44,7 @@ export const VIEWS: Record<View, ViewMeta> = {
 export const ROLE_VIEWS: Record<Role, View[]> = {
   user: ["mine"],
   manager: ["requests", "policies", "events", "stats", "access", "users", "docs", "jobs"],
-  top: ["requests", "policies", "events", "stats", "access", "users", "docs", "jobs"],
+  top: ["home", "requests", "policies", "events", "stats", "access", "users", "docs", "jobs"],
 };
 const ADMIN_VIEWS: readonly View[] = ["access", "users", "docs", "jobs"];
 export const isAdminView = (v: View | null): boolean => v !== null && ADMIN_VIEWS.includes(v);

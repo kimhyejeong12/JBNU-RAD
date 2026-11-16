@@ -39,7 +39,7 @@ export interface UiStore {
   setConversation(id: string): void;
   gotoNode(name: string): void;
   gotoActiveGrant(no: string): void;
-  gotoRequest(no: string): void;
+  gotoRequest(no: string, stage?: StageFilter): void;
   gotoEvent(key: string): void;
 }
 
@@ -121,9 +121,9 @@ export function useUiStore(): UiStore {
         dispatch({ type: "SET_STAGE_FILTER", value: "active", nextSelected: `req:${no}` });
         openDrawer();
       },
-      gotoRequest: (no) => {
+      gotoRequest: (no, stage = "all") => {
         dispatch({ type: "NAVIGATE", view: "requests", nextSelected: `req:${no}` });
-        dispatch({ type: "SET_STAGE_FILTER", value: "all", nextSelected: `req:${no}` });
+        dispatch({ type: "SET_STAGE_FILTER", value: stage, nextSelected: `req:${no}` });
         openDrawer();
       },
       gotoEvent: (key) => {

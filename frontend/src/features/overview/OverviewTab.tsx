@@ -1,13 +1,13 @@
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AREA_COLOR, PERIODS, arcs, rateText, targetOf } from "./lib";
+import { AREA_COLOR, PERIODS, arcs, rateText } from "./lib";
+import { useGo, type Go } from "./useGo";
 import { useJobs } from "@/app/session/data";
-import { useQueue } from "@/app/queue/useQueue";
 import { DecisionBadge } from "@/app/ui/panel/DecisionFoot";
 import { useUi } from "@/app/ui/state/UiContext";
 import { useStartJob } from "@/shared/api/jobs";
 import { overviewQuery } from "@/shared/api/queries";
-import type { Briefing, Overview, OverviewArea, OverviewRow, StatPeriod } from "@/shared/api/types";
+import type { Briefing, Overview, OverviewRow, StatPeriod } from "@/shared/api/types";
 import { niceMax, stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
@@ -50,14 +50,21 @@ export function OverviewTab() {
   );
 }
 
-function Tile({ label, big, tone, children }: { label: string; big: ReactNode; tone?: string; children?: ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-0.5 rounded-[10px] border border-line px-3.5 py-3">
+const TILE = "flex min-w-0 flex-col gap-0.5 rounded-[10px] border border-line px-3.5 py-3 text-left";
+
+// onClick 을 주면 누르는 타일입니다 — pressed 는 아래 목록을 이 타일로 거르는 중인지.
+export function Tile({ label, big, tone, onClick, pressed, children }: {
+  label: string; big: ReactNode; tone?: string; onClick?: () => void; pressed?: boolean; children?: ReactNode;
+}) {
+  const body = (
+    <>
       <span className={LABEL}>{label}</span>
       <span className={cn("text-[26px] font-extrabold tracking-[-0.6px] tabular-nums", tone)}>{big}</span>
-      <p className={cn(note, "m-0")}>{children}</p>
-    </div>
+      <span className={cn(note, "m-0")}>{children}</span>
+    </>
   );
+  if (!onClick) return <div className={TILE}>{body}</div>;
+  return <button type="button" className={cn(TILE, "bg-surface hover:bg-row-hover aria-pressed:border-ink")} aria-pressed={pressed} onClick={onClick}>{body}</button>;
 }
 
 function Tiles({ d }: { d: Overview }) {
@@ -72,26 +79,6 @@ function Tiles({ d }: { d: Overview }) {
     </div>
   );
 }
-
-// 항목을 고르면 그 판정을 보는 화면으로 갑니다. 목록에 없는 지난 판정은 메뉴만 엽니다.
-function useGo() {
-  const { navigate, select, setMainTab, setStats, openDrawer, gotoActiveGrant } = useUi();
-  const items = useQueue();
-  return (area: OverviewArea, key: string) => {
-    const t = targetOf(area, key);
-    if (t.to === "grant") return gotoActiveGrant(t.no);
-    if (t.to === "suspect") {
-      setMainTab("ustats");
-      setStats({ selected: { kind: "suspect", key: t.key } });
-      return openDrawer();
-    }
-    if (t.to === "queue" && items.some((i) => i.key === t.key)) return select(t.key);
-    navigate(t.view);
-    setMainTab("queue");
-  };
-}
-
-type Go = ReturnType<typeof useGo>;
 
 function Assistant({ b, go }: { b: Briefing | null; go: Go }) {
   const jobs = useJobs();
@@ -136,7 +123,7 @@ const R = 52;
 const C = 2 * Math.PI * R;
 const GAP = 2;
 
-function AreaDonut({ d }: { d: Overview }) {
+export function AreaDonut({ d }: { d: Overview }) {
   const [table, setTable] = useState(false);
   const { total, arcs: parts } = arcs(d.areas);
   return (
@@ -178,7 +165,7 @@ function AreaDonut({ d }: { d: Overview }) {
 
 const TICK = "absolute top-1 -translate-x-1/2 whitespace-nowrap first:translate-x-0 last:-translate-x-full";
 
-function Trend({ d }: { d: Overview }) {
+export function Trend({ d }: { d: Overview }) {
   const [table, setTable] = useState(false);
   const days = d.trend;
   const max = niceMax(Math.max(1, ...days.map((x) => x["위험"] + x["주의"])));
@@ -217,7 +204,7 @@ function Trend({ d }: { d: Overview }) {
   );
 }
 
-function Issues({ id, title, rows, empty, go }: { id: string; title: string; rows: OverviewRow[]; empty: string; go: Go }) {
+export function Issues({ id, title, rows, empty, go }: { id: string; title: string; rows: OverviewRow[]; empty: string; go: Go }) {
   return (
     <section className={card} id={id}>
       <div className={cardHead}><h3 className={cardTitle}>{title}</h3></div>

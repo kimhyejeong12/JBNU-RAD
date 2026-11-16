@@ -1,4 +1,4 @@
-import type { Overview, OverviewArea, StatPeriod } from "@/shared/api/types";
+import type { Briefing, Overview, OverviewArea, StatPeriod, Todo } from "@/shared/api/types";
 
 export const PERIODS: [StatPeriod, string][] = [["week", "일주일"], ["month", "한 달"], ["quarter", "3개월"], ["all", "전체"]];
 
@@ -41,3 +41,19 @@ export function arcs(areas: Overview["areas"]): { total: number; arcs: Arc[] } {
 }
 
 export const rateText = (rate: number | null): string => (rate == null ? "—" : `${rate}%`);
+
+// 어제 끝과 지금의 차이 — 추이가 이틀이 안 되면 견줄 날이 없어 null 입니다.
+export function delta(trend: Overview["trend"], level: "위험" | "주의"): number | null {
+  if (trend.length < 2) return null;
+  return trend[trend.length - 1][level] - trend[trend.length - 2][level];
+}
+
+export const deltaText = (n: number | null): string => (n == null ? "지금 열린 것" : n === 0 ? "어제와 같음" : `어제보다 ${n > 0 ? "+" : ""}${n}`);
+
+export type FirstTodo = Todo & { area: OverviewArea; label: string };
+
+// 영역마다 맨 앞 할 일 하나씩, 위험부터 n 개 — 보안 총책임자에게는 먼저 볼 것만 보입니다.
+export function firstTodos(b: Briefing, n = 3): FirstTodo[] {
+  const firsts = b.areas.flatMap((a) => a.todos.slice(0, 1).map((t) => ({ ...t, area: a.area, label: a.label })));
+  return firsts.sort((x, y) => Number(y.level === "위험") - Number(x.level === "위험")).slice(0, n);
+}

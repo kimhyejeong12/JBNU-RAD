@@ -12,6 +12,7 @@ import { LogsTab } from "@/features/logs/LogsTab";
 import { StatsTab } from "@/features/stats/StatsTab";
 import { RiskTab } from "@/features/risk/RiskTab";
 import { OverviewTab } from "@/features/overview/OverviewTab";
+import { Dashboard } from "@/features/overview/Dashboard";
 import { EngineTab } from "@/features/engine/EngineTab";
 
 export const workspace = "grid min-h-0 grid-cols-[minmax(0,1fr)_430px] gap-4.5 px-5.5 pt-4.5 pb-5.5 narrow:grid-cols-[1fr] narrow:px-4 narrow:py-3.5";
@@ -28,6 +29,7 @@ export function Workspace() {
       <div className="flex min-h-0 flex-col gap-3.5 overflow-auto narrow:overflow-visible *:shrink-0">
         <MainTabs />
         <QueueTab />
+        {ui.mainTab === "home" && <Dashboard />}
         {ui.mainTab === "nodes" ? <NodesTab /> : <section id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes" hidden />}
         {ui.mainTab === "overview" ? <OverviewTab /> : <section id="view-overview" role="tabpanel" aria-labelledby="tab-overview" hidden />}
         {ui.mainTab === "risk" ? <RiskTab /> : <section id="view-risk" role="tabpanel" aria-labelledby="tab-risk" hidden />}

@@ -121,7 +121,7 @@ JBNU-RAD/
 │       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · SourceChips) · confirm/(확인 창 — ask · ConfirmLayer)
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
 │       ├── shared/               api/(http · types · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
-│       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(질의 팝업 AskDock — 오른쪽 아래 버튼으로 어느 화면에서든 열고, 대화 · 근거 칩 · 도구별 근거 보기, 예시 질문은 config.ts) · stats · risk(보안 현황의 권한 변동 탭 — 사람 카드 · 회수) · catalog · accounts · regulations(기준 문서) · engine(관리의 큐 탭). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
+│       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(질의 팝업 AskDock — 오른쪽 아래 버튼으로 어느 화면에서든 열고, 대화 · 근거 칩 · 도구별 근거 보기, 예시 질문은 config.ts) · stats · risk(보안 현황의 권한 변동 탭 — 사람 카드 · 회수) · overview(보안 현황의 종합 탭 `OverviewTab` · 보안 총책임자의 현황 대시보드 `Dashboard` — 타일 · 도넛 · 추이 · 이슈 표를 함께 씀) · catalog · accounts · regulations(기준 문서) · engine(관리의 큐 탭). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
 ├── data/                     DLP 로그 (위치는 .env) · 예시 기준 문서. 컨테이너에는 읽기만으로 붙음
 │   └── example-regulations/    예시 기준 문서(.md · .txt) · 참고 pptx — 웹은 읽지 않음. 시험 환경 setup 이 권한 DB 에 넣음, 운영은 화면에서 올림 (11/9, 예전 docs/ → examples/regulations/)
 │       ├── 접근권한_관리기준.md     3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
@@ -270,6 +270,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 | `GET /api/qa[?conversation=]` | 내 대화 목록(최근 30개 — 첫 질문 · 턴 수 · 마지막 시각), `conversation` 을 주면 그 대화의 턴. 다른 사람 것은 안 줌 |
 | `GET /api/logs?period=day\|week\|month\|quarter\|half\|year\|all[&user=&solution=&how=&page=]` | 로그 조회 — 지금부터 1 · 7 · 30 · 90 · 180 · 365일 또는 전체. 사용자는 "부서 이름" 완전 일치. 최신순 100건씩 + 집계(`facts`) + 거르기 칸 값(`options`, 로그 전체 기준). 조회마다 감사 기록(`log_view`: 누가 · 조건 · IP) |
 | `GET /api/stats?period=week\|month\|quarter\|all` | 보안 통계 (기본 한 달, 모델 없이 셈, `results.threat_stats`) — `logs`(기간 안 로그 수 · 날짜별, 비율의 분모) · `events`(주의 · 위험 판정에 묶인 로그 줄 · 날짜별) · `servers`(노드별 등급 · 위험 · 주의 항목, 모듈별 위협 항목, 걸린 조항 — 노드마다 기간 안 마지막 점검) · `safety`(시스템 안전 점수, 아래) |
+| `GET /api/overview?period=week\|month\|quarter\|all` | 보안 현황 종합 (보안 운영자 이상, 모델 없이 셈, `sources/overview.py`) — 정책 관리 · 서버 점검 · 로그 감시 · 위협 예측 · 보유 권한 재검토에서 지금 열린 위험 · 주의(`counts` · `areas`, 기간과 무관) · 조치 필요(결정 없음 · 조치 중) · 조치 완료율(기간 안) · 일별 추이(`trend`, 그날 끝에 남은 것) · 주요 이슈 10건(`top`) · 판정 실패 · 마지막 AI 비서(`briefing` — 한 줄 요약 · 영역별 할 일, 작업 `briefing`) |
 | `GET /api/user-stats?period=` | 사용자 위협 — `suspects`(사람마다 마지막 의심 점수 · 등급 · 이유 · 확인할 점 · 행동 신호 · 흐름 · 지금 가진 권한 `held`, 계정 미연결은 null, 기간과 무관) · `safety`(사용자 안전 점수) · `events.users`(사용자별 위협 로그 줄 · 판정 수 · 로그 사용자 ID) · `requests`(신청 수 · AI 등급별 · AI와 결재가 엇갈린 수) |
 | `GET /api/health` | 연결 · 모델 · 임베딩 · 인덱스, 모두 준비되면 `ok` (보안 운영자 이상) |
 | `GET /api/regulations` · `POST /api/regulations` · `PUT /api/regulations/{이름}` · `DELETE /api/regulations/{이름}` | 권한 DB 의 원문 · 고친 시각 · 올리기 · 고치기 · 지우기 (모두 보안 운영자 이상). 지우기는 `{reason}` → 원문을 지우고 RAG 를 다시 맞춰 그 문서의 조각을 뺌, 지운 원문 · 사유는 감사 기록(`regulation_remove`)에. 마지막 문서는 400. 올리기는 `{name, content}`(.md · .txt, 1MB, 같은 이름 400 — 덮어쓰지 않음) → 바뀐 문서만 적재. 고치기는 `{content, reason}`(없는 문서 404, 같은 내용 400) → 그 문서만 다시 적재, 고치기 전 원문 · 사유는 감사 기록(`regulation_edit`)에. 원문 쓰기 · 적재를 한 일로 큐에 넣고 (적재가 실패하면 원문을 되돌림) 차례를 기다림(10분 넘거나 기다리는 중에 화면이 끊으면 빼고 409), AI 엔진(임베딩)에 닿지 않으면 바로 503 |
@@ -295,7 +296,7 @@ B · D를 놓친 이유: 기준 문서에 출력량 · 시간대 · 외주 계�
 |---|---|
 | 일반 사용자 | 메뉴 · 오른쪽 패널 없이 내 신청 화면 하나 — 신청서 위 · 목록 아래 (반려 사유 · 철회는 목록 줄의 상태 칸에서). AI 흔적 없음 |
 | 보안 운영자 | 권한 신청(1차 결재함 · 확인할 사람) · 정책 관리 · 로그 감시 · 보안 현황(종합 · 권한 변동 · 시스템 · 사용자) · 관리(권한 목록 · 계정 관리 · 기준 문서 · 큐 — 역할 칸은 없고 보안 운영자 이상 계정은 읽기만). 질의는 메뉴가 아니라 오른쪽 아래 버튼의 팝업 (어느 화면에서든) |
-| 보안 총책임자 | 위와 같은 메뉴, 1차 대신 최종 결재함 · 계정의 역할 바꾸기 · 보안 운영자 이상 계정 관리 |
+| 보안 총책임자 | 맨 앞에 현황(첫 화면 — 최종 결재 대기 · 열린 위험 · 주의 · 조치 필요 · 완료율 타일, 영역 도넛 · 일별 추이 · AI 종합 요약, 주요 위험 이슈 · 최종 결재 대기 목록, 오른쪽 패널 없음) + 위와 같은 메뉴, 1차 대신 최종 결재함 · 계정의 역할 바꾸기 · 보안 운영자 이상 계정 관리 |
 
 ---
 
@@ -882,3 +883,14 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - 보안 총책임자의 감독: 이 변경들은 감사 기록과 Slack 예외 알림(`ExceptionWatcher`, 11/13)으로 그대로 감
 - 화면: 보안 운영자의 [기준 문서] 버튼을 [관리]로 합침. 계정 패널은 보안 운영자에게 역할 칸을 감추고 보안 운영자 이상 계정은 읽기만
 - 11/16 시험(시험 웹, dev-op): 일반 사용자 계정 만들기 · 부서 고치기 · 권한 등록 · 큐 보기 됨, 운영자 계정 만들기 · 역할 올리기 · 자기 계정 고치기 · 루트 초기화는 400
+
+### 보안 총책임자 현황 대시보드 (11/16)
+
+- 이유: 교수님 미팅(10/19) "대시보드 최상단에 현재 위협 현황", "통계 → 세부 드릴다운", "사용자 유형별 메뉴 분리"와 멘토 피드백(보안 현황은 CISO가 한눈에 보는 화면). 그 전에는 두 역할의 첫 화면이 같았음(권한 신청, 결재 대기)
+- 보안 총책임자만 메뉴 맨 앞에 [현황], 로그인하면 여기로. 보안 운영자의 첫 화면은 그대로 권한 신청 (처리할 일 목록)
+- 보안 운영자의 종합 탭과 다른 점: [최종 결재 대기] 타일 · 목록, 위험 · 주의 타일에 어제 끝과의 차이, AI 요약은 한 줄과 먼저 볼 것 셋만(영역마다 맨 앞 할 일, 위험부터 — `overview/lib.ts` `firstTodos`), [강제 새로고침] 없음
+- 숫자 → 건별: 위험 · 주의 타일은 아래 이슈 표를 그 등급으로 거름, 표의 줄 · 먼저 볼 것은 그 판정 화면으로, 최종 결재 대기는 결재함의 그 신청으로
+- 위험 · 주의 타일을 메뉴의 등급 거르기로 보내지 않은 이유: 열린 위험이 다섯 영역에 걸쳐 있어 갈 메뉴가 하나가 아님. 이슈 표는 API가 10건까지만 줘서 넘으면 제목에 "N건 중 10건"
+- 새 API 없이 `/api/overview` 와 부팅 때 받은 신청 목록만 씀. 어제와의 차이는 `trend` 마지막 이틀
+- 빠진 것: 멘토 시안의 최근 조치 내역 — `/api/overview` 에 목록이 없음(완료 건수만). 양현성 `sources/overview.py` 에 더해야 해서 칸을 그리지 않음 (§4 목업 금지). 결재 중인 위험 신청도 영역에 없어 도넛 · 추이에 안 들어감 (최종 결재 대기 타일로만 보임)
+- 11/16 확인(시험 웹, Playwright): dev-root 는 [현황]으로 들어오고 타일 · 결재 대기 줄을 누르면 거르기 · 결재함으로 감. dev-op 는 권한 신청으로 들어오고 [현황] 없음. 시험 DB에 판정이 없어 도넛 · 추이 · AI 요약은 빈 모양만 봄
