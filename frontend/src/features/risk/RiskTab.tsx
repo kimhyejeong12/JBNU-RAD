@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KIND, filterPeople, revokeReason, status, summarize } from "./lib";
 import { ask } from "@/app/ui/confirm/ask";
@@ -10,7 +10,7 @@ import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
-import { Meta } from "@/shared/ui/base/parts";
+import { Meta, Tile } from "@/shared/ui/base/parts";
 import { box, card, cardCount, cardHead, cardTitle, empty, levelText, note, toolButton } from "@/shared/ui/base/styles";
 
 const FILTERS: (Level | "전체")[] = ["전체", "위험", "주의"];
@@ -33,8 +33,8 @@ export function RiskTab() {
           </span>
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2.5 px-4.5 pb-4" id="risk-tiles">
-          <Tile label="위험" big={<span className={sum.danger ? "text-risk" : undefined}>{sum.danger}명</span>} note={`주의 ${sum.caution}명`} />
-          <Tile label="부서 이동" big={`${sum.moved}명`} note={`맞지 않는 권한 ${sum.grants}명`} />
+          <Tile label="위험" big={`${sum.danger}명`} tone={sum.danger ? levelText["위험"] : undefined}>주의 {sum.caution}명</Tile>
+          <Tile label="부서 이동" big={`${sum.moved}명`}>맞지 않는 권한 {sum.grants}명</Tile>
           <Tile label="이동 뒤 이상 행동" big={`${sum.events}명`} />
           <Tile label="만료 권한 미회수" big={`${sum.expired}명`} />
         </div>
@@ -106,15 +106,5 @@ function PersonCard({ p }: { p: WatchPerson }) {
       </ul>
       {msg && <p className={cn(note, msg.startsWith("✓") ? "text-ok" : "text-risk")} role="status">{msg}</p>}
     </article>
-  );
-}
-
-function Tile({ label, big, note: text }: { label: string; big: ReactNode; note?: string }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-0.5 rounded-[10px] border border-line px-3.5 py-3">
-      <span className="text-[12px] font-semibold text-ink-dim">{label}</span>
-      <span className="text-[24px] font-extrabold tracking-[-0.6px]">{big}</span>
-      {text && <p className={cn(note, "m-0")}>{text}</p>}
-    </div>
   );
 }

@@ -12,7 +12,7 @@ import type { Briefing, Overview, StatPeriod } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
 import { STEP } from "@/shared/lib/request";
-import { LevelDot, Periods, Tile } from "@/shared/ui/base/parts";
+import { LevelDot, LevelLabel, Periods, Pill, Tile } from "@/shared/ui/base/parts";
 import { DataTable } from "@/shared/ui/charts/parts";
 import { card, cardCount, cardHead, cardTitle, levelText } from "@/shared/ui/base/styles";
 
@@ -84,7 +84,7 @@ function Summary({ b, go }: { b: Briefing | null; go: Go }) {
     <section className={card} id="home-summary">
       <div className={cardHead}>
         <h3 className={cardTitle}>AI 종합 요약</h3>
-        {b && !b.current && <span className="rounded-full border border-warn-line bg-warn-tint px-2 py-0.25 text-[11.5px] font-bold text-warn-ink">그 뒤 바뀜</span>}
+        {b && !b.current && <Pill tone="border-warn-line bg-warn-tint text-warn-ink" className="text-[11.5px]">그 뒤 바뀜</Pill>}
         <span className={cardCount}>{b ? stamp(b.created_at) : ""}</span>
       </div>
       {!b ? <p className={SUB}>아직 정리 전</p> : b.failed ? <p className={cn(SUB, "text-risk")}>정리 실패: {b.error}</p> : (
@@ -121,7 +121,7 @@ function Pending({ items, onOpen }: { items: QueueItem[]; onOpen: (no: string) =
           cells: [
             <b key="w" className="whitespace-nowrap">{it.who}</b>,
             it.what,
-            it.level ? <span key="l" className={cn("whitespace-nowrap font-semibold", levelText[it.level])}><LevelDot level={it.level} />{it.level}</span> : <span key="l" className="text-ink-dim">{it.judge}</span>,
+            it.level ? <LevelLabel key="l" level={it.level} /> : <span key="l" className="text-ink-dim">{it.judge}</span>,
             <span key="t" className="whitespace-nowrap text-ink-dim tabular-nums">{it.when}</span>,
           ],
         }))} />

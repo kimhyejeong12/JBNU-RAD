@@ -12,7 +12,7 @@ import type { RequestRow, Role } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON, LEVEL_TIP } from "@/shared/lib/labels";
 import { STAGE_LABEL, STEP, period, requester } from "@/shared/lib/request";
-import { History, KvTable, Meta, Section } from "@/shared/ui/base/parts";
+import { History, KvTable, Meta, Pill, Section } from "@/shared/ui/base/parts";
 import { Icon } from "@/shared/ui/base/Icon";
 import { cn } from "@/shared/lib/cn";
 import {
@@ -64,7 +64,7 @@ export function RequestPanel({ it }: { it: RequestItem }) {
         <p className={subject}>{r.requested_access}</p>
         <div className={meta}><Meta items={[no, requester(r)]} /></div>
         <JudgeState level={it.level} label={it.level ? undefined : it.judge}>
-          <span className="inline-flex items-center rounded-full border border-solid border-line px-2 py-0.25 text-[12px] font-bold whitespace-nowrap text-ink-soft">{STAGE_LABEL[r.stage]}</span>
+          <Pill>{STAGE_LABEL[r.stage]}</Pill>
         </JudgeState>
         <Section icon="file" title="신청 내용"><KvTable rows={rows} /></Section>
         <AiVerdict it={it} />

@@ -1,6 +1,6 @@
 import { SUSPECT_COLOR, statCard, statSafety, statSub, statTiles, trendMark, verdictsText } from "./lib";
 import { SafetyBand } from "./SafetyBand";
-import { Tile } from "./Tile";
+import { Tile } from "@/shared/ui/base/parts";
 import type { StatSelection } from "@/app/ui/state/uiReducer";
 import { JobReset } from "@/app/ui/jobs/JobReset";
 import { useStartJob } from "@/shared/api/jobs";
@@ -28,11 +28,12 @@ export function UserHead({ d, onSelect }: Props) {
           groups={[["의심 높음", susGroup("높음"), "suspect", "위험"], ["의심 보통", susGroup("보통"), "suspect", "주의"]]} />
       </div>
       <div className={statTiles} id="stat-tiles">
-        <Tile label="위협 사용자" big={`${ev.users.length}명`} note={`위험 ${ev.users.filter((u) => u["위험"]).length}명, 반복 ${repeat}명`} />
-        <Tile label="신청 중 위험 비율" big={pct(ai["위험"] || 0, judged)} note={`위험 ${ai["위험"] || 0}, 주의 ${ai["주의"] || 0} / ${judged}건`}>
-          {judged ? <Meter segs={[["위험", ai["위험"] || 0], ["주의", ai["주의"] || 0], ["정상", ai["정상"] || 0]]} total={judged} /> : null}
+        <Tile label="위협 사용자" big={`${ev.users.length}명`}>위험 {ev.users.filter((u) => u["위험"]).length}명, 반복 {repeat}명</Tile>
+        <Tile label="신청 중 위험 비율" big={pct(ai["위험"] || 0, judged)}
+          extra={judged ? <Meter segs={[["위험", ai["위험"] || 0], ["주의", ai["주의"] || 0], ["정상", ai["정상"] || 0]]} total={judged} /> : null}>
+          위험 {ai["위험"] || 0}, 주의 {ai["주의"] || 0} / {judged}건
         </Tile>
-        <Tile label="AI와 결재가 엇갈린 신청" big={`${rq.mismatches}건`} note="위험 승인, 정상 반려" />
+        <Tile label="AI와 결재가 엇갈린 신청" big={`${rq.mismatches}건`}>위험 승인, 정상 반려</Tile>
       </div>
     </>
   );

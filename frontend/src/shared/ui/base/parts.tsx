@@ -2,10 +2,20 @@ import type { ReactNode } from "react";
 import type { Level } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "./Icon";
-import { box, kvTable, kvTd, kvTh, levelDot } from "./styles";
+import { box, kvTable, kvTd, kvTh, levelDot, levelText } from "./styles";
 
 export function LevelDot({ level, className }: { level?: Level | null; className?: string }) {
   return <i className={cn("mr-1.5 inline-block size-2 flex-none rounded-full align-[1px]", levelDot[level ?? "none"], className)} />;
+}
+
+// 점과 등급 글자를 한 줄로 — 표의 AI 판단 칸에 씁니다.
+export function LevelLabel({ level }: { level: Level }) {
+  return <span className={cn("whitespace-nowrap font-semibold", levelText[level])}><LevelDot level={level} />{level}</span>;
+}
+
+// 알약 모양 배지 — 색은 tone 으로 줍니다.
+export function Pill({ tone = "border-line text-ink-soft", className, children }: { tone?: string; className?: string; children: ReactNode }) {
+  return <span className={cn("inline-flex items-center rounded-full border border-solid px-2 py-0.25 text-[12px] font-bold whitespace-nowrap", tone, className)}>{children}</span>;
 }
 
 export function Section({ icon, title, className, children }: { icon: string; title: ReactNode; className?: string; children: ReactNode }) {
@@ -36,14 +46,16 @@ export function KvTable({ rows }: { rows: [label: string, value: ReactNode][] })
 
 const TILE = "flex min-w-0 flex-col gap-0.5 rounded-[10px] border border-line px-3.5 py-3 text-left";
 
-// 큰 숫자 하나 — onClick 을 주면 누르는 타일이고, pressed 는 목록을 이 타일로 거르는 중인지입니다.
-export function Tile({ label, big, tone, onClick, pressed, children }: {
-  label: ReactNode; big: ReactNode; tone?: string; onClick?: () => void; pressed?: boolean; children?: ReactNode;
+// 큰 숫자 하나 — children 은 아래 작은 글, extra 는 숫자와 글 사이(막대 등)입니다.
+// onClick 을 주면 누르는 타일이고, pressed 는 목록을 이 타일로 거르는 중인지입니다.
+export function Tile({ label, big, tone, extra, onClick, pressed, children }: {
+  label: ReactNode; big: ReactNode; tone?: string; extra?: ReactNode; onClick?: () => void; pressed?: boolean; children?: ReactNode;
 }) {
   const body = (
     <>
       <span className="text-[12px] font-semibold text-ink-dim">{label}</span>
       <span className={cn("text-[26px] font-extrabold tracking-[-0.6px] tabular-nums", tone)}>{big}</span>
+      {extra}
       {children != null && <span className="text-[11.5px] text-ink-dim">{children}</span>}
     </>
   );

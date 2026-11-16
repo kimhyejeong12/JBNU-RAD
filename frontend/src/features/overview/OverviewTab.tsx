@@ -11,7 +11,7 @@ import type { Briefing, Overview, OverviewRow, StatPeriod } from "@/shared/api/t
 import { niceMax, stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
-import { LevelDot, Periods, Tile } from "@/shared/ui/base/parts";
+import { LevelDot, LevelLabel, Periods, Pill, Tile } from "@/shared/ui/base/parts";
 import { DataTable, Legend, ViewSwitch } from "@/shared/ui/charts/parts";
 import { card, cardCount, cardHead, cardTitle, levelText, mark, markTone, toolButton } from "@/shared/ui/base/styles";
 
@@ -70,7 +70,7 @@ function Assistant({ b, go }: { b: Briefing | null; go: Go }) {
     <section className={card} id="overview-briefing">
       <div className={cardHead}>
         <h3 className={cardTitle}>AI 비서</h3>
-        {b && !b.current && !busy && <span className="rounded-full border border-warn-line bg-warn-tint px-2 py-0.25 text-[11.5px] font-bold text-warn-ink">그 뒤 바뀜</span>}
+        {b && !b.current && !busy && <Pill tone="border-warn-line bg-warn-tint text-warn-ink" className="text-[11.5px]">그 뒤 바뀜</Pill>}
         <span className={cardCount}>{busy ? "정리 중…" : b ? stamp(b.created_at) : ""}</span>
         <button className={cn(toolButton, "ml-0")} id="briefing-run" disabled={busy} onClick={() => start.mutate("briefing")}>
           <Icon name="activity" small />강제 새로고침
@@ -196,7 +196,7 @@ export function Issues({ id, title, rows, empty, go }: { id: string; title: stri
           cells: [
             <span key="a" className="flex items-center gap-1.5 whitespace-nowrap"><i className="inline-block size-2.5 flex-none rounded-xs" style={{ background: AREA_COLOR[r.area] }} />{r.area_label}</span>,
             <b key="s" className="whitespace-nowrap">{r.subject}</b>,
-            r.level ? <span key="l" className={cn("whitespace-nowrap font-semibold", levelText[r.level])}><LevelDot level={r.level} />{r.level}</span> : <span key="l" className="text-ink-dim">판정 실패</span>,
+            r.level ? <LevelLabel key="l" level={r.level} /> : <span key="l" className="text-ink-dim">판정 실패</span>,
             <DecisionBadge key="d" decision={r.decision} />,
             <span key="r" className="line-clamp-2 text-ink-soft" data-tip={r.reason}>{r.reason}</span>,
             <span key="o" className="whitespace-nowrap text-ink-dim tabular-nums">{stamp(r.opened_at)}</span>,

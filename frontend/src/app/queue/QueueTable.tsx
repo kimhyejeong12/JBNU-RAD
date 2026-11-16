@@ -9,6 +9,7 @@ import { DECISIONS, decisionState } from "@/app/ui/panel/decision";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
+import { Pill } from "@/shared/ui/base/parts";
 import { empty, levelText } from "@/shared/ui/base/styles";
 
 // 창 폭이 아니라 목록 폭(약 560px)으로 상세 · 시각을 숨깁니다 — 메뉴 · 패널을 펼치면 목록이 좁아져서.
@@ -68,7 +69,7 @@ function Row({ it, grid, current, onSelect }: { it: QueueItem; grid: string; cur
       </span>
       {split && (
         <span className="flex min-w-0 flex-col items-start gap-px">
-          <span className={cn("max-w-full truncate rounded-full border border-solid px-2 py-0.25 text-[12px] font-bold", state.tone)}>{state.text}</span>
+          <Pill tone={state.tone} className="block max-w-full truncate">{state.text}</Pill>
           {d && <span className="max-w-full truncate text-[11px] text-ink-dim">{d.decider_name}</span>}
         </span>
       )}

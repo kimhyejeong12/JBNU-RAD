@@ -6,7 +6,7 @@ import { LEVEL_ICON } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/base/Icon";
 import { stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
-import { Meta } from "@/shared/ui/base/parts";
+import { Meta, Pill } from "@/shared/ui/base/parts";
 import { input, levelText, panelFoot, panelFootTitle } from "@/shared/ui/base/styles";
 
 const STATE_LABEL = "text-[11.5px] font-semibold text-ink-dim";
@@ -29,7 +29,7 @@ export function JudgeState({ level, label, children }: { level: Level | null | u
 
 export function DecisionBadge({ decision }: { decision: Pick<Decision, "action"> | null | undefined }) {
   const s = decisionState(decision);
-  return <span className={cn("inline-flex items-center rounded-full border border-solid px-2 py-0.25 text-[12px] font-bold whitespace-nowrap", s.tone)}>{s.text}</span>;
+  return <Pill tone={s.tone}>{s.text}</Pill>;
 }
 
 export function DecisionFoot({ target, decision }: { target: DecisionTarget; decision: Decision | null | undefined }) {

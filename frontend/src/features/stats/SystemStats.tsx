@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SafetyBand } from "./SafetyBand";
-import { Tile } from "./Tile";
+import { Tile } from "@/shared/ui/base/parts";
 import { mergeDays, statCard, statChart, statSafety, statSub, statTiles } from "./lib";
 import type { StatSelection } from "@/app/ui/state/uiReducer";
 import type { Stats } from "@/shared/api/types";
@@ -32,10 +32,10 @@ export function SystemHead({ d, onSelect }: Props) {
           ["끊김", nodeGroup((i) => i.stale), "node", "none"], ["판정 없음", nodeGroup((i) => !i.level), "node", "none"]]} />
       </div>
       <div className={statTiles} id="stat-tiles">
-        <Tile label="위협 로그" big={logs == null ? "—" : `${threat}건`}
-          note={logs == null ? "로그를 읽지 못했습니다" : `위험 ${L["위험"]}, 주의 ${L["주의"]} / 전체 ${logs}건 (${pct(threat, logs)})`} />
-        <Tile label="노드 위협 항목" big={`${gaps["위험"] + gaps["주의"]}건`}
-          note={`위험 ${gaps["위험"]}, 주의 ${gaps["주의"]}`} />
+        <Tile label="위협 로그" big={logs == null ? "—" : `${threat}건`}>
+          {logs == null ? "로그를 읽지 못했습니다" : `위험 ${L["위험"]}, 주의 ${L["주의"]} / 전체 ${logs}건 (${pct(threat, logs)})`}
+        </Tile>
+        <Tile label="노드 위협 항목" big={`${gaps["위험"] + gaps["주의"]}건`}>위험 {gaps["위험"]}, 주의 {gaps["주의"]}</Tile>
       </div>
     </>
   );
