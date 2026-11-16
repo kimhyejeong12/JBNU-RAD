@@ -26,6 +26,14 @@ test("inView: 유효 권한 · 전체", () => {
   expect(inView(reqActive, "requests", "all", "manager")).toBe(true);
 });
 
+test("inView: 권한 신청에서 고른 탭은 다른 메뉴의 목록을 거르지 않는다", () => {
+  const person = item({ type: "person", key: "person:1", raw: {} });
+  expect(inView(person, "requests", "people", "manager")).toBe(true);
+  expect(inView(reqPending, "requests", "people", "manager")).toBe(false);
+  expect(inView(evt, "events", "people", "manager")).toBe(true);
+  expect(inView(polOpen, "policies", "people", "manager")).toBe(true);
+});
+
 test("inView: 종류가 메뉴를 정한다", () => {
   expect(inView(polOpen, "policies", "pending", "manager")).toBe(true);
   expect(inView(polOpen, "events", "pending", "manager")).toBe(false);

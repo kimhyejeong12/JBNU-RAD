@@ -7,7 +7,8 @@ import { runKindLabel } from "@/shared/api/jobs";
 
 export function inView(it: QueueItem, view: View, stageFilter: StageFilter, role: Role): boolean {
   if (TYPE_VIEW[it.type] !== view) return false;
-  if (stageFilter === "people") return it.type === "person";
+  // 결재 단계 탭은 권한 신청에만 있습니다 — 다른 메뉴까지 걸면 [확인할 사람]을 고른 채로 옮겼을 때 목록이 빕니다.
+  if (view === "requests" && stageFilter === "people") return it.type === "person";
   if (it.type === "person") return false;
   if (it.type === "req" && stageFilter === "pending") return it.raw.stage === STEP[role];
   if (it.type === "req" && stageFilter === "active") return isActive(it.raw);
