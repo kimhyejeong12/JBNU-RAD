@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api")
 Text = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 
+
 def _denied(exc: Denied) -> HTTPException:
     return HTTPException(status_code=400, detail=str(exc))
 

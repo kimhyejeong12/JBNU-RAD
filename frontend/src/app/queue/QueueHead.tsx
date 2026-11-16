@@ -14,7 +14,6 @@ import type { Level } from "@/shared/api/types";
 import { useQueue } from "./useQueue";
 import { levelCounts } from "./select";
 
-
 export function QueueHead() {
   const me = useMe();
   const { ui, setQuery, setFilter, select } = useUi();

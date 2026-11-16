@@ -3,11 +3,10 @@
 import type * as S from "./schema";
 
 export type {
-  AccessItem, Approval, AuditRow, Briefing, Conversation, Decision, DecisionRecord, DecisionResult, EventFinding, ExtractedPdf, ExtractedTables, GrantReview, Health,
-  HeldAccess, Jobs, LogEvent, LogFacts, Me, NodeDetail, NodeFindingBrief, NodeRow, NodeWithKey, Overview, OverviewRow,
-  PolicyIssue, Regulation, RequestRow, Results, Revocation, RiskFlag, RiskPeople, RiskPerson, SafetyScore, Section, ServerFinding,
-  ServerGap, Snapshot, SnapshotState, StatModule, StatNode, Stats, Suspect, SuspectSignals, Todo, UserMove, UserRow, UserStats,
-  Verdict, WatchFlag, WatchPerson, XlsxTable,
+  AccessItem, AuditRow, Briefing, Conversation, Decision, DecisionResult, EventFinding, ExtractedPdf, ExtractedTables, GrantReview, Health,
+  Jobs, LogFacts, Me, NodeDetail, NodeRow, NodeWithKey, Overview, OverviewRow, PolicyIssue, Regulation, RequestRow, Results, RiskFlag, RiskPeople,
+  RiskPerson, SafetyScore, Section, ServerFinding, Snapshot, SnapshotState, Stats, Suspect, Todo, UserRow, UserStats, Verdict, WatchFlag,
+  WatchPerson, XlsxTable,
 } from "./schema";
 
 export type Role = S.Me["role"];
@@ -16,6 +15,7 @@ export type Stage = S.RequestRow["stage"];
 export type SuspectLevel = NonNullable<S.Suspect["level"]>;
 export type OverviewArea = S.OverviewRow["area"];
 
+// 서버의 responses.AuditTarget 과 같게 둡니다 (요청 칸이라 명세에 타입으로 안 나옵니다).
 export type AuditTarget = "regulation" | "user" | "access";
 export type JobKind = "policies" | "nodes" | "suspects" | "briefing";
 export type LogPeriod = "day" | "week" | "month" | "all";

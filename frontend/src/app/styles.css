@@ -30,7 +30,7 @@
   --color-idle: #B5B5BA;
   --color-mark-etc: #D4D4D8;
   /* 테마 — 산학 과제의 상대 회사 사이트에서 가져온 남색 · 살구색. 위 막대 · 주 버튼 · 강조 카드에만 씁니다.
-     빨강은 이 화면에서 "위험"이라 선택된 메뉴 밑줄에만 (risk 와 같은 값). */
+     빨강은 이 화면에서 "위험"이라 선택된 메뉴 밑줄 · 로고 상자에만 (risk 와 같은 값). */
   --color-brand: #0D2353;
   --color-brand-hover: #1A3468;
   --color-brand-red: #EA002C;

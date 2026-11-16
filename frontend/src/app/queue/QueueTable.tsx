@@ -26,7 +26,9 @@ export function QueueTable() {
   const view = ui.view;
   const people = view === "requests" && ui.stageFilter === "people";
   const cols = people ? PEOPLE_COLS : view ? VIEWS[view].cols : [];
-  const grid = !people && !!view && LEVEL_VIEWS.has(view) ? GRID_SPLIT : GRID;
+  // 권한 신청 · 정책 관리 · 로그 감시는 AI 판단과 처리 상태를 다른 열로 둡니다.
+  const split = !people && !!view && LEVEL_VIEWS.has(view);
+  const grid = split ? GRID_SPLIT : GRID;
   const rows = view ? visible(items, { view, stageFilter: ui.stageFilter, role: me.role, filter: ui.filter, query: ui.query }) : [];
   const anyInView = !!view && items.some((it) => inView(it, view, ui.stageFilter, me.role));
   const onRow = (key: string) => (key === ui.selected ? dispatch({ type: "DESELECT" }) : select(key));
@@ -37,21 +39,27 @@ export function QueueTable() {
       </div>
       <div id="rows">
         {rows.length
-          ? rows.map((it) => <Row key={it.key} it={it} grid={grid} current={it.key === ui.selected} onSelect={() => onRow(it.key)} />)
+          ? rows.map((it) => <Row key={it.key} it={it} split={split} current={it.key === ui.selected} onSelect={() => onRow(it.key)} />)
           : view && <div className={empty}>{emptyText(view, ui.stageFilter, jobs, anyInView)}</div>}
       </div>
     </div>
   );
 }
 
+// 처리 상태 — 신청은 결재 단계, 정책 · 서버 · 로그는 운영자 결정입니다 (1차 판정처럼 결정 전 글이 있으면 그 글).
+function stateOf(it: QueueItem): { text: string; tone: string } {
+  if (it.type === "req") return { text: it.sub ?? "", tone: "border-line text-ink-soft" };
+  if (it.decision || !it.sub) return decisionState(it.decision);
+  return { text: it.sub, tone: "border-line text-ink-dim" };
+}
+
 const MIXED = new Set<ItemType>(["policy", "server"]);
 const ROW = "min-h-14 w-full border-0 border-b border-l-[3px] border-b-line border-l-transparent bg-surface py-2 pr-4.5 pl-3.75 text-left";
-function Row({ it, grid, current, onSelect }: { it: QueueItem; grid: string; current: boolean; onSelect: () => void }) {
+function Row({ it, split, current, onSelect }: { it: QueueItem; split: boolean; current: boolean; onSelect: () => void }) {
   const d = it.decision;
-  const split = grid === GRID_SPLIT;
+  const grid = split ? GRID_SPLIT : GRID;
   const sub = d ? `${DECISIONS[d.action]} (${d.decider_name})` : it.sub;
-  // 신청은 결재 단계, 정책 · 서버 · 로그는 운영자 결정이 처리 상태입니다.
-  const state = it.type === "req" ? { text: it.sub ?? "", tone: "border-line text-ink-soft" } : d || !it.sub ? decisionState(d) : { text: it.sub, tone: "border-line text-ink-dim" };
+  const state = stateOf(it);
   const tag = [it.typeLabel ?? (MIXED.has(it.type) ? TYPE_LABEL[it.type] : ""), it.id && !it.who.includes(it.id) ? it.id : ""].filter(Boolean).join(" ");
   const cells = (
     <>

@@ -61,10 +61,6 @@ def gone_holders(db: Database) -> dict[int, int]:
     return {r["requester_id"]: r["n"] for r in rows}
 
 
-#: 화면에 변경 이력을 보이는 대상입니다.
-HISTORY_TARGETS = ("regulation", "user", "access")
-
-
 def history(db: Database, target_type: str, target_id: str, limit: int = 20) -> list[dict[str, Any]]:
     """한 대상의 감사 기록(최근 것부터) — 기준 문서의 지난 원문(before)은 길어서 뺍니다."""
     with db.connection() as conn:

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AreaDonut, Issues, Trend } from "./OverviewTab";
+import { ActionTiles, AreaDonut, Issues, Trend } from "./OverviewTab";
 import { useGo, type Go } from "./useGo";
-import { AREA_COLOR, PERIODS, delta, deltaText, firstTodos, rateText } from "./lib";
+import { AREA_COLOR, PERIODS, delta, deltaText, firstTodos, rangeText } from "./lib";
 import { useQueue } from "@/app/queue/useQueue";
 import type { QueueItem } from "@/app/queue/types";
 import { useMe } from "@/app/session/me";
@@ -31,7 +31,6 @@ export function Dashboard() {
   const pending = useQueue().filter((it) => it.type === "req" && it.raw.stage === STEP[role]);
   const [level, setLevel] = useState<Open | null>(null);
   const openPending = () => (pending.length ? gotoRequest(pending[0].id, "pending") : navigate("requests"));
-  const range = q.isFetching ? "세는 중…" : q.isError ? q.error.message : d ? (d.since ? `완료율 ${stamp(d.since)} 부터` : "완료율 처음부터") : "";
   const rows = d ? (level ? d.top.filter((r) => r.level === level) : d.top) : [];
   const total = d && level ? d.counts[level] : 0;
   const title = level ? `열린 ${level} ${total}건${total > rows.length ? ` 중 ${rows.length}건` : ""}` : "주요 위험 이슈";
@@ -41,7 +40,7 @@ export function Dashboard() {
         <div className={cardHead}>
           <h3 className={cardTitle}>현황</h3>
           <Periods<StatPeriod> id="home-periods" labels={PERIODS} value={period} onChange={(p) => { if (p !== period) setStats({ period: p }); }} />
-          <span className={cardCount}>{range}</span>
+          <span className={cardCount}>{rangeText(q)}</span>
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2.5 px-4.5 pb-4" id="home-tiles">
           <Tile label="최종 결재 대기" big={pending.length} onClick={openPending}>AI 위험 {pending.filter((it) => it.level === "위험").length}</Tile>
@@ -56,13 +55,19 @@ export function Dashboard() {
             <Summary b={d.briefing} go={go} />
           </div>
           <div className="grid grid-cols-[minmax(0,7fr)_minmax(0,5fr)] items-start gap-3.5 narrow:grid-cols-[minmax(0,1fr)]">
-            <Issues id="home-top" title={title} rows={rows} empty={level ? `열린 ${level} 없음` : "열린 위험 없음"} go={go} />
+            <Issues id="home-top" title={title} rows={rows} empty={emptyText(level, total)} go={go} />
             <Pending items={pending} onOpen={(no) => gotoRequest(no, "pending")} />
           </div>
         </>
       )}
     </div>
   );
+}
+
+// 주요 이슈는 위험부터 10건이라, 위험이 많으면 주의는 열려 있어도 이 목록에 안 들어옵니다.
+function emptyText(level: Open | null, total: number): string {
+  if (!level) return "열린 위험 없음";
+  return total ? `위험이 많아 주요 이슈 10건에 ${level}가 들지 않았습니다` : `열린 ${level} 없음`;
 }
 
 function OpenTiles({ d, level, onPick }: { d: Overview; level: Open | null; onPick: (l: Open) => void }) {
@@ -72,8 +77,7 @@ function OpenTiles({ d, level, onPick }: { d: Overview; level: Open | null; onPi
       {(["위험", "주의"] as const).map((l) => (
         <Tile key={l} label={l} big={c[l]} tone={c[l] ? levelText[l] : undefined} pressed={level === l} onClick={() => onPick(l)}>{deltaText(delta(d.trend, l))}</Tile>
       ))}
-      <Tile label="조치 필요" big={c.action.total}>결정 없음 {c.action.undecided}, 조치 중 {c.action.acting}</Tile>
-      <Tile label="조치 완료율" big={rateText(c.completion.rate)}>완료 {c.completion.done}, 남음 {c.completion.waiting}</Tile>
+      <ActionTiles d={d} />
     </>
   );
 }

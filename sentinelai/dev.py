@@ -236,6 +236,7 @@ def api_check(base: str, login: str) -> int:
     from .web.main import app
 
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    unreachable = (urllib.error.URLError, TimeoutError)   # HTTPError 는 URLError 라 먼저 받습니다
 
     def call(path: str, body: dict | None = None):
         data = json.dumps(body).encode() if body is not None else None
@@ -244,32 +245,40 @@ def api_check(base: str, login: str) -> int:
             return json.load(response)
 
     password = os.environ.get("SENTINELAI_CHECK_PASSWORD") or getpass.getpass(f"{login} 비밀번호: ")
+    checks = [(path + CHECK_QUERY.get(path, ""), model, enforced) for path, model, enforced in contract.declared(app) if path not in CHECK_SKIP]
+    bad = missing = 0
     try:
         call("/api/auth/login", {"login_id": login, "password": password})
+        while checks:
+            path, model, enforced = checks.pop(0)
+            try:
+                payload = call(path)
+            except urllib.error.HTTPError as exc:
+                missing += 1
+                print(f"- {path}: 받지 못함 ({exc.code})")
+                continue
+            found = (contract.unfit if enforced else contract.mismatch)(model, payload)
+            bad += bool(found)
+            print(f"{'✗' if found else '✓'} {path}{'' if enforced else ' (응답 그대로)'}: {f'어긋남 {len(found)}' if found else '일치'}")
+            for line in found[:10]:
+                print(f"    {line}")
+            # 목록에서 하나씩 들어가는 조회도 봅니다.
+            if path == "/api/nodes":
+                checks += [(f"/api/nodes/{quote(n['name'])}", shapes.NodeDetail, False) for n in payload[:CHECK_NODES]]
+            if path == "/api/qa" and payload:
+                checks.append((f"/api/qa?conversation={payload[0]['conversation_id']}", model, False))
     except urllib.error.HTTPError as exc:
         print(f"로그인하지 못했습니다 ({exc.code})")
         return 1
-
-    checks = [(path + CHECK_QUERY.get(path, ""), model, enforced) for path, model, enforced in contract.declared(app) if path not in CHECK_SKIP]
-    bad = missing = 0
-    while checks:
-        path, model, enforced = checks.pop(0)
+    except unreachable as exc:
+        print(f"서버에 닿지 않습니다: {base} ({getattr(exc, 'reason', exc)})")
+        return 1
+    finally:
+        # 대조에 쓴 세션을 서버에 2일 남기지 않습니다.
         try:
-            payload = call(path)
-        except urllib.error.HTTPError as exc:
-            missing += 1
-            print(f"- {path}: 받지 못함 ({exc.code})")
-            continue
-        found = (contract.unfit if enforced else contract.mismatch)(model, payload)
-        bad += bool(found)
-        print(f"{'✗' if found else '✓'} {path}{'' if enforced else ' (응답 그대로)'}: {f'어긋남 {len(found)}' if found else '일치'}")
-        for line in found[:10]:
-            print(f"    {line}")
-        # 목록에서 하나씩 들어가는 조회도 봅니다.
-        if path == "/api/nodes":
-            checks += [(f"/api/nodes/{quote(n['name'])}", shapes.NodeDetail, False) for n in payload[:CHECK_NODES]]
-        if path == "/api/qa" and payload:
-            checks.append((f"/api/qa?conversation={payload[0]['conversation_id']}", model, False))
+            call("/api/auth/logout", {})
+        except unreachable:
+            pass
     print(f"어긋난 API {bad}개" + (f", 받지 못한 API {missing}개 (이 서버가 예전 코드면 없는 API)" if missing else ""))
     return 1 if bad else 0
 

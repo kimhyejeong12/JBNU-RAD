@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AREA_COLOR, PERIODS, arcs, rateText } from "./lib";
+import { AREA_COLOR, PERIODS, arcs, rangeText, rateText } from "./lib";
 import { useGo, type Go } from "./useGo";
 import { useJobs } from "@/app/session/data";
 import { DecisionBadge } from "@/app/ui/panel/DecisionFoot";
@@ -23,14 +23,13 @@ export function OverviewTab() {
   const q = useQuery(overviewQuery(period));
   const d = q.data;
   const go = useGo();
-  const range = q.isFetching ? "세는 중…" : q.isError ? q.error.message : d ? (d.since ? `완료율 ${stamp(d.since)} 부터` : "완료율 처음부터") : "";
   return (
     <div className="flex flex-col gap-3.5" id="view-overview" role="tabpanel" aria-labelledby="tab-overview" style={{ opacity: q.isFetching && d ? 0.55 : undefined }}>
       <section className={card}>
         <div className={cardHead}>
           <h3 className={cardTitle}>종합</h3>
           <Periods<StatPeriod> id="overview-periods" labels={PERIODS} value={period} onChange={(p) => { if (p !== period) setStats({ period: p }); }} />
-          <span className={cardCount}>{range}</span>
+          <span className={cardCount}>{rangeText(q)}</span>
         </div>
         {d && <Tiles d={d} />}
       </section>
@@ -55,10 +54,20 @@ function Tiles({ d }: { d: Overview }) {
     <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2.5 px-4.5 pb-4" id="overview-tiles">
       <Tile label="위험" big={c["위험"]} tone={c["위험"] ? levelText["위험"] : undefined}>지금 열린 것</Tile>
       <Tile label="주의" big={c["주의"]} tone={c["주의"] ? levelText["주의"] : undefined}>지금 열린 것</Tile>
+      <ActionTiles d={d} />
+    </div>
+  );
+}
+
+// 조치 필요 · 완료율 · 판정 실패 — 종합 탭과 보안 총책임자 현황이 함께 씁니다.
+export function ActionTiles({ d }: { d: Overview }) {
+  const c = d.counts;
+  return (
+    <>
       <Tile label="조치 필요" big={c.action.total}>결정 없음 {c.action.undecided}, 조치 중 {c.action.acting}</Tile>
       <Tile label="조치 완료율" big={rateText(c.completion.rate)}>완료 {c.completion.done}, 남음 {c.completion.waiting}</Tile>
       {c.failed > 0 && <Tile label="판정 실패" big={c.failed} tone="text-ink-dim">위험 주의에 안 셈</Tile>}
-    </div>
+    </>
   );
 }
 

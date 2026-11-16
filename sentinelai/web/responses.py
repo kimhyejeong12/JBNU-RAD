@@ -116,6 +116,10 @@ class ExtractedTables(BaseModel):
     tables: list[XlsxTable]
 
 
+#: 변경 이력을 보이는 대상 — 화면의 AuditTarget 과 같게 둡니다.
+AuditTarget = Literal["regulation", "user", "access"]
+
+
 class AuditRow(BaseModel):
     """변경 이력의 한 줄 — detail 은 기록마다 칸이 다릅니다 (사유 또는 바뀐 칸과 값)."""
 

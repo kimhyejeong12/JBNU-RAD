@@ -1,4 +1,5 @@
 import type { Briefing, Overview, OverviewArea, StatPeriod, Todo } from "@/shared/api/types";
+import { stamp } from "@/shared/lib/format";
 
 export const PERIODS: [StatPeriod, string][] = [["week", "일주일"], ["month", "한 달"], ["quarter", "3개월"], ["all", "전체"]];
 
@@ -56,4 +57,12 @@ export type FirstTodo = Todo & { area: OverviewArea; label: string };
 export function firstTodos(b: Briefing, n = 3): FirstTodo[] {
   const firsts = b.areas.flatMap((a) => a.todos.slice(0, 1).map((t) => ({ ...t, area: a.area, label: a.label })));
   return firsts.sort((x, y) => Number(y.level === "위험") - Number(x.level === "위험")).slice(0, n);
+}
+
+// 카드 머리의 오른쪽 글 — 세는 중 · 오류 · 완료율을 센 시작점입니다.
+export function rangeText(q: { isFetching: boolean; error: Error | null; data?: Overview }): string {
+  if (q.isFetching) return "세는 중…";
+  if (q.error) return q.error.message;
+  if (!q.data) return "";
+  return q.data.since ? `완료율 ${stamp(q.data.since)} 부터` : "완료율 처음부터";
 }
