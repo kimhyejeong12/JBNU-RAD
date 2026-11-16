@@ -920,7 +920,9 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - 방식: 라우트에 응답 모델(`response_model`)을 선언 → `python -m sentinelai.dev api-types` 가 명세의 모델을 `schema.ts` 로 씀 → `types.ts` 는 그 타입을 다시 내보내기만 함. 화면 코드의 import 는 그대로
 - 생성기를 직접 둔 이유: `openapi-typescript` 는 TypeScript 5 의 컴파일러 API 에 기대는데 화면은 TypeScript 7 이라 설치부터 충돌함. FastAPI 가 내는 모양(객체 · 배열 · 열거 · null · 참조)만 다루는 60줄 안팎의 변환을 `dev.py` 에 둠 — 새 의존성 없음, Node 없는 서버에서도 됨
 - 지키는 시험 둘 (`tests/test_api_contract.py`): `schema.ts` 가 지금 코드에서 만든 것과 같은지, 응답 모델의 칸이 DB 가 주는 칸과 같은지. 뒤의 것은 응답 모델에 없는 칸이 응답에서 말없이 빠지기 때문
-- 이번 범위: 웹 · DB 계층이 모양을 정하는 관리 API 다섯 — 계정(`Me` · `UserRow`), 권한 목록(`AccessItem`), 기준 문서(`Regulation`), 변경 이력(`AuditRow`). 요청 모델 20개도 같이 생성됨 (화면은 아직 안 씀)
+- 범위: 웹 · DB 계층이 모양을 정하는 API — 계정(`Me` · `UserRow`), 권한 목록(`AccessItem`), 기준 문서(`Regulation` · 지우기 `Named`), 변경 이력(`AuditRow`), 확인할 사람(`WatchPerson` · `WatchFlag`), 수집 노드 등록 · 목록 · 켜기/끄기 · 키 발급(`Node` · `NodeRow` · `NodeWithKey`), 운영자 결정 적기(`DecisionResult` · `DecisionRecord`), 로그아웃 · 비밀번호 초기화(`Ok`). 라우트 45개 중 22개. 요청 모델 20개도 같이 생성됨 (화면은 아직 안 씀)
+- 권한 변동(`/api/risk-people`)은 엔진이 확인할 사람에 만료 · 로그 판정 flag 와 로그 사용자를 더해 주므로, 화면의 `WatchPerson` · `WatchFlag` 는 생성된 타입을 넓힌 것 (`types.ts`)
 - 바로 드러난 어긋남: 손으로 적은 타입은 부서 · 시스템 · 분류 · 로그 사용자 ID 를 `null` 일 수 있다고 봤으나 DB 는 빈 글(`NOT NULL DEFAULT ''`), `UserRow` 에 이메일 칸이 없었음, `Regulation.updated_at` 은 늘 옴. 화면 코드는 `||` 로 받아 문제없었고 시험 데이터만 고침
-- 응답이 달라진 것: 계정 목록의 `is_root` · `is_active` · `must_change_password` 가 1/0 에서 true/false 로 (화면은 참 · 거짓으로만 씀)
-- 남은 것: 나머지 라우트 40개. 판정 결과(`/api/results` · `/api/requests` 의 AI 칸 · `/api/overview` 등)는 모양을 엔진 · 데이터 계층이 정하므로 엔진의 출력 타입을 그대로 쓰는 방식으로 담당자와 맞춘 뒤 (§4 엔진 타입을 대체하는 웹 전용 스키마 금지). 응답이 바뀌는 API부터 하나씩 옮김
+- 응답이 달라진 것: 계정 목록의 `is_root` · `is_active` · `must_change_password` 가 1/0 에서 true/false 로 (화면은 참 · 거짓으로만 씀). 확인할 사람의 flag 에 신청 번호가 없으면 칸이 빠지는 대신 `request_no: null`
+- 남은 것: 라우트 23개 — 모양을 엔진 · 데이터 계층이 정하는 것들. 판정 결과(`/api/results` · `/api/requests` 의 AI 칸 · 노드 상세의 점검 기록), 집계(`/api/overview` · `stats` · `user-stats` · `risk-people` · `logs`), 작업 큐(`/api/jobs` · `queue`), 질의(`/api/ask` · `qa`), 수집 받기 · 상태 확인. 엔진의 출력 타입을 그대로 쓰는 방식으로 담당자와 맞춘 뒤 (§4 엔진 타입을 대체하는 웹 전용 스키마 금지). 응답이 바뀌는 API부터 하나씩 옮김
+- 생성기의 한계: 타입만 만들고 주소와 타입의 짝(`getJSON<UserRow[]>("/api/users")`)은 여전히 호출하는 쪽이 손으로 고름. `openapi-typescript` 를 TypeScript 7 과 강제로 깔아 돌려 보니 `ts.factory` 가 없어 실행에서 죽음 (11/16) — 그 도구가 TypeScript 7 을 받게 되면 주소 단위 타입까지 주는 그쪽으로 바꾸는 것이 낫고, 서버의 응답 모델은 그대로 쓰임

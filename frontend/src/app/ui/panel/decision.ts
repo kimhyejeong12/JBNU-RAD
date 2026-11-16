@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUi } from "@/app/ui/state/UiContext";
 import { send } from "@/shared/api/http";
-import type { Decision, Results } from "@/shared/api/types";
+import type { Decision, DecisionResult, Results } from "@/shared/api/types";
 
 export type DecisionKind = "policy" | "event" | "server" | "suspect";
 
@@ -42,7 +42,7 @@ export function useDecide() {
   const { setPanelMsg } = useUi();
   return useMutation({
     mutationFn: ({ target: t, action, comment }: { target: DecisionTarget; action: string; comment: string }) =>
-      send<{ decision?: Decision | null }>("/api/decisions", {
+      send<DecisionResult>("/api/decisions", {
         kind: t.kind, item_key: t.itemKey, action, ai_level: t.level || null, subject: t.subject,
         comment: action === "cancel" ? "" : comment || "",
       }),

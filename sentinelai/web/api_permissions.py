@@ -17,10 +17,17 @@ router = APIRouter(prefix="/api")
 Text = Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)]
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 Role = Literal["user", "manager", "top"]
+Level = Literal["정상", "주의", "위험"]
 
 
 # --- 응답 모양 — 여기 적은 칸이 API 명세(/openapi.json)에 나오고, 화면 타입(frontend/src/shared/api/schema.ts)은 거기서 만듭니다.
 # 적지 않은 칸은 응답에서 빠지므로 DB 가 주는 칸과 같게 둡니다 (tests/test_api_contract.py 가 봅니다).
+
+
+class Ok(BaseModel):
+    """돌려줄 내용 없이 끝난 일."""
+
+    ok: bool
 
 
 class Me(BaseModel):
@@ -46,6 +53,55 @@ class UserRow(Me):
     job: str
     left_on: str
     email: str
+
+
+class WatchFlag(BaseModel):
+    """확인할 사람에게 걸린 일 하나 — 퇴사 · 이동 · 보유 권한 · 결재 중 신청."""
+
+    kind: Literal["leave", "move", "grant", "request"]
+    level: Level
+    at: str
+    text: str
+    request_no: str | None = None
+
+
+class WatchPerson(BaseModel):
+    """확인할 사람 한 명 — level · at 은 걸린 일 중 가장 높은 등급 · 가장 늦은 날."""
+
+    id: int
+    login_id: str
+    name: str
+    department: str
+    job: str
+    is_active: bool
+    left_on: str
+    level: Level
+    at: str
+    flags: list[WatchFlag]
+
+
+class DecisionRecord(BaseModel):
+    """운영자 결정 한 건 (권한 DB 의 결정 기록 한 줄)."""
+
+    id: int
+    kind: Literal["policy", "event", "server", "suspect"]
+    item_key: str
+    subject: str
+    action: str
+    comment: str
+    ai_level: Level | None
+    decider_id: int
+    decider_name: str
+    decider_department: str
+    decided_at: str
+
+
+class DecisionResult(BaseModel):
+    """결정을 적은 결과 — decision 은 지금 결정이고 취소면 null."""
+
+    kind: str
+    item_key: str
+    decision: DecisionRecord | None
 
 
 class AccessItem(BaseModel):
@@ -114,7 +170,7 @@ def login(body: LoginBody, request: Request, response: Response) -> dict[str, An
     return user.public()
 
 
-@router.post("/auth/logout")
+@router.post("/auth/logout", response_model=Ok)
 def logout(request: Request, response: Response) -> dict[str, bool]:
     auth.logout(request.app.state.main_db, request.cookies.get(COOKIE))
     response.delete_cookie(COOKIE, path="/")
@@ -201,7 +257,7 @@ def update_user(user_id: int, body: UserChange, request: Request, user: Anyone) 
     return changed.public()
 
 
-@router.post("/users/{user_id}/reset-password")
+@router.post("/users/{user_id}/reset-password", response_model=Ok)
 def reset_password(user_id: int, body: PasswordReset, request: Request, user: Anyone) -> dict[str, bool]:
     try:
         auth.reset_password(request.app.state.main_db, user, user_id, body.temporary_password)
@@ -264,7 +320,7 @@ def _with_verdict(request: Request, req: dict, user: User) -> dict:
     return {**req, "grant_review": review, "judging": request.app.state.engine.pending(req["request_no"])}
 
 
-@router.get("/people", dependencies=[Depends(role("manager", "top"))])
+@router.get("/people", dependencies=[Depends(role("manager", "top"))], response_model=list[WatchPerson])
 def people(request: Request) -> list[dict[str, Any]]:
     return permissions.watch_people(request.app.state.main_db)
 
@@ -363,7 +419,7 @@ class ReviewDecision(BaseModel):
     ai_level: str | None = None
 
 
-@router.post("/decisions")
+@router.post("/decisions", response_model=DecisionResult)
 def record_decision(body: ReviewDecision, request: Request, user: Approver) -> dict[str, Any]:
     """응답은 지금 결정입니다 (취소면 null)."""
     try:

@@ -63,6 +63,12 @@ class Regulation(BaseModel):
     updated_at: str
 
 
+class Named(BaseModel):
+    """지운 기준 문서의 이름."""
+
+    name: str
+
+
 @router.get("", dependencies=[Depends(role("manager", "top"))], response_model=list[Regulation])
 def regulations(request: Request) -> list[dict[str, str]]:
     return regs.list_all(request.app.state.main_db)
@@ -73,7 +79,7 @@ class NewRegulation(BaseModel):
     content: Annotated[str, StringConstraints(min_length=1, max_length=MAX_CHARS)]
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=Regulation)
 async def upload(body: NewRegulation, request: Request, user: Approver) -> dict[str, str]:
     """같은 이름은 덮어쓰지 않고, 적재가 실패하면 올린 문서를 지웁니다."""
     if not NAME.fullmatch(body.name):
@@ -104,7 +110,7 @@ class EditRegulation(BaseModel):
     reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
 
 
-@router.put("/{name}")
+@router.put("/{name}", response_model=Regulation)
 async def edit(name: str, body: EditRegulation, request: Request, user: Approver) -> dict[str, str]:
     """그 문서만 다시 적재하고, 실패하면 원래 글로 되돌립니다."""
     db, engine = request.app.state.main_db, request.app.state.engine
@@ -135,7 +141,7 @@ class RemoveRegulation(BaseModel):
     reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
 
 
-@router.delete("/{name}")
+@router.delete("/{name}", response_model=Named)
 async def remove(name: str, body: RemoveRegulation, request: Request, user: Approver) -> dict[str, str]:
     """RAG 에서 빼지 못하면 문서를 되돌립니다. 마지막 문서는 지우지 않습니다."""
     db, engine = request.app.state.main_db, request.app.state.engine

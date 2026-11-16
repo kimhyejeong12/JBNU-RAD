@@ -41,6 +41,28 @@ export interface DecisionBody {
   comment?: string;
 }
 
+/** 운영자 결정 한 건 (권한 DB 의 결정 기록 한 줄). */
+export interface DecisionRecord {
+  id: number;
+  kind: "policy" | "event" | "server" | "suspect";
+  item_key: string;
+  subject: string;
+  action: string;
+  comment: string;
+  ai_level: "정상" | "주의" | "위험" | null;
+  decider_id: number;
+  decider_name: string;
+  decider_department: string;
+  decided_at: string;
+}
+
+/** 결정을 적은 결과 — decision 은 지금 결정이고 취소면 null. */
+export interface DecisionResult {
+  kind: string;
+  item_key: string;
+  decision: DecisionRecord | null;
+}
+
 export interface EditRegulation {
   content: string;
   reason: string;
@@ -64,6 +86,11 @@ export interface Me {
   role: "user" | "manager" | "top";
   is_root: boolean;
   must_change_password: boolean;
+}
+
+/** 지운 기준 문서의 이름. */
+export interface Named {
+  name: string;
 }
 
 export interface NewAccess {
@@ -100,8 +127,59 @@ export interface NewUser {
   role: string;
 }
 
+/** 수집 노드 한 대 — 키 자체는 빼고 발급 여부만. */
+export interface Node {
+  name: string;
+  host: string;
+  ip: string;
+  agent_version: string;
+  interval_min: number;
+  registered_at: string;
+  last_seen_at: string | null;
+  last_collected_at: string | null;
+  enabled: boolean;
+  key_issued: boolean;
+}
+
 export interface NodeChange {
   enabled: boolean;
+}
+
+/** 노드 목록의 한 줄 — stale 은 간격의 세 배 넘게 소식 없음, level 은 마지막 서버 점검 등급. */
+export interface NodeRow {
+  name: string;
+  host: string;
+  ip: string;
+  agent_version: string;
+  interval_min: number;
+  registered_at: string;
+  last_seen_at: string | null;
+  last_collected_at: string | null;
+  enabled: boolean;
+  key_issued: boolean;
+  stale: boolean;
+  level: "정상" | "주의" | "위험" | null;
+  finding_failed: boolean;
+}
+
+/** 등록하거나 키를 다시 발급한 결과. */
+export interface NodeWithKey {
+  name: string;
+  host: string;
+  ip: string;
+  agent_version: string;
+  interval_min: number;
+  registered_at: string;
+  last_seen_at: string | null;
+  last_collected_at: string | null;
+  enabled: boolean;
+  key_issued: boolean;
+  key: string;
+}
+
+/** 돌려줄 내용 없이 끝난 일. */
+export interface Ok {
+  ok: boolean;
 }
 
 export interface PasswordBody {
@@ -177,4 +255,27 @@ export interface ValidationError {
   type: string;
   input?: unknown;
   ctx?: Record<string, unknown>;
+}
+
+/** 확인할 사람에게 걸린 일 하나 — 퇴사 · 이동 · 보유 권한 · 결재 중 신청. */
+export interface WatchFlag {
+  kind: "leave" | "move" | "grant" | "request";
+  level: "정상" | "주의" | "위험";
+  at: string;
+  text: string;
+  request_no?: string | null;
+}
+
+/** 확인할 사람 한 명 — level · at 은 걸린 일 중 가장 높은 등급 · 가장 늦은 날. */
+export interface WatchPerson {
+  id: number;
+  login_id: string;
+  name: string;
+  department: string;
+  job: string;
+  is_active: boolean;
+  left_on: string;
+  level: "정상" | "주의" | "위험";
+  at: string;
+  flags: WatchFlag[];
 }

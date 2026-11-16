@@ -1,7 +1,22 @@
 // 서버는 dict 를 돌려주므로 화면이 쓰는 칸만 적습니다.
 
 // 백엔드가 응답 모델로 선언한 API 의 타입은 손으로 적지 않고 생성된 schema.ts 에서 가져옵니다.
-export type { AccessItem, AuditRow, Me, Regulation, UserRow } from "./schema";
+import type { WatchFlag as PeopleFlag, WatchPerson as PeoplePerson } from "./schema";
+
+export type { AccessItem, AuditRow, DecisionRecord, DecisionResult, Me, NodeRow, NodeWithKey, Regulation, UserRow } from "./schema";
+
+// 확인할 사람(/api/people)은 생성된 타입 그대로이고, 권한 변동(/api/risk-people)은 엔진이 거기에
+// 만료 · 로그 판정 flag 와 로그 사용자를 더해 주므로 그 칸만 여기 손으로 적습니다.
+export interface WatchFlag extends Omit<PeopleFlag, "kind"> {
+  kind: PeopleFlag["kind"] | "expired" | "event";
+  event_key?: string;   // 로그 감시 판정 (event 만)
+}
+
+export interface WatchPerson extends Omit<PeoplePerson, "flags"> {
+  flags: WatchFlag[];
+  log_id?: string;     // 이동 · 만료에만
+  log_user?: string;
+}
 
 export type Role = "user" | "manager" | "top";
 export type Level = "정상" | "주의" | "위험";
@@ -67,30 +82,6 @@ export interface RequestRow {
   approvals?: Approval[];
   grant_review?: GrantReview | null;   // 퇴사 · 이동 재검토. 일반 사용자에게는 없습니다
   revocation?: Revocation | null;
-}
-
-export interface WatchFlag {
-  kind: "leave" | "move" | "grant" | "request" | "expired" | "event";
-  level: Level;
-  at: string;
-  text: string;
-  request_no?: string;
-  event_key?: string;   // 로그 감시 판정 (event 만)
-}
-
-export interface WatchPerson {
-  id: number;
-  login_id: string;
-  name: string;
-  department: string;
-  job: string;
-  is_active: boolean;
-  left_on: string;
-  level: Level;
-  at: string;
-  flags: WatchFlag[];
-  log_id?: string;     // 이동 · 만료에만
-  log_user?: string;
 }
 
 // 부서 · 직무를 옮겼거나 사용 기간이 끝난 권한이 남은 사람 — 코드가 셉니다 (모델 없음).
@@ -270,21 +261,6 @@ export interface LogsParams {
   solution: string;
   how: string;
   page: number;
-}
-
-export interface NodeRow {
-  name: string;
-  host: string | null;
-  ip: string | null;
-  enabled: boolean;
-  key_issued: boolean;
-  stale: boolean;               // 간격의 세 배 넘게 소식 없음
-  interval_min: number | null;
-  agent_version: string | null;
-  registered_at: string | null;
-  last_seen_at: string | null;
-  last_collected_at: string | null;
-  level: Level | null;          // 마지막 서버 점검 등급
 }
 
 export interface NodeFindingBrief {

@@ -1,12 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePanelAction, useUi } from "@/app/ui/state/UiContext";
 import { send } from "@/shared/api/http";
+import type { NodeWithKey } from "@/shared/api/types";
 
 export function useCreateNode() {
   const qc = useQueryClient();
   const { pickNode, setPanelMsg } = useUi();
   return useMutation({
-    mutationFn: (name: string) => send<{ name: string }>("/api/nodes", { name }),
+    mutationFn: (name: string) => send<NodeWithKey>("/api/nodes", { name }),
     onSuccess: async (made) => {
       await qc.invalidateQueries({ queryKey: ["nodes"] });
       pickNode(made.name);

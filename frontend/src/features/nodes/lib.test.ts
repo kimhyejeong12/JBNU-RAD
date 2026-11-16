@@ -4,7 +4,7 @@ import { nodeState, nodeStateTone } from "./lib";
 
 const node = (p: Partial<NodeRow>): NodeRow => ({
   name: "sim-01", host: "sim-01", ip: "10.0.0.1", enabled: true, key_issued: true, stale: false, interval_min: 30,
-  agent_version: "1", registered_at: null, last_seen_at: null, last_collected_at: "2026-10-29T04:00:00+09:00", level: null, ...p,
+  agent_version: "1", registered_at: "2026-10-01T00:00:00+09:00", last_seen_at: null, last_collected_at: "2026-10-29T04:00:00+09:00", level: null, finding_failed: false, ...p,
 });
 
 test("꺼짐 · 키 없음 · 끊김 · 기다리는 중 · 수집 중 순서로 본다", () => {
@@ -13,7 +13,7 @@ test("꺼짐 · 키 없음 · 끊김 · 기다리는 중 · 수집 중 순서로
   expect(nodeState(node({ stale: true }))).toEqual(["stale", "끊김", "90분 넘게 소식 없음"]);
   expect(nodeState(node({ last_collected_at: null }))).toEqual(["wait", "기다리는 중", "첫 수집 대기"]);
   expect(nodeState(node({}))).toEqual(["on", "수집 중", "30분마다"]);
-  expect(nodeState(node({ interval_min: null }))[2]).toBe("?분마다");
+  expect(nodeState(node({ interval_min: 0 }))[2]).toBe("?분마다");
 });
 
 test("노드 상태 글자색 표가 모든 상태를 덮음", () => {
