@@ -49,11 +49,13 @@ def test_watch_people_fit_the_model(main_db, people):
 # --- 판정 · 집계 · 큐 API — 명세에만 올린 모양이 실제 라우트가 돌려주는 값과 같은지 ---
 # 이 API 들은 응답을 건드리지 않으므로(responses 의 model) 여기서 어긋나면 화면 타입이 틀린 것입니다.
 
+import asyncio  # noqa: E402
 import time  # noqa: E402
 from datetime import datetime, timedelta, timezone  # noqa: E402
 from types import SimpleNamespace  # noqa: E402
 
 import pytest  # noqa: E402
+from fastapi import HTTPException, Request  # noqa: E402
 from langchain_core.messages import AIMessage  # noqa: E402
 
 from sentinelai.ask import Agent  # noqa: E402
@@ -63,10 +65,12 @@ from sentinelai.engine.issue import Issuer  # noqa: E402
 from sentinelai.engine.queue import Queues  # noqa: E402
 from sentinelai.engine.resource import Resources  # noqa: E402
 from sentinelai.sources import Sources, behavior_signals, load_events  # noqa: E402
-from sentinelai.web import api_nodes, api_permissions, main  # noqa: E402
+from sentinelai.web import api_nodes, api_permissions, api_regulations, main  # noqa: E402
 from sentinelai.web import responses as R  # noqa: E402
-from sentinelai.web.contract import declared, mismatch, unfit  # noqa: E402
+from sentinelai.web.contract import _routes, declared, mismatch, unfit  # noqa: E402
 from tests.test_ask_agent import DONE, PLAN, FakeDocs, FakeModel, call  # noqa: E402
+from tests.test_pdf_text import _pdf as pdf_pages  # noqa: E402
+from tests.test_xlsx_text import _book as xlsx_book  # noqa: E402
 
 LOG = "data/연습용_로그_원본+합성.csv"   # 재무 정다은 = 로그 사용자 ID "5"
 
@@ -307,6 +311,43 @@ def test_ask_shapes(world, people):
     turns = main.my_qa(world, manager, answer["conversation_id"])
     assert mismatch(union, turns) == [] and turns[0]["steps"] and turns[1]["failed"]
     assert mismatch(union, main.my_qa(world, people["top"], None)) == []      # 남의 대화는 안 보여 빈 목록
+
+
+def _upload(data: bytes) -> Request:
+    scope = {"type": "http", "method": "POST", "headers": [(b"content-length", str(len(data)).encode())]}
+
+    async def receive() -> dict:
+        return {"type": "http.request", "body": data, "more_body": False}
+
+    return Request(scope, receive)
+
+
+def test_extract_shapes():
+    tables = asyncio.run(api_regulations.extract_xlsx(_upload(xlsx_book())))
+    assert mismatch(R.ExtractedTables, tables) == [] and tables["tables"]
+    text = asyncio.run(api_regulations.extract_pdf(_upload(pdf_pages("1. 목적", None))))
+    assert mismatch(R.ExtractedPdf, text) == [] and text["empty_pages"] == [2]
+
+
+def test_regulation_routes_open_to_manager_and_top():
+    """기준 문서는 보안 운영자 이상의 일 — 팀 main 에서 따로 온 라우트도 같은지 봅니다."""
+    def passes(check, who: str) -> bool:
+        try:
+            check(SimpleNamespace(role=who))
+            return True
+        except HTTPException:
+            return False
+
+    seen = 0
+    for path, route in _routes(main.app):
+        if not path.startswith("/api/regulations"):
+            continue
+        checks = [d.call for d in route.dependant.dependencies if d.call.__qualname__ == "role.<locals>.check"]
+        checks += [d.call for dep in route.dependant.dependencies for d in dep.dependencies if d.call.__qualname__ == "role.<locals>.check"]
+        assert checks, f"{path} 에 역할 검사가 없습니다"
+        assert all(passes(c, "manager") and passes(c, "top") and not passes(c, "user") for c in checks), path
+        seen += 1
+    assert seen >= 6
 
 
 def test_every_route_declares_its_shape():

@@ -70,7 +70,7 @@ class NewRegulation(BaseModel):
     source: Annotated[str | None, StringConstraints(strip_whitespace=True, max_length=200)] = None   # 글을 꺼낸 원본 파일 이름
 
 
-@router.post("/extract", dependencies=[Depends(role("manager"))], responses={200: {"model": ExtractedPdf}})
+@router.post("/extract", dependencies=[Depends(role("manager", "top"))], responses={200: {"model": ExtractedPdf}})
 async def extract_pdf(request: Request) -> dict[str, Any]:
     """본문 = PDF 그대로. 저장하지 않고 꺼낸 글만 돌려줘 사람이 보고 고친 뒤 올리게 합니다."""
     length = request.headers.get("content-length", "")
@@ -84,7 +84,7 @@ async def extract_pdf(request: Request) -> dict[str, Any]:
     return {"text": got.text, "pages": got.pages, "empty_pages": got.empty_pages}
 
 
-@router.post("/extract-xlsx", dependencies=[Depends(role("manager"))], responses={200: {"model": ExtractedTables}})
+@router.post("/extract-xlsx", dependencies=[Depends(role("manager", "top"))], responses={200: {"model": ExtractedTables}})
 async def extract_xlsx(request: Request) -> dict[str, Any]:
     """본문 = 엑셀 그대로. 저장하지 않고 표만 돌려줘 화면이 고른 표를 조항 글로 바꿔 올리게 합니다."""
     length = request.headers.get("content-length", "")
