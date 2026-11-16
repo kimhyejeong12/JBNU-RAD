@@ -31,6 +31,9 @@ export interface Regulation {
   updated_at?: string;
 }
 
+export interface AuditRow { id: number; at: string; action: string; by: string; detail: Record<string, unknown> }
+export type AuditTarget = "regulation" | "user" | "access";
+
 export type Stage = "manager" | "top" | "approved" | "rejected" | "withdrawn" | "revoked";
 
 export interface Verdict {

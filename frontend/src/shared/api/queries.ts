@@ -2,7 +2,7 @@ import { QueryClient, keepPreviousData, queryOptions } from "@tanstack/react-que
 import { getJSON } from "./http";
 import { jobsInterval } from "./jobs";
 import type {
-  AccessItem, AskItem, Conversation, Health, Jobs, LogsPage, LogsParams, Me, NodeDetail, NodeRow, QaRecord, Regulation,
+  AccessItem, AskItem, AuditRow, AuditTarget, Conversation, Health, Jobs, LogsPage, LogsParams, Me, NodeDetail, NodeRow, QaRecord, Regulation,
   Overview, RequestRow, Results, RiskPeople, StatPeriod, Stats, UserRow, UserStats, WatchPerson,
 } from "./types";
 
@@ -47,6 +47,11 @@ export const riskPeopleQuery = () => queryOptions({
 });
 
 export const usersQuery = () => queryOptions({ queryKey: ["users"], queryFn: () => getJSON<UserRow[]>("/api/users") });
+// rev 는 대상이 바뀐 표시(고친 시각 등) — 고치면 이력을 다시 받습니다.
+export const auditQuery = (type: AuditTarget, id: string, rev: string | number) => queryOptions({
+  queryKey: ["audit", type, id, rev],
+  queryFn: () => getJSON<AuditRow[]>(`/api/audit?target_type=${type}&target_id=${encodeURIComponent(id)}`),
+});
 export const catalogQuery = () => queryOptions({ queryKey: ["catalog"], queryFn: () => getJSON<AccessItem[]>("/api/access-catalog") });
 export const resultsQuery = () => queryOptions({ queryKey: ["results"], queryFn: () => getJSON<Results>("/api/results") });
 

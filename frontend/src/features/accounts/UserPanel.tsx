@@ -2,6 +2,7 @@ import type { FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateUser, useUserAction } from "./api";
 import { useMe } from "@/app/session/me";
+import { ChangeLog } from "@/app/ui/panel/ChangeLog";
 import { PanelHead, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
 import { usersQuery } from "@/shared/api/queries";
 import type { Role, UserRow } from "@/shared/api/types";
@@ -153,6 +154,7 @@ function EditUser({ u }: { u: UserRow }) {
             </form>
           </>
         )}
+        <ChangeLog type="user" id={String(u.id)} rev={formKey} />
       </div>
       <PanelFoot note={note} />
     </>

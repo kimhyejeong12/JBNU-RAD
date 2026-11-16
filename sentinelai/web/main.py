@@ -6,7 +6,7 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 # Milvus Lite 의 gRPC 경고를 숨깁니다. pymilvus 를 가져오기 전에 정해야 합니다.
 os.environ.setdefault("GRPC_VERBOSITY", "NONE")
@@ -15,7 +15,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request  # noqa: E40
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, StringConstraints  # noqa: E402
 
-from sentinelai.db import User, decisions, results as results_db  # noqa: E402
+from sentinelai.db import User, decisions, results as results_db, watch  # noqa: E402
 from sentinelai.sources import decisions as carry  # noqa: E402
 from sentinelai.db.core import audit  # noqa: E402
 from sentinelai.engine import KINDS, MANUAL, Engine  # noqa: E402
@@ -166,6 +166,13 @@ def stats(request: Request, user: Approver, period: str = "month") -> dict[str, 
         return _engine(request).stats(period)
     except ValueError as exc:  # 없는 기간
         raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+@app.get("/api/audit")
+def audit_history(request: Request, _user: Approver, target_type: Literal["regulation", "user", "access"],
+                  target_id: Annotated[str, Query(min_length=1, max_length=200)]) -> list[dict[str, Any]]:
+    """한 기준 문서 · 계정 · 권한의 변경 이력 — 감사 기록 최근 20건."""
+    return watch.history(request.app.state.main_db, target_type, target_id)
 
 
 @app.get("/api/overview")

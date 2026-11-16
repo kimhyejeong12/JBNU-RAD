@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { ChangeLog } from "@/app/ui/panel/ChangeLog";
 import { PanelFoot, PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
 import { useJobs, useRegulations } from "@/app/session/data";
 import { busyJob } from "@/shared/api/jobs";
@@ -66,6 +67,7 @@ function DocView({ d }: { d: Regulation }) {
               <button type="button" className={actionButton} onClick={() => setMode("edit")}>수정</button>
               <button type="button" className={actionButton} onClick={() => setMode("remove")}>지우기</button>
             </div>
+            <ChangeLog type="regulation" id={d.name} rev={d.updated_at ?? ""} />
             <Section icon="book" title="원문">
               <pre className="m-0 whitespace-pre-wrap rounded-lg bg-canvas px-3.5 py-3 text-[13px] font-[inherit]">{d.content.trim()}</pre>
             </Section>

@@ -1,4 +1,4 @@
-"""예외 알림이 읽는 권한 DB 변화 — 감사 기록 · 보유 권한 재검토 · 계정 상태 · 퇴사자 권한 (읽기만)."""
+"""예외 알림 · 변경 이력이 읽는 권한 DB 변화 — 감사 기록 · 보유 권한 재검토 · 계정 상태 · 퇴사자 권한 (읽기만)."""
 from __future__ import annotations
 
 import json
@@ -59,3 +59,22 @@ def gone_holders(db: Database) -> dict[int, int]:
             " WHERE u.left_on <> '' AND u.left_on <= %s AND r.stage = 'approved' AND (r.period_end = '' OR r.period_end >= %s)"
             " GROUP BY r.requester_id", (day, day)).fetchall()
     return {r["requester_id"]: r["n"] for r in rows}
+
+
+#: 화면에 변경 이력을 보이는 대상입니다.
+HISTORY_TARGETS = ("regulation", "user", "access")
+
+
+def history(db: Database, target_type: str, target_id: str, limit: int = 20) -> list[dict[str, Any]]:
+    """한 대상의 감사 기록(최근 것부터) — 기준 문서의 지난 원문(before)은 길어서 뺍니다."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT a.id, a.at, a.action, a.detail, coalesce(u.display_name, a.login_id, '') AS by_name FROM audit_log a"
+            " LEFT JOIN users u ON u.id = a.user_id WHERE a.target_type = %s AND a.target_id = %s ORDER BY a.id DESC LIMIT %s",
+            (target_type, target_id, limit)).fetchall()
+    out = []
+    for r in rows:
+        detail = json.loads(r["detail"] or "{}")
+        detail.pop("before", None)
+        out.append({"id": r["id"], "at": r["at"], "action": r["action"], "by": r["by_name"], "detail": detail})
+    return out

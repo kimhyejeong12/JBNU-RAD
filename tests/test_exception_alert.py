@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from sentinelai.db import auth, catalog, nodes, permissions
+from sentinelai.db import auth, catalog, nodes, permissions, watch
 from sentinelai.db.core import audit
 from sentinelai.web import notify
 
@@ -94,3 +94,17 @@ def test_off_without_url(main_db):
     watcher.start()
     assert watcher._thread is None
     watcher.stop()
+
+
+def test_history_of_one_target(main_db, people):
+    root, user = people["root"], people["user"]
+    auth.update_user(main_db, people["manager"], user.id, department="재무팀")
+    auth.reset_password(main_db, root, user.id, "temp-pass")
+    with main_db.transaction() as conn:
+        audit(conn, "regulation_edit", root.id, target_type="regulation", target_id="a.md",
+              detail='{"reason": "오타", "chars": 3, "before": "지난 원문"}')
+    rows = watch.history(main_db, "user", str(user.id))
+    assert [(r["action"], r["by"]) for r in rows] == [("password_reset", "루트"), ("user_update", "운영자"), ("user_create", "루트")]
+    assert rows[1]["detail"] == {"department": "재무팀"}
+    assert watch.history(main_db, "regulation", "a.md")[0]["detail"] == {"reason": "오타", "chars": 3}
+    assert watch.history(main_db, "regulation", "없는.md") == []
