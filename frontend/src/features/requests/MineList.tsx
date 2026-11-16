@@ -1,5 +1,5 @@
 import { Fragment, useState } from "react";
-import { canWithdraw, endedBreakdown, mineGroup, mineStatus, periodText, rejectNote, type MineGroup } from "./lib";
+import { canWithdraw, endedBreakdown, mineGroup, mineStatus, pageLinks, periodText, rejectNote, type MineGroup } from "./lib";
 import { useRequestAction } from "./api";
 import { useMine } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
@@ -12,7 +12,7 @@ import { Pill, Tile } from "@/shared/ui/base/parts";
 import { card, formMsg, formMsgOk, linkButton } from "@/shared/ui/base/styles";
 import { ask } from "@/app/ui/confirm/ask";
 
-// 한 쪽 4건 — 노트북 화면에서도 스크롤 없이 신청서와 아래 끝이 맞게.
+// 한 쪽 4건 — 신청서와 아래 끝이 맞게 합니다.
 const PAGE = 4;
 const TH = "p-4 font-medium";
 const TD = "p-4 align-middle";
@@ -73,10 +73,10 @@ export function MineList() {
           <label className="relative ml-auto w-64 phone:w-full">
             <span className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-faint"><Icon name="search" small /></span>
             <input type="search" className="w-full rounded-md border border-line bg-surface py-1.5 pr-4 pl-9 text-sm outline-none focus:border-brand"
-              placeholder="권한, 번호 검색" autoComplete="off" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} />
+              placeholder="권한, 번호 검색" aria-label="내 신청 검색" autoComplete="off" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} />
           </label>
         </div>
-        {/* 줄이 4건보다 적어도 4건 자리를 둠 — 거를 때마다 카드 높이가 바뀌지 않게. */}
+        {/* 줄이 4건보다 적어도 4건 자리를 둡니다 — 거를 때마다 카드 높이가 바뀌지 않게. */}
         <div className="min-h-84 flex-1 overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse text-left">
             <thead>
@@ -93,7 +93,7 @@ export function MineList() {
         </div>
         <nav className="flex items-center justify-center gap-2 border-t border-line p-4" aria-label="쪽">
           <button type="button" className={PAGER} disabled={at === 1} onClick={() => setPage(at - 1)} aria-label="앞 쪽"><Icon name="back" small /></button>
-          {Array.from({ length: pages }, (_, n) => n + 1).map((n) => (
+          {pageLinks(at, pages).map((n) => (
             <button type="button" key={n} className={PAGER} aria-current={n === at} onClick={() => setPage(n)}>{n}</button>
           ))}
           <button type="button" className={PAGER} disabled={at === pages} onClick={() => setPage(at + 1)} aria-label="다음 쪽"><Icon name="chev" small /></button>

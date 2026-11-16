@@ -141,3 +141,9 @@ export function approvalSteps(r: RequestRow): HistoryStep[] {
   }
   return steps;
 }
+
+// 쪽 번호는 지금 쪽을 가운데 두고 5개까지 — 신청이 많아도 쪽 번호 줄이 넘치지 않게 합니다.
+export function pageLinks(at: number, pages: number, links = 5): number[] {
+  const first = Math.max(1, Math.min(at - Math.floor(links / 2), pages - links + 1));
+  return Array.from({ length: Math.min(links, pages) }, (_, i) => first + i);
+}

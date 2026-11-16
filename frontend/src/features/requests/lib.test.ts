@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { RequestRow, AccessItem, Verdict } from "@/shared/api/types";
-import { requestItem, accessOptions, endedBreakdown, periodProblem, periodText, approvalSteps, canWithdraw, heldLabel, mineGroup, mineStatus, moveText, personItem, rejectNote, shortDate } from "./lib";
+import { accessOptions, approvalSteps, canWithdraw, endedBreakdown, heldLabel, mineGroup, mineStatus, moveText, pageLinks, periodProblem, periodText, personItem, rejectNote, requestItem, shortDate } from "./lib";
 
 const row = (p: Partial<RequestRow>): RequestRow => ({
   id: 1, request_no: "REQ-2026-0001", requester_id: 4, requester_name: "김민수", requester_department: "인사팀", requester_job: "",
@@ -168,4 +168,12 @@ test("반려, 만료 타일의 내역 — 0 이 아닌 것만, 결재 중 · 사
     row({ stage: "withdrawn" }), row({ stage: "manager" }), row({ stage: "approved", period_end: "" })];
   expect(endedBreakdown(rows, on)).toBe("반려 2, 만료 1, 철회 1");
   expect(endedBreakdown([row({ stage: "manager" })], on)).toBe("");
+});
+
+test("쪽 번호는 지금 쪽을 가운데 두고 5개까지", () => {
+  expect(pageLinks(1, 1)).toEqual([1]);
+  expect(pageLinks(1, 3)).toEqual([1, 2, 3]);
+  expect(pageLinks(1, 12)).toEqual([1, 2, 3, 4, 5]);
+  expect(pageLinks(6, 12)).toEqual([4, 5, 6, 7, 8]);
+  expect(pageLinks(12, 12)).toEqual([8, 9, 10, 11, 12]);
 });

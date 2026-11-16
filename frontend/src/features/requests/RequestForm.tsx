@@ -11,10 +11,10 @@ import { card, formMsg, formMsgOk, input } from "@/shared/ui/base/styles";
 
 const EMPTY = { code: "", reason: "", start: "", end: "", open: false };
 const LABEL = "mb-1 block text-sm font-medium text-ink-soft";
-// 누른 칸은 2px 남색 테두리 (테두리 1px + 바깥 링 1px).
+// 누른 칸은 2px 남색 테두리입니다 (테두리 1px + 바깥 링 1px).
 const FIELD = cn(input, "text-sm focus:border-brand focus:ring-1 focus:ring-brand");
 const REQUIRED = <b className="font-medium text-risk">*</b>;
-// 신청한 뒤 무엇이 일어나는지 — 일반 사용자는 누가 결재하는지, 권한이 언제 다시 검토되는지 모릅니다.
+// 신청한 뒤의 일을 적습니다 — 일반 사용자는 누가 결재하는지, 권한이 언제 다시 검토되는지 모릅니다.
 const GUIDE = [
   "보안 운영자(1차)와 보안 총책임자(최종)의 결재 후 부여됩니다.",
   "기간이 끝나거나 부서, 직무가 바뀌면 다시 검토될 수 있습니다.",
@@ -154,15 +154,18 @@ function AccessSelect({ o, onPick }: { o: AccessOptions; onPick: (code: string) 
   return (
     <>
       <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}>
-        <button ref={button} type="button" id="req-access" name="access_code" aria-haspopup="listbox" aria-expanded={open}
+        <button ref={button} type="button" id="req-access" name="access_code" aria-haspopup="listbox" aria-expanded={open} aria-controls="req-access-list"
+          aria-labelledby="req-access-label req-access-value"
           className={cn(FIELD, "flex h-11 items-center py-2.5 pr-10 pl-2.5 text-left", !picked && "text-ink-dim", open && "border-brand ring-1 ring-brand")}
-          onClick={() => (open ? setOpen(false) : show())}
+          // 사파리는 누른 단추에 포커스를 주지 않아, 열린 목록이 먼저 닫혔다가 이 클릭에 다시 열리지 않게 막습니다.
+          onMouseDown={(e) => { if (open) e.preventDefault(); }}
+          onClick={() => (open ? close() : show())}
           onKeyDown={(e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); show(); } }}>
-          <span className="truncate">{picked ? `${picked.name} (${picked.code})` : "신청할 권한을 고르세요"}</span>
+          <span id="req-access-value" className="truncate">{picked ? `${picked.name} (${picked.code})` : "신청할 권한을 고르세요"}</span>
         </button>
         <Icon name="chev" small className={cn("pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-ink-dim transition-transform", open ? "-rotate-90" : "rotate-90")} />
         {open && (
-          <ul ref={list} role="listbox" tabIndex={-1} aria-labelledby="req-access-label" aria-activedescendant={active >= 0 ? `req-access-${active}` : undefined}
+          <ul ref={list} id="req-access-list" role="listbox" tabIndex={-1} aria-labelledby="req-access-label" aria-activedescendant={active >= 0 ? `req-access-${active}` : undefined}
             className="absolute top-full right-0 left-0 z-20 m-0 mt-1 max-h-72 list-none overflow-y-auto rounded-lg border border-line bg-surface p-1 text-sm shadow-[0_8px_24px_rgba(0,0,0,.12)] outline-none"
             onKeyDown={onListKey}>
             {systems.map((system) => (
