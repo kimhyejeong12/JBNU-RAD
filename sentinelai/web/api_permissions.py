@@ -242,7 +242,7 @@ def submit(body: NewRequest, request: Request, background: BackgroundTasks,
     except Denied as exc:
         raise _denied(exc) from None
     request.app.state.engine.enqueue_request(req["request_no"])
-    background.add_task(notify.notify_waiting, request.app.state.slack_url, req)
+    background.add_task(notify.notify_waiting, request.app.state.chat, req)
     return _with_verdict(request, req, user)
 
 
@@ -274,7 +274,7 @@ def decide(request_no: str, body: DecisionBody, request: Request, background: Ba
         req = permissions.decide(request.app.state.main_db, user, request_no, body.action, body.comment)
     except Denied as exc:
         raise _denied(exc) from None
-    background.add_task(notify.notify_waiting, request.app.state.slack_url, req)
+    background.add_task(notify.notify_waiting, request.app.state.chat, req)
     background.add_task(notify.notify_result, request.app.state.mail, request.app.state.main_db, req)
     return _with_verdict(request, req, user)
 
