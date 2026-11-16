@@ -98,6 +98,14 @@ export function accessOptions(catalog: AccessItem[], mine: RequestRow[], prev: s
   };
 }
 
+// 사용 기간 — 끝나는 날을 고르거나 기한 없음을 눌러야 하고, 끝이 시작보다 앞설 수 없습니다. 문제가 없으면 null.
+export function periodProblem(start: string, end: string, open: boolean): string | null {
+  if (open) return null;
+  if (!end) return "사용 종료일을 고르거나 기한 없음을 누르세요";
+  if (start && end < start) return "사용 종료일이 시작일보다 앞섭니다";
+  return null;
+}
+
 export function heldLabel(periodEnd: string | null, on: string = today()): string {
   return periodEnd ? `보유 중 (${shortDate(periodEnd, on)}까지)` : "보유 중";
 }

@@ -13,10 +13,11 @@ export function QueueTab() {
   return (
     <div className="flex flex-col gap-3.5" id="view-queue" role="tabpanel" aria-labelledby="tab-queue" hidden={ui.mainTab !== "queue"}>
       {me.role === "user" ? (
-        <>
-          <RequestForm hidden={ui.view !== "mine"} />
+        // 왼쪽 신청서 · 오른쪽 내 신청 — 좁은 화면에서는 신청서가 위로 갑니다.
+        <div className="grid grid-cols-[minmax(320px,4fr)_minmax(0,8fr)] items-start gap-4.5 narrow:grid-cols-[minmax(0,1fr)]">
+          <RequestForm />
           <MineList />
-        </>
+        </div>
       ) : (
         <section className={cn(card, "flex min-h-80 flex-col")}>
           <QueueHead />

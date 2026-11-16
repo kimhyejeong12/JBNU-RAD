@@ -20,7 +20,7 @@ const ANSWER_FAIL = cn(ANSWER, "bg-warn-tint text-warn");
 const CHECKS = "m-0 rounded-lg border border-warn bg-warn-tint px-3.25 py-2 text-[12.5px] text-warn";
 const EXAMPLE = "rounded-[99px] border border-line bg-surface px-3 py-1 text-left text-[12px] text-ink-dim hover:border-ink-dim hover:text-ink disabled:cursor-progress disabled:border-line disabled:text-ink-dim disabled:opacity-50";
 const SELECT = "h-8 min-w-0 flex-1 rounded-[7px] border border-line bg-surface px-2 text-[12.5px] text-ink";
-const LAUNCHER = "fixed right-5 bottom-5 z-40 flex size-13 items-center justify-center rounded-full border-0 bg-ink text-white shadow-[0_8px_24px_rgba(0,0,0,.22)] hover:opacity-90";
+const LAUNCHER = "fixed right-5 bottom-5 z-40 flex size-13 items-center justify-center rounded-full border-0 bg-brand text-white shadow-[0_8px_24px_rgba(0,0,0,.22)] hover:opacity-90";
 const POPUP = "fixed right-5 bottom-21 z-60 flex h-[min(660px,calc(100vh-112px))] w-[min(460px,calc(100vw-40px))] flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-[0_16px_40px_rgba(0,0,0,.2)] phone:inset-0 phone:h-auto phone:w-auto phone:rounded-none phone:border-0";
 const CLOSE = "flex size-8 flex-none items-center justify-center rounded-[7px] border-0 bg-transparent text-ink-dim hover:bg-canvas hover:text-ink";
 
@@ -125,7 +125,7 @@ function AskPopup() {
           <div className="flex flex-col gap-2 border-t border-line px-3.5 pt-3 pb-3.5">
             <form className="flex gap-2" id="ask-form" onSubmit={submit}>
               <input id="ask-input" className="h-10 min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-0 text-[14px] text-ink outline-none font-[inherit] [font-weight:inherit] leading-[inherit] focus:border-ink" ref={input} type="text" maxLength={500} autoComplete="off" aria-label="질문" placeholder={ASK.placeholder} autoFocus onInput={() => setHint("")} />
-              <button type="submit" className="h-10 flex-none rounded-lg border-0 bg-ink px-4 py-0 font-bold text-white disabled:cursor-progress disabled:bg-canvas disabled:text-ink-dim" id="ask-send" disabled={busy}>질의</button>
+              <button type="submit" className="h-10 flex-none rounded-lg border-0 bg-brand px-4 py-0 font-bold text-white disabled:cursor-progress disabled:bg-canvas disabled:text-ink-dim" id="ask-send" disabled={busy}>질의</button>
             </form>
             {hint && <p className={cn(note, "m-0 text-risk")}>{hint}</p>}
           </div>

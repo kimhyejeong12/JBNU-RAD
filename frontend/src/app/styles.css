@@ -29,10 +29,17 @@
   --color-warn-ink: #B85600;
   --color-idle: #B5B5BA;
   --color-mark-etc: #D4D4D8;
-  --color-bar-ink: #DDDDDD;
-  --color-bar-line: #3A3A3A;
-  --color-bar-line-hover: #888888;
-  --color-bar-hover: #262626;
+  /* 테마 — 산학 과제의 상대 회사 사이트에서 가져온 남색 · 살구색. 위 막대 · 주 버튼 · 강조 카드에만 씁니다.
+     빨강은 이 화면에서 "위험"이라 선택된 메뉴 밑줄에만 (risk 와 같은 값). */
+  --color-brand: #0D2353;
+  --color-brand-hover: #1A3468;
+  --color-brand-red: #EA002C;
+  --color-brand-tint: #FDF1E7;
+  --color-brand-tint-line: #F6D9C2;
+  --color-bar-ink: #D5DBE8;
+  --color-bar-line: #2C4170;
+  --color-bar-line-hover: #8C9BBD;
+  --color-bar-hover: #1A3468;
   --color-tip-dim: #CFCFCF;
   /* 보안 현황 영역 색 — 위험 · 주의 · 정상 색과 겹치지 않는 다섯 색 (색약 구분 확인) */
   --color-area-policy: #2A78D6;
@@ -60,7 +67,7 @@
   --card-foreground: #111111;
   --popover: #FFFFFF;
   --popover-foreground: #111111;
-  --primary: #111111;
+  --primary: #0D2353;
   --primary-foreground: #FFFFFF;
   --secondary: #F5F5F6;
   --secondary-foreground: #111111;

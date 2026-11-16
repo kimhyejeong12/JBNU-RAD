@@ -3,6 +3,8 @@ import type { Level } from "@/shared/api/types";
 // 쓰는 곳에서 덮어쓸 때는 cn() 으로 합칩니다.
 
 export const card = "rounded-xl border border-line bg-surface";
+// AI 가 정리한 칸처럼 화면에서 하나만 띄울 카드 — card 뒤에 붙입니다.
+export const brandCard = "border-brand-tint-line bg-brand-tint";
 export const empty = "px-4.5 py-9 text-center text-ink-dim";
 export const panelBody = "flex-1 overflow-auto px-4.5 py-4";
 export const panelFoot = "border-t border-line bg-surface px-4.5 pt-3.5 pb-4";
@@ -30,7 +32,7 @@ export const linkButton = "self-start border-none bg-transparent p-0 text-[11px]
 export const formActions = "flex items-center justify-end gap-2";
 export const panelActions = "mt-2 flex gap-2";
 export const actionButton = "h-9 rounded-lg border border-line bg-surface px-4 font-bold";
-export const primaryButton = "border-ink bg-ink text-white";
+export const primaryButton = "border-brand bg-brand text-white hover:border-brand-hover hover:bg-brand-hover";
 export const dangerButton = "border-risk bg-risk text-white";
 export const goodButton = "border-ok-line bg-ok-tint text-ok";
 

@@ -4,9 +4,9 @@ import { VIEWS, isAdminView, navGroups } from "@/app/session/views";
 import { useUi } from "@/app/ui/state/UiContext";
 import { useQueue } from "@/app/queue/useQueue";
 import { todoCounts } from "@/app/queue/select";
-import { cn } from "@/shared/lib/cn";
 
-const TOP_NAV = "flex h-9 flex-none items-center gap-1.5 whitespace-nowrap rounded-[8px] border-none bg-transparent px-3 text-[13.5px] font-semibold text-bar-ink hover:bg-bar-hover hover:text-white aria-[current=true]:bg-white aria-[current=true]:text-ink";
+// 선택된 메뉴는 아래 빨간 줄 — 위 막대 높이를 이 버튼이 정해서 줄이 막대 바닥에 붙습니다.
+const TOP_NAV = "flex h-13 flex-none items-center gap-1.5 whitespace-nowrap border-0 border-y-[3px] border-transparent bg-transparent px-3 text-[13.5px] font-semibold text-bar-ink hover:text-white aria-[current=true]:border-b-brand-red aria-[current=true]:text-white narrow:h-10";
 
 // 메뉴를 위 막대에 둡니다. 좁은 화면에서는 막대 아래 줄로 내려가 옆으로 밉니다.
 export function TopNav() {
@@ -17,7 +17,7 @@ export function TopNav() {
   const btn = (key: string, label: string, current: boolean, onClick: () => void, count?: number) => (
     <button key={key} className={TOP_NAV} data-view={key} aria-current={current} onClick={onClick}>
       {label}
-      {count ? <span className={cn("rounded-[99px] px-1.75 text-[11.5px] tabular-nums", current ? "bg-risk-tint text-risk" : "bg-risk text-white")}>{count}</span> : null}
+      {count ? <span className="rounded-[99px] bg-risk px-1.75 text-[11.5px] tabular-nums text-white">{count}</span> : null}
     </button>
   );
   return (

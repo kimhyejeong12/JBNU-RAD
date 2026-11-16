@@ -35,7 +35,7 @@ export function TopBar() {
   }, [popOpen]);
 
   return (
-    <header data-tip-instant className="col-span-full flex items-center gap-4.5 bg-ink px-5 py-0 text-white narrow:flex-wrap narrow:gap-y-2 narrow:px-4 narrow:py-2.5">
+    <header data-tip-instant className="col-span-full flex items-center gap-4.5 bg-brand px-5 py-0 text-white narrow:flex-wrap narrow:gap-y-2 narrow:px-4 narrow:py-2.5">
       <div className="flex items-center gap-2.25 text-[17px] font-extrabold tracking-[-0.3px]"><Icon name="shield" className="size-6 stroke-risk stroke-[2.2]" />SentinelAI</div>
       <TopNav />
       <div className="ml-auto flex items-center gap-2">
@@ -45,7 +45,13 @@ export function TopBar() {
         </span>
         <div className="flex items-center gap-1.5 text-[12.5px] text-bar-ink" id="who">
           {/* 누구로 로그인했는지는 다른 곳에 없어 이름을 숨기지 않습니다. */}
-          <span id="who-name">{me.display_name} <span className="opacity-70">{ROLE_LABEL[me.role]}{me.is_root ? " (루트)" : ""}</span></span>
+          <span id="who-name" className="flex items-center gap-2">
+            <span className="flex size-7 items-center justify-center rounded-full bg-bar-hover"><Icon name="users" small /></span>
+            <span className="flex flex-col leading-tight">
+              <b className="font-semibold text-white">{me.display_name} <span className="font-normal opacity-70">{ROLE_LABEL[me.role]}{me.is_root ? " (루트)" : ""}</span></b>
+              {me.department && <span className="text-[11.5px] opacity-70">{me.department}</span>}
+            </span>
+          </span>
           <button className={TOP_BTN} id="btn-password" onClick={() => auth.showPassword(false)}>비밀번호 변경</button>
           <button className={TOP_BTN} id="btn-logout" onClick={() => void logout()}>로그아웃</button>
         </div>

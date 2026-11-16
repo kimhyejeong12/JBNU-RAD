@@ -14,7 +14,7 @@ import { stamp } from "@/shared/lib/format";
 import { STEP } from "@/shared/lib/request";
 import { LevelDot, LevelLabel, Periods, Pill, Tile } from "@/shared/ui/base/parts";
 import { DataTable } from "@/shared/ui/charts/parts";
-import { card, cardCount, cardHead, cardTitle, levelText } from "@/shared/ui/base/styles";
+import { brandCard, card, cardCount, cardHead, cardTitle, levelText } from "@/shared/ui/base/styles";
 
 type Open = "위험" | "주의";
 const SUB = "m-0 px-4.5 pb-3 text-[12.5px] text-ink-dim";
@@ -81,7 +81,7 @@ function OpenTiles({ d, level, onPick }: { d: Overview; level: Open | null; onPi
 // 운영자의 종합 탭은 영역마다 할 일을 다 보이고, 여기는 한 줄 요약과 먼저 볼 것만 보입니다.
 function Summary({ b, go }: { b: Briefing | null; go: Go }) {
   return (
-    <section className={card} id="home-summary">
+    <section className={cn(card, brandCard)} id="home-summary">
       <div className={cardHead}>
         <h3 className={cardTitle}>AI 종합 요약</h3>
         {b && !b.current && <Pill tone="border-warn-line bg-warn-tint text-warn-ink" className="text-[11.5px]">그 뒤 바뀜</Pill>}
@@ -93,7 +93,7 @@ function Summary({ b, go }: { b: Briefing | null; go: Go }) {
           <div className="flex flex-col gap-2 px-4.5 pb-4">
             {firstTodos(b).map((t) => (
               <button key={`${t.area}:${t.item}`} onClick={() => go(t.area, t.key)}
-                className="flex min-w-0 flex-col gap-0.5 rounded-lg border-none bg-canvas px-2.75 py-2 text-left hover:bg-row-hover">
+                className="flex min-w-0 flex-col gap-0.5 rounded-lg border-none bg-surface px-2.75 py-2 text-left hover:bg-row-hover">
                 <span className="text-[13px] font-semibold"><LevelDot level={t.level} />{t.task}</span>
                 <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-ink-dim">
                   <i className="inline-block size-2 flex-none rounded-xs" style={{ background: AREA_COLOR[t.area] }} />

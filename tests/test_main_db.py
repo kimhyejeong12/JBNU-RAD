@@ -112,6 +112,12 @@ def test_root_is_guarded(main_db, people):
 # --- 권한 목록 ---
 
 
+def test_period_end_not_before_start(main_db, people, item):
+    with denied("사용 종료일이 시작일보다 앞섭니다"):
+        permissions.submit(main_db, people["user"], item["code"], "업무", period_start="2026-11-20", period_end="2026-11-01")
+    assert permissions.submit(main_db, people["user"], item["code"], "업무", period_start="2026-11-20")["period_end"] == ""
+
+
 def test_catalog_rules(main_db, people, item):
     with denied("권한 목록은 보안 운영자 이상만 관리할 수 있습니다"), main_db.transaction() as conn:
         conn.execute("INSERT INTO access_catalog (code, name, created_by, created_at, updated_at)"

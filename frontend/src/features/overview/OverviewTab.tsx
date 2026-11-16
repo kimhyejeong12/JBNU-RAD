@@ -13,7 +13,7 @@ import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
 import { LevelDot, LevelLabel, Periods, Pill, Tile } from "@/shared/ui/base/parts";
 import { DataTable, Legend, ViewSwitch } from "@/shared/ui/charts/parts";
-import { card, cardCount, cardHead, cardTitle, levelText, mark, markTone, toolButton } from "@/shared/ui/base/styles";
+import { brandCard, card, cardCount, cardHead, cardTitle, levelText, mark, markTone, toolButton } from "@/shared/ui/base/styles";
 
 const SUB = "m-0 px-4.5 pb-3 text-[12.5px] text-ink-dim";
 
@@ -67,7 +67,7 @@ function Assistant({ b, go }: { b: Briefing | null; go: Go }) {
   const start = useStartJob();
   const busy = start.isPending || jobs?.running === "briefing";
   return (
-    <section className={card} id="overview-briefing">
+    <section className={cn(card, brandCard)} id="overview-briefing">
       <div className={cardHead}>
         <h3 className={cardTitle}>AI 비서</h3>
         {b && !b.current && !busy && <Pill tone="border-warn-line bg-warn-tint text-warn-ink" className="text-[11.5px]">그 뒤 바뀜</Pill>}
@@ -81,7 +81,7 @@ function Assistant({ b, go }: { b: Briefing | null; go: Go }) {
           <p className="m-0 px-4.5 pb-3 text-[15px] font-bold">{b.headline}</p>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2.5 px-4.5 pb-4">
             {b.areas.map((a) => (
-              <div key={a.area} className="flex min-w-0 flex-col gap-1.5 rounded-[10px] border border-line px-3.5 py-3">
+              <div key={a.area} className="flex min-w-0 flex-col gap-1.5 rounded-[10px] border border-brand-tint-line bg-surface px-3.5 py-3">
                 <span className="flex items-center gap-1.5 text-[13px] font-bold">
                   <i className="inline-block size-2.5 rounded-xs" style={{ background: AREA_COLOR[a.area] }} />{a.label}
                 </span>

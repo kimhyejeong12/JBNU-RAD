@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { RequestRow, AccessItem, Verdict } from "@/shared/api/types";
-import { requestItem, accessOptions, approvalSteps, canWithdraw, heldLabel, mineGroup, mineStatus, moveText, personItem, rejectNote, shortDate } from "./lib";
+import { requestItem, accessOptions, periodProblem, approvalSteps, canWithdraw, heldLabel, mineGroup, mineStatus, moveText, personItem, rejectNote, shortDate } from "./lib";
 
 const row = (p: Partial<RequestRow>): RequestRow => ({
   id: 1, request_no: "REQ-2026-0001", requester_id: 4, requester_name: "김민수", requester_department: "인사팀", requester_job: "",
@@ -144,4 +144,13 @@ test("personItem: 확인할 사람 한 줄 — 부서 이름(직무), 걸린 것
             { kind: "move" as const, level: "정상" as const, at: "2026-11-03", text: "이동 2026-11-03 보안팀 → 인사팀" }] };
   expect(personItem(p)).toMatchObject({ type: "person", key: "person:3", id: "dev-user", level: "위험", who: "인사팀 김 (채용 담당)",
     what: "보유 CRM 조회 — 이동 뒤 재검토 위험, 이동 2026-11-03 보안팀 → 인사팀", when: "2026-11-03", judge: "위험", sub: "2건 (정지)" });
+});
+
+test("사용 기간 — 끝나는 날이나 기한 없음 중 하나, 끝이 시작보다 앞설 수 없음", () => {
+  expect(periodProblem("", "", true)).toBeNull();
+  expect(periodProblem("2026-11-20", "2026-11-01", true)).toBeNull();      // 기한 없음이면 종료일을 보내지 않습니다
+  expect(periodProblem("", "", false)).toBe("사용 종료일을 고르거나 기한 없음을 누르세요");
+  expect(periodProblem("2026-11-20", "2026-11-01", false)).toBe("사용 종료일이 시작일보다 앞섭니다");
+  expect(periodProblem("", "2026-12-31", false)).toBeNull();
+  expect(periodProblem("2026-11-20", "2026-11-20", false)).toBeNull();
 });
