@@ -1,5 +1,5 @@
 import { Fragment, useState } from "react";
-import { canWithdraw, mineGroup, mineStatus, periodText, rejectNote, type MineGroup } from "./lib";
+import { canWithdraw, endedBreakdown, mineGroup, mineStatus, periodText, rejectNote, type MineGroup } from "./lib";
 import { useRequestAction } from "./api";
 import { useMine } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
@@ -8,7 +8,7 @@ import { stamp } from "@/shared/lib/format";
 import { today } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
-import { Pill, Tile } from "@/shared/ui/base/parts";
+import { Pill, Tile, type TileAccent } from "@/shared/ui/base/parts";
 import { card, formMsg, formMsgOk, linkButton } from "@/shared/ui/base/styles";
 import { ask } from "@/app/ui/confirm/ask";
 
@@ -18,21 +18,25 @@ const TD = "p-4 align-middle";
 const PAGER = "flex size-8 items-center justify-center rounded border border-line bg-surface text-sm font-medium text-ink-soft hover:bg-row-hover disabled:cursor-default disabled:opacity-50 aria-[current=true]:border-brand aria-[current=true]:bg-brand aria-[current=true]:text-white";
 
 type MineView = MineGroup | "all";
-const TILES: [MineView, string][] = [["all", "전체 신청"], ["pending", "결재 대기"], ["active", "사용 중"], ["done", "끝난 신청"]];
+const TILES: [MineView, string][] = [["all", "전체 신청"], ["pending", "결재 대기"], ["active", "사용 중"], ["done", "반려, 만료"]];
+
+// 상태마다 색 하나 — 타일의 점 · 고른 테두리와 표의 배지가 같은 색이라 표를 보고 어느 타일인지 이어집니다.
+// 결재 대기는 테마 남색 (주황은 운영자 화면에서 "주의"라 겹치지 않게).
+const COLOR: Record<MineView, { dot: string; accent: TileAccent; pill: string }> = {
+  all: { dot: "var(--color-ink-ghost)", accent: { line: "var(--color-ink-dim)", tint: "var(--color-canvas)" }, pill: "border-transparent bg-canvas text-ink-dim" },
+  pending: { dot: "var(--color-brand)", accent: { line: "var(--color-brand)", tint: "var(--color-brand-soft)" }, pill: "border-transparent bg-brand-soft text-brand" },
+  active: { dot: "var(--color-ok)", accent: { line: "var(--color-ok)", tint: "var(--color-ok-tint)" }, pill: "border-transparent bg-ok-tint text-ok" },
+  done: { dot: "var(--color-risk)", accent: { line: "var(--color-risk)", tint: "var(--color-risk-tint)" }, pill: "border-transparent bg-risk-tint text-risk" },
+};
 const EMPTY: Record<MineView, string> = {
   pending: "결재 중인 신청이 없습니다.",
   active: "지금 쓰는 권한이 없습니다.",
-  done: "끝난 신청이 없습니다.",
+  done: "반려되거나 만료된 신청이 없습니다.",
   all: "아직 신청한 권한이 없습니다.",
 };
 
-// 상태 배지 — 반려만 빨강, 결재 대기는 진하게, 나머지는 흐리게 (색이 많으면 반려가 묻힙니다).
-function statusTone(r: RequestRow, group: MineGroup): string {
-  if (r.stage === "rejected") return "border-risk text-risk";
-  if (group === "pending") return "border-ink text-ink";
-  if (group === "active") return "border-line text-ink-soft";
-  return "border-line bg-canvas text-ink-dim";
-}
+// 상태 배지 — 묶음의 색, 스스로 철회한 것만 회색입니다 (확인할 일이 아니라서).
+const statusTone = (r: RequestRow, group: MineGroup): string => (r.stage === "withdrawn" ? COLOR.all.pill : COLOR[group].pill);
 
 // 결재 대기가 있으면 그것부터, 없으면 전체를 보여 줍니다 — 처음 들어와 빈 목록을 보지 않게.
 export function MineList() {
@@ -54,7 +58,11 @@ export function MineList() {
   return (
     <div className="flex h-full min-w-0 flex-col gap-6">
       <div className="grid grid-cols-4 gap-4 phone:grid-cols-2" id="mine-tiles" role="group" aria-label="내 신청">
-        {TILES.map(([k, label]) => <Tile key={k} label={label} big={counts[k]} pressed={group === k} onClick={() => { setPicked(k); setPage(1); }} />)}
+        {TILES.map(([k, label]) => (
+          <Tile key={k} label={label} big={counts[k]} pressed={group === k} dot={COLOR[k].dot} accent={COLOR[k].accent} onClick={() => { setPicked(k); setPage(1); }}>
+            {k === "done" ? endedBreakdown(mine, on) || null : null}
+          </Tile>
+        ))}
       </div>
       <section className={cn(card, "flex flex-1 flex-col overflow-hidden")}>
         <div className="flex flex-wrap items-center gap-3 border-b border-line bg-canvas/50 p-5">

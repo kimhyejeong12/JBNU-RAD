@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { RequestRow, AccessItem, Verdict } from "@/shared/api/types";
-import { requestItem, accessOptions, periodProblem, periodText, approvalSteps, canWithdraw, heldLabel, mineGroup, mineStatus, moveText, personItem, rejectNote, shortDate } from "./lib";
+import { requestItem, accessOptions, endedBreakdown, periodProblem, periodText, approvalSteps, canWithdraw, heldLabel, mineGroup, mineStatus, moveText, personItem, rejectNote, shortDate } from "./lib";
 
 const row = (p: Partial<RequestRow>): RequestRow => ({
   id: 1, request_no: "REQ-2026-0001", requester_id: 4, requester_name: "김민수", requester_department: "인사팀", requester_job: "",
@@ -160,4 +160,12 @@ test("내 신청 표의 기간 — 빈 종료일은 기한 없음", () => {
   expect(periodText({ period_start: "", period_end: "2026-12-31" })).toBe("2026-12-31까지");
   expect(periodText({ period_start: "2026-11-01", period_end: "" })).toBe("2026-11-01부터, 기한 없음");
   expect(periodText({ period_start: "", period_end: "" })).toBe("기한 없음");
+});
+
+test("반려, 만료 타일의 내역 — 0 이 아닌 것만, 결재 중 · 사용 중은 세지 않음", () => {
+  const on = "2026-11-16";
+  const rows = [row({ stage: "rejected" }), row({ stage: "rejected" }), row({ stage: "approved", period_end: "2026-10-31" }),
+    row({ stage: "withdrawn" }), row({ stage: "manager" }), row({ stage: "approved", period_end: "" })];
+  expect(endedBreakdown(rows, on)).toBe("반려 2, 만료 1, 철회 1");
+  expect(endedBreakdown([row({ stage: "manager" })], on)).toBe("");
 });

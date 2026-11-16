@@ -106,6 +106,19 @@ export function periodProblem(start: string, end: string, open: boolean): string
   return null;
 }
 
+// 끝난 신청(반려 · 만료 등)의 내역 — "반려 1, 만료 2" 처럼 0 이 아닌 것만, 없으면 빈 글.
+export function endedBreakdown(mine: RequestRow[], on: string = today()): string {
+  const n = { 반려: 0, 만료: 0, 회수: 0, 철회: 0 };
+  for (const r of mine) {
+    if (mineGroup(r, on) !== "done") continue;
+    if (r.stage === "rejected") n.반려 += 1;
+    else if (r.stage === "revoked") n.회수 += 1;
+    else if (r.stage === "withdrawn") n.철회 += 1;
+    else n.만료 += 1;
+  }
+  return Object.entries(n).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(", ");
+}
+
 // 내 신청 표의 기간 한 줄 — 빈 종료일은 기한 없음입니다.
 export function periodText(r: Pick<RequestRow, "period_start" | "period_end">): string {
   if (r.period_end) return r.period_start ? `${r.period_start} ~ ${r.period_end}` : `${r.period_end}까지`;

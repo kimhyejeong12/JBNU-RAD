@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { Level } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "./Icon";
@@ -44,23 +44,36 @@ export function KvTable({ rows }: { rows: [label: string, value: ReactNode][] })
   );
 }
 
-const TILE = "flex min-w-0 flex-col justify-center rounded-xl border border-line p-4 text-left";
+// 아래 작은 글이 있는 타일과 없는 타일이 한 줄에 서도 이름 · 숫자 높이가 맞게 위에서부터 쌓습니다.
+const TILE = "flex min-w-0 flex-col justify-start rounded-xl border border-line p-4 text-left";
+
+// 고른 타일의 테두리 · 바탕 색 (CSS 색 값) — 안 주면 검정 테두리입니다.
+export interface TileAccent { line: string; tint: string }
 
 // 큰 숫자 하나 — children 은 아래 작은 글, extra 는 숫자와 글 사이(막대 등)입니다.
-// onClick 을 주면 누르는 타일이고, pressed 는 목록을 이 타일로 거르는 중인지입니다.
-export function Tile({ label, big, tone, extra, onClick, pressed, children }: {
-  label: ReactNode; big: ReactNode; tone?: string; extra?: ReactNode; onClick?: () => void; pressed?: boolean; children?: ReactNode;
+// onClick 을 주면 누르는 타일이고, pressed 는 목록을 이 타일로 거르는 중인지, dot 은 이름 앞 점의 색입니다.
+export function Tile({ label, big, tone, extra, onClick, pressed, dot, accent, children }: {
+  label: ReactNode; big: ReactNode; tone?: string; extra?: ReactNode; onClick?: () => void; pressed?: boolean;
+  dot?: string; accent?: TileAccent; children?: ReactNode;
 }) {
   const body = (
     <>
-      <span className="mb-1 text-sm font-medium text-ink-dim">{label}</span>
+      <span className="mb-1 flex items-center gap-1.5 text-sm font-medium text-ink-dim">
+        {dot && <i className="inline-block size-2 flex-none rounded-full" style={{ background: dot }} aria-hidden="true" />}{label}
+      </span>
       <span className={cn("text-2xl leading-tight font-bold tabular-nums", tone)}>{big}</span>
       {extra}
       {children != null && <span className="mt-0.5 text-xs text-ink-dim">{children}</span>}
     </>
   );
   if (!onClick) return <div className={TILE}>{body}</div>;
-  return <button type="button" className={cn(TILE, "bg-surface hover:bg-row-hover aria-pressed:border-ink aria-pressed:shadow-[inset_0_0_0_1px_var(--color-ink)]")} aria-pressed={pressed} onClick={onClick}>{body}</button>;
+  const vars = { "--tile-line": accent?.line ?? "var(--color-ink)", "--tile-tint": accent?.tint ?? "var(--color-surface)" } as CSSProperties;
+  return (
+    <button type="button" style={vars} aria-pressed={pressed} onClick={onClick}
+      className={cn(TILE, "bg-surface hover:bg-row-hover aria-pressed:border-(--tile-line) aria-pressed:bg-(--tile-tint) aria-pressed:shadow-[inset_0_0_0_1px_var(--tile-line)]")}>
+      {body}
+    </button>
+  );
 }
 
 export function Periods<K extends string>({ id, labels, value, onChange, label = "기간" }: { id: string; labels: [K, ReactNode][]; value: K; onChange: (k: K) => void; label?: string }) {

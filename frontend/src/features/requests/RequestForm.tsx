@@ -5,13 +5,17 @@ import { DONE_MSG_MS } from "@/app/ui/state/UiContext";
 import { useCatalog, useMine } from "@/app/session/data";
 import { cn } from "@/shared/lib/cn";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { Meta } from "@/shared/ui/base/parts";
 import { card, formMsg, formMsgOk, input } from "@/shared/ui/base/styles";
 
 const EMPTY = { code: "", reason: "", start: "", end: "", open: false };
 const LABEL = "mb-1 block text-sm font-medium text-ink-soft";
 const FIELD = cn(input, "text-sm focus:border-brand");
 const REQUIRED = <b className="font-medium text-risk">*</b>;
+// 신청한 뒤 무엇이 일어나는지 — 일반 사용자는 누가 결재하는지, 권한이 언제 다시 검토되는지 모릅니다.
+const GUIDE = [
+  "신청한 권한은 보안 운영자(1차)와 보안 총책임자(최종)의 결재를 거쳐 부여됩니다.",
+  "사용 기간이 끝나거나 부서, 직무가 바뀌면 권한이 다시 검토되거나 회수될 수 있습니다.",
+];
 
 // 현재 보유 권한은 서버가 신청 때 채워서 적지 않습니다.
 export function RequestForm() {
@@ -81,8 +85,12 @@ export function RequestForm() {
           <textarea id="req-reason" className={cn(FIELD, "resize-none p-3")} name="reason" maxLength={2000} rows={4} value={form.reason}
             onChange={(e) => set({ reason: e.target.value })} placeholder="예: 월말 급여 정산 담당으로 급여 테이블 조회가 필요합니다" />
         </div>
+        <ul className="m-0 mt-2 flex list-none flex-col gap-1 rounded-lg border border-brand-soft-line bg-brand-soft p-3 text-xs leading-relaxed text-brand" id="req-guide">
+          {GUIDE.map((line) => (
+            <li key={line} className="flex gap-2"><i className="mt-[7px] inline-block size-1 flex-none rounded-full bg-brand" aria-hidden="true" />{line}</li>
+          ))}
+        </ul>
         <div className="mt-auto flex flex-col gap-3 pt-6">
-          <p className="m-0 text-xs text-ink-dim"><Meta items={["결재", "보안 운영자 → 보안 총책임자"]} /></p>
           <div className="flex gap-3">
             <button type="button" className="flex-1 rounded-lg border border-line bg-surface py-2.5 font-medium text-ink-soft hover:bg-row-hover"
               onClick={() => { setForm(EMPTY); setMsg({ text: "", ok: false }); }}>초기화</button>
