@@ -6,7 +6,7 @@ from typing import Any
 from ..sources import Person, SecurityEvent, move_text, signals_text, summarize, threat_lines
 from .budget import COMMENT_CHARS, REVIEW_CHARS, THREAT_LINES, Section
 
-DECIDED = {"act": "조치 필요", "clear": "이상 없음"}
+DECIDED = {"act": "조치 필요", "done": "조치 완료", "clear": "이상 없음"}
 NO_ACCOUNT = "- SentinelAI 계정과 잇지 않은 로그 사용자 — 계정 기록 없음 (의심 근거 아님)"
 
 

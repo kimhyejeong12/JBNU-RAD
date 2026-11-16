@@ -9,9 +9,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from ..db import User, auth, nodes, permissions, results
+from ..db import User, auth, decisions, nodes, permissions, results
 from ..sources import (FORMAT, Collected, People, between, browse, group_by_user, group_subject, latest, load_collected,
-                       period_since, snapshot_row)
+                       overview, period_since, snapshot_row)
 from .queue import Batch, Job, Progress, Queues
 from .resource import Resources
 
@@ -19,6 +19,10 @@ log = logging.getLogger(__name__)
 
 # 위협 예측의 기록 칸(로그 위험 · 주의 수 등)을 세는 기간입니다.
 SUSPECT_DAYS = 35
+# AI 비서에 넘기는 영역마다의 열린 항목 수입니다.
+BRIEFING_ITEMS = 6
+# AI 비서는 같은 차례의 정기 작업이 끝난 뒤의 상태를 봅니다.
+BEFORE_BRIEFING = {"events", "nodes", "suspects", "policies"}
 
 
 def _unreadable(exc: Exception) -> str:
@@ -170,8 +174,11 @@ class Issuer:
             now = datetime.now().astimezone()
             for kind, s in list(self._schedule.items()):
                 if s["next_at"] <= now:
+                    if kind == "briefing" and self.queues.busy(BEFORE_BRIEFING):
+                        s["next_at"] = now + timedelta(minutes=1)
+                        continue
                     s["next_at"] = now + timedelta(minutes=s["every_min"])
-                    self.issue(kind, auto=True)
+                    self.issue(kind, auto=True, **({"skip_same": True} if kind == "briefing" else {}))
             due = min((s["next_at"] for s in self._schedule.values()), default=now + timedelta(minutes=1))
             self._wake.wait(max(0.1, min((due - datetime.now().astimezone()).total_seconds(), 60)))
 
@@ -238,6 +245,41 @@ class Issuer:
             p["held"] = held.get(int(p["key"].split(":", 1)[1]), []) if p["key"].startswith("account:") else None
         return {"period": period, "since": at, "events": {"users": results.threat_stats(results_db, at)["events"]["users"]},
                 "requests": permissions.request_stats(main_db, at), "suspects": suspects, "safety": results.user_safety(results_db, at)}
+
+    def _judged(self) -> tuple[list[overview.Item], dict[str, Any], list[dict[str, Any]], datetime]:
+        """→ (다섯 영역의 판정, 운영자 결정 기록, 회수, 지금)"""
+        main_db, results_db = self.res.main_db, self.res.results_db
+        now = datetime.now(timezone.utc)
+        grants = permissions.grant_history(main_db)
+        items = overview.collect(results.judgment_history(results_db), grants, now.isoformat(timespec="seconds"))
+        log = {kind: decisions.history(main_db, kind) for kind in decisions.ACTIONS}
+        return items, log, overview.revokes(items, grants), now
+
+    def overview(self, period: str) -> dict[str, Any]:
+        """보안 현황 종합 — 정책 관리 · 서버 점검 · 로그 감시 · 위협 예측 · 보유 권한 재검토의 열린 것 · 완료율 · 비중 · 추이와 마지막 AI 비서."""
+        _, at = self._since(period)
+        items, log, revoked, now = self._judged()
+        briefing = results.latest_briefing(self.res.results_db)
+        if briefing is not None:
+            # 그 뒤 열린 것 · 결정이 바뀌었으면 화면이 [지금 정리]를 권할 수 있게 합니다.
+            briefing["current"] = briefing.pop("fingerprint") == overview.board(items, log, now, BRIEFING_ITEMS)[1]
+        return {"period": period, **overview.summarize(items, log, revoked, now, at), "briefing": briefing}
+
+    def _briefing(self, skip_same: bool = False) -> tuple[list[tuple[str, Any]], dict[str, Any]]:
+        """AI 비서 — 영역마다 열린 항목에 T번호를 붙여 넘깁니다. skip_same 이면 지난 비서 때와 같을 때 건너뜁니다."""
+        items, log, revoked, now = self._judged()
+        listed, fingerprint = overview.board(items, log, now, BRIEFING_ITEMS)
+        last = results.latest_briefing(self.res.results_db)
+        if skip_same and last is not None and not last["failed"] and last["fingerprint"] == fingerprint:
+            return [], {"skipped": True}
+        n = 0
+        for rows in listed.values():
+            for r in rows:
+                n += 1
+                r["no"] = f"T{n}"
+        week = (now - timedelta(days=7)).isoformat(timespec="seconds")
+        summary = overview.summarize(items, log, revoked, now, week)
+        return [("briefing:all", {"summary": summary, "listed": listed, "fingerprint": fingerprint})], {}
 
     def risk_people(self) -> dict[str, Any]:
         """부서 · 직무를 옮겼거나 사용 기간이 끝난 권한이 남은 일반 사용자 — 이동 뒤 보유 권한 재검토 · 로그 감시 판정을 더합니다."""

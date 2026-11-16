@@ -207,6 +207,18 @@ def expired_grants(db: Database) -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
+def grant_history(db: Database) -> dict[str, list[dict[str, Any]]]:
+    """보안 현황용 — 최종 승인된 신청 · 신청자 퇴사일, 이동, 보유 권한 재검토 전부입니다."""
+    with db.connection() as conn:
+        grants = conn.execute(
+            "SELECT r.id, r.request_no, r.requester_id, r.requester_name, r.requester_department, r.requested_access, r.period_end,"
+            " r.submitted_at, r.top_decided_at, r.revoked_at, r.revoker_name, r.revoke_reason, u.left_on"
+            " FROM access_requests r JOIN users u ON u.id = r.requester_id WHERE r.top_action = 'approve' ORDER BY r.id").fetchall()
+        moves = conn.execute("SELECT id, user_id, recorded_at FROM user_moves ORDER BY id").fetchall()
+        reviews = conn.execute("SELECT id, request_id, move_id, level, failed, error, reason, judged_at FROM grant_reviews ORDER BY id").fetchall()
+    return {"grants": [dict(r) for r in grants], "moves": [dict(r) for r in moves], "reviews": [dict(r) for r in reviews]}
+
+
 def log_ids(db: Database, user_ids: list[int]) -> dict[int, str]:
     """계정 id → 로그 사용자 ID (적지 않은 계정은 뺍니다)."""
     if not user_ids:

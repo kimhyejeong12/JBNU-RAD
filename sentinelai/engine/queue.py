@@ -11,10 +11,10 @@ from typing import Any
 # 길 — 작은 수가 먼저입니다. 같은 길은 먼저 들어온 것부터. 기준 문서 적재는 다음 판정이 새 조항을 보도록 판정과 같은 길입니다.
 URGENT, FAST, NORMAL = 0, 1, 2
 LANES = {"index": URGENT, "request": URGENT, "grant": URGENT, "events_fast": FAST,
-         "events": NORMAL, "nodes": NORMAL, "suspects": NORMAL, "policies": NORMAL}
-KINDS = {"policies": "정책 관리 검토", "events": "로그 감시", "nodes": "서버 점검", "events_fast": "빠른 로그 감시", "suspects": "위협 예측"}
+         "events": NORMAL, "nodes": NORMAL, "suspects": NORMAL, "policies": NORMAL, "briefing": NORMAL}
+KINDS = {"policies": "정책 관리 검토", "events": "로그 감시", "nodes": "서버 점검", "events_fast": "빠른 로그 감시", "suspects": "위협 예측", "briefing": "AI 비서"}
 # 화면에서 시작할 수 있는 작업입니다. 로그 감시는 서버가 스스로만 돌립니다.
-MANUAL = {"policies", "nodes", "suspects"}
+MANUAL = {"policies", "nodes", "suspects", "briefing"}
 VERDICTS = {"request", "grant"}
 # 화면의 작업 막대에 보이는 작업입니다. 빠른 감시는 fast 칸에 따로 둡니다.
 MAIN = set(KINDS) - {"events_fast"}
@@ -127,6 +127,11 @@ class Queues:
             batch = Batch(kind, auto, id=next(self._ids), progress=progress)
             self._batches.append(batch)
             return batch
+
+    def busy(self, kinds: set[str]) -> bool:
+        """그 종류의 묶음이 하나라도 열려 있는지."""
+        with self.cond:
+            return any(b.kind in kinds for b in self._batches)
 
     def fill(self, batch: Batch, items: list[tuple[str, Any]], **context: Any) -> None:
         """items = (key, data) 들. 맨 끝에 닫기 잡을 붙여 그 묶음의 잡이 모두 끝난 뒤 돌게 합니다."""

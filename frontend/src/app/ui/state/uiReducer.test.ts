@@ -16,7 +16,7 @@ test("NAVIGATE: 같은 메뉴면 거르기를 유지한다", () => {
 
 test("NAVIGATE: 검토 현황 탭이 없는 메뉴는 첫 탭으로", () => {
   const stats = uiReducer(at({ view: "requests" }), { type: "NAVIGATE", view: "stats", nextSelected: null });
-  expect(stats.mainTab).toBe("risk");
+  expect(stats.mainTab).toBe("overview");
   expect(panelIdle(stats)).toBe(true);
   expect(uiReducer(stats, { type: "SET_MAIN_TAB", tab: "stats" }).stats.kind).toBe("stats");
 });

@@ -3,7 +3,7 @@ import { getJSON } from "./http";
 import { jobsInterval } from "./jobs";
 import type {
   AccessItem, AskItem, Conversation, Health, Jobs, LogsPage, LogsParams, Me, NodeDetail, NodeRow, QaRecord, Regulation,
-  RequestRow, Results, RiskPeople, StatPeriod, Stats, UserRow, UserStats, WatchPerson,
+  Overview, RequestRow, Results, RiskPeople, StatPeriod, Stats, UserRow, UserStats, WatchPerson,
 } from "./types";
 
 // /api/logs 는 조회마다 감사 기록을 남겨 암묵적 재요청(포커스 · 재접속 · 재시도)을 모두 끕니다.
@@ -83,6 +83,13 @@ export const logsQuery = (p: LogsParams) => queryOptions({
 export const statsQuery = (period: StatPeriod) => queryOptions({
   queryKey: ["stats", "stats", period],
   queryFn: () => getJSON<Stats>(`/api/stats?period=${period}`),
+  staleTime: 0,
+  placeholderData: keepPreviousData,
+});
+// 키가 stats 아래라 작업이 끝나면 함께 다시 받습니다.
+export const overviewQuery = (period: StatPeriod) => queryOptions({
+  queryKey: ["stats", "overview", period],
+  queryFn: () => getJSON<Overview>(`/api/overview?period=${period}`),
   staleTime: 0,
   placeholderData: keepPreviousData,
 });

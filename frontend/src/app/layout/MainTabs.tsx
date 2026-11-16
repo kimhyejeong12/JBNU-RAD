@@ -9,6 +9,7 @@ import { Icon } from "@/shared/ui/base/Icon";
 const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
   { tab: "queue", icon: "list", label: "검토 현황", panel: "view-queue" },
   { tab: "nodes", icon: "server", label: "노드", panel: "view-nodes" },
+  { tab: "overview", icon: "shield", label: "종합", panel: "view-overview" },
   { tab: "risk", icon: "bad", label: "권한 변동", panel: "view-risk" },
   { tab: "stats", icon: "activity", label: "시스템", panel: "view-stats" },
   { tab: "ustats", icon: "warn", label: "사용자", panel: "view-stats" },

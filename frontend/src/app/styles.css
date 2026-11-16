@@ -34,6 +34,12 @@
   --color-bar-line-hover: #888888;
   --color-bar-hover: #262626;
   --color-tip-dim: #CFCFCF;
+  /* 보안 현황 영역 색 — 위험 · 주의 · 정상 색과 겹치지 않는 다섯 색 (색약 구분 확인) */
+  --color-area-policy: #2A78D6;
+  --color-area-server: #1BAF7A;
+  --color-area-event: #6250D6;
+  --color-area-suspect: #E87BA4;
+  --color-area-grant: #8F9A1E;
   /* 브라우저 기본 글자 크기를 키워도 여백이 그대로이게 간격 단위는 px 입니다. */
   --spacing: 4px;
   --radius: 8px;

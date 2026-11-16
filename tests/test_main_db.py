@@ -239,6 +239,17 @@ def test_review_decisions(main_db, people):
         conn.execute("DELETE FROM review_decisions")
 
 
+def test_done_and_suspect_decisions(main_db, people):
+    decisions.record(main_db, people["manager"], "event", "event_findings/2", "act")
+    assert decisions.record(main_db, people["manager"], "event", "event_findings/2", "done")["action"] == "done"
+    decisions.record(main_db, people["manager"], "policy", "policy_issues/2", "done")
+    assert decisions.record(main_db, people["top"], "suspect", "suspect/재무 정다은", "act")["action"] == "act"
+    with denied("action 은"):
+        decisions.record(main_db, people["top"], "suspect", "suspect/재무 정다은", "approve")
+    with denied("kind 는"):
+        decisions.record(main_db, people["top"], "request", "x", "done")
+
+
 def test_nodes(main_db, people):
     node, key = nodes.create(main_db, people["manager"], "web-01")
     assert node["key_issued"] and nodes.key_of(main_db, people["manager"], "web-01") == key

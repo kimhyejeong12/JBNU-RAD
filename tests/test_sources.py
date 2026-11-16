@@ -96,3 +96,15 @@ def test_snapshot_parse_and_changes():
     assert snapshot_changes(None, off.modules) == []
     with pytest.raises(ValueError):
         snapshot_from_payload({"format": "x"})
+
+
+def test_carry_keeps_decision_while_result_is_same():
+    from sentinelai.sources.decisions import carry, server_signature
+    gaps = [{"item": "permitrootlogin", "level": "위험"}, {"item": "ufw", "level": "정상"}]
+    old, same, worse = (server_signature("n1", "위험", gaps), server_signature("n1", "위험", gaps[:1]),
+                        server_signature("n1", "위험", [*gaps, {"item": "sudo", "level": "주의"}]))
+    assert old == same
+    decided = {"node_findings/1": {"id": 5, "action": "done"}}
+    out = carry([("node_findings/2", same), ("node_findings/3", worse)], decided, {"node_findings/1": old}, set())
+    assert out == {"node_findings/2": {"id": 5, "action": "done", "item_key": "node_findings/2", "carried_from": "node_findings/1"}}
+    assert carry([("node_findings/2", same)], decided, {"node_findings/1": old}, {"node_findings/2"}) == {}

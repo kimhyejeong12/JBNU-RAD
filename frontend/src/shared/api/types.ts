@@ -236,7 +236,7 @@ export interface Results {
   decision_log?: Record<string, Record<string, Decision[]>>;   // 보안 총책임자에게만
 }
 
-export type JobKind = "policies" | "nodes" | "suspects";
+export type JobKind = "policies" | "nodes" | "suspects" | "briefing";
 
 export interface Jobs {
   running: string | null;
@@ -466,4 +466,49 @@ export interface UserStats {
   requests: { total: number; ai: Record<string, number>; mismatches: number };
   suspects: Suspect[];
   safety: SafetyScore | null;
+}
+
+export type OverviewArea = "policy" | "server" | "event" | "suspect" | "grant";
+
+export interface OverviewRow {
+  area: OverviewArea;
+  area_label: string;
+  key: string;
+  subject: string;
+  level: Level | null;
+  reason: string;
+  opened_at: string;
+  decision: { action: string; label: string; by: string; at: string } | null;
+}
+
+export interface Todo { item: string; key: string; subject: string; level: Level | null; task: string; why: string }
+
+export interface Briefing {
+  headline: string;
+  areas: { area: OverviewArea; label: string; todos: Todo[] }[];
+  failed: boolean;
+  error: string | null;
+  model: string;
+  elapsed_sec: number;
+  created_at: string;
+  checks: string[];
+  current: boolean;   // 그 뒤 열린 것 · 결정이 그대로인지
+}
+
+export interface Overview {
+  period: StatPeriod;
+  generated_at: string;
+  since: string | null;
+  counts: {
+    "위험": number;
+    "주의": number;
+    action: { total: number; undecided: number; acting: number };
+    completion: { done: number; waiting: number; rate: number | null };
+    failed: number;
+  };
+  areas: { area: OverviewArea; label: string; "위험": number; "주의": number; failed: number }[];
+  trend: { day: string; "위험": number; "주의": number }[];
+  top: OverviewRow[];
+  failed: OverviewRow[];
+  briefing: Briefing | null;
 }

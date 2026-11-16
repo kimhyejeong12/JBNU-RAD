@@ -1,17 +1,17 @@
 import type { ReactNode } from "react";
 import { STAT_TITLES, SUSPECT_COLOR } from "./lib";
 import { useStatsData } from "./useStatsData";
-import { useClauses } from "@/app/session/data";
+import { useClauses, useResults } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
 import { PanelHead } from "@/app/ui/panel/Panel";
+import { DecisionBadge, DecisionFoot, JudgeState } from "@/app/ui/panel/DecisionFoot";
 import type { Stats, Suspect, UserStats } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { LEVEL_ICON } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/base/Icon";
 import { KvTable, Section } from "@/shared/ui/base/parts";
 import { Sparkline } from "@/shared/ui/charts/parts";
 import { cn } from "@/shared/lib/cn";
-import { box, boxPre, levelText, note, panelBody, recLine, subject as subjectCls, toolButton } from "@/shared/ui/base/styles";
+import { box, boxPre, note, panelBody, subject as subjectCls, toolButton } from "@/shared/ui/base/styles";
 
 const HELD_ROW = "grid cursor-pointer grid-cols-[1fr_auto] gap-x-2.5 gap-y-0.5 rounded-lg border border-line bg-surface px-2.5 py-2 text-left text-[13px] font-[inherit] [font-weight:inherit] leading-[inherit] hover:border-ink-dim";
 const HELD_SUB = "text-[12px] text-ink-dim";
@@ -70,57 +70,63 @@ function NodePanel({ d, node }: { d: Stats; node: string }) {
 
 function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
   const { navigate, openLogs, gotoActiveGrant, gotoEvent } = useUi();
+  const results = useResults();
   const p = d.suspects.find((x) => x.key === suspectKey);
   if (!p) return <Body title="의심 점수" subject="예측 없음" />;
   const g = p.signals || {};
   const r = p.records || {};
   const found = p.log_id ? d.events.users.find((u) => u.log_id === p.log_id) : undefined;
-  const tone = SUSPECT_COLOR[p.level];
+  const tone = p.failed ? null : SUSPECT_COLOR[p.level];
+  const itemKey = `suspect/${p.key}`;
+  const decision = results.decisions?.suspect?.[itemKey];
   return (
-    <Body title="의심 점수" subject={p.subject}>
-      {p.failed ? <div className={box}>예측 실패: {p.error || ""}</div> : (
-        <>
-          <div className={cn(recLine, levelText[tone])}><Icon name={LEVEL_ICON[tone]} className="size-5" />{p.score}점 {p.level}</div>
-          <Section icon="activity" title="예측 이유"><div className={box}>{p.reason}</div></Section>
-          <Section icon="ok" title="확인할 점"><div className={box}>{p.watch}</div></Section>
-        </>
-      )}
-      <Section icon="key" title="지금 가진 권한">
-        {p.held == null ? <p className={note}>계정 미연결</p>
-          : p.held.length ? (
-            <div className="grid gap-1.5">
-              {p.held.map((h) => (
-                <button className={HELD_ROW} key={h.request_no} onClick={() => gotoActiveGrant(h.request_no)}>
-                  <b>{h.access}</b>
-                  <span className={HELD_SUB}>{[h.system, h.category].filter(Boolean).join(", ") || h.code || ""}</span>
-                  <span className={cn(HELD_SUB, "col-start-2 row-start-1")}>{h.period_end ? `${h.period_end}까지` : "기간 없음"}</span>
-                </button>
-              ))}
-            </div>
-          ) : <p className={note}>없음</p>}
-      </Section>
-      <Section icon="warn" title="행동 신호 (최근 7일)">
-        {g.highlights?.length ? <div className={boxPre}>{g.highlights.join("\n")}</div> : <p className={note}>없음</p>}
-        {g.subject ? (
-          <KvTable rows={[["로그 (최근 / 평소)", `${g.recent_events} / ${g.baseline_events}건`],
-            ["하루 양", `${g.baseline_daily_volume} → ${g.recent_daily_volume}${g.volume_ratio != null ? ` (${g.volume_ratio}배)` : ""}`],
-            ["근무 시간 밖", `${Math.round((g.off_hours_ratio ?? 0) * 100)}%`], ["예외 승인", `${Math.round((g.exception_ratio ?? 0) * 100)}%`],
-            ["민감 문서", `${g.sensitive_events}건${g.sensitive_words?.length ? ` (${g.sensitive_words.join(", ")})` : ""}`],
-            ["30분 안 최대", `${g.max_burst_30min}건`], ["로그 기간", `${stamp(g.first_seen)} ~ ${stamp(g.last_seen)}`]]} />
-        ) : <p className={note}>로그 없음</p>}
-      </Section>
-      <Section icon="list" title="기록 (35일)">
-        <KvTable rows={[["로그 감시", `위험 ${r["로그 위험"] || 0}, 주의 ${r["로그 주의"] || 0}`],
-          ["권한 신청", `${r["신청"] || 0}건`], ["반려", `${r["반려"] || 0}건`], ["회수", `${r["회수"] || 0}건`],
-          ["계정", p.login_id || "미연결"]]} />
-      </Section>
-      <Section icon="activity" title="의심 점수 흐름"><ScoreTrend p={p} /></Section>
-      <p className={note}>{stamp(p.created_at)}</p>
-      <div className="mt-4.5">
-        {g.subject && <button className={toolButton} id="stat-go" onClick={() => { navigate("events"); openLogs({ user: g.subject!, period: "month" }); }}><Icon name="search" small />로그 조회</button>}
-        {found && <button className={toolButton} id="stat-go2" onClick={() => gotoEvent(`event:${found.keys[found.keys.length - 1]}`)}><Icon name="list" small />로그 감시 판정 보기</button>}
-      </div>
-    </Body>
+    <>
+      <Body title="의심 점수" subject={p.subject}>
+        <JudgeState level={tone} label={p.failed ? "예측 실패" : `${p.score}점 ${p.level}`}><DecisionBadge decision={decision} /></JudgeState>
+        {p.failed ? <div className={cn(box, "mt-4.5")}>{p.error || ""}</div> : (
+          <>
+            <Section icon="activity" title="이유"><div className={box}>{p.reason}</div></Section>
+            <Section icon="ok" title="확인할 점"><div className={box}>{p.watch}</div></Section>
+          </>
+        )}
+        <Section icon="key" title="지금 가진 권한">
+          {p.held == null ? <p className={note}>계정 미연결</p>
+            : p.held.length ? (
+              <div className="grid gap-1.5">
+                {p.held.map((h) => (
+                  <button className={HELD_ROW} key={h.request_no} onClick={() => gotoActiveGrant(h.request_no)}>
+                    <b>{h.access}</b>
+                    <span className={HELD_SUB}>{[h.system, h.category].filter(Boolean).join(", ") || h.code || ""}</span>
+                    <span className={cn(HELD_SUB, "col-start-2 row-start-1")}>{h.period_end ? `${h.period_end}까지` : "기간 없음"}</span>
+                  </button>
+                ))}
+              </div>
+            ) : <p className={note}>없음</p>}
+        </Section>
+        <Section icon="warn" title="행동 신호 (최근 7일)">
+          {g.highlights?.length ? <div className={boxPre}>{g.highlights.join("\n")}</div> : <p className={note}>없음</p>}
+          {g.subject ? (
+            <KvTable rows={[["로그 (최근 / 평소)", `${g.recent_events} / ${g.baseline_events}건`],
+              ["하루 양", `${g.baseline_daily_volume} → ${g.recent_daily_volume}${g.volume_ratio != null ? ` (${g.volume_ratio}배)` : ""}`],
+              ["근무 시간 밖", `${Math.round((g.off_hours_ratio ?? 0) * 100)}%`], ["예외 승인", `${Math.round((g.exception_ratio ?? 0) * 100)}%`],
+              ["민감 문서", `${g.sensitive_events}건${g.sensitive_words?.length ? ` (${g.sensitive_words.join(", ")})` : ""}`],
+              ["30분 안 최대", `${g.max_burst_30min}건`], ["로그 기간", `${stamp(g.first_seen)} ~ ${stamp(g.last_seen)}`]]} />
+          ) : <p className={note}>로그 없음</p>}
+        </Section>
+        <Section icon="list" title="기록 (35일)">
+          <KvTable rows={[["로그 감시", `위험 ${r["로그 위험"] || 0}, 주의 ${r["로그 주의"] || 0}`],
+            ["권한 신청", `${r["신청"] || 0}건`], ["반려", `${r["반려"] || 0}건`], ["회수", `${r["회수"] || 0}건`],
+            ["계정", p.login_id || "미연결"]]} />
+        </Section>
+        <Section icon="activity" title="의심 점수 흐름"><ScoreTrend p={p} /></Section>
+        <p className={note}>{stamp(p.created_at)}</p>
+        <div className="mt-4.5">
+          {g.subject && <button className={toolButton} id="stat-go" onClick={() => { navigate("events"); openLogs({ user: g.subject!, period: "month" }); }}><Icon name="search" small />로그 조회</button>}
+          {found && <button className={toolButton} id="stat-go2" onClick={() => gotoEvent(`event:${found.keys[found.keys.length - 1]}`)}><Icon name="list" small />로그 감시 판정 보기</button>}
+        </div>
+      </Body>
+      <DecisionFoot key={itemKey} decision={decision} target={{ kind: "suspect", itemKey, level: tone, subject: p.subject }} />
+    </>
   );
 }
 

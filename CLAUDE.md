@@ -90,6 +90,8 @@ JBNU-RAD/
 │   │   ├── results_ask.sql       results.sql 뒤에 적용 — 질의 기록에 대화 id · 도구 단계 · 검증 칸 (11/5)
 │   │   ├── results_ask_stages.sql 그 뒤에 적용 — 질의 기록의 단계 칸(`stages`, 11/9)
 │   │   ├── results_grounding.sql 그 뒤에 적용 — 로그 감시 · 서버 점검 · 의심 점수 · 정책 관리 검토의 근거 칸(`grounding`, 11/9)
+│   │   ├── results_briefing.sql  그 뒤에 적용 — AI 비서(보안 현황의 영역별 할 일, `briefings`, 11/15)
+│   │   ├── results_drop_policy_files.sql 그 뒤에 적용 — 정책 파일 · 서버 현황 표를 읽던 때의 칸(`policy_reviews` 의 source · load_issues · rules · servers_*)과 `server_findings` 표를 지움 (11/15)
 │   │   ├── postgres-init.sql     시험 DB(sentinelai_dev · sentinelai_test) 만들기 — compose 의 PostgreSQL 이 처음 뜰 때
 │   │   ├── auth.py               Argon2id · 로그인 잠금 · 세션 2일 · 계정 관리는 보안 총책임자 (루트 계정은 루트만)
 │   │   ├── permissions.py        신청(권한 목록 코드로, 현재 보유 권한은 승인된 유효 신청에서 읽어 남김) · AI 판정 저장(1차 결재 전까지만) · 철회 · 결재 · 회수
@@ -480,7 +482,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 - 생각 단계를 켠 판정은 4096에서 3번 중 1번 빈 출력이라 8192로 올렸음 (아래 Qwen3.5 시험)
 
 #### 데이터 위치 (10/08)
-- `SENTINELAI_REQUESTS_SOURCE` · `POLICIES_SOURCE` · `EVENTS_SOURCE`: 권한 신청 · 솔루션 정책 · 보안 솔루션 로그(Microsoft Sentinel 내보내기 등). 확장자(.csv · .json · .jsonl)로 읽는 방식을 고름
+- `SENTINELAI_EVENTS_SOURCE`: 보안 솔루션 로그(Microsoft Sentinel 내보내기 등). 확장자(.csv · .json · .jsonl)로 읽는 방식을 고름. 권한 신청(`REQUESTS_SOURCE`)은 DB 신청으로, 솔루션 정책(`POLICIES_SOURCE`) · 서버 현황(`SERVERS_SOURCE`)은 11/5에 뺐음 — 코드 · `.env.example` 에 없음 (11/15)
 - `SENTINELAI_RESULTS_DB_PATH`: AI 결과 DB (SQLite, 11/03에 PostgreSQL로 옮김). 정책 관리 검토 · 로그 감시 판정 · 질의 기록. CLI와 웹이 함께 쓰고 웹을 다시 띄워도 결과가 보임. 10/12까지는 `SENTINELAI_RESULTS_PATH`(JSON 파일)
 - `SENTINELAI_DB_PATH`: 권한 DB (SQLite, 11/03에 PostgreSQL로 옮김). 계정 · 신청 · 결재 · 운영자 결정
 - (11/03) 둘 다 PostgreSQL 스키마로 옮김 — 권한 DB = `main`, AI 결과 DB = `results`. 설정 이름은 그대로 두고 값만 PostgreSQL 주소 (엔진 `Settings`를 고치지 않으려고)
@@ -717,7 +719,7 @@ ExecStartPre=+/usr/bin/nvidia-smi
 - **`NUM_CTX` 16384**: 계획은 32768이었으나 팀 서버에서 `qwen3:14b`가 16384에 10.0 GiB · 32768에 14.0 GiB(`/api/ps`)라 RTX 5070 12GB에 다 올라가는 16384로 정했음. 16384면 판정 입력 약 1만 6천 자 — 11/5 시험 DB의 가장 긴 입력(정밀 감시 48줄 묶음) 7.4천 자가 자르지 않고 들어감
 - **통합 잡 큐**: 일꾼 하나 · 우선순위 · 진행 보고 때 급한 일에 자리 내주기(§2). 기준 문서 적재도 큐의 일이라 웹이 2초마다 엿보던 것을 없앴고, 파일 쓰기와 적재가 다른 작업 사이에 끼지 않음. 바깥 API 모양(`/api/jobs` · `/internal/status` · `judging`)은 그대로 두고 `queued` · `waiting`만 더해 화면 코드는 안 바꿨음
 - 강제 중지 뒤 응답 없는 모델 호출에 묶인 스레드는 남음 (밖에서 멈출 수 없음). 새 일꾼을 띄워 큐는 바로 풀리고, 옛 스레드는 호출이 돌아오면 쓰지 않고 끝남. 서버 점검 · 위협 예측은 진행 보고 전에 한 건을 쌓으므로 그 한 건은 남을 수 있음 (11/3과 같음)
-- `results.save_policy_review`가 쓰던 옛 `server_findings`(정책 관리 검토 시절 서버 점검)는 지웠음 — 10/20 뒤로 아무도 넘기지 않았음. 표와 읽는 쪽은 그대로
+- `results.save_policy_review`가 쓰던 옛 `server_findings`(정책 관리 검토 시절 서버 점검)는 지웠음 — 10/20 뒤로 아무도 넘기지 않았음. 표 · 읽는 쪽 · `policy_reviews` 의 파일 시절 칸은 11/15에 지웠음 (`results_drop_policy_files.sql`)
 - **11/5 시험** (시험 DB · 시험 웹, 팀 서버가 CPU로만 돌던 때 — `/api/ps` VRAM 0)
   - 가짜 모델로 6종 판정 입력을 옮기기 전과 견줘 늘어난 정보만 있음을 봄. DB · 소스 · 맥락 · 큐 시험 38건, 화면 시험 144건 통과
   - 신청 → `judging: true` → 3분 30초 뒤 위험 판정 저장 (CPU). 그동안 [지금 예측] · [지금 점검]은 `queued`, 같은 작업 다시 누르면 409

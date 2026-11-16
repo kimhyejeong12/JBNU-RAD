@@ -35,3 +35,6 @@ class Inputs:
 
     def policy(self, documents: str, decided: list[dict[str, Any]]) -> Built:
         return self._fit(Prompts.POLICY_CONFLICT, builders.policy(documents, decided))
+
+    def briefing(self, summary: dict[str, Any], listed: dict[str, list[dict[str, Any]]]) -> Built:
+        return self._fit(Prompts.BRIEFING, builders.briefing(summary, listed), 0)

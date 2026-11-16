@@ -67,7 +67,7 @@ class Precedents:
         scored = []
         for key, d in sorted(current.items(), key=lambda kv: kv[1]["decided_at"], reverse=True):
             row = rows.get(key)
-            if not row or row["user"] == user or d["action"] not in ("act", "clear"):
+            if not row or row["user"] == user or d["action"] not in ("act", "done", "clear"):
                 continue
             text = (row["events"] or "").casefold()
             scored.append((sum(m in text for m in marks), {"kind": "event", "subject": row["subject"],
@@ -78,7 +78,7 @@ class Precedents:
     def for_server(self, node: str, items: list[str]) -> list[dict[str, Any]]:
         """다른 노드의 서버 점검에 정한 것 — 1차 판정이 낸 차이 항목과 겹치는 것만."""
         wanted = _words(items)
-        current = {k: d for k, d in decisions.current(self.main_db, "server").items() if d["action"] in ("act", "clear")}
+        current = {k: d for k, d in decisions.current(self.main_db, "server").items() if d["action"] in ("act", "done", "clear")}
         rows = results.findings_by_key(self.results_db, list(current))
         scored = []
         for key, d in sorted(current.items(), key=lambda kv: kv[1]["decided_at"], reverse=True):
@@ -94,7 +94,7 @@ class Precedents:
         """지난 정책 관리 검토의 문제에 정한 것 — 1차 판정의 문제와 조항 · 유형이 겹치는 것만."""
         ids = _words([p for i in issues for p in i.get("policy_ids") or []])
         kinds = {i.get("kind") for i in issues}
-        current = {k: d for k, d in decisions.current(self.main_db, "policy").items() if d["action"] in ("approve", "cond", "reject")}
+        current = {k: d for k, d in decisions.current(self.main_db, "policy").items() if d["action"] in ("approve", "cond", "reject", "done")}
         rows = results.findings_by_key(self.results_db, list(current))
         scored = []
         for key, d in sorted(current.items(), key=lambda kv: kv[1]["decided_at"], reverse=True):

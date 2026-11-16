@@ -6,7 +6,8 @@ import json
 from .auth import User
 from .core import Database, Denied, audit, now
 
-ACTIONS = {"policy": ("approve", "cond", "reject"), "event": ("clear", "act"), "server": ("clear", "act")}
+ACTIONS = {"policy": ("approve", "cond", "reject", "done"), "event": ("clear", "act", "done"),
+           "server": ("clear", "act", "done"), "suspect": ("clear", "act", "done")}
 
 
 def record(db: Database, by: User, kind: str, item_key: str, action: str, subject: str = "",

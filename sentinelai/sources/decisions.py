@@ -46,3 +46,47 @@ def events(main_db: Database, results_db: Database) -> dict[str, list[dict[str, 
         if o := owners.get(num):
             out.setdefault(o["log_id"], []).append(_pick(d, at=o["at"]))
     return out
+
+
+# --- 운영자 결정 이어받기 ---
+# 다시 판정해도 지문이 같으면 같은 문제를 다시 결정하지 않게 지난 결정을 잇습니다 (로그 감시는 판정마다 새 로그라 잇지 않음).
+
+def server_signature(node: str, level: str | None, gaps: list[dict[str, Any]]) -> tuple:
+    return ("server", node, level, tuple(sorted((g.get("item", ""), g.get("level", "")) for g in gaps if g.get("level") != "정상")))
+
+
+def policy_signature(kind: str, level: str | None, policy_ids: list[str]) -> tuple:
+    return ("policy", kind, level, tuple(sorted(policy_ids)))
+
+
+def row_signature(key: str, row: dict[str, Any]) -> tuple | None:
+    """지난 판정 행 → 비교용 지문입니다."""
+    if key.startswith("node_findings/"):
+        return server_signature(row["node"], row["level"], json.loads(row["gaps"]))
+    if key.startswith("policy_issues/"):
+        return policy_signature(row["kind"], row["level"], json.loads(row["policy_ids"]))
+    return None
+
+
+def carry(current: list[tuple[str, tuple]], decided: dict[str, dict], signatures: dict[str, tuple], touched: set[str]) -> dict[str, dict]:
+    """key → 이어받은 결정(+carried_from). 자기 기록이 있는 key(touched)는 취소가 먹히게 잇지 않습니다."""
+    latest: dict[tuple, tuple[str, dict]] = {}
+    for key, decision in decided.items():
+        sig = signatures.get(key)
+        if sig is not None and (sig not in latest or decision["id"] > latest[sig][1]["id"]):
+            latest[sig] = (key, decision)
+    out: dict[str, dict] = {}
+    for key, sig in current:
+        if key in touched or sig not in latest:
+            continue
+        source, decision = latest[sig]
+        out[key] = {**decision, "item_key": key, "carried_from": source}
+    return out
+
+
+def carried(results_db: Database, current: dict[str, list[tuple[str, tuple]]],
+            decided: dict[str, dict[str, dict]], log: dict[str, dict[str, list[dict]]]) -> dict[str, dict[str, dict]]:
+    """current = kind → [(지금 판정 key, 지문)], decided = kind → 지금 결정 → kind → 이어받은 결정입니다."""
+    rows = results.findings_by_key(results_db, [k for kind in current for k in decided.get(kind, {})])
+    signatures = {k: sig for k, row in rows.items() if (sig := row_signature(k, row)) is not None}
+    return {kind: carry(items, decided.get(kind, {}), signatures, set(log.get(kind, {}))) for kind, items in current.items()}

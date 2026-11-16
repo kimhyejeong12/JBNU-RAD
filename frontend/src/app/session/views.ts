@@ -1,7 +1,7 @@
 import type { Role } from "@/shared/api/types";
 import type { StageFilter } from "@/app/ui/state/uiReducer";
 
-export type MainTab = "queue" | "nodes" | "logs" | "risk" | "stats" | "ustats" | "engine";
+export type MainTab = "queue" | "nodes" | "logs" | "overview" | "risk" | "stats" | "ustats" | "engine";
 export type View = "requests" | "policies" | "stats" | "events" | "mine" | "users" | "access" | "docs" | "jobs";
 export type ItemType = "req" | "person" | "server" | "user" | "access" | "policy" | "event" | "doc";
 
@@ -24,7 +24,7 @@ export const VIEWS: Record<View, ViewMeta> = {
   policies: { group: "보안 운영", title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리",
               tabs: ["queue", "nodes"], cols: ["대상", "상세 내용", "시간", "AI 판정"], search: "검색" },
   stats: { group: "보안 운영", title: "보안 현황", label: "보안 현황", icon: "activity", tip: "보안 현황",
-           tabs: ["risk", "stats", "ustats"], cols: [], search: "" },
+           tabs: ["overview", "risk", "stats", "ustats"], cols: [], search: "" },
   events: { group: "보안 운영", title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시",
             tabs: ["queue", "logs"], cols: ["대상 사용자", "상세 내용", "시간", "AI 판정"], search: "검색" },
   mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청",

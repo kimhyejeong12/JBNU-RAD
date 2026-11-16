@@ -31,10 +31,9 @@ def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
     """→ policy_reviews.id"""
     with db.transaction() as conn:
         rid = conn.execute(
-            "INSERT INTO policy_reviews (source, load_issues, rules, summary, failed, error, model, elapsed_sec, created_at, grounding)"
-            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
-            (str(review.get("source", "")), _json(review.get("load_issues", [])), _json(review.get("rules", [])),
-             review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now(),
+            "INSERT INTO policy_reviews (summary, failed, error, model, elapsed_sec, created_at, grounding)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            (review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now(),
              _json(review.get("grounding", {}))),
         ).fetchone()[0]
         conn.cursor().executemany(
@@ -68,13 +67,9 @@ def latest_policy_review(db: Database) -> dict[str, Any] | None:
         if row is None:
             return None
         issues = conn.execute("SELECT * FROM policy_issues WHERE review_id = %s ORDER BY seq", (row["id"],)).fetchall()
-        servers = conn.execute("SELECT * FROM server_findings WHERE review_id = %s ORDER BY seq", (row["id"],)).fetchall()
     return {
         "id": row["id"],
         "generated_at": row["created_at"],
-        "source": row["source"],
-        "load_issues": json.loads(row["load_issues"]),
-        "rules": json.loads(row["rules"]),
         "summary": row["summary"],
         "failed": bool(row["failed"]),
         "error": row["error"],
@@ -86,18 +81,6 @@ def latest_policy_review(db: Database) -> dict[str, Any] | None:
              "policy_ids": json.loads(i["policy_ids"]), "reason": i["reason"], "recommendation": i["recommendation"]}
             for i in issues
         ],
-        "servers": {
-            "source": row["servers_source"],
-            "load_issues": json.loads(row["servers_load_issues"]),
-            "findings": [
-                {"key": f"server_findings/{s['id']}", "seq": s["seq"], "host": s["host"], "ip": s["ip"],
-                 "state": json.loads(s["state"]), "matched": s["matched"], "level": s["level"], "reason": s["reason"],
-                 "recommendation": s["recommendation"], "sources": json.loads(s["sources"]), "failed": bool(s["failed"]),
-                 "error": s["error"], "elapsed_sec": s["elapsed_sec"], "gaps": json.loads(s["gaps"]),
-                 "unjudged": json.loads(s["unjudged"]), "snapshot": json.loads(s["snapshot"])}
-                for s in servers
-            ],
-        },
     }
 
 
@@ -469,6 +452,44 @@ def monitor_findings(db: Database) -> dict[str, Any] | None:
     }
 
 
+# --- 보안 현황 ---
+
+
+def judgment_history(db: Database) -> dict[str, list[dict[str, Any]]]:
+    """보안 현황용 — 정책 관리 검토 · 서버 점검 · 정밀 감시 · 의심 점수 판정 전부, 오래된 것부터."""
+    with db.connection() as conn:
+        reviews = conn.execute("SELECT id, created_at, failed, error FROM policy_reviews ORDER BY id").fetchall()
+        issues = conn.execute("SELECT id, review_id, kind, level, policy_ids, reason FROM policy_issues ORDER BY review_id, seq").fetchall()
+        nodes = conn.execute("SELECT id, node, host, level, failed, error, summary, gaps, created_at FROM node_findings ORDER BY id").fetchall()
+        events = conn.execute(
+            "SELECT f.id, f.\"user\", f.subject, f.level, f.failed, f.error, f.reason, m.created_at, f.last_event_at"
+            " FROM event_findings f JOIN monitor_runs m ON m.id = f.run_id WHERE m.stage = 'final' ORDER BY f.id"
+        ).fetchall()
+        suspects = conn.execute("SELECT id, person, subject, level, failed, error, reason, created_at FROM suspect_scores ORDER BY id").fetchall()
+    return {"reviews": [dict(r) for r in reviews],
+            "issues": [{**dict(r), "policy_ids": json.loads(r["policy_ids"])} for r in issues],
+            "nodes": [{**dict(r), "gaps": json.loads(r["gaps"])} for r in nodes],
+            "events": [dict(r) for r in events], "suspects": [dict(r) for r in suspects]}
+
+
+def save_briefing(db: Database, briefing: dict[str, Any], model: str) -> int:
+    with db.transaction() as conn:
+        return conn.execute(
+            "INSERT INTO briefings (headline, areas, fingerprint, failed, error, model, elapsed_sec, created_at, grounding)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            (briefing.get("headline", ""), _json(briefing.get("areas", [])), briefing.get("fingerprint", ""), int(briefing["failed"]),
+             briefing.get("error"), model, briefing.get("elapsed_sec"), now(), _json(briefing.get("grounding", {}))),
+        ).fetchone()[0]
+
+
+def latest_briefing(db: Database) -> dict[str, Any] | None:
+    with db.connection() as conn:
+        r = conn.execute("SELECT * FROM briefings ORDER BY id DESC LIMIT 1").fetchone()
+    if r is None:
+        return None
+    return {"headline": r["headline"], "areas": json.loads(r["areas"]), "fingerprint": r["fingerprint"], "failed": bool(r["failed"]),
+            "error": r["error"], "model": r["model"], "elapsed_sec": r["elapsed_sec"], "created_at": r["created_at"],
+            "checks": json.loads(r["grounding"]).get("checks", [])}
 def last_finding_id(db: Database) -> int:
     """로그 감시 판정의 마지막 id(없으면 0) — 알림이 여기서부터 새 판정을 셉니다."""
     with db.connection() as conn:
