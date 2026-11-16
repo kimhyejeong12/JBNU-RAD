@@ -38,7 +38,7 @@ export function TopBar() {
     <header data-tip-instant className="relative col-span-full flex h-16 items-center gap-6 bg-brand px-6 py-0 text-white narrow:h-auto narrow:min-h-16 narrow:flex-wrap narrow:gap-y-0 narrow:px-4 phone:pb-2">
       {/* 좁은 화면에서 메뉴가 아래 줄로 내려가도 로고 줄이 막대 높이를 지키게 합니다. */}
       <div className="flex flex-none items-center gap-2 narrow:h-15">
-        <span className="flex rounded-md bg-brand-red px-1.5 py-2.75"><Icon name="shield" className="size-4.5 stroke-white stroke-[2.4]" /></span>
+        <span className="flex size-10 items-center justify-center rounded-md bg-brand-red"><Icon name="shield" className="size-6.5 stroke-white stroke-[2.2]" /></span>
         <span className="text-xl font-bold tracking-wide">Sentinel<span className="font-light text-bar-ink">AI</span></span>
       </div>
       <TopNav />

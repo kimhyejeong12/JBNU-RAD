@@ -61,7 +61,7 @@ export function RequestForm() {
   }
 
   return (
-    <section className={cn(card, "flex h-full flex-col p-6")} id="req-form">
+    <section className={cn(card, "flex flex-col p-6")} id="req-form">
       <h2 className="m-0 mb-5 text-lg font-bold">신규 권한 신청서</h2>
       <form id="new-request" className="flex flex-1 flex-col gap-5" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <div>
@@ -82,15 +82,15 @@ export function RequestForm() {
         </div>
         <div>
           <label className={LABEL} htmlFor="req-reason">신청 사유 {REQUIRED}</label>
-          <textarea id="req-reason" className={cn(FIELD, "resize-none p-3")} name="reason" maxLength={2000} rows={4} value={form.reason}
+          <textarea id="req-reason" className={cn(FIELD, "block resize-none p-3")} name="reason" maxLength={2000} rows={4} value={form.reason}
             onChange={(e) => set({ reason: e.target.value })} placeholder="예: 월말 급여 정산 담당으로 급여 테이블 조회가 필요합니다" />
         </div>
-        <ul className="m-0 mt-2 flex list-none flex-col gap-1 rounded-lg border border-brand-soft-line bg-brand-soft p-3 text-xs leading-relaxed text-brand" id="req-guide">
+        <ul className="m-0 flex list-none flex-col gap-1 rounded-lg border border-brand-soft-line bg-brand-soft p-3 text-xs leading-relaxed text-brand" id="req-guide">
           {GUIDE.map((line) => (
             <li key={line} className="flex gap-2"><i className="mt-[7px] inline-block size-1 flex-none rounded-full bg-brand" aria-hidden="true" />{line}</li>
           ))}
         </ul>
-        <div className="mt-auto flex flex-col gap-3 pt-6">
+        <div className="flex flex-col gap-3">
           <div className="flex gap-3">
             <button type="button" className="flex-1 rounded-lg border border-line bg-surface py-2.5 text-base font-medium text-ink-soft hover:bg-row-hover"
               onClick={() => { setForm(EMPTY); setMsg({ text: "", ok: false }); }}>초기화</button>

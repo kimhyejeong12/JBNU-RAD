@@ -61,7 +61,7 @@ export function MineList() {
         {TILES.map(([k, label]) => (
           // 내역은 숫자 옆에 작게 — 아래 줄에 두면 이 타일만 높아져 네 타일 높이가 어긋납니다.
           <Tile key={k} label={label} pressed={group === k} dot={COLOR[k].dot} accent={COLOR[k].accent} onClick={() => { setPicked(k); setPage(1); }}
-            big={<>{counts[k]}{k === "done" && counts.done > 0 && <span className="ml-2 text-sm font-normal text-ink-dim">{endedBreakdown(mine, on)}</span>}</>} />
+            big={<>{counts[k]}{k === "done" && counts.done > 0 && <span className="ml-1.5 text-xs font-normal text-ink-dim">{endedBreakdown(mine, on)}</span>}</>} />
         ))}
       </div>
       <section className={cn(card, "flex flex-1 flex-col overflow-hidden")}>
@@ -145,5 +145,5 @@ function WithdrawButton({ r }: { r: RequestRow }) {
   const withdraw = async () => {
     if (await ask({ title: "신청 철회", confirm: "철회", danger: true, message: `${r.request_no} 신청을 철회합니다.` })) action.mutate({ no: r.request_no, act: "withdraw" });
   };
-  return <button type="button" className={linkButton} disabled={action.isPending} onClick={withdraw}>철회</button>;
+  return <button type="button" className={cn(linkButton, "self-center")} disabled={action.isPending} onClick={withdraw}>철회</button>;
 }
