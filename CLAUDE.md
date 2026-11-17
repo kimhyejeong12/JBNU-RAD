@@ -349,7 +349,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 - ❌ `sentinelai/engine/` 수정 · 기준 문서를 코드 작업으로 고치기 (보안 운영자 이상이 화면에서 올리고 고치고 지움, 10/30 · 11/2 · 11/3, 원문은 11/6부터 권한 DB). 프롬프트(`sentinelai/context/prompts.py`)도 엔진 담당자와 상의 없이 안 바꿈
 - ❌ 엔진 기능 재구현 · 엔진 타입을 대체하는 웹 전용 스키마
 - ❌ 서버 주소 · 모델명 하드코딩 — 전부 `Settings`
-- ❌ CDN · 외부에서 받는 웹폰트 · 외부 이미지 (외부망 차단 전제). 폰트는 파일을 빌드에 넣어 우리 서버가 줌 — Noto Sans KR(OFL, `@fontsource-variable/noto-sans-kr`, 11/16). 화면은 React + Vite, 빌드 결과를 커밋 (서버에 Node 불필요). 화면 소스를 고치면 `npm run build` 결과를 같은 커밋에. 스타일은 Tailwind v4 유틸리티. shadcn/ui 부품 등 새 의존성은 리디자인 때 정함
+- ❌ CDN · 외부에서 받는 웹폰트 · 외부 이미지 (외부망 차단 전제). 폰트는 파일을 빌드에 넣어 우리 서버가 줌 — Noto Sans KR(OFL, `@fontsource-variable/noto-sans-kr`, 11/16). 아이콘은 Lucide(ISC, 일부 Feather MIT) 선 모양을 `Icon.tsx` 에 옮겨 씀 — 라이선스 원문 `frontend/public/licenses/lucide.txt`(빌드에 함께 실림), 새 아이콘도 같은 세트에서 (11/17). 화면은 React + Vite, 빌드 결과를 커밋 (서버에 Node 불필요). 화면 소스를 고치면 `npm run build` 결과를 같은 커밋에. 스타일은 Tailwind v4 유틸리티. shadcn/ui 부품 등 새 의존성은 리디자인 때 정함
 - ❌ 기준 문서(.md · .txt · .pdf · .xlsx, 보안 운영자 이상) 말고는 파일 업로드. PDF 는 글만, 엑셀은 고른 표만 조항 글로 꺼내 사람이 확인한 뒤 .txt 로 올림 — 원본은 남기지 않음 (11/13 · 11/16). pptx · docx · OCR 은 §8 7
 - ❌ 정책 자동 수정 · 권한 자동 승인 — 결정은 사람이 함
 - **화면 글**: 가운뎃점(·) 쓰지 않음 — 값 목록은 쉼표, 한 줄 정보는 간격(`Meta`)으로 나눔. 라벨 · 버튼 · 빈 화면은 몇 단어, 설명 문단 · 확인 창 글머리표 없이 화면만 보고 알게 함 (11/6 사용자 요청)

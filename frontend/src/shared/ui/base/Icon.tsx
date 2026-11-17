@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { cn } from "@/shared/lib/cn";
 
+// 아이콘 선 모양은 Lucide (https://lucide.dev, ISC, 일부 Feather MIT) 에서 옮겼습니다 — 라이선스 원문은 public/licenses/lucide.txt (빌드에 함께 실림).
+
 // 외부망이 없어 SVG 아이콘을 번들에 둡니다.
 const ICONS: Record<string, ReactNode> = {
   shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></>,
