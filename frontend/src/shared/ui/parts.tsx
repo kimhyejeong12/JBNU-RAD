@@ -90,10 +90,10 @@ export function KvTable({ rows }: { rows: [label: string, value: ReactNode][] })
 const TILE = "flex min-w-0 flex-col justify-start rounded-xl border border-line p-4 text-left";
 
 // 큰 숫자 하나 — children 은 아래 작은 글, extra 는 숫자와 글 사이(막대 등)임
-// onClick 을 주면 누르는 타일이고, pressed 는 목록을 이 타일로 거르는 중인지, dot 은 이름 앞 점의 색임
-export function Tile({ label, big, tone, extra, onClick, pressed, dot, className, children }: {
+// onClick 을 주면 누르는 타일이고, pressed 는 목록을 이 타일로 거르는 중인지, disabled 는 지금 거를 것이 없는지, dot 은 이름 앞 점의 색임
+export function Tile({ label, big, tone, extra, onClick, pressed, disabled, dot, className, children }: {
   label: ReactNode; big: ReactNode; tone?: string; extra?: ReactNode; onClick?: () => void; pressed?: boolean;
-  dot?: string; className?: string; children?: ReactNode;
+  disabled?: boolean; dot?: string; className?: string; children?: ReactNode;
 }) {
   const body = (
     <>
@@ -108,8 +108,8 @@ export function Tile({ label, big, tone, extra, onClick, pressed, dot, className
   if (!onClick) return <div className={cn(TILE, className)}>{body}</div>;
   // 고른 타일은 2px 남색 테두리만 — 신청서 칸을 누를 때와 같은 표시임
   return (
-    <button type="button" aria-pressed={pressed} onClick={onClick}
-      className={cn(TILE, className, "bg-surface hover:bg-row-hover aria-pressed:border-brand aria-pressed:shadow-[inset_0_0_0_1px_var(--color-brand)]")}>
+    <button type="button" aria-pressed={pressed} onClick={onClick} disabled={disabled}
+      className={cn(TILE, className, "bg-surface hover:bg-row-hover aria-pressed:border-brand aria-pressed:shadow-[inset_0_0_0_1px_var(--color-brand)] disabled:cursor-default disabled:opacity-50 disabled:hover:bg-surface")}>
       {body}
     </button>
   );

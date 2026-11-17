@@ -73,6 +73,7 @@ function emptyText(level: Pick | null, total: number): string {
 }
 
 // 전체 이슈 = 지금 열린 위험 + 주의 — 아래 표와 같은 건수, 누르면 거르기를 풂. 기간은 완료율에만
+// 판정 실패는 0이면 비활성으로 늘 둠 — 실패 때만 나타나면 타일 줄이 갑자기 바뀜
 function Tiles({ d, level, onPick }: { d: Overview; level: Pick | null; onPick: (l: Pick | null) => void }) {
   const c = d.counts;
   const all = c.completion.done + c.completion.waiting;
@@ -83,7 +84,8 @@ function Tiles({ d, level, onPick }: { d: Overview; level: Pick | null; onPick: 
         <Tile key={l} label={<><LevelDot level={l} />{l}</>} big={c[l]} tone={c[l] ? levelText[l] : undefined} pressed={level === l} onClick={() => onPick(l)}>{deltaText(delta(d.trend, l))}</Tile>
       ))}
       <Tile label="조치 완료율" big={rateText(c.completion.rate)}>{c.completion.done} / {all}건</Tile>
-      {c.failed > 0 && <Tile label="판정 실패" big={c.failed} tone="text-ink-dim" pressed={level === "판정 실패"} onClick={() => onPick("판정 실패")}>위험 주의에 안 셈</Tile>}
+      <Tile label="판정 실패" big={c.failed} pressed={!!c.failed && level === "판정 실패"} disabled={!c.failed}
+        onClick={() => onPick("판정 실패")}>{c.failed ? "위험 주의에 안 셈" : "모두 판정됨"}</Tile>
     </div>
   );
 }
