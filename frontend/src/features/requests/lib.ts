@@ -1,5 +1,5 @@
 import type { QueueItem } from "@/app/queue/types";
-import type { RequestRow, AccessItem, WatchPerson } from "@/shared/api/types";
+import type { RequestRow, AccessItem } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { STAGE_LABEL, isActive, requester, stageGroup, today } from "@/shared/lib/request";
 
@@ -14,18 +14,6 @@ export function requestItem(r: RequestRow): QueueItem {
     judge: level || (r.judging ? "판정 중" : v && v.failed ? "판정 실패" : "판정 대기"),
     sub: r.stage === "approved" && !isActive(r) ? "만료" : grantNote(r) ?? STAGE_LABEL[r.stage],
     raw: r,
-  };
-}
-
-export function personItem(p: WatchPerson): QueueItem {
-  return {
-    type: "person", key: `person:${p.id}`, id: p.login_id, level: p.level,
-    who: `${p.department} ${p.name}`.trim() + (p.job ? ` (${p.job})` : ""),
-    what: p.flags.map((f) => f.text).join(", "),
-    when: p.at,
-    judge: p.level,
-    sub: `${p.flags.length}건${!p.is_active ? " (정지)" : ""}`,
-    raw: p,
   };
 }
 

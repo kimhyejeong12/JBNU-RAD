@@ -10,7 +10,7 @@ export const newConversation = (): string =>
 
 export const NEW_ITEM = "new";
 
-export type StageFilter = "pending" | "active" | "people" | "all";
+export type StageFilter = "pending" | "active" | "all";
 export type StatKind = "stats" | "ustats";
 export type LevelFilter = "전체" | Level;
 export interface AskSource { i: number; n: number }   // 근거 { 질의 순번, 도구 단계 순번 }

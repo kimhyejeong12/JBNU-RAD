@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { KIND, filterPeople, revokeReason, status, summarize } from "./lib";
+import { KIND, mergeWatch, pickPeople, revokeReason, status, summarize, type Flag, type Person, type Pick } from "./lib";
+import { usePeople } from "@/app/session/data";
 import { ask } from "@/app/ui/confirm/ask";
 import { useUi } from "@/app/ui/state/UiContext";
 import { send } from "@/shared/api/http";
 import { riskPeopleQuery } from "@/shared/api/queries";
-import type { Level, RiskFlag, RiskPerson } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
@@ -13,16 +13,16 @@ import { Icon } from "@/shared/ui/base/Icon";
 import { Meta, Tile } from "@/shared/ui/base/parts";
 import { box, card, cardCount, cardHead, cardTitle, empty, levelText, note, toolButton } from "@/shared/ui/base/styles";
 
-const FILTERS: (Level | "전체")[] = ["전체", "위험", "주의"];
-const PILL = "rounded-full border border-line px-2.75 py-1 text-[12.5px] font-semibold aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-white";
-
 export function RiskTab() {
   const q = useQuery(riskPeopleQuery());
-  const [level, setLevel] = useState<Level | "전체">("전체");
+  // 타일을 누르면 그 까닭으로 거르고, 다시 누르면 전체입니다.
+  const [pick, setPick] = useState<Pick | null>(null);
   const d = q.data;
-  const people = d?.people ?? [];
+  const watch = usePeople();
+  const people = mergeWatch(d?.people ?? [], watch);
   const sum = summarize(people);
-  const shown = filterPeople(people, level);
+  const shown = pickPeople(people, pick);
+  const tile = (k: Pick) => ({ pressed: pick === k, onClick: () => setPick(pick === k ? null : k) });
   return (
     <div className="flex flex-col gap-3.5" id="view-risk" role="tabpanel" aria-labelledby="tab-risk">
       <section className={card}>
@@ -33,18 +33,14 @@ export function RiskTab() {
           </span>
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2.5 px-4.5 pb-4" id="risk-tiles">
-          <Tile label="위험" big={`${sum.danger}명`} tone={sum.danger ? levelText["위험"] : undefined}>주의 {sum.caution}명</Tile>
-          <Tile label="부서 이동" big={`${sum.moved}명`}>맞지 않는 권한 {sum.grants}명</Tile>
-          <Tile label="이동 뒤 이상 행동" big={`${sum.events}명`} />
-          <Tile label="만료 권한 미회수" big={`${sum.expired}명`} />
+          <Tile label="위험" big={`${sum.danger}명`} tone={sum.danger ? levelText["위험"] : undefined} {...tile("danger")}>주의 {sum.caution}명</Tile>
+          <Tile label="부서 이동" big={`${sum.moved}명`} {...tile("moved")}>맞지 않는 권한 {sum.grants}명</Tile>
+          <Tile label="이동 뒤 이상 행동" big={`${sum.events}명`} {...tile("events")} />
+          <Tile label="만료 권한 미회수" big={`${sum.expired}명`} {...tile("expired")} />
+          <Tile label="퇴사" big={`${sum.left}명`} {...tile("left")} />
         </div>
         {d?.log_error && <p className={cn(note, "px-4.5 pb-3 text-risk")}>로그 읽기 실패: {d.log_error}</p>}
       </section>
-      <div className="flex items-center gap-1.5" role="group" aria-label="등급 거르기">
-        {FILTERS.map((f) => (
-          <button key={f} className={PILL} aria-pressed={level === f} onClick={() => setLevel(f)}>{f}</button>
-        ))}
-      </div>
       {d && !shown.length && <section className={cn(card, empty)}>{people.length ? "해당 없음" : "권한 변동 없음"}</section>}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-3.5 phone:grid-cols-[1fr]">
         {shown.map((p) => <PersonCard key={p.id} p={p} />)}
@@ -53,7 +49,7 @@ export function RiskTab() {
   );
 }
 
-function PersonCard({ p }: { p: RiskPerson }) {
+function PersonCard({ p }: { p: Person }) {
   const { gotoRequest, gotoEvent, navigate, openLogs } = useUi();
   const qc = useQueryClient();
   const [msg, setMsg] = useState("");
@@ -63,7 +59,7 @@ function PersonCard({ p }: { p: RiskPerson }) {
     onError: (e) => setMsg(e.message),
     onSettled: () => qc.invalidateQueries({ queryKey: ["requests"] }),
   });
-  const onRevoke = async (f: RiskFlag, reason: string) => {
+  const onRevoke = async (f: Flag, reason: string) => {
     const ok = await ask({ title: "권한 회수", message: `${p.name}: ${f.text}\n사유: ${reason}`, confirm: "회수", danger: true });
     if (ok) revoke.mutate({ no: f.request_no!, reason });
   };

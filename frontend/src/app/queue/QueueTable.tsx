@@ -1,6 +1,6 @@
 import { useMe } from "@/app/session/me";
 import { useJobs } from "@/app/session/data";
-import { LEVEL_VIEWS, PEOPLE_COLS, TYPE_LABEL, VIEWS, type ItemType } from "@/app/session/views";
+import { LEVEL_VIEWS, TYPE_LABEL, VIEWS, type ItemType } from "@/app/session/views";
 import { useUi } from "@/app/ui/state/UiContext";
 import { useQueue } from "./useQueue";
 import { inView, visible, emptyText } from "./select";
@@ -24,10 +24,9 @@ export function QueueTable() {
   const items = useQueue();
   const jobs = useJobs();
   const view = ui.view;
-  const people = view === "requests" && ui.stageFilter === "people";
-  const cols = people ? PEOPLE_COLS : view ? VIEWS[view].cols : [];
+  const cols = view ? VIEWS[view].cols : [];
   // 권한 신청 · 정책 관리 · 로그 감시는 AI 판단과 처리 상태를 다른 열로 둡니다.
-  const split = !people && !!view && LEVEL_VIEWS.has(view);
+  const split = !!view && LEVEL_VIEWS.has(view);
   const grid = split ? GRID_SPLIT : GRID;
   const rows = view ? visible(items, { view, stageFilter: ui.stageFilter, role: me.role, filter: ui.filter, query: ui.query }) : [];
   const anyInView = !!view && items.some((it) => inView(it, view, ui.stageFilter, me.role));

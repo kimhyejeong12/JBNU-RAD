@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { useUi } from "@/app/ui/state/UiContext";
 import { useQueue } from "@/app/queue/useQueue";
 import { RequestPanel } from "@/features/requests/RequestPanel";
-import { PersonPanel } from "@/features/requests/PersonPanel";
 import { ReviewPanel } from "@/features/review/ReviewPanel";
 import { NodesPanel } from "@/features/nodes/NodesPanel";
 import { LogsPanel } from "@/features/logs/LogsPanel";
@@ -28,7 +27,6 @@ export function RightPanel() {
   else if (ui.selected === NEW_ITEM && ui.view === "access") body = <AccessPanel key="new" a={null} />;
   else if (ui.selected === NEW_ITEM && ui.view === "docs") body = <DocPanel key="new" d={null} />;
   else if (it && it.type === "req") body = <RequestPanel key={it.key} it={it} />;
-  else if (it && it.type === "person") body = <PersonPanel key={it.key} it={it} />;
   else if (it && it.type === "user") body = <UserPanel key={it.key} u={it.raw} />;
   else if (it && it.type === "doc") body = <DocPanel key={it.key} d={it.raw} />;
   else if (it && it.type === "access") body = <AccessPanel key={it.key} a={it.raw} />;
@@ -43,14 +41,12 @@ export function RightPanel() {
 }
 
 // transform 전환이라 Tailwind 의 translate 대신 transform 값을 그대로 씁니다.
-const PANEL = "flex min-h-0 flex-col overflow-hidden narrow:fixed narrow:inset-y-0 narrow:right-0 narrow:z-50 narrow:w-[min(430px,calc(100vw-48px))] narrow:bg-canvas narrow:p-3 narrow:shadow-[-12px_0_32px_rgba(0,0,0,.16)]";const DRAWER_SHUT = "narrow:invisible narrow:transform-[translateX(100%)] narrow:[transition:transform_.2s_ease,visibility_0s_linear_.2s]";
+const PANEL = "flex min-h-0 flex-col overflow-hidden narrow:fixed narrow:inset-y-0 narrow:right-0 narrow:z-50 narrow:w-[min(430px,calc(100vw-48px))] narrow:bg-canvas narrow:p-3 narrow:shadow-[-12px_0_32px_rgba(0,0,0,.16)]";
+const DRAWER_SHUT = "narrow:invisible narrow:transform-[translateX(100%)] narrow:[transition:transform_.2s_ease,visibility_0s_linear_.2s]";
 const DRAWER_OPEN = "narrow:visible narrow:transform-none narrow:[transition:transform_.2s_ease]";
 
 function EmptyQueuePanel({ view }: { view: View | null }) {
-  const people = useUi().ui.stageFilter === "people";
-  const [title, text] = view === "requests" && people
-    ? ["확인할 사람", <>사람을 고르세요</>]
-    : view === "requests"
+  const [title, text] = view === "requests"
     ? ["권한 신청 검토", <>신청을 고르세요</>]
     : view === "users" ? ["계정", <>목록에서 계정을 고르거나<br />[새 계정]을 누르세요.</>]
       : view === "access" ? ["권한", <>목록에서 권한을 고르거나<br />[권한 등록]을 누르세요.</>]

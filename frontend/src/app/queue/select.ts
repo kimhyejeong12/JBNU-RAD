@@ -7,9 +7,6 @@ import { runKindLabel } from "@/shared/api/jobs";
 
 export function inView(it: QueueItem, view: View, stageFilter: StageFilter, role: Role): boolean {
   if (TYPE_VIEW[it.type] !== view) return false;
-  // 결재 단계 탭은 권한 신청에만 있습니다 — 다른 메뉴까지 걸면 [확인할 사람]을 고른 채로 옮겼을 때 목록이 빕니다.
-  if (view === "requests" && stageFilter === "people") return it.type === "person";
-  if (it.type === "person") return false;
   if (it.type === "req" && stageFilter === "pending") return it.raw.stage === STEP[role];
   if (it.type === "req" && stageFilter === "active") return isActive(it.raw);
   return true;
@@ -58,7 +55,6 @@ export function todoCounts(items: readonly QueueItem[], views: View[], role: Rol
 export const stageCounts = (items: readonly QueueItem[], role: Role): Record<StageFilter, number> => ({
   pending: items.filter((it) => inView(it, "requests", "pending", role)).length,
   active: items.filter((it) => inView(it, "requests", "active", role)).length,
-  people: items.filter((it) => inView(it, "requests", "people", role)).length,
   all: items.filter((it) => inView(it, "requests", "all", role)).length,
 });
 
@@ -76,7 +72,7 @@ export function emptyText(view: View, stageFilter: StageFilter, jobs: Jobs | nul
   if (view === "events") return "검토할 판정이 없습니다.";
   if (RESULT_VIEWS.has(view)) return `아직 ${VIEWS[view].label} 결과가 없습니다. 오른쪽 위 [${runKindLabel(jobs, view)}]을 누르세요.`;
   const byView: Partial<Record<View, string>> = {
-    requests: { pending: "지금 결재할 신청이 없습니다.", active: "지금 유효한 권한이 없습니다.", people: "확인할 사람이 없습니다.", all: "신청이 없습니다." }[stageFilter],
+    requests: { pending: "지금 결재할 신청이 없습니다.", active: "지금 유효한 권한이 없습니다.", all: "신청이 없습니다." }[stageFilter],
     users: "계정이 없습니다.",
     access: "등록한 권한이 없습니다. [권한 등록]으로 넣으세요.",
     docs: "기준 문서가 없습니다.",

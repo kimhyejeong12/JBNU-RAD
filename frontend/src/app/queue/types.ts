@@ -1,4 +1,4 @@
-import type { AccessItem, Decision, EventFinding, Level, PolicyIssue, Regulation, RequestRow, ServerFinding, UserRow, WatchPerson } from "@/shared/api/types";
+import type { AccessItem, Decision, EventFinding, Level, PolicyIssue, Regulation, RequestRow, ServerFinding, UserRow } from "@/shared/api/types";
 
 interface Base {
   key: string;
@@ -16,7 +16,6 @@ interface Base {
 
 export type QueueItem =
   | (Base & { type: "req"; raw: RequestRow })
-  | (Base & { type: "person"; raw: WatchPerson })
   | (Base & { type: "user"; raw: UserRow })
   | (Base & { type: "access"; raw: AccessItem })
   | (Base & { type: "doc"; raw: Regulation })
