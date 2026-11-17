@@ -7,10 +7,9 @@ import { ask } from "@/app/ui/ask";
 import { useQueue } from "./useQueue";
 import { levelCounts } from "./select";
 import { runButton, useStartJob, busyJob, useResetJobs } from "@/shared/api/jobs";
-import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/Icon";
-import { levelText, searchBox, searchInput, cardTitle, toolButtonInline } from "@/shared/ui/styles";
-import { LevelDot, Tile } from "@/shared/ui/parts";
+import { levelText, cardTitle, toolButtonInline } from "@/shared/ui/styles";
+import { LevelDot, Tile, SearchBox } from "@/shared/ui/parts";
 import { LEVEL_TIP, LEVELS } from "@/shared/lib/labels";
 
 export function QueueHead() {
@@ -35,10 +34,7 @@ export function QueueHead() {
     <div className="flex flex-col gap-2.5">
       <div className="flex flex-wrap items-center gap-3">
         <h3 id="queue-title" className={cardTitle}>{title}</h3>
-        <label className={cn(searchBox, "ml-auto max-w-64 flex-[1_1_200px]")}>
-          <Icon name="search" small />
-          <input id="q" type="search" className={searchInput} placeholder={meta?.search ?? ""} autoComplete="off" value={ui.query} onChange={(e) => setQuery(e.target.value)} />
-        </label>
+        <SearchBox className="ml-auto max-w-64 flex-[1_1_200px]" id="q" placeholder={meta?.search ?? ""} value={ui.query} onChange={(e) => setQuery(e.target.value)} />
         <button className={toolButtonInline} id="run" hidden={run.hidden} disabled={run.disabled} onClick={() => start.mutate("policies")}>
           <Icon name="activity" small /><span id="run-txt">{run.text}</span>
         </button>

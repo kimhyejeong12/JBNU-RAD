@@ -8,9 +8,9 @@ import { nodesQuery } from "@/shared/api/queries";
 import { stamp } from "@/shared/lib/format";
 import { activateProps } from "@/shared/lib/hooks";
 import { Icon } from "@/shared/ui/Icon";
-import { LevelDot } from "@/shared/ui/parts";
+import { LevelDot, CardHead } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
-import { card, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton, cardCountInline, toolButtonInline } from "@/shared/ui/styles";
+import { card, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton, cardCountInline, toolButtonInline } from "@/shared/ui/styles";
 
 export function NodesTab() {
   const { ui, pickNode, addNode, dispatch } = useUi();
@@ -22,8 +22,7 @@ export function NodesTab() {
   const checking = jobs?.running === "nodes";
   return (
     <section className={cn(card, "flex min-h-80 flex-col")} id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes">
-      <div className={cardHead}>
-        <h3 className={cardTitle}>수집 노드</h3>
+      <CardHead title="수집 노드">
         {/* 건수와 버튼이 둘 다 오른쪽으로 밀면 버튼이 가운데로 떠서 버튼만 오른쪽 끝에 둡니다. */}
         <span className={cardCountInline} id="node-count">{nodes.data ? `${list.length}대` : ""}</span>
         <button className={toolButton} id="check-now" disabled={!jobs || !!jobs.running || start.isPending} onClick={() => start.mutate("nodes")}>
@@ -32,7 +31,7 @@ export function NodesTab() {
         </button>
         <JobReset />
         <button className={toolButtonInline} id="add-node" onClick={addNode}><Icon name="plus" small />노드 등록</button>
-      </div>
+      </CardHead>
       <div className={ltableWrap}>
         <table className={ltable}>
           <thead><tr><th className={lth}>노드</th><th className={lth}>호스트</th><th className={lth}>상태</th><th className={cn(lth, "narrow:hidden")}>마지막 수집</th><th className={lth}>판정</th></tr></thead>

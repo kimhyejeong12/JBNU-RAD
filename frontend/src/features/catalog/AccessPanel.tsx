@@ -12,8 +12,8 @@ import { cn } from "@/shared/lib/cn";
 import { useUi } from "@/app/ui/state/UiContext";
 import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { box, field, formActions, input, meta, subject, fieldGrid, panelFormGrid, primaryAction, wideActions, wideField } from "@/shared/ui/styles";
-import { GroupBox, Meta, Switch } from "@/shared/ui/parts";
+import { box, field, formActions, input, fieldGrid, panelFormGrid, primaryAction, wideActions, wideField } from "@/shared/ui/styles";
+import { GroupBox, Switch, Subject } from "@/shared/ui/parts";
 import { ask } from "@/app/ui/ask";
 
 
@@ -79,8 +79,7 @@ function EditAccess({ a }: { a: AccessItem }) {
 
   return (
     <Panel title="권한" foot={<PanelFoot />}>
-      <p className={subject}>{a.name} ({a.code})</p>
-      <div className={meta}><Meta items={[`신청 ${used.length}건`, `유효 ${active}건`, `등록 ${stamp(a.created_at)}`]} /></div>
+      <Subject title={<>{a.name} ({a.code})</>} info={[`신청 ${used.length}건`, `유효 ${active}건`, `등록 ${stamp(a.created_at)}`]} />
       <div className={cn(box, "mt-3.5")}>
         <Switch checked={a.is_active} disabled={update.isPending} onChange={onToggle} label={accessState(a.is_active)} />
       </div>

@@ -6,8 +6,8 @@ import type { Regulation, XlsxTable } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
-import { GroupBox, Meta, Section } from "@/shared/ui/parts";
-import { actionButton, field, formActions, input, meta, note, panelActions, subject, dangerAction, noteError, primaryAction } from "@/shared/ui/styles";
+import { GroupBox, Meta, Section, Subject } from "@/shared/ui/parts";
+import { actionButton, field, formActions, input, meta, note, panelActions, dangerAction, noteError, primaryAction } from "@/shared/ui/styles";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useExtractPdf, useExtractXlsx, useRemoveRegulation, useUploadRegulation } from "./api";
 import { docItem, draftProblem, editProblem, isPdf, isXlsx, removeProblem, tablesText, textName, uploadProblem } from "./lib";
@@ -123,8 +123,7 @@ function DocView({ d }: { d: Regulation }) {
   const close = () => setMode("view");
   return (
     <Panel title="기준 문서" foot={<PanelFoot />}>
-      <p className={subject}>{it.who}</p>
-      <div className={meta}><Meta items={[d.name, d.updated_at && `고친 시각 ${stamp(d.updated_at)}`, `조항 ${it.judge}`]} /></div>
+      <Subject title={it.who} info={[d.name, d.updated_at && `고친 시각 ${stamp(d.updated_at)}`, `조항 ${it.judge}`]} />
       {mode === "edit" ? <EditDoc d={d} onClose={close} /> : mode === "remove" ? <RemoveDoc d={d} onClose={close} /> : (
         <>
           <div className={panelActions}>

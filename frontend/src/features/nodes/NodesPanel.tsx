@@ -10,11 +10,11 @@ import { nodeQuery, nodesQuery } from "@/shared/api/queries";
 import type { NodeDetail, NodeRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
-import { KvTable, LevelDot, Section, ModuleTables } from "@/shared/ui/parts";
+import { KvTable, LevelDot, Section, ModuleTables, Subject } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
 import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { box, boxPre, empty, formGrid, formMsg, input, meta, note, recLine, subject, toolButton, primaryAction, wideActions, wideField } from "@/shared/ui/styles";
+import { box, boxPre, empty, formGrid, formMsg, input, meta, note, recLine, toolButton, primaryAction, wideActions, wideField } from "@/shared/ui/styles";
 
 export function NodesPanel() {
   const { ui } = useUi();
@@ -83,7 +83,7 @@ function NodePanel({ n }: { n: NodeRow }) {
 
   return (
     <Panel title="수집 노드">
-      <p className={subject}>{n.name}</p>
+      <Subject title={n.name} />
       <div className={recLine}><span className={cn(nodeStateText, nodeStateTone[cls])}>{label}</span></div>
       <div className={meta}>{tip}</div>
       <Section icon="server" title="노드">

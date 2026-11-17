@@ -1,9 +1,9 @@
 import { ask } from "@/app/ui/ask";
 import { dayTime } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
-import { DayTime, Pill } from "@/shared/ui/parts";
+import { DayTime, Pill, CardHead } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
-import { cardHead, cardTitle, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton, cardCol, cardCountInline, squarePill } from "@/shared/ui/styles";
+import { ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton, cardCol, cardCountInline, squarePill } from "@/shared/ui/styles";
 import { useClearQueue, useQueueDetail, LANE_ROWS, jobIcon, jobName, jobRows, jobTarget, progress, waitingCount, type QueueDetail } from "@/features/engine/lib";
 
 const ROWS = "m-0 list-none divide-y divide-line border-t border-line p-0";
@@ -25,13 +25,12 @@ export function EngineTab() {
   return (
     <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-start gap-3.5 narrow:grid-cols-[minmax(0,1fr)]" id="view-engine" role="tabpanel" aria-labelledby="tab-engine">
       <section className={cardCol}>
-        <div className={cardHead}>
-          <h3 className={cardTitle}>작업 큐</h3>
+        <CardHead title="작업 큐">
           <span className={cardCountInline} id="queue-count">{d ? `실행 ${d.current ? 1 : 0}, 대기 ${waitingCount(d)}` : ""}</span>
           <button className={cn(toolButton, "border-risk text-risk")} id="queue-clear" disabled={!d || clear.isPending} onClick={() => void onClear()}>
             <Icon name="warn" small />{clear.isPending ? "초기화하는 중…" : "강제 초기화"}
           </button>
-        </div>
+        </CardHead>
         {q.isError ? <p className={cn(note, "mx-4.5 mb-4 text-risk")}>작업 큐를 받지 못했습니다: {q.error.message}</p>
           : d ? <Queue d={d} /> : <p className={cn(note, "mx-4.5 mb-4")}>불러오는 중…</p>}
       </section>
@@ -82,7 +81,7 @@ function Jobs({ d }: { d: QueueDetail }) {
   const rows = jobRows(d);
   return (
     <section className={cardCol}>
-      <div className={cardHead}><h3 className={cardTitle}>작업별 실행</h3></div>
+      <CardHead title="작업별 실행" />
       {rows.length === 0 ? <p className={cn(note, "mx-4.5 mb-4")}>예약도 끝난 작업도 없습니다</p> : (
         <ul className={ROWS}>
           {rows.map((r) => (

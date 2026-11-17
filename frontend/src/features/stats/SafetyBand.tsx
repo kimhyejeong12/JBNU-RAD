@@ -41,8 +41,7 @@ export function SafetyBand({ label, safety, groups, onSelect, names = 3 }: { lab
       <div className="phone:col-span-full">
         {t.length > 1 ? (
           <>
-            <Sparkline width={(t.length - 1) * 10} height={44} stroke="var(--color-ink-dim)" style={{ width: "100%", height: 44, display: "block" }} ariaLabel={`${label} 흐름`}
-              points={t.map((x, n) => [n * 10, 42 - (x.score / 100) * 40])} />
+            <Sparkline scores={t.map((x) => x.score)} height={44} stroke="var(--color-ink-dim)" className="block" ariaLabel={`${label} 흐름`} />
             <p className={TREND_NOTE}><span>{t[0].day.slice(5)} {t[0].score}점</span><span>{t[t.length - 1].day.slice(5)} {t[t.length - 1].score}점</span></p>
           </>
         ) : <p className={TREND_NOTE}>흐름은 이틀 이상 쌓이면 보입니다.</p>}

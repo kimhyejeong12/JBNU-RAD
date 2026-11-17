@@ -15,9 +15,9 @@ import { cn } from "@/shared/lib/cn";
 import { useUi } from "@/app/ui/state/UiContext";
 import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { actionButton, field, formActions, input, meta, note, subject, toolButton, fieldGrid, goodButton, panelFormGrid, primaryAction, wideActions, wideField } from "@/shared/ui/styles";
+import { actionButton, field, formActions, input, note, toolButton, fieldGrid, goodButton, panelFormGrid, primaryAction, wideActions, wideField } from "@/shared/ui/styles";
 import { Icon } from "@/shared/ui/Icon";
-import { Meta, Pill, Section, Switch } from "@/shared/ui/parts";
+import { Pill, Section, Switch, Subject } from "@/shared/ui/parts";
 import { ask } from "@/app/ui/ask";
 
 const BOX = "rounded-xl border border-line px-3.5 py-3";
@@ -153,8 +153,7 @@ function EditUser({ u }: { u: UserRow }) {
     <Panel title="계정 상세 정보" actions={edit} foot={<PanelFoot />}>
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className={cn(subject, "mb-0")}>{u.display_name} ({u.login_id})</p>
-          <div className={meta}><Meta items={[roleText(u), u.department || "부서 없음"]} /></div>
+          <Subject title={<>{u.display_name} ({u.login_id})</>} className="mb-0" info={[roleText(u), u.department || "부서 없음"]} />
         </div>
         <Pill tone={u.is_active ? goodButton : "border-line text-ink-dim"} className="gap-1 py-1">
           <Icon name={u.is_active ? "check" : "close"} small />{u.is_active ? "활성 계정" : "정지 계정"}

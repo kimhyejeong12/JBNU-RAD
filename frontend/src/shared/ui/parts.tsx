@@ -1,11 +1,11 @@
-import type { ReactNode } from "react";
+import type { InputHTMLAttributes, ReactNode } from "react";
 import { Fragment } from "react";
 import type { Level, SnapshotState } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { dayTime, pageLinks, stamp } from "@/shared/lib/format";
 import { LEVEL_ICON, MODULE_LABEL } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/Icon";
-import { box, kvTable, kvTd, kvTh, levelDot, levelText, boxPre, note } from "@/shared/ui/styles";
+import { box, kvTable, kvTd, kvTh, levelDot, levelText, boxPre, note, cardHead, cardTitle, meta, searchBox, searchInput, subject } from "@/shared/ui/styles";
 // 판정할 때 본 수집(SnapshotState)과 노드의 수집(Snapshot) 둘 다 받습니다 — 앞의 것이 칸이 다 선택이라 뒤의 것도 맞습니다.
 
 export function LevelDot({ level, className }: { level?: Level | null; className?: string }) {
@@ -120,8 +120,7 @@ export function Periods<K extends string>({ id, labels, value, onChange, label =
   id: string; labels: [K, ReactNode][]; value: K; onChange: (k: K) => void; label?: string; fill?: boolean; className?: string;
 }) {
   return (
-    <div className={cn("flex flex-wrap gap-0.5 rounded-lg bg-canvas p-0.75", fill && "grid", className)} id={id} role="group" aria-label={label}
-      style={fill ? { gridTemplateColumns: `repeat(${labels.length}, minmax(0, 1fr))` } : undefined}>
+    <div className={cn("flex flex-wrap gap-0.5 rounded-lg bg-canvas p-0.75", fill && "grid grid-flow-col auto-cols-fr", className)} id={id} role="group" aria-label={label}>
       {labels.map(([k, label]) => (
         <button key={k} aria-pressed={k === value} onClick={() => onChange(k)}
           className="rounded-md border-none bg-transparent px-2.75 py-1.25 text-[12.5px] font-semibold text-ink-dim aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-[0_1px_2px_rgba(0,0,0,.08)]">
@@ -185,7 +184,7 @@ export function Switch({ checked, disabled, label, hint, labelFirst, onChange, c
 export function ModuleChanges({ snap }: { snap: SnapshotState }) {
   return (
     <Section icon="activity" title="직전 수집과 달라진 설정">
-      {snap.changes?.length ? <div className={boxPre}>{snap.changes.join("\n")}</div> : <p className={note}>바뀐 설정 없음</p>}
+      <LinesBox lines={snap.changes} empty="바뀐 설정 없음" />
     </Section>
   );
 }
@@ -201,5 +200,41 @@ export function ModuleTables({ snap }: { snap: SnapshotState }) {
         </Fragment>
       ))}
     </Section>
+  );
+}
+
+// 카드 머리 — 제목 뒤 건수 · 버튼은 children
+export function CardHead({ title, icon, id, children }: { title: ReactNode; icon?: string; id?: string; children?: ReactNode }) {
+  return (
+    <div className={cardHead}>
+      <h3 className={cn(cardTitle, icon && "flex items-center gap-1.5")} id={id}>{icon && <Icon name={icon} />}{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+// 패널 제목 + 한 줄 정보 — 배열이면 Meta 로
+export function Subject({ title, info, infoClass, className }: { title: ReactNode; info?: ReactNode | ReactNode[]; infoClass?: string; className?: string }) {
+  return (
+    <>
+      <p className={cn(subject, className)}>{title}</p>
+      {info !== undefined && <div className={cn(meta, infoClass)}>{Array.isArray(info) ? <Meta items={info} /> : info}</div>}
+    </>
+  );
+}
+
+// 줄 목록 상자 — 비면 안내 글
+export function LinesBox({ lines, empty }: { lines?: string[] | null; empty: ReactNode }) {
+  return lines?.length ? <div className={boxPre}>{lines.join("\n")}</div> : <p className={note}>{empty}</p>;
+}
+
+// 돋보기 검색 칸 — datalist 등은 children
+export function SearchBox({ className, children, ...input }: InputHTMLAttributes<HTMLInputElement> & { children?: ReactNode }) {
+  return (
+    <label className={cn(searchBox, className)}>
+      <Icon name="search" small />
+      <input type="search" className={searchInput} autoComplete="off" {...input} />
+      {children}
+    </label>
   );
 }

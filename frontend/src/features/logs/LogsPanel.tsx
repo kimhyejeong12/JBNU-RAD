@@ -4,8 +4,8 @@ import { useUi } from "@/app/ui/state/UiContext";
 import { Panel } from "@/app/ui/panel/Panel";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
-import { KvTable, Meta, Section } from "@/shared/ui/parts";
-import { empty, meta, note, subject, toolButton } from "@/shared/ui/styles";
+import { KvTable, Section, Subject } from "@/shared/ui/parts";
+import { empty, note, toolButton } from "@/shared/ui/styles";
 
 export function LogsPanel() {
   const { ui, closePanel } = useUi();
@@ -20,8 +20,7 @@ export function LogsPanel() {
       .filter(([, v]) => v);
     return (
       <Panel title="로그 원본">
-        <p className={subject}>{e.user}</p>
-        <div className={meta}><Meta items={[stamp(e.occurred_at), e.solution]} /></div>
+        <Subject title={e.user} info={[stamp(e.occurred_at), e.solution]} />
         <Section icon="list" title="내용"><KvTable rows={fields} /></Section>
         <button className={toolButton} id="log-back" onClick={closePanel}><Icon name="activity" small />집계로 돌아가기</button>
       </Panel>
@@ -43,8 +42,7 @@ export function LogsPanel() {
     <Panel title="조회 집계">
       {!d || !f ? <div className={empty}>{logs.isError ? logs.error.message : "불러오는 중…"}</div> : (
         <>
-          <p className={subject}>{[PERIOD_LABEL[d.period], ...Object.values(d.criteria)].join(", ")}</p>
-          <div className={meta}>{stamp(d.since) || "처음"} ~ {stamp(d.until)}</div>
+          <Subject title={[PERIOD_LABEL[d.period], ...Object.values(d.criteria)].join(", ")} info={<>{stamp(d.since) || "처음"} ~ {stamp(d.until)}</>} />
           <Section icon="activity" title="합계">
             <KvTable rows={[
               ["해당 로그", `${f.count.toLocaleString()}건`],

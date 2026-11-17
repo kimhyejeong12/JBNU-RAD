@@ -5,8 +5,9 @@ import { useJobs } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { StatPeriod } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { Periods } from "@/shared/ui/parts";
-import { cardCount, cardHead, cardTitle, cardCol, tileGrid } from "@/shared/ui/styles";
+import { Periods, CardHead } from "@/shared/ui/parts";
+import { cardCount, cardCol, tileGrid } from "@/shared/ui/styles";
+import { cn } from "@/shared/lib/cn";
 
 export function StatsTab() {
   const { ui, setStats, openDrawer } = useUi();
@@ -22,13 +23,12 @@ export function StatsTab() {
     openDrawer();
   };
   return (
-    <div className="flex flex-col gap-3.5" id="view-stats" role="tabpanel" aria-labelledby="tab-stats" style={{ opacity: q.isFetching && d ? 0.55 : undefined }}>
+    <div className={cn("flex flex-col gap-3.5", q.isFetching && d && "opacity-55")} id="view-stats" role="tabpanel" aria-labelledby="tab-stats">
       <section className={cardCol}>
-        <div className={cardHead}>
-          <h3 className={cardTitle} id="stat-title">{STAT_TITLES[kind]}</h3>
+        <CardHead title={STAT_TITLES[kind]} id="stat-title">
           <Periods<StatPeriod> id="stat-periods" labels={STAT_PERIODS} value={period} onChange={(p) => { if (p !== period) setStats({ period: p }); }} />
           <span className={cardCount} id="stat-range">{range}</span>
-        </div>
+        </CardHead>
         {kind === "stats"
           ? sys.data ? <SystemHead d={sys.data} selected={ui.stats.selected} onSelect={select} /> : <EmptyHead />
           : usr.data ? <UserHead d={usr.data} selected={ui.stats.selected} onSelect={select} /> : <EmptyHead />}

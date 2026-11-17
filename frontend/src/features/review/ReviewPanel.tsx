@@ -11,9 +11,9 @@ import type { ReviewItem } from "@/features/review/lib";
 import type { EventFinding, ServerFinding, SnapshotState } from "@/shared/api/types";
 import { stamp, person } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
-import { LevelDot, Meta, Periods, Section, ModuleChanges, ModuleTables, History } from "@/shared/ui/parts";
+import { LevelDot, Meta, Periods, Section, ModuleChanges, ModuleTables, History, Subject } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
-import { box, boxPre, kvTable, kvTd, kvTh, meta, note, panelFoot, panelFootTitle, subject, toolButton, toolButtonInline } from "@/shared/ui/styles";
+import { box, boxPre, kvTable, kvTd, kvTh, note, panelFoot, panelFootTitle, toolButton, toolButtonInline } from "@/shared/ui/styles";
 
 type PanelTab = "ai" | "log";
 
@@ -37,8 +37,7 @@ function Review({ it }: { it: ReviewItem }) {
     : <DecisionFoot decision={it.decision} target={{ kind: it.type, itemKey: it.itemKey!, level: it.level || null, subject: title }} />;
   return (
     <Panel title={`${TYPE_LABEL[it.type]} 검토`} foot={foot}>
-      <p className={subject}>{title}</p>
-      <div className={cn(meta, "flex items-center gap-1.5")}>처리 상태{fast ? <b className="text-ink-dim">확정 대기</b> : <DecisionBadge decision={it.decision} />}</div>
+      <Subject title={title} infoClass="flex items-center gap-1.5" info={<>처리 상태{fast ? <b className="text-ink-dim">확정 대기</b> : <DecisionBadge decision={it.decision} />}</>} />
       {/* 결정 기록이 길어도 AI 분석이 밀리지 않게 탭으로 나눕니다 — 지금 결정은 아래 처리 칸에 늘 보입니다. */}
       {!fast && (
         <Periods<PanelTab> id="review-tabs" label="패널 보기" fill className="mt-3" value={tab} onChange={setTab}

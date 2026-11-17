@@ -23,6 +23,9 @@ export function niceMax(n: number): number {
   return Math.ceil(n / step) * step;
 }
 
+// n 번째 칸 가운데의 가로 위치(%)
+export const slotAt = (n: number, count: number) => ((n + 0.5) / count) * 100;
+
 export const person = (name: string, department: string | null | undefined): string => (department ? `${name} (${department})` : name);
 
 // "또한," 처럼 앞 문장을 잇는 문장은 앞 항목에 붙입니다.

@@ -11,10 +11,10 @@ import type { RequestRow, Role } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON, LEVEL_TIP } from "@/shared/lib/labels";
 import { STAGE_LABEL, STEP, period, requester } from "@/shared/lib/request";
-import { KvTable, Meta, Section } from "@/shared/ui/parts";
+import { KvTable, Meta, Section, Subject } from "@/shared/ui/parts";
 import { Icon } from "@/shared/ui/Icon";
 import { cn } from "@/shared/lib/cn";
-import { actionButton, box, dangerButton, goodButton, input, levelText, meta, note, panelActions, panelFoot, panelFootTitle, recLine, subject, toolButton } from "@/shared/ui/styles";
+import { actionButton, box, dangerButton, goodButton, input, levelText, note, panelActions, panelFoot, panelFootTitle, recLine, toolButton } from "@/shared/ui/styles";
 
 type RequestItem = Extract<QueueItem, { type: "req" }>;
 interface Draft { comment: string; reason: string }
@@ -54,8 +54,7 @@ export function RequestPanel({ it }: { it: RequestItem }) {
     <Panel title="권한 신청 검토"
       actions={rejudge && <button className={toolButton} onClick={() => act("rejudge")}><Icon name="refresh" small />다시 판정</button>}
       foot={<div className={panelFoot}><RequestFoot r={r} role={me.role} draft={draft} onDraft={setDraft} act={act} /><PanelMsg /></div>}>
-      <p className={subject}>{r.requested_access}</p>
-      <div className={meta}><Meta items={[no, requester(r)]} /></div>
+      <Subject title={r.requested_access} info={[no, requester(r)]} />
       <Flow r={r} />
       <Section icon="file" title="신청 내용"><KvTable rows={rows} /></Section>
       <AiReport itemKey={it.key} f={v && level ? { level, reason: v.reason, recommendation: v.recommendation, sources: v.sources, judgedAt: v.judged_at } : null}

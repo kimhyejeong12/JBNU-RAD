@@ -51,7 +51,7 @@ export function DecisionFoot({ target, decision }: { target: DecisionTarget; dec
     <div className={panelFoot}>
       <h4 className={panelFootTitle}>처리</h4>
       <textarea className={cn(input, "h-10 min-h-10 resize-y")} rows={1} id="review-comment" maxLength={2000} placeholder="결정 의견 (선택)" value={comment} onChange={(e) => setComment(e.target.value)} />
-      <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${choices.length}, minmax(0, 1fr))` }}>
+      <div className="mt-2 grid grid-flow-col auto-cols-fr gap-2">
         {choices.map(([a, color]) => (
           <button key={a} aria-pressed={decision?.action === a} onClick={() => act(a)} disabled={decide.isPending}
             className={cn("h-9 rounded-lg border border-solid text-[13.5px] font-bold hover:brightness-[0.97] disabled:opacity-60 aria-pressed:outline-2 aria-pressed:outline-offset-1 aria-pressed:outline-ink", decisionTone[color])}>

@@ -8,13 +8,13 @@ import { useUi } from "@/app/ui/state/UiContext";
 import { useStartJob } from "@/shared/api/jobs";
 import { overviewQuery } from "@/shared/api/queries";
 import type { Briefing, Overview, OverviewRow, StatPeriod } from "@/shared/api/types";
-import { niceMax, stamp } from "@/shared/lib/format";
+import { niceMax, slotAt, stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/Icon";
 import { usePage } from "@/shared/lib/hooks";
-import { DayTime, IconBadge, LevelDot, LevelLabel, Pager, Periods, Tile } from "@/shared/ui/parts";
-import { DataTable, Legend } from "@/shared/ui/charts";
-import { brandCard, card, cardCount, cardHead, cardTitle, levelText, markTone, toolButton, cardNote, tileGrid } from "@/shared/ui/styles";
+import { DayTime, IconBadge, LevelDot, LevelLabel, Pager, Periods, Tile, CardHead } from "@/shared/ui/parts";
+import { DataTable, Legend, XTicks, YGrid } from "@/shared/ui/charts";
+import { brandCard, card, cardCount, levelText, markTone, toolButton, cardNote, tileGrid } from "@/shared/ui/styles";
 
 type Open = "위험" | "주의";
 const SUB = cn(cardNote, "pb-3");
@@ -32,13 +32,12 @@ export function OverviewTab() {
   const total = d ? (level ? d.counts[level] : d.counts["위험"] + d.counts["주의"]) : 0;
   const title = `${level ? `열린 ${level}` : "주요 위험 이슈"} (${ofText(total, rows.length)})`;
   return (
-    <div className="flex flex-col gap-3.5" id="view-overview" role="tabpanel" aria-labelledby="tab-overview" style={{ opacity: q.isFetching && d ? 0.55 : undefined }}>
+    <div className={cn("flex flex-col gap-3.5", q.isFetching && d && "opacity-55")} id="view-overview" role="tabpanel" aria-labelledby="tab-overview">
       <section className={card}>
-        <div className={cardHead}>
-          <h3 className={cardTitle}>종합 대시보드</h3>
+        <CardHead title="종합 대시보드">
           <Periods<StatPeriod> id="overview-periods" labels={PERIODS} value={period} onChange={(p) => { if (p !== period) setStats({ period: p }); }} />
           <span className={cardCount}>{rangeText(q)}</span>
-        </div>
+        </CardHead>
         {d && <Tiles d={d} level={level} onPick={(l) => setLevel(l === level ? null : l)} />}
       </section>
       {d && (
@@ -89,14 +88,13 @@ function Summary({ b, go }: { b: Briefing | null; go: Go }) {
   const busy = start.isPending || jobs?.running === "briefing";
   return (
     <section className={cn(card, brandCard)} id="overview-briefing">
-      <div className={cardHead}>
-        <h3 className={cn(cardTitle, "flex items-center gap-1.5")}><Icon name="bot" />AI 종합 분석 요약</h3>
+      <CardHead title="AI 종합 분석 요약" icon="bot">
         {b && <span className="text-[12px] text-ink-dim tabular-nums">{stamp(b.created_at)}</span>}
         <button className={cn(toolButton, "p-1.5")} id="briefing-run" disabled={busy} aria-label="다시 정리" data-tip="다시 정리"
           onClick={() => start.mutate("briefing")}>
           <Icon name="refresh" small className={busy ? "animate-spin" : undefined} />
         </button>
-      </div>
+      </CardHead>
       {!b ? <p className={SUB}>작업 처리 중, 잠시 기다려 주세요</p> : b.failed ? <p className={cn(SUB, "text-risk")}>정리 실패: {b.error}</p> : (
         <div className="flex flex-col gap-2.5 px-4.5 pb-4">
           <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
@@ -127,7 +125,7 @@ function AreaDonut({ d }: { d: Overview }) {
   const { total, arcs: parts } = arcs(d.areas);
   return (
     <section className={card} id="overview-areas">
-      <div className={cardHead}><h3 className={cardTitle}>위험 유형별 현황</h3></div>
+      <CardHead title="위험 유형별 현황" />
       <div className="flex flex-wrap items-center gap-5 px-4.5 pb-4">
         <svg viewBox="0 0 140 140" className="size-35 flex-none" role="img" aria-label={`영역별 열린 위험 주의 ${total}건`}>
           <circle cx="70" cy="70" r={R} fill="none" stroke="var(--color-canvas)" strokeWidth="18" />
@@ -158,7 +156,6 @@ function AreaDonut({ d }: { d: Overview }) {
 
 const SERIES = ["위험", "주의"] as const;
 const LINE: Record<Open, string> = { "위험": "var(--color-risk)", "주의": "var(--color-warn)" };
-const TICK = "absolute top-1 -translate-x-1/2 whitespace-nowrap first:translate-x-0 last:-translate-x-full";
 // 이 날 수까지는 날마다 점을 찍고, 넘으면 점이 겹쳐 마지막 날과 가리킨 날에만 찍습니다.
 const DOT_DAYS = 14;
 
@@ -166,21 +163,19 @@ const DOT_DAYS = 14;
 function Trend({ d }: { d: Overview }) {
   const days = d.trend;
   const max = niceMax(Math.max(1, ...days.flatMap((x) => [x["위험"], x["주의"]])));
-  const ticks = [...new Set([0, Math.floor(days.length / 2), days.length - 1])].filter((n) => n >= 0);
-  const at = (n: number) => ((n + 0.5) / days.length) * 100;
+  const at = (n: number) => slotAt(n, days.length);
   const line = (k: Open) => days.map((x, n) => `${at(n) * 10},${100 - (x[k] / max) * 100}`).join(" ");
   const last = days[days.length - 1];
   return (
     <section className={card} id="overview-trend">
-      <div className={cardHead}>
-        <h3 className={cardTitle}>위험 주의 추이</h3>
+      <CardHead title="위험 주의 추이">
         <Legend round className="ml-auto p-0" items={[["위험", "위험"], ["주의", "주의"]]} />
-      </div>
+      </CardHead>
       {!last ? <p className={SUB}>기록 없음</p> : (
         <>
           <div className="px-4.5 pt-1 pb-1.5">
             <div className="relative ml-7.5 h-32 border-b border-line" role="img" aria-label={`일별 위험 주의 (그날 끝에 남은 것), ${last.day} 위험 ${last["위험"]}, 주의 ${last["주의"]}`}>
-              {[max, Math.round(max / 2)].map((v) => <span key={v} className="absolute -left-7.5 right-0 border-t border-line text-[10.5px] text-ink-dim tabular-nums" style={{ bottom: `${(v / max) * 100}%` }}><span className="absolute -top-1.75 left-0 w-6.5 bg-surface text-right">{v}</span></span>)}
+              <YGrid lines={[max, Math.round(max / 2)].map((v): [number, number] => [v, v / max])} />
               <svg className="absolute inset-0 size-full" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
                 <polygon points={`${at(0) * 10},100 ${line("위험")} ${at(days.length - 1) * 10},100`} fill={LINE["위험"]} fillOpacity={0.1} />
                 {SERIES.map((k) => <polyline key={k} points={line(k)} fill="none" stroke={LINE[k]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />)}
@@ -198,9 +193,7 @@ function Trend({ d }: { d: Overview }) {
                 ))}
               </div>
             </div>
-            <div className="relative ml-7.5 h-4.5 text-[11px] text-ink-dim tabular-nums">
-              {ticks.map((n, i) => <span key={n} className={TICK} style={{ left: i === 0 ? "0" : i === ticks.length - 1 ? "100%" : `${at(n)}%` }}>{days[n].day}</span>)}
-            </div>
+            <XTicks count={days.length} label={(n) => days[n].day} />
           </div>
         </>
       )}
@@ -215,7 +208,7 @@ function Issues({ id, title, rows, empty, go }: { id: string; title: string; row
   const { shown, at, pages, setPage } = usePage(rows, PAGE);
   return (
     <section className={card} id={id}>
-      <div className={cardHead}><h3 className={cardTitle}>{title}</h3></div>
+      <CardHead title={title} />
       <DataTable head={["발생일", "유형", "대상, 내용", "AI 판단", "처리 상태"]} empty={empty}
         rows={shown.map((r) => ({
           key: `${r.area}:${r.key}`, onSelect: () => go(r.area, r.key),
@@ -239,7 +232,7 @@ function Recent({ d, go }: { d: Overview; go: Go }) {
   const { shown, at, pages, setPage } = usePage(rows, PAGE);
   return (
     <section className={card} id="overview-recent">
-      <div className={cardHead}><h3 className={cardTitle}>최근 조치 내역 ({ofText(d.counts.completion.done, rows.length)})</h3></div>
+      <CardHead title={<>최근 조치 내역 ({ofText(d.counts.completion.done, rows.length)})</>} />
       <DataTable head={["처리일", "유형", "대상, 조치 내용", "결과"]} empty="기간 안 조치 없음"
         rows={shown.map((r) => ({
           key: `${r.area}:${r.key}:${r.at}`, onSelect: () => go(r.area, r.key),

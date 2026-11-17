@@ -7,10 +7,10 @@ import { DecisionBadge, DecisionFoot, JudgeState } from "@/app/ui/panel/Decision
 import type { Stats, Suspect, UserStats } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
-import { KvTable, Section } from "@/shared/ui/parts";
+import { KvTable, Section, LinesBox, Subject } from "@/shared/ui/parts";
 import { Sparkline } from "@/shared/ui/charts";
 import { cn } from "@/shared/lib/cn";
-import { box, boxPre, note, subject as subjectCls, toolButton } from "@/shared/ui/styles";
+import { box, boxPre, note, toolButton } from "@/shared/ui/styles";
 
 const HELD_ROW = "grid cursor-pointer grid-cols-[1fr_auto] gap-x-2.5 gap-y-0.5 rounded-lg border border-line bg-surface px-2.5 py-2 text-left text-[13px] font-[inherit] [font-weight:inherit] leading-[inherit] hover:border-ink-dim";
 const HELD_SUB = "text-[12px] text-ink-dim";
@@ -27,7 +27,7 @@ export function StatsPanel() {
 }
 
 function Body({ title, subject, foot, children }: { title: string; subject: string; foot?: ReactNode; children?: ReactNode }) {
-  return <Panel title={title} foot={foot}><p className={subjectCls}>{subject}</p>{children}</Panel>;
+  return <Panel title={title} foot={foot}><Subject title={subject} />{children}</Panel>;
 }
 
 function NodePanel({ d, node }: { d: Stats; node: string }) {
@@ -98,7 +98,7 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
           ) : <p className={note}>없음</p>}
       </Section>
       <Section icon="warn" title="행동 신호 (최근 7일)">
-        {g.highlights?.length ? <div className={boxPre}>{g.highlights.join("\n")}</div> : <p className={note}>없음</p>}
+        <LinesBox lines={g.highlights} empty="없음" />
         {g.subject ? (
           <KvTable rows={[["로그 (최근 / 평소)", `${g.recent_events} / ${g.baseline_events}건`],
             ["하루 양", `${g.baseline_daily_volume} → ${g.recent_daily_volume}${g.volume_ratio != null ? ` (${g.volume_ratio}배)` : ""}`],
@@ -127,8 +127,7 @@ function ScoreTrend({ p }: { p: Suspect }) {
   if (t.length < 2) return <p className={note}>기록 1회</p>;
   return (
     <>
-      <Sparkline width={(t.length - 1) * 20} height={40} stroke="var(--color-risk)" style={{ width: "100%", height: 40 }} ariaLabel="의심 점수 흐름"
-        points={t.map((x, n) => [n * 20, 38 - (x.score / 100) * 36])} />
+      <Sparkline scores={t.map((x) => x.score)} height={40} stroke="var(--color-risk)" ariaLabel="의심 점수 흐름" />
       <p className={note}>{t.map((x) => x.score).join(" → ")} ({stamp(t[0].at)} ~ {stamp(t[t.length - 1].at)})</p>
     </>
   );

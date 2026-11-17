@@ -5,10 +5,9 @@ import type { UiState } from "@/app/ui/state/uiReducer";
 import type { LogPeriod, LogsPage } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { activateProps } from "@/shared/lib/hooks";
-import { Periods } from "@/shared/ui/parts";
-import { Icon } from "@/shared/ui/Icon";
+import { Periods, CardHead, SearchBox } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
-import { card, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, searchBox, searchInput, toolButton, cardCountInline } from "@/shared/ui/styles";
+import { card, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, toolButton, cardCountInline } from "@/shared/ui/styles";
 
 const PERIODS = Object.entries(PERIOD_LABEL) as [LogPeriod, string][];
 type LogCond = UiState["logs"];
@@ -37,13 +36,12 @@ export function LogsTab() {
 
   return (
     <section className={cn(card, "@container flex min-h-80 flex-col")} id="view-logs" role="tabpanel" aria-labelledby="tab-logs" ref={section}>
-      <div className={cardHead}>
-        <h3 className={cardTitle}>로그 조회</h3>
+      <CardHead title="로그 조회">
         <Periods id="log-periods" labels={PERIODS} value={L.period} onChange={(period) => { if (period !== L.period) change({ period }); }} />
         <span className={cardCountInline} id="log-count">{logs.isFetching ? "불러오는 중…" : d ? `${d.total.toLocaleString()}건` : ""}</span>
         <PickInput key={L.user} id="log-user" label="사용자" values={filterChoices(d?.options.users ?? [], L.user, undefined).map((c) => c.value)}
           value={L.user} onPick={(v) => change({ user: v })} />
-      </div>
+      </CardHead>
       <LogFilters d={d} cond={L} onChange={change} />
       <div className={ltableWrap}>
         <table className={ltable}>
@@ -95,11 +93,9 @@ function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChan
 // 서버는 완전 일치로 거르므로 목록의 이름과 같아지거나 비울 때만 거릅니다.
 function PickInput({ id, label, values, value, onPick }: { id: string; label: string; values: string[]; value: string; onPick: (v: string) => void }) {
   return (
-    <label className={cn(searchBox, "ml-auto w-50 phone:w-full")}>
-      <Icon name="search" small />
-      <input id={id} type="search" list={`${id}-list`} className={searchInput} defaultValue={value} placeholder={`${label} 이름으로 찾기`} autoComplete="off"
-        onChange={(e) => { const v = e.target.value.trim(); if (!v || values.includes(v)) onPick(v); }} />
+    <SearchBox className="ml-auto w-50 phone:w-full" id={id} list={`${id}-list`} defaultValue={value} placeholder={`${label} 이름으로 찾기`}
+      onChange={(e) => { const v = e.target.value.trim(); if (!v || values.includes(v)) onPick(v); }}>
       <datalist id={`${id}-list`}>{values.map((v) => <option key={v} value={v} />)}</datalist>
-    </label>
+    </SearchBox>
   );
 }

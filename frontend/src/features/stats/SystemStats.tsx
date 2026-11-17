@@ -1,18 +1,17 @@
 import { useState } from "react";
 import { SafetyBand } from "./SafetyBand";
-import { Tile } from "@/shared/ui/parts";
+import { Tile, CardHead } from "@/shared/ui/parts";
 import { mergeDays, statChart, statSafety } from "./lib";
 import type { StatSelection } from "@/app/ui/state/uiReducer";
 import type { Stats } from "@/shared/api/types";
 import { niceMax, pct } from "@/shared/lib/format";
-import { DataTable, Legend, ViewSwitch } from "@/shared/ui/charts";
+import { DataTable, Legend, ViewSwitch, XTicks, YGrid } from "@/shared/ui/charts";
 import { cn } from "@/shared/lib/cn";
-import { cardHead, cardTitle, mark, markTone, type MarkKey, cardCol, cardNote, tileGrid } from "@/shared/ui/styles";
+import { mark, markTone, type MarkKey, cardCol, cardNote, tileGrid } from "@/shared/ui/styles";
 
 interface Props { d: Stats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
 
 const MK = "last:rounded-t-sm group-hover:brightness-[1.12] group-focus:brightness-[1.12]";
-const TICK = "absolute top-1 -translate-x-1/2 whitespace-nowrap first:translate-x-0 last:-translate-x-full";
 
 const threatOf = (d: Stats) => ({ threat: d.events.lines["주의"] + d.events.lines["위험"], logs: d.logs.count });
 const gapsOf = (d: Stats) => d.servers.nodes.reduce((a, n) => ({ "위험": a["위험"] + n.threats["위험"], "주의": a["주의"] + n.threats["주의"] }), { "위험": 0, "주의": 0 });
@@ -54,12 +53,10 @@ function ThreatLogs({ d }: Props) {
   const [table, setTable] = useState(false);
   const { keys, byDay } = mergeDays(d.logs.days, d.events.days);
   const dayMax = niceMax(Math.max(1, ...keys.map((k) => Math.max(byDay[k].total, byDay[k]["위험"] + byDay[k]["주의"]))));
-  const at = (n: number) => `${((n + 0.5) / keys.length) * 100}%`;
-  const ticks = [...new Set([0, Math.floor(keys.length / 2), keys.length - 1])];
   return (
     <section className={cardCol} id="stat-events">
-      <div className={cardHead}><h3 className={cardTitle}>위협 로그 — 날짜별</h3>
-        <span className="ml-auto"><ViewSwitch id="stat-events-view" table={table} onChange={setTable} /></span></div>
+      <CardHead title="위협 로그 — 날짜별">
+        <span className="ml-auto"><ViewSwitch id="stat-events-view" table={table} onChange={setTable} /></span></CardHead>
       {!keys.length ? <p className={cardNote}>로그 없음</p> : table ? (
         <DataTable scroll head={["날짜", "로그", "위험", "주의", "비율"]} empty="" numCols={[1, 2, 3, 4]}
           rows={keys.map((k) => ({ key: k, cells: [k, byDay[k].total, byDay[k]["위험"], byDay[k]["주의"], pct(byDay[k]["위험"] + byDay[k]["주의"], byDay[k].total)] }))} />
@@ -67,7 +64,7 @@ function ThreatLogs({ d }: Props) {
         <>
           <div className={statChart}>
             <div className="relative ml-7.5 flex h-35 items-end gap-0.5 border-b border-line" role="img" aria-label="날짜별 로그 건수">
-              {[1, 0.5].map((f) => <span key={f} className="absolute -left-7.5 right-0 border-t border-line text-[10.5px] text-ink-dim tabular-nums" style={{ bottom: `${f * 100}%` }}><span className="absolute -top-1.75 left-0 w-6.5 bg-surface text-right">{Math.round(dayMax * f)}</span></span>)}
+              <YGrid lines={[[Math.round(dayMax), 1], [Math.round(dayMax * 0.5), 0.5]]} />
               {keys.map((k) => {
                 const x = byDay[k];
                 const other = Math.max(0, x.total - x["위험"] - x["주의"]);
@@ -81,9 +78,7 @@ function ThreatLogs({ d }: Props) {
                 );
               })}
             </div>
-            <div className="relative ml-7.5 h-4.5 text-[11px] text-ink-dim tabular-nums">
-              {ticks.map((n, i) => <span key={n} className={TICK} style={{ left: i === 0 ? "0" : i === ticks.length - 1 ? "100%" : at(n) }}>{keys[n]}</span>)}
-            </div>
+            <XTicks count={keys.length} label={(n) => keys[n]} />
           </div>
           <Legend items={[["위험", "위험"], ["주의", "주의"], ["기타", "그 외 로그"]]} />
         </>
@@ -98,7 +93,7 @@ function NodeThreats({ d, selected, onSelect }: Props) {
   const modulesOf = (node: string) => sv.modules.filter((m) => m.nodes.includes(node)).map((m) => m.module).join(", ") || "—";
   return (
     <section className={cardCol} id="stat-servers">
-      <div className={cardHead}><h3 className={cardTitle}>노드별 위협 항목</h3></div>
+      <CardHead title="노드별 위협 항목" />
       {sv.nodes.length ? (
         <>
           <DataTable head={["노드", "마지막 등급", "위험 항목", "주의 항목", "걸린 모듈", "설정이 바뀐 수집"]} empty="" numCols={[2, 3]}

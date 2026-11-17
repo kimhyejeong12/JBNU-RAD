@@ -10,8 +10,8 @@ import { stamp, isDone } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/Icon";
-import { Meta, Tile } from "@/shared/ui/parts";
-import { box, card, cardCount, cardHead, cardTitle, empty, levelText, note, toolButton, tileGrid } from "@/shared/ui/styles";
+import { Meta, Tile, CardHead } from "@/shared/ui/parts";
+import { box, card, cardCount, empty, levelText, note, toolButton, tileGrid } from "@/shared/ui/styles";
 
 export function RiskTab() {
   const q = useQuery(riskPeopleQuery());
@@ -26,12 +26,11 @@ export function RiskTab() {
   return (
     <div className="flex flex-col gap-3.5" id="view-risk" role="tabpanel" aria-labelledby="tab-risk">
       <section className={card}>
-        <div className={cardHead}>
-          <h3 className={cardTitle}>권한 변동</h3>
+        <CardHead title="권한 변동">
           <span className={cardCount} id="risk-updated">
             {q.isError ? q.error.message : d ? stamp(d.generated_at) : ""}
           </span>
-        </div>
+        </CardHead>
         <div className={tileGrid} id="risk-tiles">
           <Tile label="위험" big={`${sum.danger}명`} tone={sum.danger ? levelText["위험"] : undefined} {...tile("danger")}>주의 {sum.caution}명</Tile>
           <Tile label="부서 이동" big={`${sum.moved}명`} {...tile("moved")}>맞지 않는 권한 {sum.grants}명</Tile>

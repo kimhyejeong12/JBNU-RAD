@@ -1,6 +1,6 @@
 import { SUSPECT_COLOR, statSafety, trendMark, verdictsText } from "./lib";
 import { SafetyBand } from "./SafetyBand";
-import { Tile } from "@/shared/ui/parts";
+import { Tile, CardHead } from "@/shared/ui/parts";
 import type { StatSelection } from "@/app/ui/state/uiReducer";
 import { JobReset } from "@/app/queue/QueueHead";
 import { useStartJob } from "@/shared/api/jobs";
@@ -8,7 +8,7 @@ import type { Jobs, Suspect, SuspectLevel, UserStats } from "@/shared/api/types"
 import { pct, stamp } from "@/shared/lib/format";
 import { DataTable, Meter } from "@/shared/ui/charts";
 import { Icon } from "@/shared/ui/Icon";
-import { cardHead, cardTitle, markTone, toolButton, cardCountInline, cardCol, cardNote, tileGrid } from "@/shared/ui/styles";
+import { markTone, toolButton, cardCountInline, cardCol, cardNote, tileGrid } from "@/shared/ui/styles";
 import { cn } from "@/shared/lib/cn";
 
 interface Props { d: UserStats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
@@ -47,15 +47,14 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
   const latest = sus.map((p) => p.created_at).sort().pop();
   return (
     <section className={cardCol} id="stat-suspects">
-      <div className={cardHead}>
-        <h3 className={cardTitle}>의심 점수</h3>
+      <CardHead title="의심 점수">
         {/* 둘 다 오른쪽으로 밀면 버튼이 가운데로 떠서 버튼만 오른쪽 끝에 둡니다. */}
         <span className={cardCountInline}>{sus.length ? `${sus.length}명, ${stamp(latest)}` : ""}</span>
         <button className={toolButton} id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
           <Icon name="activity" small />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
         </button>
         <JobReset />
-      </div>
+      </CardHead>
       {sus.length ? (
         <DataTable head={["사용자", "의심 점수", "로그 감시 판정", "눈에 띄는 신호", "계정"]} empty=""
           rows={sus.map((p) => ({

@@ -2,8 +2,8 @@ import { criteriaText, stepText } from "./lib";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { AskItem, AskStep, LogFacts, ServerFacts } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { KvTable, Section } from "@/shared/ui/parts";
-import { boxPre, clause, meta, note, subject } from "@/shared/ui/styles";
+import { KvTable, Section, LinesBox, Subject } from "@/shared/ui/parts";
+import { boxPre, clause, note } from "@/shared/ui/styles";
 
 // 답 아래 근거 칩 하나 = 도구 호출 한 번. 도구마다 보여 주는 모양이 다릅니다.
 export function AskEvidence({ list }: { list: AskItem[] }) {
@@ -15,8 +15,7 @@ export function AskEvidence({ list }: { list: AskItem[] }) {
   const head = { m, i: sel.i, s };
   return (
     <div className="px-4.5 py-3.5">
-      <p className={subject}>{stepText(s)}</p>
-      <div className={meta}>Q{sel.i + 1}. {m.q}</div>
+      <Subject title={stepText(s)} info={<>Q{sel.i + 1}. {m.q}</>} />
       {s.error ? <Section icon="warn" title="도구 오류"><div className={boxPre}>{s.error}</div></Section>
         : s.tool === "find_logs" && s.facts ? <Logs {...head} f={s.facts as LogFacts} />
           : s.tool === "servers" && s.facts ? <Servers {...head} f={s.facts as ServerFacts} />
@@ -41,7 +40,7 @@ function Logs({ s, f }: Props & { f: LogFacts }) {
     <>
       <Section icon="activity" title="집계"><KvTable rows={rows} /></Section>
       <Section icon="file" title="로그">
-        {evidence.length ? <div className={boxPre}>{evidence.join("\n")}</div> : <p className={note}>조건에 맞는 로그가 없습니다.</p>}
+        <LinesBox lines={evidence} empty="조건에 맞는 로그가 없습니다." />
         {f.count > evidence.length && <p className={note}>최근 {evidence.length}건 / 전체 {f.count}건</p>}
       </Section>
     </>
@@ -63,7 +62,7 @@ function Servers({ s, f }: Props & { f: ServerFacts }) {
           ["기간 안 수집", first ? `${stamp(first)} ~ ${stamp(f["기간 안 마지막 수집"])}` : "없음"], ...nodes]} />
       </Section>
       <Section icon="file" title="기록">
-        {evidence.length ? <div className={boxPre}>{evidence.join("\n")}</div> : <p className={note}>기록이 없습니다.</p>}
+        <LinesBox lines={evidence} empty="기록이 없습니다." />
       </Section>
     </>
   );
@@ -82,7 +81,7 @@ function Lines({ s }: { s: AskStep }) {
   const evidence = s.evidence ?? [];
   return (
     <Section icon="file" title="찾은 것">
-      {evidence.length ? <div className={boxPre}>{evidence.join("\n")}</div> : <p className={note}>{s.summary}</p>}
+      <LinesBox lines={evidence} empty={s.summary} />
       {!!s.sources?.length && <p className={note}>{s.sources.join(", ")}</p>}
     </Section>
   );
