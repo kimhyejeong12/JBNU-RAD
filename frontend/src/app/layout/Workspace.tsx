@@ -13,7 +13,7 @@ import { RiskTab } from "@/features/risk/RiskTab";
 import { OverviewTab } from "@/features/overview/OverviewTab";
 import { EngineTab } from "@/features/engine/EngineTab";
 
-export const workspace = "grid min-h-0 grid-cols-[minmax(0,1fr)_430px] gap-4.5 px-5.5 pt-4.5 pb-5.5 narrow:grid-cols-[1fr] narrow:px-4 narrow:py-3.5";
+export const workspace = "grid min-h-0 grid-cols-[minmax(0,1fr)_clamp(430px,30%,640px)] gap-4.5 px-5.5 pt-4.5 pb-5.5 narrow:grid-cols-[1fr] narrow:px-4 narrow:py-3.5";
 
 // 검토 현황은 hidden 으로 숨겨 두고, 다른 탭은 들어올 때 마운트해 그때 데이터를 받습니다.
 export function Workspace() {
