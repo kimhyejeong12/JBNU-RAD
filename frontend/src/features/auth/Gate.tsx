@@ -27,7 +27,7 @@ function LoginForm() {
     if (!f) return;
     try {
       await login(String(f.get("login_id")), String(f.get("password")));
-      forgetPages();   // 새로고침과 같은 reload 라 여기서 마지막 화면을 지웁니다
+      forgetPages();   // 새로고침과 같은 reload 라 여기서 마지막 화면을 지움
       location.reload();
     } catch (err) {
       setMsg(errorText(err));

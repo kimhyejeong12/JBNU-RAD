@@ -23,7 +23,7 @@ export function NodesTab() {
   return (
     <section className={cn(card, "flex min-h-80 flex-col")} id="view-nodes" role="tabpanel" aria-labelledby="tab-nodes">
       <CardHead title="수집 노드">
-        {/* 건수와 버튼이 둘 다 오른쪽으로 밀면 버튼이 가운데로 떠서 버튼만 오른쪽 끝에 둡니다. */}
+        {/* 건수와 버튼이 둘 다 오른쪽으로 밀면 버튼이 가운데로 떠서 버튼만 오른쪽 끝에 둠 */}
         <span className={cardCountInline} id="node-count">{nodes.data ? `${list.length}대` : ""}</span>
         <button className={toolButton} id="check-now" disabled={!jobs || !!jobs.running || start.isPending} onClick={() => start.mutate("nodes")}>
           <Icon name="activity" small />

@@ -10,7 +10,7 @@ import { stamp } from "@/shared/lib/format";
 import { AUDIT_ACTION, changeText } from "@/shared/lib/labels";
 import { History, Section } from "@/shared/ui/parts";
 
-// 오른쪽 패널 틀 — 머리 상자(제목 · 버튼) 하나, 내용과 아래 칸(foot)을 묶은 상자 하나. 모든 패널이 씁니다.
+// 오른쪽 패널 틀 — 머리 상자(제목 · 버튼) 하나, 내용과 아래 칸(foot)을 묶은 상자 하나. 모든 패널이 씀
 export function Panel({ title, actions, foot, children }: { title: ReactNode; actions?: ReactNode; foot?: ReactNode; children: ReactNode }) {
   return (
     <>
@@ -26,7 +26,7 @@ export function Panel({ title, actions, foot, children }: { title: ReactNode; ac
 function PanelHead({ title, children }: { title: ReactNode; children?: ReactNode }) {
   const { closePanel, ui } = useUi();
   return (
-    // 높이를 정해 두어 버튼이 있는 머리와 없는 머리가 같습니다.
+    // 높이를 정해 두어 버튼이 있는 머리와 없는 머리가 같음
     <div className={cn(card, "flex h-12 flex-none items-center gap-2.5 px-4.5")}>
       <h3 className={cardTitle}>{title}</h3>
       {children}
@@ -38,7 +38,7 @@ function PanelHead({ title, children }: { title: ReactNode; children?: ReactNode
   );
 }
 
-// "✓" 로 시작하면 완료(초록), 아니면 오류입니다.
+// "✓" 로 시작하면 완료(초록), 아니면 오류임
 export function PanelMsg() {
   const { ui } = useUi();
   if (!ui.panelMsg) return null;
@@ -51,7 +51,7 @@ export function PanelFoot({ note: text }: { note?: ReactNode }) {
   return <div className={panelFoot}>{ui.panelMsg ? <PanelMsg /> : <p className={note}>{text}</p>}</div>;
 }
 
-// 감사 기록에서 읽은 한 대상의 변경 이력입니다 — 판정의 근거가 언제 누구 손으로 바뀌었는지 보입니다.
+// 감사 기록에서 읽은 한 대상의 변경 이력임 — 판정의 근거가 언제 누구 손으로 바뀌었는지 보임
 export function ChangeLog({ type, id, rev }: { type: AuditTarget; id: string; rev: string | number }) {
   const q = useQuery(auditQuery(type, id, rev));
   const rows = q.data ?? [];

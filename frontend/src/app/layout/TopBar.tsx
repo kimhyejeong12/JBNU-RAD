@@ -34,19 +34,19 @@ export function TopBar() {
 
   return (
     <header data-tip-instant className="relative col-span-full flex h-14 items-center gap-6 bg-brand px-6 py-0 text-white narrow:h-auto narrow:min-h-14 narrow:flex-wrap narrow:gap-y-0 narrow:px-4 phone:pb-2">
-      {/* 메뉴는 로고 바로 뒤에 붙이고, 남는 폭은 오른쪽 묶음이 다 가져갑니다. */}
+      {/* 메뉴는 로고 바로 뒤에 붙이고, 남는 폭은 오른쪽 묶음이 다 가져감 */}
       <div className="flex flex-none items-center gap-2 narrow:h-13">
         <LogoMark className="size-7.5" />
         <span className="text-[20px] font-bold tracking-wide">Sentinel<span className="font-light text-bar-ink">AI</span></span>
       </div>
       <TopNav />
-      {/* 휴대폰 폭에서만 이 묶음을 풀어 프로필 · 종은 로고 줄 오른쪽에, 버튼 둘은 그 아래 줄로 보냅니다. */}
+      {/* 휴대폰 폭에서만 이 묶음을 풀어 프로필 · 종은 로고 줄 오른쪽에, 버튼 둘은 그 아래 줄로 보냄 */}
       <div className="flex flex-1 items-center justify-end gap-4 phone:contents">
         <span className="flex items-center whitespace-nowrap rounded-[7px] bg-white phone:order-2 px-2.75 py-1.25 text-[12.5px] font-bold text-risk" id="engine-warn" hidden={!problems.length}
           data-tip={`점검 필요|${problems.join(", ")}`}>
           <LevelDot level="위험" />AI 엔진 점검 필요
         </span>
-        {/* 누구로 로그인했는지는 다른 곳에 없어 이름을 숨기지 않습니다. */}
+        {/* 누구로 로그인했는지는 다른 곳에 없어 이름을 숨기지 않음 */}
         <div className="flex items-center text-sm phone:order-1 phone:ml-auto" id="who">
           <span id="who-name" className="flex flex-col items-end whitespace-nowrap leading-snug">
             <span className="font-medium">{me.display_name} <span className="text-xs text-bar-line-hover">({ROLE_LABEL[me.role]}{me.is_root ? ", 루트" : ""})</span></span>
@@ -61,7 +61,7 @@ export function TopBar() {
         <button className="relative rounded-[7px] border-none bg-transparent p-1.5 text-white hover:bg-bar-hover phone:order-1" id="bell" hidden={me.role === "user"} aria-label="위험 알림"
           data-tip={risks.length ? `위험 알림 — 미결 ${risks.length}건|눌러서 목록을 봅니다` : "위험 알림|미결 위험이 없습니다"}
           onClick={(e) => { e.stopPropagation(); setPopOpen((o) => !o); }}>
-          {/* 인라인이면 기준선에 앉아 떠 보입니다. */}
+          {/* 인라인이면 기준선에 앉아 떠 보임 */}
           <Icon name="bell" className="block" />
           <span id="bell-count" className={cn("absolute top-px right-0 h-4 min-w-4 items-center justify-center rounded-[99px] bg-risk px-1 text-[10.5px] font-bold", risks.length ? "flex" : "hidden")}>{risks.length}</span>
         </button>
@@ -89,10 +89,10 @@ function AlertPop({ ref, open, risks, onPick }: { ref: Ref<HTMLDivElement>; open
   );
 }
 
-// 선택된 메뉴는 아래 빨간 줄 — 버튼이 위 막대 높이를 다 채워서 줄이 막대 바닥에 붙습니다.
+// 선택된 메뉴는 아래 빨간 줄 — 버튼이 위 막대 높이를 다 채워서 줄이 막대 바닥에 붙음
 const TOP_NAV = "relative flex h-full flex-none items-center gap-1.5 whitespace-nowrap border-0 border-y-3 border-transparent bg-transparent px-4 text-[15px] font-medium text-bar-line-hover hover:text-bar-ink aria-[current=true]:border-b-brand-red aria-[current=true]:bg-white/5 aria-[current=true]:text-white narrow:h-12";
 
-// 메뉴를 위 막대에 둡니다. 좁은 화면에서는 막대 아래 줄로 내려가 옆으로 밉니다.
+// 메뉴를 위 막대에 둠. 좁은 화면에서는 막대 아래 줄로 내려가 옆으로 밂
 export function TopNav() {
   const { ui, navigate, openAdmin } = useUi();
   const views = useViews();
@@ -101,7 +101,7 @@ export function TopNav() {
   const btn = (key: string, label: string, current: boolean, onClick: () => void, count?: number) => (
     <button key={key} className={TOP_NAV} data-view={key} aria-current={current} onClick={onClick}>
       {label}
-      {/* 처리할 일 숫자는 오른쪽 위에 작게 — 가로 자리를 안 먹어 메뉴 폭이 같습니다. */}
+      {/* 처리할 일 숫자는 오른쪽 위에 작게 — 가로 자리를 안 먹어 메뉴 폭이 같음 */}
       {count ? <span className="absolute top-2.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-risk px-1 text-[10px] font-bold leading-none tabular-nums text-white narrow:top-1.5">{count > 99 ? "99+" : count}</span> : null}
     </button>
   );

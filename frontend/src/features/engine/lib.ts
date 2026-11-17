@@ -35,10 +35,10 @@ export interface QueueDetail {
   schedule: Record<string, { every_min: number; next_at: string }>;
 }
 
-// 길마다 이만큼만 줄로 보이고 나머지는 건수로 줄입니다.
+// 길마다 이만큼만 줄로 보이고 나머지는 건수로 줄임
 export const LANE_ROWS = 30;
 
-// 작업 기호 — 보안 현황 표의 유형 기호와 같게 둡니다 (로그 감시 눈, 서버 점검 서버, 위협 예측 사람, 정책 관리 문서).
+// 작업 기호 — 보안 현황 표의 유형 기호와 같게 둠 (로그 감시 눈, 서버 점검 서버, 위협 예측 사람, 정책 관리 문서)
 const JOB_ICON: Record<string, string> = {
   events: "eye", events_fast: "eye", nodes: "server", suspects: "users", policies: "book", briefing: "bot", index: "db", request: "lock", grant: "key",
 };
@@ -46,7 +46,7 @@ export const jobIcon = (kind: string): string => JOB_ICON[kind] ?? "list";
 
 export const jobName = (d: Pick<QueueDetail, "labels">, kind: string): string => d.labels[kind] ?? kind;
 
-// 잡 key 는 "종류:대상" 이고, 권한 신청은 신청 번호 그대로, 재검토는 grant:신청 번호:이동 id 입니다.
+// 잡 key 는 "종류:대상" 이고, 권한 신청은 신청 번호 그대로, 재검토는 grant:신청 번호:이동 id 임
 export function jobTarget(j: Pick<QueueJob, "kind" | "key" | "close">): string {
   if (j.close) return "저장";
   if (j.kind === "request") return j.key;
@@ -65,7 +65,7 @@ export function progress(d: Pick<QueueDetail, "batches">, j: QueueJob | null): s
 
 export interface JobRow { kind: string; everyMin: number | null; nextAt: string | null; last: QueueDetail["last"][string] | null }
 
-// 작업마다 한 줄 — 예약(간격 · 다음 실행)과 마지막 실행을 합칩니다. 예약된 작업은 서버 순서 그대로, 예약 없이 돈 작업은 늦게 끝난 것부터.
+// 작업마다 한 줄 — 예약과 마지막 실행을 합침. 예약은 서버 순서, 예약 없는 작업은 늦게 끝난 것부터
 export function jobRows(d: Pick<QueueDetail, "schedule" | "last">): JobRow[] {
   const planned = Object.entries(d.schedule).map(([kind, s]) => ({ kind, everyMin: s.every_min, nextAt: s.next_at, last: d.last[kind] ?? null }));
   const others = Object.entries(d.last).filter(([kind]) => !(kind in d.schedule))
@@ -74,7 +74,7 @@ export function jobRows(d: Pick<QueueDetail, "schedule" | "last">): JobRow[] {
   return [...planned, ...others];
 }
 
-// 작업이 돌 때만 자주 받습니다.
+// 작업이 돌 때만 자주 받음
 export function useQueueDetail() {
   return useQuery({
     queryKey: ["queue"],

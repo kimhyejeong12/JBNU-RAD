@@ -10,7 +10,7 @@ export const DECISIONS: Record<string, string> = {
   approve: "승인", cond: "조건부 승인", reject: "반려 확정", clear: "이상 없음", act: "조치 필요", done: "조치 완료",
 };
 
-// 로그 감시 · 서버 점검 · 위협 예측은 승인이 아니라 확인할 대상이라 결정 버튼이 다릅니다.
+// 로그 감시 · 서버 점검 · 위협 예측은 승인이 아니라 확인할 대상이라 결정 버튼이 다름
 export type DecisionColor = "approve" | "cond" | "reject" | "done";
 const CHECK: Record<string, DecisionColor> = { clear: "approve", act: "reject", done: "done" };
 export const DECISION_SET: Record<DecisionKind, Record<string, DecisionColor>> = {
@@ -27,7 +27,7 @@ export const decisionTone: Record<DecisionColor, string> = {
   done: "border-ink bg-ink text-white",
 };
 
-// 처리 상태 배지는 누른 결정 버튼과 같은 색의 테두리 — 승인 · 이상 없음 초록, 조건부 승인 주황, 반려 확정 · 조치 필요 빨강, 조치 완료 검정.
+// 처리 상태 배지 테두리는 누른 결정 버튼과 같은 색
 const ACTION_COLOR: Record<string, DecisionColor> = { approve: "approve", clear: "approve", cond: "cond", reject: "reject", act: "reject", done: "done" };
 const stateTone: Record<DecisionColor, string> = {
   approve: "border-ok-line text-ok",
@@ -36,7 +36,7 @@ const stateTone: Record<DecisionColor, string> = {
   done: "border-ink text-ink",
 };
 
-// 처리 상태 — AI 판정과 따로 보입니다.
+// 처리 상태 — AI 판정과 따로 보임
 export function decisionState(d: Pick<Decision, "action"> | null | undefined): { text: string; tone: string } {
   if (!d) return { text: "결정 없음", tone: "border-line text-ink-dim" };
   const color = ACTION_COLOR[d.action];
@@ -45,7 +45,7 @@ export function decisionState(d: Pick<Decision, "action"> | null | undefined): {
 
 export interface DecisionTarget { kind: DecisionKind; itemKey: string; level: string | null; subject: string }
 
-// 보안 총책임자는 결정 기록 전부를 받으므로 기록도 다시 받고, 보안 현황 집계도 다시 셉니다.
+// 보안 총책임자는 결정 기록 전부를 받으므로 기록도 다시 받고, 보안 현황 집계도 다시 셈
 export function useDecide() {
   const qc = useQueryClient();
   const { setPanelMsg } = useUi();

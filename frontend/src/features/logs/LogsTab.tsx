@@ -11,7 +11,7 @@ import { card, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, toolButton, car
 
 const PERIODS = Object.entries(PERIOD_LABEL) as [LogPeriod, string][];
 type LogCond = UiState["logs"];
-// 창 폭이 아니라 표 폭(560px)으로 솔루션 · 위치 · 행위 칸을 숨깁니다.
+// 창 폭이 아니라 표 폭(560px)으로 솔루션 · 위치 · 행위 칸을 숨김
 const WIDE_TH = cn(lth, "@max-[560px]:hidden");
 const WIDE_TD = cn(ltd, "whitespace-nowrap @max-[560px]:hidden");
 
@@ -72,7 +72,7 @@ export function LogsTab() {
   );
 }
 
-// 값이 하나뿐이거나 없어도 무엇으로 거를 수 있는지 보이게 늘 둡니다.
+// 값이 하나뿐이거나 없어도 무엇으로 거를 수 있는지 보이게 늘 둠
 function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChange: (patch: Partial<LogCond>) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4.5 pb-3">
@@ -90,7 +90,7 @@ function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChan
   );
 }
 
-// 서버는 완전 일치로 거르므로 목록의 이름과 같아지거나 비울 때만 거릅니다.
+// 서버는 완전 일치로 거르므로 목록의 이름과 같아지거나 비울 때만 거름
 function PickInput({ id, label, values, value, onPick }: { id: string; label: string; values: string[]; value: string; onPick: (v: string) => void }) {
   return (
     <SearchBox className="ml-auto w-50 phone:w-full" id={id} list={`${id}-list`} defaultValue={value} placeholder={`${label} 이름으로 찾기`}

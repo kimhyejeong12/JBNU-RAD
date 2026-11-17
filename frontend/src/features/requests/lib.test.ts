@@ -136,7 +136,7 @@ test("requestItem: 보유 권한 재검토 — 퇴사는 바로 위험, 이동�
 
 test("사용 기간 — 끝나는 날이나 기한 없음 중 하나, 끝이 시작보다 앞설 수 없음", () => {
   expect(periodProblem("", "", true)).toBeNull();
-  expect(periodProblem("2026-11-20", "2026-11-01", true)).toBeNull();      // 기한 없음이면 종료일을 보내지 않습니다
+  expect(periodProblem("2026-11-20", "2026-11-01", true)).toBeNull();      // 기한 없음이면 종료일을 보내지 않음
   expect(periodProblem("", "", false)).toBe("사용 종료일을 고르거나 기한 없음을 누르세요");
   expect(periodProblem("2026-11-20", "2026-11-01", false)).toBe("사용 종료일이 시작일보다 앞섭니다");
   expect(periodProblem("", "2026-12-31", false)).toBeNull();

@@ -40,7 +40,7 @@ export function RightPanel() {
   );
 }
 
-// transform 전환이라 Tailwind 의 translate 대신 transform 값을 그대로 씁니다.
+// transform 전환이라 Tailwind 의 translate 대신 transform 값을 그대로 씀
 const PANEL = "flex min-h-0 flex-col overflow-hidden narrow:fixed narrow:inset-y-0 narrow:right-0 narrow:z-50 narrow:w-[min(430px,calc(100vw-48px))] narrow:bg-canvas narrow:p-3 narrow:shadow-[-12px_0_32px_rgba(0,0,0,.16)]";
 const DRAWER_SHUT = "narrow:invisible narrow:transform-[translateX(100%)] narrow:[transition:transform_.2s_ease,visibility_0s_linear_.2s]";
 const DRAWER_OPEN = "narrow:visible narrow:transform-none narrow:[transition:transform_.2s_ease]";

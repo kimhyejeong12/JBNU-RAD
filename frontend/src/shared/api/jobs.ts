@@ -7,7 +7,7 @@ const VIEW_KIND: Record<string, JobKind> = { policies: "policies" };
 // 버튼 글 뒤 " 3/8" — 셀 것이 없으면 빈 글
 export const jobProgress = (jobs: Jobs | null | undefined): string => (jobs?.total ? ` ${jobs.done}/${jobs.total}` : "");
 
-// 두 번 누르면 두 번째가 409 를 받으므로 시작 요청이 가는 동안(pending) 막습니다.
+// 두 번 누르면 두 번째가 409 를 받으므로 시작 요청이 가는 동안(pending) 막음
 export function runButton(jobs: Jobs | null | undefined, view: string | null, pending = false): { hidden: boolean; disabled: boolean; text: string } {
   const kind = view ? VIEW_KIND[view] : undefined;
   if (!kind) return { hidden: true, disabled: true, text: "" };
@@ -30,10 +30,10 @@ export function busyJob(jobs: Jobs | null | undefined): string | null {
 
 export const jobsInterval = (jobs: Jobs | null | undefined): 2000 | 30000 => (jobs?.running ? 2000 : 30000);
 
-// 빠른 로그 감시는 따로 돌아 running 에 나오지 않습니다.
+// 빠른 로그 감시는 따로 돌아 running 에 나오지 않음
 export const fastDone = (jobs: Jobs | null | undefined): string | null => jobs?.fast?.last?.events_fast?.finished_at ?? null;
 
-// 두 폴링 사이에 시작해서 끝난 작업도 마지막 실행 시각이 바뀌어 알 수 있습니다.
+// 두 폴링 사이에 시작해서 끝난 작업도 마지막 실행 시각이 바뀌어 알 수 있음
 const finishedStamps = (jobs: Jobs | null | undefined): string =>
   Object.entries(jobs?.last ?? {}).map(([kind, last]) => `${kind}=${last.finished_at ?? ""}`).sort().join(" ");
 
@@ -48,7 +48,7 @@ export function useStartJob() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (kind: JobKind) => getJSON<Jobs>(`/api/jobs/${kind}`, { method: "POST" }),
-    // 시작하자마자 끝난 작업도 결과를 보여주도록 running 이 없으면 바로 갱신합니다.
+    // 시작하자마자 끝난 작업도 결과를 보여주도록 running 이 없으면 바로 갱신함
     onSuccess: (jobs) => {
       qc.setQueryData(["jobs"], jobs);
       if (!jobs.running) refreshResults(qc);

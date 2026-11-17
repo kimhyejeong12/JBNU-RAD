@@ -1,11 +1,11 @@
 import type { Health, Jobs, Results } from "@/shared/api/types";
-// 글자 · 간격이 px 이라 1920px 보다 넓은 창은 CSS zoom 으로 통째로 키웁니다 (vh 대신 --page-h).
+// 글자 · 간격이 px 이라 1920px 보다 넓은 창은 CSS zoom 으로 통째로 키움 (vh 대신 --page-h)
 const BASE_WIDTH = 1920;
 const MAX_SCALE = 2;
 
 export const scaleFor = (width: number): number => Math.min(MAX_SCALE, Math.max(1, width / BASE_WIDTH));
 
-// 툴팁처럼 화면 좌표로 자리를 잡는 곳이 배율로 나눠 씁니다.
+// 툴팁처럼 화면 좌표로 자리를 잡는 곳이 배율로 나눠 씀
 export const pageScale = (): number => Number(document.body.style.zoom) || 1;
 
 export function startPageScale(): void {

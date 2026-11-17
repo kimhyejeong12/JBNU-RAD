@@ -13,7 +13,7 @@ import { useEditRegulation, useExtractPdf, useExtractXlsx, useRemoveRegulation, 
 import { docItem, draftProblem, editProblem, isPdf, isXlsx, removeProblem, tablesText, textName, uploadProblem } from "./lib";
 import { ask } from "@/app/ui/ask";
 
-// 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둡니다.
+// 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둠
 export function DocPanel({ d }: { d: Regulation | null }) {
   return d ? <DocView key={d.name} d={d} /> : <UploadDoc />;
 }
@@ -26,9 +26,9 @@ function UploadDoc() {
   const names = useRegulations().map((r) => r.name);
   const [file, setFile] = useState<File | null>(null);
   const [problem, setProblem] = useState("");
-  // PDF 에서 꺼낸 글은 사람이 보고 고친 뒤 올립니다.
+  // PDF 에서 꺼낸 글은 사람이 보고 고친 뒤 올림
   const [draft, setDraft] = useState<{ name: string; content: string; pages: number; empty: number[] } | null>(null);
-  // 엑셀은 고른 표만 조항 글로 바꿉니다. 사람 기록 표는 처음에 빼 둡니다.
+  // 엑셀은 고른 표만 조항 글로 바꿈. 사람 기록 표는 처음에 빼 둠
   const [sheet, setSheet] = useState<{ tables: XlsxTable[]; picked: boolean[] } | null>(null);
   const pending = extract.isPending || extractXlsx.isPending;
 
@@ -71,7 +71,7 @@ function UploadDoc() {
     }
     const p = uploadProblem(file, names);
     if (p) setProblem(p);
-    else upload.mutate({ name: file.name, content: await file.text() });   // 올리면 새 문서가 골라져 이 양식은 닫힙니다
+    else upload.mutate({ name: file.name, content: await file.text() });   // 올리면 새 문서가 골라져 이 양식은 닫힘
   }
 
   return (
@@ -141,7 +141,7 @@ function DocView({ d }: { d: Regulation }) {
   );
 }
 
-// 판정이 이 문서를 근거로 찾을 수 있는지 — RAG 에 쌓인 조각 수와 판정 모델 (관리자가 올린 규정을 AI 가 쓴다는 것을 보입니다).
+// 판정이 이 문서를 찾을 수 있는지 — RAG 조각 수와 판정 모델
 function SearchState({ name }: { name: string }) {
   const index = useRegulationIndex(true);
   const health = useHealth().data;
@@ -162,7 +162,7 @@ const StateLine = ({ ok, children }: { ok: boolean; children: string }) => (
   <li className="flex items-center gap-1.5"><Icon name={ok ? "ok" : "warn"} small className={ok ? "text-ok" : "text-warn"} />{children}</li>
 );
 
-// 판정의 근거가 바뀌므로 사유와 파일 이름을 입력해야 버튼이 켜집니다.
+// 판정의 근거가 바뀌므로 사유와 파일 이름을 입력해야 버튼이 켜짐
 function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
   const edit = useEditRegulation();
   const busy = busyJob(useJobs());
@@ -178,7 +178,7 @@ function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
     const message = `${d.name}을(를) 고칩니다. 다음 판정부터 새 내용을 씁니다.`;
     if (await ask({ title: "기준 문서 고치기", confirm: "고치기", message })) edit.mutate({ name: d.name, content, reason }, { onSuccess: onClose });
   }
-  // 기다리는 중이면 고치기를 멈추고 쓰던 글은 남깁니다.
+  // 기다리는 중이면 고치기를 멈추고 쓰던 글은 남김
   async function onCancel() {
     if (!edit.isPending) return onClose();
     if (await edit.cancel(d)) onClose();

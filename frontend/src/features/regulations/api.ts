@@ -8,7 +8,7 @@ import type { ExtractedPdf, ExtractedTables, Regulation } from "@/shared/api/typ
 export const useUploadRegulation = () => usePanelCreate((body: { name: string; content: string; source?: string }) => send<Regulation>("/api/regulations", body),
   "regulations", (made) => [`✓ ${made.name} 를 올렸습니다`, `doc:${made.name}`]);
 
-// 저장하지 않고 꺼낸 글만 받습니다.
+// 저장하지 않고 꺼낸 글만 받음
 export function useExtractPdf() {
   return useMutation({
     mutationFn: (file: File) =>
@@ -16,7 +16,7 @@ export function useExtractPdf() {
   });
 }
 
-// 저장하지 않고 표만 받습니다.
+// 저장하지 않고 표만 받음
 export function useExtractXlsx() {
   return useMutation({
     mutationFn: (file: File) =>
@@ -26,7 +26,7 @@ export function useExtractXlsx() {
   });
 }
 
-// cancel() 로 요청을 끊으면 서버도 기다리기를 멈춥니다.
+// cancel() 로 요청을 끊으면 서버도 기다리기를 멈춤
 export function useEditRegulation() {
   const qc = useQueryClient();
   const { setPanelMsg } = useUi();
@@ -42,7 +42,7 @@ export function useEditRegulation() {
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ["regulations"] }),
   });
-  // 서버가 이미 적재를 시작했으면 끊어도 고쳐지므로 문서를 다시 받아 확인합니다.
+  // 서버가 이미 적재를 시작했으면 끊어도 고쳐지므로 문서를 다시 받아 확인함
   async function cancel(before: Regulation): Promise<boolean> {
     ctrl.current?.abort();
     const now = (await qc.fetchQuery({ ...regulationsQuery(), staleTime: 0 })).find((r) => r.name === before.name);

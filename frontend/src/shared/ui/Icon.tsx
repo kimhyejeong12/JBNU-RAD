@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { cn } from "@/shared/lib/cn";
 
-// 아이콘 선 모양은 Lucide (https://lucide.dev, ISC, 일부 Feather MIT) 에서 옮겼습니다 — 라이선스 원문은 public/licenses/lucide.txt (빌드에 함께 실림).
+// Lucide(https://lucide.dev, ISC, 일부 Feather MIT) 선 모양 — 라이선스 원문 public/licenses/lucide.txt (빌드에 실림)
 
-// 외부망이 없어 SVG 아이콘을 번들에 둡니다.
+// 외부망이 없어 SVG 아이콘을 번들에 둠
 const ICONS: Record<string, ReactNode> = {
   shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" /></>,
   lock: <><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></>,
@@ -18,7 +18,7 @@ const ICONS: Record<string, ReactNode> = {
   back: <path d="m15 6-6 6 6 6" />,
   close: <path d="M18 6 6 18M6 6l12 12" />,
   check: <path d="M20 6 9 17l-5-5" />,
-  // AI 가 쓴 칸에만 씁니다 (AI 분석 결과 · AI 비서 · AI 종합 요약).
+  // AI 가 쓴 칸에만 씀 (AI 분석 결과 · AI 비서 · AI 종합 요약)
   bot: <><rect x="4" y="8" width="16" height="12" rx="2" /><path d="M12 8V4H8M2 14h2M20 14h2M15 13v2M9 13v2" /></>,
   file: <><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></>,
   db: <><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></>,
@@ -49,7 +49,7 @@ export function Icon({ name, small, className }: { name: string; small?: boolean
   );
 }
 
-// 로고 방패 — 선 방패는 남색 위에서 흐려 채워 그립니다.
+// 로고 방패 — 선 방패는 남색 위에서 흐려 채워 그림
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg className={cn("flex-none", className)} viewBox="0 0 24 24" aria-hidden="true">

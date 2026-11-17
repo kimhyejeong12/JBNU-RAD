@@ -3,11 +3,11 @@ import { cn } from "@/shared/lib/cn";
 import { isDone } from "@/shared/lib/format";
 import { stageGroup, today, type StageGroup } from "@/shared/lib/request";
 
-// 쓰는 곳에서 덮어쓸 때는 cn() 으로 합칩니다.
+// 쓰는 곳에서 덮어쓸 때는 cn() 으로 합침
 
 export const card = "rounded-xl border border-line bg-surface";
 export const cardCol = `${card} flex flex-col`;
-// AI 가 정리한 칸처럼 화면에서 하나만 띄울 카드 — card 뒤에 붙입니다.
+// AI 가 정리한 칸처럼 화면에서 하나만 띄울 카드 — card 뒤에 붙임
 export const brandCard = "border-brand-tint-line bg-brand-tint";
 export const empty = "px-4.5 py-9 text-center text-ink-dim";
 export const panelBody = "flex-1 overflow-auto px-4.5 py-4";
@@ -84,7 +84,7 @@ export const levelDot: Record<Level | "none", string> = {
 
 export const levelText: Record<Level, string> = { "정상": "text-ok", "주의": "text-warn", "위험": "text-risk" };
 
-// 신청 상태 색 — 일반 사용자 화면과 운영자 목록이 같이 씁니다. 철회만 회색.
+// 신청 상태 색 — 일반 사용자 화면과 운영자 목록이 같이 씀. 철회만 회색
 export const stageColor: Record<StageGroup | "all", { dot: string; pill: string }> = {
   all: { dot: "var(--color-ink-ghost)", pill: "border-transparent bg-canvas text-ink-dim" },
   pending: { dot: "var(--color-brand)", pill: "border-transparent bg-brand-soft text-brand" },

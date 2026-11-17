@@ -6,18 +6,18 @@ import { dayTime, pageLinks, stamp } from "@/shared/lib/format";
 import { LEVEL_ICON, MODULE_LABEL } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/Icon";
 import { box, kvTable, kvTd, kvTh, levelDot, levelText, boxPre, note, cardHead, cardTitle, meta, searchBox, searchInput, subject } from "@/shared/ui/styles";
-// 판정할 때 본 수집(SnapshotState)과 노드의 수집(Snapshot) 둘 다 받습니다 — 앞의 것이 칸이 다 선택이라 뒤의 것도 맞습니다.
+// SnapshotState · Snapshot 둘 다 받음 (앞의 것이 칸이 다 선택이라)
 
 export function LevelDot({ level, className }: { level?: Level | null; className?: string }) {
   return <i className={cn("mr-1.5 inline-block size-2 flex-none rounded-full align-[1px]", levelDot[level ?? "none"], className)} />;
 }
 
-// 등급 기호와 글자를 한 줄로 — 표의 AI 판단 칸에 씁니다 (검토 현황 · 종합 대시보드).
+// 등급 기호와 글자를 한 줄로 — 표의 AI 판단 칸에 씀 (검토 현황 · 종합 대시보드)
 export function LevelLabel({ level }: { level: Level }) {
   return <span className={cn("flex items-center gap-1.25 whitespace-nowrap font-semibold", levelText[level])}><Icon name={LEVEL_ICON[level]} small />{level}</span>;
 }
 
-// 알약 모양 배지 — 색은 tone 으로 줍니다.
+// 알약 모양 배지 — 색은 tone 으로 줌
 export function Pill({ tone = "border-line text-ink-soft", className, children }: { tone?: string; className?: string; children: ReactNode }) {
   return <span className={cn("inline-flex items-center rounded-full border border-solid px-2 py-0.25 text-[12px] font-bold whitespace-nowrap", tone, className)}>{children}</span>;
 }
@@ -31,7 +31,7 @@ export function Section({ icon, title, className, children }: { icon: string; ti
   );
 }
 
-// 날짜(진하게) 위, 시각(연하게) 아래 — 표 · 목록의 시각 칸에 씁니다.
+// 날짜(진하게) 위, 시각(연하게) 아래 — 표 · 목록의 시각 칸에 씀
 export function DayTime({ iso, className }: { iso: string | null | undefined; className?: string }) {
   const [day, time] = dayTime(iso);
   return (
@@ -43,7 +43,7 @@ export function DayTime({ iso, className }: { iso: string | null | undefined; cl
 
 const PAGER = "flex size-8 items-center justify-center rounded border border-line bg-surface text-sm font-medium text-ink-soft hover:bg-row-hover disabled:cursor-default disabled:opacity-50 aria-[current=true]:border-brand aria-[current=true]:bg-brand aria-[current=true]:text-white";
 
-// 쪽 번호 줄 — 표를 쪽으로 나눠 스크롤을 줄입니다 (내 신청 · 종합 대시보드 표).
+// 쪽 번호 줄 — 표를 쪽으로 나눠 스크롤을 줄임 (내 신청 · 종합 대시보드 표)
 export function Pager({ at, pages, onPage, className }: { at: number; pages: number; onPage: (n: number) => void; className?: string }) {
   return (
     <nav className={cn("flex items-center justify-center gap-2", className)} aria-label="쪽">
@@ -54,12 +54,12 @@ export function Pager({ at, pages, onPage, className }: { at: number; pages: num
   );
 }
 
-// 기호와 글을 묶은 회색 배지 — 표의 분류 칸 (보안 현황 유형, 계정 역할, 권한의 업무 시스템).
+// 기호와 글을 묶은 회색 배지 — 표의 분류 칸 (보안 현황 유형, 계정 역할, 권한의 업무 시스템)
 export function IconBadge({ icon, children }: { icon: string; children: ReactNode }) {
   return <Pill tone="border-transparent bg-canvas text-ink-soft" className="max-w-full gap-1 rounded-md py-0.75"><Icon name={icon} small /><span className="truncate">{children}</span></Pill>;
 }
 
-// 패널 안의 묶음 상자 — 무엇에 쓰는 칸인지 제목으로 나눕니다 (관리 패널의 업무 정보 · 시스템 역할 · 검색 상태).
+// 패널 안의 묶음 상자 — 무엇에 쓰는 칸인지 제목으로 나눔 (관리 패널의 업무 정보 · 시스템 역할 · 검색 상태)
 export function GroupBox({ icon, title, className, children }: { icon: string; title: ReactNode; className?: string; children: ReactNode }) {
   return (
     <section className={cn("mt-4 rounded-xl border border-line bg-canvas px-3.5 pt-3 pb-3.5", className)}>
@@ -86,11 +86,11 @@ export function KvTable({ rows }: { rows: [label: string, value: ReactNode][] })
   );
 }
 
-// 아래 작은 글이 있는 타일과 없는 타일이 한 줄에 서도 이름 · 숫자 높이가 맞게 위에서부터 쌓습니다.
+// 아래 작은 글이 있는 타일과 없는 타일이 한 줄에 서도 이름 · 숫자 높이가 맞게 위에서부터 쌓음
 const TILE = "flex min-w-0 flex-col justify-start rounded-xl border border-line p-4 text-left";
 
-// 큰 숫자 하나 — children 은 아래 작은 글, extra 는 숫자와 글 사이(막대 등)입니다.
-// onClick 을 주면 누르는 타일이고, pressed 는 목록을 이 타일로 거르는 중인지, dot 은 이름 앞 점의 색입니다.
+// 큰 숫자 하나 — children 은 아래 작은 글, extra 는 숫자와 글 사이(막대 등)임
+// onClick 을 주면 누르는 타일이고, pressed 는 목록을 이 타일로 거르는 중인지, dot 은 이름 앞 점의 색임
 export function Tile({ label, big, tone, extra, onClick, pressed, dot, className, children }: {
   label: ReactNode; big: ReactNode; tone?: string; extra?: ReactNode; onClick?: () => void; pressed?: boolean;
   dot?: string; className?: string; children?: ReactNode;
@@ -106,7 +106,7 @@ export function Tile({ label, big, tone, extra, onClick, pressed, dot, className
     </>
   );
   if (!onClick) return <div className={cn(TILE, className)}>{body}</div>;
-  // 고른 타일은 2px 남색 테두리만 — 신청서 칸을 누를 때와 같은 표시입니다.
+  // 고른 타일은 2px 남색 테두리만 — 신청서 칸을 누를 때와 같은 표시임
   return (
     <button type="button" aria-pressed={pressed} onClick={onClick}
       className={cn(TILE, className, "bg-surface hover:bg-row-hover aria-pressed:border-brand aria-pressed:shadow-[inset_0_0_0_1px_var(--color-brand)]")}>
@@ -115,7 +115,7 @@ export function Tile({ label, big, tone, extra, onClick, pressed, dot, className
   );
 }
 
-// 바꿔 보기 버튼 줄 — 기간 고르기, 패널 안 탭(검토 패널)이 함께 씁니다. fill 이면 칸을 같은 폭으로 채웁니다.
+// 바꿔 보기 버튼 줄 — 기간 고르기, 패널 안 탭(검토 패널)이 함께 씀. fill 이면 칸을 같은 폭으로 채움
 export function Periods<K extends string>({ id, labels, value, onChange, label = "기간", fill, className }: {
   id: string; labels: [K, ReactNode][]; value: K; onChange: (k: K) => void; label?: string; fill?: boolean; className?: string;
 }) {
@@ -138,7 +138,7 @@ export interface HistoryStep {
   say?: string | null;
 }
 
-// 줄바꿈이 공백으로 보이던 모양대로 인라인 요소 사이 공백을 지킵니다.
+// 줄바꿈이 공백으로 보이던 모양대로 인라인 요소 사이 공백을 지킴
 export function History({ steps }: { steps: HistoryStep[] }) {
   return (
     <div className={cn(box, "flex flex-col gap-2")}>
@@ -153,7 +153,7 @@ export function History({ steps }: { steps: HistoryStep[] }) {
   );
 }
 
-// 구분 기호 없이 간격으로 나눈 한 줄 정보입니다.
+// 구분 기호 없이 간격으로 나눈 한 줄 정보임
 export function Meta({ items, className }: { items: ReactNode[]; className?: string }) {
   return (
     <span className={cn("inline-flex flex-wrap items-center gap-x-2.5 gap-y-0.5", className)}>
@@ -162,8 +162,8 @@ export function Meta({ items, className }: { items: ReactNode[]; className?: str
   );
 }
 
-// 보이는 값은 서버 값이라 확인 창에서 취소하면 그대로 남습니다.
-// labelFirst 면 글이 왼쪽, 스위치가 오른쪽 끝입니다 (패널 머리의 활성 스위치).
+// 보이는 값은 서버 값이라 확인 창에서 취소하면 그대로 남음
+// labelFirst 면 글이 왼쪽, 스위치가 오른쪽 끝임 (패널 머리의 활성 스위치)
 export function Switch({ checked, disabled, label, hint, labelFirst, onChange, className }: {
   checked: boolean; disabled?: boolean; label: string; hint?: string; labelFirst?: boolean; onChange: (next: boolean) => void; className?: string;
 }) {

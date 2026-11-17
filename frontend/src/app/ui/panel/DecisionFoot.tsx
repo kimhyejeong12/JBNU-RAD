@@ -11,7 +11,7 @@ import { input, levelText, panelFoot, panelFootTitle, squarePill } from "@/share
 
 const STATE_LABEL = "text-[11.5px] font-semibold text-ink-dim";
 
-// AI 판정과 사람의 처리 상태를 나란히 따로 둡니다.
+// AI 판정과 사람의 처리 상태를 나란히 따로 둠
 export function JudgeState({ level, label, children }: { level: Level | null | undefined; label?: ReactNode; children: ReactNode }) {
   return (
     <div className="mt-2 grid grid-cols-2 gap-2">
@@ -27,7 +27,7 @@ export function JudgeState({ level, label, children }: { level: Level | null | u
   );
 }
 
-// 표의 처리 상태 칸 — 배지와 그 아래 정한 사람 (검토 현황 · 종합 대시보드).
+// 표의 처리 상태 칸 — 배지와 그 아래 정한 사람 (검토 현황 · 종합 대시보드)
 export function StateCell({ text, tone, by }: { text: string; tone: string; by?: string | null }) {
   return (
     <span className="flex min-w-0 flex-col items-start gap-px">

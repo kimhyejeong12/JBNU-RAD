@@ -1,14 +1,14 @@
 import type { FormEvent } from "react";
-// 브라우저 기본 말풍선은 브라우저마다 모양 · 말이 달라 폼 옆 안내 글자로 알립니다.
+// 브라우저 기본 말풍선은 브라우저마다 모양 · 말이 달라 폼 옆 안내 글자로 알림
 
-// 받침이 있으면 을, 없으면 를 (한글이 아니면 을(를)).
+// 받침이 있으면 을, 없으면 를 (한글이 아니면 을(를))
 export function eulReul(word: string): string {
   const c = word.trim().slice(-1).charCodeAt(0);
   if (!(c >= 0xac00 && c <= 0xd7a3)) return "을(를)";
   return (c - 0xac00) % 28 ? "을" : "를";
 }
 
-// * · 괄호 설명을 빼고, 줄표가 있으면 뒷부분을 칸 이름으로 씁니다.
+// * · 괄호 설명을 빼고, 줄표가 있으면 뒷부분을 칸 이름으로 씀
 export function fieldName(label: string): string {
   const parts = label.replace(/\*/g, "").replace(/\(.*?\)/g, "").split("—");
   return (parts[parts.length - 1] ?? "").trim();

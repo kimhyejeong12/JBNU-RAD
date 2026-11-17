@@ -22,8 +22,8 @@ import { checkForm } from "@/shared/lib/form";
 
 const BOX = "rounded-xl border border-line px-3.5 py-3";
 
-// 정보 상자 한 줄 — 왼쪽 기호와 이름, 오른쪽 값(고칠 수 있으면 입력 칸).
-// wide 는 이름이 긴 줄(로그 사용자 ID)이 한 줄에 들어가게 이름 칸을 넓힙니다.
+// 정보 상자 한 줄 — 왼쪽 기호와 이름, 오른쪽 값(고칠 수 있으면 입력 칸)
+// wide 는 이름이 긴 줄(로그 사용자 ID)이 한 줄에 들어가게 이름 칸을 넓힘
 function InfoRow({ icon, label, wide, children }: { icon: string; label: string; wide?: boolean; children: ReactNode }) {
   return (
     <div className={cn("grid items-center gap-3 py-1.25", wide ? "grid-cols-[116px_minmax(0,1fr)]" : "grid-cols-[92px_minmax(0,1fr)]")}>
@@ -33,7 +33,7 @@ function InfoRow({ icon, label, wide, children }: { icon: string; label: string;
   );
 }
 
-// 폼이 이름(role)으로 읽으므로 라디오는 글자로만 숨깁니다.
+// 폼이 이름(role)으로 읽으므로 라디오는 글자로만 숨김
 const ROLES: Role[] = ["user", "manager", "top"];
 const RoleSelect = ({ value, disabled }: { value: Role; disabled?: boolean }) => (
   <div className="grid grid-cols-3 gap-0.5 rounded-lg border border-line bg-surface p-0.75" role="radiogroup" aria-label="역할">
@@ -50,7 +50,7 @@ export function UserPanel({ u }: { u: UserRow | null }) {
   return u ? <EditUser u={u} /> : <NewUser />;
 }
 
-// [새 계정]은 계정을 관리하는 사람에게만 보여 여기서는 역할을 늘 고릅니다.
+// [새 계정]은 계정을 관리하는 사람에게만 보여 여기서는 역할을 늘 고름
 function NewUser() {
   const create = useCreateUser();
   const { setPanelMsg } = useUi();
@@ -61,7 +61,7 @@ function NewUser() {
   }
   return (
     <Panel title="새 계정">
-    {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓습니다(content-start). */}
+    {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓음(content-start) */}
     <form className={panelFormGrid} id="user-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
       <label className={field}>아이디<input className={input} name="login_id" required maxLength={100} autoComplete="off" /></label>
       <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
@@ -79,13 +79,13 @@ function EditUser({ u }: { u: UserRow }) {
   const me = useMe();
   const { setPanelMsg } = useUi();
   const action = useUserAction();
-  // 폼이 uncontrolled 라 저장 뒤 서버 값으로 다시 그립니다.
+  // 폼이 uncontrolled 라 저장 뒤 서버 값으로 다시 그림
   const formKey = `${u.id}:${useQuery(usersQuery()).dataUpdatedAt}`;
   const self = u.id === me.id;
   const admin = canManageAccounts(me);
-  // 업무 접근 권한 — 이 사람이 지금 가진 권한 (시스템 역할과 따로 봅니다).
+  // 업무 접근 권한 — 이 사람이 지금 가진 권한 (시스템 역할과 따로 봄)
   const held = useRequests().filter((r) => r.requester_id === u.id && isActive(r)).map((r) => r.requested_access);
-  // 보안 총책임자는 보기만 하고 역할 변경은 알림 · 변경 이력으로 감독합니다.
+  // 보안 총책임자는 보기만 하고 역할 변경은 알림 · 변경 이력으로 감독함
   const locked = !admin || (u.is_root && !me.is_root);
   const fixed = u.is_root || self;
   const lockText = !admin ? "계정 관리는 보안 운영자가 합니다."
@@ -100,7 +100,7 @@ function EditUser({ u }: { u: UserRow }) {
     const patch: Record<string, unknown> = {
       display_name: f.get("display_name"), department: f.get("department"), job: f.get("job"), log_id: f.get("log_id"), left_on: f.get("left_on"),
     };
-    // 부서 · 직무를 옮기면 지금 가진 권한을 AI 가 다시 판정합니다 (빈 칸을 처음 채우는 것은 이동이 아님).
+    // 부서 · 직무를 옮기면 지금 가진 권한을 AI 가 다시 판정함 (빈 칸을 처음 채우는 것은 이동이 아님)
     const moved = (["department", "job"] as const).filter((k) => (u[k] ?? "") !== "" && String(f.get(k) ?? "").trim() !== (u[k] ?? ""));
     if (moved.length && !(await ask({
       title: "부서 이동", confirm: "저장",
@@ -113,14 +113,14 @@ function EditUser({ u }: { u: UserRow }) {
     }))) return;
     if (canRole) {
       const role = f.get("role") as Role;
-      // 저장하면 권한이 바로 오르내려서 역할이 바뀔 때만 묻습니다.
+      // 저장하면 권한이 바로 오르내려서 역할이 바뀔 때만 물음
       if (role !== u.role && !(await ask({
         title: "역할 바꾸기", confirm: "바꾸기", danger: true,
         message: `${u.display_name}: ${ROLE_LABEL[u.role]} → ${ROLE_LABEL[role]}`,
       }))) return;
       patch.role = role;
     }
-    // 상태도 [저장] 때 함께 — [취소]로 되돌릴 수 있게. 정지는 로그인을 막고 세션을 끊어서 정지할 때만 묻습니다.
+    // 상태도 [저장] 때 함께 — [취소]로 되돌릴 수 있게. 정지는 로그인을 막고 세션을 끊어서 정지할 때만 물음
     if (active !== u.is_active) {
       if (!active && !(await ask({
         title: "계정 정지", confirm: "정지", danger: true,
@@ -131,7 +131,7 @@ function EditUser({ u }: { u: UserRow }) {
     action.mutate({ id: u.id, patch }, { onSuccess: () => setEditing(false) });
   }
   const [temp, setTemp] = useState("");
-  // 처음에는 값만 보이고 [수정]을 눌러야 입력 칸 · 계정 관리가 나옵니다 — 고칠 수 있다는 것이 버튼으로 드러납니다.
+  // 처음에는 값만 보이고 [수정]을 눌러야 입력 칸 · 계정 관리가 나옴 — 고칠 수 있다는 것이 버튼으로 드러남
   const [editing, setEditing] = useState(false);
   const [active, setActive] = useState(u.is_active);
   const canRole = !locked && !fixed;
@@ -144,7 +144,7 @@ function EditUser({ u }: { u: UserRow }) {
     action.mutate({ id: u.id, temporary_password: temp }, { onSuccess: () => setTemp("") });
   }
 
-  // 시안 순서 — 프로필, 정보 상자, 권한 정보(SentinelAI 메뉴), 계정 관리(수정 때만), 추가 설정. 비밀번호 칸은 이름이 없어 저장에 실리지 않고 [초기화]로 따로 보냅니다.
+  // 비밀번호 칸은 이름이 없어 저장에 안 실림 — [초기화]로 따로 보냄
   const edit = !locked && !editing && (
     <button type="button" className={toolButton} id="user-edit-start" onClick={() => { setActive(u.is_active); setEditing(true); }}><Icon name="pencil" small />수정</button>
   );

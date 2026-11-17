@@ -2,7 +2,7 @@ import type { QueueItem } from "@/app/queue/types";
 import type { Regulation, RegulationIndex, XlsxTable } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 
-// index 를 받으면 조항 아래에 판정이 이 문서를 검색할 수 있는지 적습니다.
+// index 를 받으면 조항 아래에 판정이 이 문서를 검색할 수 있는지 적음
 export function docItem(d: Regulation, index?: RegulationIndex | null): QueueItem {
   const title = d.content.match(/^#\s+(.+)$/m)?.[1].trim() || d.name;
   const clauses = d.content.match(/^#{2,4}\s+\d+\.\d+/gm)?.length ?? 0;
@@ -16,10 +16,10 @@ export function docItem(d: Regulation, index?: RegulationIndex | null): QueueIte
 export const isPdf = (name: string): boolean => /\.pdf$/i.test(name);
 export const isXlsx = (name: string): boolean => /\.xlsx$/i.test(name);
 
-// PDF, 엑셀은 글을 꺼내 .txt 로 올립니다.
+// PDF, 엑셀은 글을 꺼내 .txt 로 올림
 export const textName = (name: string): string => name.replace(/\.(pdf|xlsx)$/i, ".txt");
 
-// 서버와 같은 조건입니다 (.md, .txt 1MB, .pdf, .xlsx 20MB, 같은 이름 없음).
+// 서버와 같은 조건임 (.md, .txt 1MB, .pdf, .xlsx 20MB, 같은 이름 없음)
 export function uploadProblem(file: { name: string; size: number }, existing: string[]): string | null {
   if (isPdf(file.name)) {
     if (file.size > 20_000_000) return "PDF 는 20MB 까지 올릴 수 있습니다";
@@ -33,7 +33,7 @@ export function uploadProblem(file: { name: string; size: number }, existing: st
   return null;
 }
 
-// PDF 에서 꺼낸 글을 올리기 전 확인입니다 (서버의 이름 조건과 같음).
+// PDF 에서 꺼낸 글을 올리기 전 확인임 (서버의 이름 조건과 같음)
 export function draftProblem(draft: { name: string; content: string }, existing: string[]): string | null {
   const name = draft.name.trim();
   if (!/^[^./\\\0][^/\\\0]{0,95}\.(md|txt)$/i.test(name)) return "이름은 .md, .txt 로 끝나야 합니다 (/ 없이 100자까지)";
@@ -62,7 +62,7 @@ const firstLine = (v: string): string => {
   return line.length > 40 ? `${line.slice(0, 40)}…` : line;
 };
 
-// 고른 표를 조항 글로 씁니다 — 첫 칸이 같은 줄을 "## 번호." 로 묶고, 줄마다 "### 번호.번호" 조항 하나.
+// 고른 표를 조항 글로 씀 — 첫 칸이 같은 줄을 "## 번호." 로 묶고, 줄마다 "### 번호.번호" 조항 하나
 export function tablesText(title: string, tables: XlsxTable[]): string {
   const out = [`# ${title}`];
   let n = 0;
@@ -70,7 +70,7 @@ export function tablesText(title: string, tables: XlsxTable[]): string {
     out.push("", t.title, ...t.intro);
     const wide = t.columns.length > 2;
     const from = t.columns.length > 1 ? 1 : 0;
-    // 같은 묶음에 같은 제목이 여럿이면 다음 칸의 첫 줄을 붙여 조항을 가립니다.
+    // 같은 묶음에 같은 제목이 여럿이면 다음 칸의 첫 줄을 붙여 조항을 가림
     const seen = new Map<string, number>();
     t.rows.forEach(({ cells }) => seen.set(`${cells[0]}\n${cells[from]}`, (seen.get(`${cells[0]}\n${cells[from]}`) ?? 0) + 1));
     let group: string | null = null;

@@ -34,7 +34,7 @@ function NodePanel({ d, node }: { d: Stats; node: string }) {
   const { gotoNode } = useUi();
   const clauses = useClauses();
   const n = d.servers.nodes.find((x) => x.node === node);
-  // 이 기간에 점검이 없는 노드도 막다른 곳이 되지 않게 지금 상태와 [노드 탭에서 보기]를 둡니다.
+  // 이 기간에 점검이 없는 노드도 막다른 곳이 되지 않게 지금 상태와 [노드 탭에서 보기]를 둠
   const now = d.safety?.items?.find((i) => i.node === node);
   const stale: [string, string][] = now?.stale ? [["수집", "끊김"]] : [];
   const go = <div className="mt-4.5"><button className={toolButton} id="stat-go" onClick={() => gotoNode(node)}><Icon name="server" small />노드 탭에서 보기</button></div>;

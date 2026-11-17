@@ -3,7 +3,7 @@ import type { Regulation } from "@/shared/api/types";
 const docOf = (source: string, regulations: Regulation[]) => regulations.find((r) => source.includes(r.name));
 const clauseNums = (source: string) => [...new Set(source.match(/\d+\.\d+/g) || [])];
 
-// 조항마다 머리줄부터 다음 머리줄 앞까지의 줄입니다.
+// 조항마다 머리줄부터 다음 머리줄 앞까지의 줄임
 function clauseBlocks(doc: Regulation, nums: string[]): string[][] {
   const lines = doc.content.split("\n");
   const heading = (i: number) => /^#{2,4}\s/.test(lines[i]);
@@ -19,13 +19,13 @@ function clauseBlocks(doc: Regulation, nums: string[]): string[][] {
 export function clauseText(source: string, regulations: Regulation[]): string {
   const doc = docOf(source, regulations);
   if (!doc) return "기준 문서 원문에서 이 근거를 찾을 수 없습니다.";
-  // 모델이 "[...md] 4.1, 4.2, 4.3" 처럼 여러 조항을 한 줄로 돌려주므로 전부 찾습니다.
+  // 모델이 "[...md] 4.1, 4.2, 4.3" 처럼 여러 조항을 한 줄로 돌려주므로 전부 찾음
   const blocks = clauseBlocks(doc, clauseNums(source));
   if (!blocks.length) return doc.content.trim();   // 조항 번호가 없으면 문서 전문
   return `${doc.name}\n\n` + blocks.map((b) => b.join("\n").trim()).join("\n\n");
 }
 
-// 근거 줄의 문서 이름 · 조항 제목 — 조항을 못 찾으면 null.
+// 근거 줄의 문서 이름 · 조항 제목 — 조항을 못 찾으면 null
 export function clauseHead(source: string, regulations: Regulation[]): { doc: string; title: string } | null {
   const doc = docOf(source, regulations);
   const blocks = doc ? clauseBlocks(doc, clauseNums(source)) : [];

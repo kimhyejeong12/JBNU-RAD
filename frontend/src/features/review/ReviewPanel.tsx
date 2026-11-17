@@ -17,7 +17,7 @@ import { box, boxPre, kvTable, kvTd, kvTh, note, panelFoot, panelFootTitle, tool
 
 type PanelTab = "ai" | "log";
 
-// 다른 줄을 고르면 [AI 분석]으로 돌아가게 항목 key 로 다시 그립니다.
+// 다른 줄을 고르면 [AI 분석]으로 돌아가게 항목 key 로 다시 그림
 export function ReviewPanel({ it }: { it: ReviewItem }) {
   return <Review key={it.key} it={it} />;
 }
@@ -27,7 +27,7 @@ function Review({ it }: { it: ReviewItem }) {
   const [tab, setTab] = useState<PanelTab>("ai");
   const results = useResults();
   const r = it.raw;
-  // 10/14 전 서버 점검 결과(recommendation 이 있음)는 예전 칸으로 보입니다.
+  // 10/14 전 서버 점검 결과(recommendation 이 있음)는 예전 칸으로 보임
   const gapped = it.type === "server" && !it.raw.failed && !it.raw.recommendation;
   const title = it.type === "policy" ? `${it.who} ${it.raw.kind}` : it.raw.title;
   const fast = it.type === "event" && it.raw.stage === "fast";
@@ -38,19 +38,19 @@ function Review({ it }: { it: ReviewItem }) {
   return (
     <Panel title={`${TYPE_LABEL[it.type]} 검토`} foot={foot}>
       <Subject title={title} infoClass="flex items-center gap-1.5" info={<>처리 상태{fast ? <b className="text-ink-dim">확정 대기</b> : <DecisionBadge decision={it.decision} />}</>} />
-      {/* 결정 기록이 길어도 AI 분석이 밀리지 않게 탭으로 나눕니다 — 지금 결정은 아래 처리 칸에 늘 보입니다. */}
+      {/* 결정 기록이 길어도 AI 분석이 밀리지 않게 탭으로 나눔 — 지금 결정은 아래 처리 칸에 늘 보임 */}
       {!fast && (
         <Periods<PanelTab> id="review-tabs" label="패널 보기" fill className="mt-3" value={tab} onChange={setTab}
           labels={[["ai", "AI 분석"], ["log", `결정 기록 ${logRows(results.decision_log ?? {}, it).length}`]]} />
       )}
       {tab === "log" && !fast ? <DecisionLog log={results.decision_log ?? {}} it={it} /> : (
         <>
-          {/* 원자료가 길어 결론이 밀려나지 않게 결론을 먼저 둡니다. */}
+          {/* 원자료가 길어 결론이 밀려나지 않게 결론을 먼저 둠 */}
           <AiReport itemKey={it.key} wait="판정 결과가 없습니다." how="어떻게 조치할까요?" tip={it.type === "policy" ? it.raw.kind : undefined}
             what={it.type === "event" ? <EventWhat f={it.raw} /> : undefined}
             f={it.level ? {
               level: it.level, reason: r.reason, recommendation: r.recommendation,
-              // 서버 점검은 다른 곳마다 근거 조항이 붙어 아래 목록에 둡니다.
+              // 서버 점검은 다른 곳마다 근거 조항이 붙어 아래 목록에 둠
               sources: gapped ? undefined : it.type === "policy" ? it.raw.policy_ids : it.raw.sources,
             } : null}
             why={gapped && it.type === "server" && <GapList itemKey={it.key} f={it.raw} />} />
@@ -62,7 +62,7 @@ function Review({ it }: { it: ReviewItem }) {
   );
 }
 
-// 무슨 일 — 로그에서 센 누가 · 무엇을 · 어디서 · 언제. 줄을 읽지 못하면 머리 · 줄 수 · 마지막 시각.
+// 무슨 일 — 로그에서 센 누가 · 무엇을 · 어디서 · 언제. 줄을 읽지 못하면 머리 · 줄 수 · 마지막 시각
 function EventWhat({ f }: { f: EventFinding }) {
   const facts = logFacts(f.detail?.events ?? "");
   if (!facts) {
@@ -93,7 +93,7 @@ function ServerSections({ f }: { f: ServerFinding }) {
 }
 
 const RECENT_LOGS = 5;
-// 노드 탭 패널에도 같은 표가 있어 모듈 상태는 접어 둡니다.
+// 노드 탭 패널에도 같은 표가 있어 모듈 상태는 접어 둠
 function ModuleFold({ snap }: { snap: SnapshotState }) {
   const [open, setOpen] = useState(false);
   return (
@@ -127,7 +127,7 @@ function EventSection({ f, onLogs }: { f: EventFinding; onLogs: () => void }) {
   );
 }
 
-// 서버 점검의 "기준과 다른 곳" — AI 분석 결과 2번(왜) 아래에 붙습니다.
+// 서버 점검의 "기준과 다른 곳" — AI 분석 결과 2번(왜) 아래에 붙음
 const GAP_TH = "w-13";
 function GapList({ itemKey, f }: { itemKey: string; f: ServerFinding }) {
   return (
@@ -149,7 +149,7 @@ function GapList({ itemKey, f }: { itemKey: string; f: ServerFinding }) {
   );
 }
 
-// 결정을 이어받은 판정은 자기 기록이 없어 지난 판정의 기록을 보여줍니다.
+// 결정을 이어받은 판정은 자기 기록이 없어 지난 판정의 기록을 보여줌
 export function DecisionLog({ log, it }: { log: DecisionLogMap; it: ReviewItem }) {
   const from = it.decision?.carried_from;
   const rows = logRows(log, it);

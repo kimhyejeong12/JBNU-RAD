@@ -19,7 +19,7 @@ export function useEscape(on: (() => void) | null, first = false) {
   }, [active, first]);
 }
 
-// 줄을 size 개씩 쪽으로 나눕니다 — 거르기로 줄이 줄어 지금 쪽이 없어지면 마지막 쪽을 보입니다.
+// 줄을 size 개씩 쪽으로 나눔 — 거르기로 줄이 줄어 지금 쪽이 없어지면 마지막 쪽을 보임
 export function usePage<T>(rows: T[], size: number) {
   const [page, setPage] = useState(1);
   const pages = Math.max(1, Math.ceil(rows.length / size));
@@ -61,7 +61,7 @@ export function activateProps(fn: () => void) {
   };
 }
 
-// 엔터로 폼이 제출되지 않게 막되, 여러 줄 칸 · 한글 조합(isComposing)의 엔터는 둡니다.
+// 엔터로 폼이 제출되지 않게 막되, 여러 줄 칸 · 한글 조합(isComposing)의 엔터는 둠
 export function noEnterSubmit(e: KeyboardEvent<HTMLFormElement>) {
   if (e.key === "Enter" && !e.nativeEvent.isComposing && e.target instanceof HTMLInputElement) e.preventDefault();
 }

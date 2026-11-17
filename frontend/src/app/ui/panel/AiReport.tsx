@@ -14,10 +14,10 @@ const CAPTION = "mt-2 mb-1 text-[11.5px] font-semibold text-ink-dim";
 
 export interface AiFinding { level: Level; reason: string; recommendation?: string | null; sources?: string[] | null; judgedAt?: string | null }
 
-// AI 판정을 네 질문으로 — 어떻게 판단 · 왜 · 어떤 규정 · 어떻게 처리. 판정을 보이는 패널이 모두 씁니다.
-// wait = 판정이 없을 때 글, tip = 등급 옆 글, why = 이유 아래 덧붙일 것, how · lead = 마지막 칸 제목 · 권고 앞 굵은 글.
-// what 을 주면(로그 감시) 첫 칸이 "무슨 일"이 되고 등급은 "왜" 제목 옆으로 갑니다.
-// 근거 조항(sources)이나 권고가 없으면 그 칸을 빼고 번호를 당깁니다.
+// AI 판정을 네 질문으로 — 어떻게 판단 · 왜 · 어떤 규정 · 어떻게 처리. 판정을 보이는 패널이 모두 씀
+// wait = 판정이 없을 때 글, tip = 등급 옆 글, why = 이유 아래 덧붙일 것, how · lead = 마지막 칸 제목 · 권고 앞 굵은 글
+// what 을 주면(로그 감시) 첫 칸이 "무슨 일"이 되고 등급은 "왜" 제목 옆으로 감
+// 근거 조항(sources)이나 권고가 없으면 그 칸을 빼고 번호를 당김
 type StepRow = [string, ReactNode, ReactNode?];
 export function AiReport({ itemKey, f, wait, tip, lead, why, what, how = "어떻게 처리하면 좋을까요?" }: {
   itemKey: string; f: AiFinding | null; wait?: ReactNode; tip?: string; lead?: ReactNode; why?: ReactNode; what?: ReactNode; how?: string;
@@ -61,7 +61,7 @@ function Step({ n, title, side, children }: { n: number; title: string; side?: R
   );
 }
 
-// 항목이 둘 이상이면 글머리표 목록 — 모델이 단 소제목만 굵게 둡니다.
+// 항목이 둘 이상이면 글머리표 목록 — 모델이 단 소제목만 굵게 둠
 function Points({ text, lead }: { text: string; lead?: ReactNode }) {
   const list = points(text);
   if (list.length < 2) return <p className="m-0">{lead}{text}</p>;
@@ -79,7 +79,7 @@ function Points({ text, lead }: { text: string; lead?: ReactNode }) {
   );
 }
 
-// 근거 조항 — 한 상자에 조항마다 한 줄(제목), 원문은 [원문]을 누를 때만.
+// 근거 조항 — 한 상자에 조항마다 한 줄(제목), 원문은 [원문]을 누를 때만
 export function SourceChips({ itemKey, sources, className }: { itemKey: string; sources?: string[] | null; className?: string }) {
   const { ui, toggleChip } = useUi();
   const clauses = useClauses();

@@ -16,7 +16,7 @@ const MK = "last:rounded-t-sm group-hover:brightness-[1.12] group-focus:brightne
 const threatOf = (d: Stats) => ({ threat: d.events.lines["주의"] + d.events.lines["위험"], logs: d.logs.count });
 const gapsOf = (d: Stats) => d.servers.nodes.reduce((a, n) => ({ "위험": a["위험"] + n.threats["위험"], "주의": a["주의"] + n.threats["주의"] }), { "위험": 0, "주의": 0 });
 
-// 비율은 주의 판정 묶음의 줄을 모두 세어 크게 나오므로 작은 글씨로만 씁니다.
+// 비율은 주의 판정 묶음의 줄을 모두 세어 크게 나오므로 작은 글씨로만 씀
 export function SystemHead({ d, onSelect }: Props) {
   const L = d.events.lines;
   const { threat, logs } = threatOf(d);
@@ -87,7 +87,7 @@ function ThreatLogs({ d }: Props) {
   );
 }
 
-// 모델이 전체 등급과 항목 등급을 따로 내 붙이면 어긋나 보여서 칸을 나눕니다.
+// 모델이 전체 등급과 항목 등급을 따로 내 붙이면 어긋나 보여서 칸을 나눔
 function NodeThreats({ d, selected, onSelect }: Props) {
   const sv = d.servers;
   const modulesOf = (node: string) => sv.modules.filter((m) => m.nodes.includes(node)).map((m) => m.module).join(", ") || "—";

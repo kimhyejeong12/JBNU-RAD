@@ -9,7 +9,7 @@ export const nodeStateTone: Record<NodeStateClass, string> = { on: "text-ok", st
 export const nodeStateText = "whitespace-nowrap text-[12px] font-bold";
 export const nodeActions = "mt-2.5 flex flex-wrap gap-2";
 
-// 꺼짐 · 키 없음 · 끊김 · 기다리는 중 · 수집 중 순서로 봅니다.
+// 꺼짐 · 키 없음 · 끊김 · 기다리는 중 · 수집 중 순서로 봄
 export function nodeState(n: NodeRow): [NodeStateClass, string, string] {
   if (!n.enabled) return ["off", "꺼짐", "수집, 점검 안 함"];
   if (!n.key_issued) return ["wait", "키 없음", "키를 발급하세요"];

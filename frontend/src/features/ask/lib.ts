@@ -20,7 +20,7 @@ const CRITERIA_LABEL: Record<string, string> = {
 };
 const KIND_LABEL: Record<string, string> = { events: "로그 감시", policies: "정책 관리 검토", suspects: "위협 예측" };
 
-// 근거는 도구가 조건으로 찾은 것이라 조건을 함께 보여줍니다.
+// 근거는 도구가 조건으로 찾은 것이라 조건을 함께 보여줌
 export function criteriaText(c: Record<string, unknown> | null | undefined, none = "조건 없음 (전체)"): string {
   const parts = Object.entries(c || {}).map(([k, value]) => {
     const v = String(value);
@@ -52,7 +52,7 @@ export const ASK = {
   ],
 };
 
-// 기다리는 항목을 먼저 캐시에 넣어 탭을 떠나도 남게 합니다.
+// 기다리는 항목을 먼저 캐시에 넣어 탭을 떠나도 남게 함
 export function useAsk(conversation: string) {
   const qc = useQueryClient();
   const list = useConversation(conversation);
@@ -62,7 +62,7 @@ export function useAsk(conversation: string) {
   async function run(id: string, q: string) {
     let result: Partial<AskItem>;
     try {
-      // 서버가 주는 기록 번호(id)는 쓰지 않습니다 — 화면이 붙인 id 를 그대로 둬야 목록의 줄이 바뀌지 않습니다.
+      // 서버가 주는 기록 번호(id)는 쓰지 않음 — 화면이 붙인 id 를 그대로 둬야 목록의 줄이 바뀌지 않음
       const { id: _recorded, ...answer } = await send<AskAnswer>("/api/ask", { question: q, conversation_id: conversation });
       result = { ...answer, started: null };
       void qc.invalidateQueries({ queryKey: ["qa", "list"], exact: true });

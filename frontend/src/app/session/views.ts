@@ -46,7 +46,7 @@ export const ROLE_VIEWS: Record<Role, View[]> = {
   manager: ["requests", "policies", "events", "stats", "access", "users", "docs", "jobs"],
   top: ["requests", "policies", "events", "stats", "access", "users", "docs", "jobs"],
 };
-// 로그인 뒤 첫 화면 — 보안 운영자는 처리할 결재, 보안 총책임자는 보안 현황 종합 대시보드.
+// 로그인 뒤 첫 화면 — 보안 운영자는 처리할 결재, 보안 총책임자는 보안 현황 종합 대시보드
 export const HOME: Record<Role, View> = { user: "mine", manager: "requests", top: "stats" };
 const ADMIN_VIEWS: readonly View[] = ["access", "users", "docs", "jobs"];
 export const isAdminView = (v: View | null): boolean => v !== null && ADMIN_VIEWS.includes(v);
@@ -55,7 +55,7 @@ export const LEVEL_VIEWS: ReadonlySet<View> = new Set<View>(["requests", "polici
 export const TYPE_VIEW: Record<ItemType, View> = { req: "requests", server: "policies", user: "users", access: "access", policy: "policies", event: "events", doc: "docs" };
 export const TYPE_LABEL: Record<ItemType, string> = { req: "권한 신청", server: "서버 점검", user: "계정", access: "권한", policy: "정책 문제", event: "로그 감시", doc: "기준 문서" };
 
-// 계정 만들기 · 고치기 · 역할 바꾸기는 보안 운영자 (피드백 표의 관리), 루트는 처음 설정 · 비상용 — 서버 db/auth.py 와 같은 규칙입니다.
+// 계정 관리는 보안 운영자, 루트는 처음 설정 · 비상용 — 서버 db/auth.py 와 같은 규칙
 export const canManageAccounts = (me: { role: Role; is_root: boolean }): boolean => me.role === "manager" || me.is_root;
 
 export interface DataNeeds { operator: boolean; requests: boolean; mine: boolean; users: boolean; catalog: boolean; results: boolean }
@@ -103,7 +103,7 @@ export function restorable(raw: unknown, role: Role): SavedPage | null {
   };
 }
 
-// compare.html 의 세 칸이 같은 저장소를 써서 계정별로 남깁니다.
+// compare.html 의 세 칸이 같은 저장소를 써서 계정별로 남김
 const PREFIX = "sentinelai.page.";
 
 export function readPage(loginId: string): unknown {
@@ -118,15 +118,15 @@ export function savePage(loginId: string, page: SavedPage): void {
   try {
     sessionStorage.setItem(PREFIX + loginId, JSON.stringify(page));
   } catch {
-    // 남기지 못해도 이번 화면은 그대로입니다.
+    // 남기지 못해도 이번 화면은 그대로임
   }
 }
 
-// 로그인 · 로그아웃도 새로고침으로 끝나 구별되지 않으므로 로그인에 성공하면 지웁니다.
+// 로그인 · 로그아웃도 새로고침으로 끝나 구별되지 않으므로 로그인에 성공하면 지움
 export function forgetPages(): void {
   try {
     for (const k of Object.keys(sessionStorage)) if (k.startsWith(PREFIX)) sessionStorage.removeItem(k);
   } catch {
-    // 저장소를 못 쓰면 남은 것도 없습니다.
+    // 저장소를 못 쓰면 남은 것도 없음
   }
 }

@@ -3,7 +3,7 @@ import { useUi } from "@/app/ui/state/UiContext";
 import type { LogPeriod } from "@/shared/api/types";
 import { logsQuery } from "@/shared/api/queries";
 
-// 자주 쓰는 넷만 둡니다 (서버는 3개월 · 6개월 · 1년도 받습니다).
+// 자주 쓰는 넷만 둠 (서버는 3개월 · 6개월 · 1년도 받음)
 export const PERIOD_LABEL: Record<LogPeriod, string> = { day: "하루", week: "일주일", month: "한 달", all: "전체" };
 
 // [조건 이름, 칸 id, 이름, options 의 키, facts 의 키]
@@ -14,7 +14,7 @@ export const LOG_FILTERS: [key: "solution" | "how", id: string, label: string, o
 
 export interface FilterChoice { value: string; count?: number }
 
-// 그 칸을 거르는 중이면 다른 값이 0 으로 나와 건수를 붙이지 않습니다.
+// 그 칸을 거르는 중이면 다른 값이 0 으로 나와 건수를 붙이지 않음
 export function filterChoices(values: string[], selected: string, counts: Record<string, number> | undefined): FilterChoice[] {
   const all = selected && !values.includes(selected) ? [selected, ...values] : values;
   return all.map((value) => (!selected && counts && value in counts ? { value, count: counts[value] } : { value }));
@@ -25,7 +25,7 @@ export const logAttrs = (e: { attributes?: Record<string, string | number> | nul
 
 export const pageCount = (d: { total: number; page_size: number }): number => Math.max(1, Math.ceil(d.total / d.page_size));
 
-// 고른 줄은 조건이 아니라 키에 넣지 않습니다 (조회마다 감사 기록이 남습니다).
+// 고른 줄은 조건이 아니라 키에 넣지 않음 (조회마다 감사 기록이 남음)
 export function useLogsPage() {
   const { period, user, solution, how, page } = useUi().ui.logs;
   return useQuery(logsQuery({ period, user, solution, how, page }));

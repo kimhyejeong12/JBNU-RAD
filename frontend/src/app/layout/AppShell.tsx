@@ -24,7 +24,7 @@ export function AppShell({ me }: { me: Me }) {
   );
 }
 
-// body 가 그리드라 감싸는 요소 없이 자식 순서를 지킵니다 (#root 는 display: contents).
+// body 가 그리드라 감싸는 요소 없이 자식 순서를 지킴 (#root 는 display: contents)
 function Shell() {
   const me = useMe();
   const store = useUiStore();
@@ -34,7 +34,7 @@ function Shell() {
   const narrow = useMediaQuery(NARROW);
 
   useEffect(() => toggleBody("drawerOpen", ui.drawerOpen), [ui.drawerOpen]);
-  // 넓은 화면으로 바뀌면 서랍 상태를 풀어 배경 막이 남지 않게 합니다.
+  // 넓은 화면으로 바뀌면 서랍 상태를 풀어 배경 막이 남지 않게 함
   useEffect(() => {
     if (!narrow) dispatch({ type: "CLOSE_DRAWER" });
   }, [narrow, dispatch]);
@@ -53,7 +53,7 @@ function Shell() {
     const t = setTimeout(() => dispatch({ type: "SET_PANEL_MSG", msg: "" }), DONE_MSG_MS);
     return () => clearTimeout(t);
   }, [ui.panelMsg, dispatch]);
-  // 결재 · 회수로 목록에서 빠진 항목은 다른 메뉴에서 찾지 않고 선택을 비웁니다.
+  // 결재 · 회수로 목록에서 빠진 항목은 다른 메뉴에서 찾지 않고 선택을 비움
   const items = useQueue();
   useEffect(() => {
     if (ui.selected && ui.selected !== NEW_ITEM && !items.some((i) => i.key === ui.selected)) dispatch({ type: "SELECT_SILENT", key: null });
@@ -62,7 +62,7 @@ function Shell() {
   return (
     <UiContext.Provider value={store}>
       <TopBar />
-      {/* 탭이 없어도 자리를 둡니다 — body 그리드 줄이 밀리지 않게. */}
+      {/* 탭이 없어도 자리를 둠 — body 그리드 줄이 밀리지 않게 */}
       <div>{me.role !== "user" && <MainTabs />}</div>
       {boot.error ? <LoadError message={boot.error} /> : <Workspace />}
       <div id="drawer-back" onClick={store.closePanel}

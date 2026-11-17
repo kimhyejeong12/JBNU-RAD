@@ -15,7 +15,7 @@ export const LEVEL_TIP: Record<Level, string> = {
   "위험": "반려 권고",
 };
 
-// 변경 이력(감사 기록)에 쓰는 말입니다.
+// 변경 이력(감사 기록)에 쓰는 말임
 export const AUDIT_ACTION: Record<string, string> = {
   regulation_upload: "올림", regulation_edit: "고침", regulation_remove: "지움",
   user_create: "만듦", root_create: "만듦", user_update: "고침", password_reset: "비밀번호 초기화",
@@ -32,7 +32,7 @@ function value(key: string, v: unknown): string {
   return v === "" || v == null ? "비움" : String(v);
 }
 
-// 사유가 있으면 사유를, 없으면 바뀐 칸과 값을 적습니다.
+// 사유가 있으면 사유를, 없으면 바뀐 칸과 값을 적음
 export function changeText(r: AuditRow): string {
   if (typeof r.detail.reason === "string" && r.detail.reason) return r.detail.reason;
   return Object.entries(r.detail).filter(([k]) => k in FIELD).map(([k, v]) => `${FIELD[k]} ${value(k, v)}`).join(", ");

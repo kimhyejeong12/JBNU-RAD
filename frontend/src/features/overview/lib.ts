@@ -8,10 +8,10 @@ export const AREA_COLOR: Record<OverviewArea, string> = {
   suspect: "var(--color-area-suspect)", grant: "var(--color-area-grant)",
 };
 
-// 표의 유형 칸 기호 — 메뉴 · 탭에 쓰는 기호 중에서 고릅니다 (등급 기호 warn · bad 와 헷갈리지 않게 사람 · 권한은 users · key).
+// 표 유형 칸 기호 — 등급 기호(warn · bad)와 안 헷갈리는 메뉴 기호
 export const AREA_ICON: Record<OverviewArea, string> = { policy: "book", server: "server", event: "eye", suspect: "users", grant: "key" };
 
-// 항목 key 로 갈 곳을 정합니다 — 화면이 바로 열 수 있는 것만.
+// 항목 key 로 갈 곳을 정함 — 화면이 바로 열 수 있는 것만
 export type Target =
   | { to: "queue"; key: string; view: "policies" | "events" }
   | { to: "view"; view: "policies" }
@@ -29,7 +29,7 @@ export function targetOf(area: OverviewArea, key: string): Target {
 
 export interface Arc { area: OverviewArea; label: string; value: number; start: number; end: number }
 
-// 영역마다 열린 위험 · 주의 수를 원 둘레 비율로 — 0 인 영역은 그리지 않습니다.
+// 영역마다 열린 위험 · 주의 수를 원 둘레 비율로 — 0 인 영역은 그리지 않음
 export function arcs(areas: Overview["areas"]): { total: number; arcs: Arc[] } {
   const rows = areas.map((a) => ({ area: a.area, label: a.label, value: a["위험"] + a["주의"] }));
   const total = rows.reduce((n, r) => n + r.value, 0);
@@ -49,7 +49,7 @@ export const ofText = (total: number, shown: number): string => (total > shown ?
 
 export const rateText = (rate: number | null): string => (rate == null ? "—" : `${rate}%`);
 
-// 어제 끝과 지금의 차이 — 추이가 이틀이 안 되면 견줄 날이 없어 null 입니다.
+// 어제 끝과 지금의 차이 — 추이가 이틀이 안 되면 견줄 날이 없어 null 임
 export function delta(trend: Overview["trend"], level: "위험" | "주의"): number | null {
   if (trend.length < 2) return null;
   return trend[trend.length - 1][level] - trend[trend.length - 2][level];
@@ -59,14 +59,14 @@ export const deltaText = (n: number | null): string => (n == null ? "지금 열�
 
 export type FirstTodo = Todo & { area: OverviewArea; label: string };
 
-// 영역마다 맨 앞 할 일 하나씩, 위험부터 n 개 — 종합 대시보드의 AI 요약은 먼저 볼 것만 보입니다.
+// 영역마다 맨 앞 할 일 하나씩, 위험부터 n 개 — 종합 대시보드의 AI 요약은 먼저 볼 것만 보임
 export function firstTodos(b: Briefing, n = 3): FirstTodo[] {
   const firsts = b.areas.flatMap((a) => a.todos.slice(0, 1).map((t) => ({ ...t, area: a.area, label: a.label })));
   return firsts.sort((x, y) => Number(y.level === "위험") - Number(x.level === "위험")).slice(0, n);
 }
 
 
-// 항목을 고르면 그 판정을 보는 화면으로 갑니다. 목록에 없는 지난 판정은 메뉴만 엽니다.
+// 항목을 고르면 그 판정을 보는 화면으로 감. 목록에 없는 지난 판정은 메뉴만 엶
 export function useGo() {
   const { navigate, select, setMainTab, setStats, openDrawer, gotoActiveGrant } = useUi();
   const items = useQueue();

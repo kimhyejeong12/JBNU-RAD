@@ -26,7 +26,7 @@ const Fields = ({ v }: { v?: AccessItem }) => (
   </>
 );
 
-// 지난 신청이 코드를 가리키므로 코드는 못 바꾸고, 지우지 않고 끕니다.
+// 지난 신청이 코드를 가리키므로 코드는 못 바꾸고, 지우지 않고 끔
 export function AccessPanel({ a }: { a: AccessItem | null }) {
   return a ? <EditAccess a={a} /> : <NewAccess />;
 }
@@ -41,7 +41,7 @@ function NewAccess() {
   }
   return (
     <Panel title="권한 등록">
-    {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓습니다(content-start). */}
+    {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓음(content-start) */}
     <form className={panelFormGrid} id="access-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
       <label className={field}>코드 (바꿀 수 없음)<input className={input} name="code" required maxLength={64} pattern="[A-Za-z0-9_.\-]+" title="영문, 숫자, _ . -" autoComplete="off" placeholder="예: HR_SALARY_READ" /></label>
       <Fields />
@@ -55,7 +55,7 @@ function EditAccess({ a }: { a: AccessItem }) {
   const update = useUpdateAccess();
   const { setPanelMsg } = useUi();
   const requests = useRequests();
-  // 폼이 uncontrolled 라 저장 뒤 서버 값으로 다시 그립니다.
+  // 폼이 uncontrolled 라 저장 뒤 서버 값으로 다시 그림
   const formKey = `${a.code}:${useQuery(catalogQuery()).dataUpdatedAt}`;
   const used = requests.filter((r) => r.access_code === a.code);
   const active = used.filter((r) => isActive(r)).length;
@@ -65,7 +65,7 @@ function EditAccess({ a }: { a: AccessItem }) {
     if (!f) return;
     update.mutate({ code: a.code, patch: { name: f.get("name"), system: f.get("system"), category: f.get("category"), description: f.get("description") } });
   }
-  // 끄면 새 신청이 바로 막혀서 끌 때만 묻습니다.
+  // 끄면 새 신청이 바로 막혀서 끌 때만 물음
   async function onToggle(on: boolean) {
     if (!on && !(await ask({
       title: "신청 막기", confirm: "막기", danger: true,
@@ -80,7 +80,7 @@ function EditAccess({ a }: { a: AccessItem }) {
       <div className={cn(box, "mt-3.5")}>
         <Switch checked={a.is_active} disabled={update.isPending} onChange={onToggle} label={accessState(a.is_active)} />
       </div>
-      {/* 시스템 · 분류 · 설명은 신청 판정의 입력에 들어갑니다 (sources/people.py). */}
+      {/* 시스템 · 분류 · 설명은 신청 판정의 입력에 들어감 (sources/people.py) */}
       <form key={formKey} id="access-edit" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <GroupBox icon="key" title="권한 정보 (AI 판정 근거)">
           <div className={fieldGrid}><Fields v={a} /></div>

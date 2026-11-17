@@ -17,9 +17,9 @@ const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
   { tab: "engine", icon: "list", label: "작업 큐", panel: "view-engine" },
 ];
 
-// 아래 테두리 2px 가 탭 줄의 선과 겹치게 1px 내립니다.
+// 아래 테두리 2px 가 탭 줄의 선과 겹치게 1px 내림
 const TAB = "-mb-px inline-flex whitespace-nowrap phone:gap-1 phone:px-2 phone:text-[13px] phone:[&>svg]:hidden items-center gap-1.75 border-0 border-b-2 border-transparent bg-transparent px-3.5 py-2.25 text-[14px] font-bold text-ink-dim hover:text-ink aria-selected:border-b-ink aria-selected:text-ink";
-// 위 막대 아래 화면 폭 전체의 흰 줄 — 좌우 여백은 작업 칸과 같습니다.
+// 위 막대 아래 화면 폭 전체의 흰 줄 — 좌우 여백은 작업 칸과 같음
 const BAR = "flex gap-1 border-b border-line bg-surface px-5.5 narrow:px-4";
 
 const STAGES: [StageFilter, string, string][] = [["pending", "결재 대기", "list"], ["active", "유효 권한", "key"], ["all", "전체", "file"]];

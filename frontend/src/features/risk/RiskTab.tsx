@@ -15,7 +15,7 @@ import { box, card, cardCount, empty, levelText, note, toolButton, tileGrid } fr
 
 export function RiskTab() {
   const q = useQuery(riskPeopleQuery());
-  // 타일을 누르면 그 까닭으로 거르고, 다시 누르면 전체입니다.
+  // 타일을 누르면 그 까닭으로 거르고, 다시 누르면 전체임
   const [pick, setPick] = useState<Pick | null>(null);
   const d = q.data;
   const watch = usePeople();

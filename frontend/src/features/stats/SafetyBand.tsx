@@ -24,7 +24,7 @@ export function SafetyBand({ label, safety, groups, onSelect, names = 3 }: { lab
       <div className={SCORE}><span className={statLabel}>{label}</span><span className={cn(BIG, levelText[safetyTone(safety.score)])}>{safety.score}점</span></div>
       <div className="grid min-w-0 gap-1.5 text-[13px]">
         {shown.length ? shown.map(([name, list, kind, dot]) => (
-          // 옆에 두면 13인치에서 이름 칸이 좁아 잘려서 묶음 이름 아래 줄에 둡니다.
+          // 옆에 두면 13인치에서 이름 칸이 좁아 잘려서 묶음 이름 아래 줄에 둠
           <div key={name} className="min-w-0">
             <b className="font-bold"><LevelDot level={dot === "none" ? null : dot} />{name} {list.length}</b>
             {names > 0 && (

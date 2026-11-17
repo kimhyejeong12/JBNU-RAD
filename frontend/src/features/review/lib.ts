@@ -7,7 +7,7 @@ const decisionOf = (r: Results, kind: string, key: string) => r.decisions?.[kind
 
 const DOC = /\[?([^\s[\]]+)\.(md|txt)\]?/;
 
-// 정책 문제의 대상 — 조항 번호 · 제목(원문에 없으면 문서 이름을 뺀 번호)과 문서 이름(확장자 없이, 한 번씩).
+// 정책 문제의 대상 — 조항 번호 · 제목(원문에 없으면 문서 이름을 뺀 번호)과 문서 이름(확장자 없이, 한 번씩)
 export function policyTarget(ids: string[], regulations: Regulation[]): { who: string; docs: string } {
   const heads = ids.map((id) => clauseHead(id, regulations));
   const who = ids.map((id, n) => heads[n]?.title ?? (id.replace(DOC, "").trim() || id)).join(" ↔ ");
@@ -15,7 +15,7 @@ export function policyTarget(ids: string[], regulations: Regulation[]): { who: s
   return { who, docs };
 }
 
-// 대상은 조항 제목으로 줄이고, 아래 줄에 유형 · 문서 이름 — 검색은 원래 policy_ids 로도 됩니다(select.ts).
+// 대상은 조항 제목으로 줄이고, 아래 줄에 유형 · 문서 이름 — 검색은 원래 policy_ids 로도 됨(select.ts)
 export function policyItems(r: Results, regulations: Regulation[] = []): QueueItem[] {
   return (r.policy_review?.issues ?? []).map((i) => {
     const t = policyTarget(i.policy_ids || [], regulations);
@@ -57,7 +57,7 @@ export function eventItems(r: Results): QueueItem[] {
       what: facts ? countText(facts.acts) : `로그 ${lines.length}건`,
       note: firstPoint(f.reason),
       when: stamp(f.detail?.last_event_at),
-      // 정밀 감시가 같은 구간을 다시 판정하면 1차 판정은 목록에서 빠집니다.
+      // 정밀 감시가 같은 구간을 다시 판정하면 1차 판정은 목록에서 빠짐
       sub: f.stage === "fast" ? "1차 판정" : "",
       judge: f.level, raw: f,
     };
@@ -67,7 +67,7 @@ export function eventItems(r: Results): QueueItem[] {
 // 엔진이 만든 모양(SecurityEvent.describe): "- 날짜 시각 UTC [솔루션] 부서 이름(IP) — 위치 / 행위 / 항목"
 const LOG_LINE = /^- (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) UTC (\[[^\]]*\] .+?\)) — (.*)$/;
 
-// 사람이 섞이거나 줄 모양이 다르면(엔진이 모양을 바꾼 경우) 원문 그대로 둡니다.
+// 사람이 섞이거나 줄 모양이 다르면(엔진이 모양을 바꾼 경우) 원문 그대로 둠
 export function compactLog(text: string): { head: string | null; lines: string[] } {
   const raw = text.split("\n").map((l) => l.trim()).filter(Boolean);
   const parsed = raw.map((l) => LOG_LINE.exec(l)).filter((m): m is RegExpExecArray => m !== null);
@@ -78,7 +78,7 @@ export function compactLog(text: string): { head: string | null; lines: string[]
 
 export interface LogFacts { head: string; first: string; last: string; count: number; acts: [string, number][]; places: [string, number][] }
 
-// 판정한 로그에서 센 사실 — 행위 · 위치별 수와 기간. 줄 모양이 다르면 null (compactLog 와 같은 조건).
+// 판정한 로그에서 센 사실 — 행위 · 위치별 수와 기간. 줄 모양이 다르면 null (compactLog 와 같은 조건)
 export function logFacts(text: string): LogFacts | null {
   const raw = text.split("\n").map((l) => l.trim()).filter(Boolean);
   const parsed = raw.map((l) => LOG_LINE.exec(l)).filter((m): m is RegExpExecArray => m !== null);
@@ -107,7 +107,7 @@ export const countText = (xs: [string, number][]): string => xs.map(([k, n]) => 
 
 export type DecisionLogMap = Record<string, Record<string, Decision[]>>;
 
-// 한 판정의 결정 기록 — 결정을 이어받은 판정은 자기 기록이 없어 지난 판정의 기록입니다.
+// 한 판정의 결정 기록 — 결정을 이어받은 판정은 자기 기록이 없어 지난 판정의 기록임
 export function logRows(log: DecisionLogMap, it: { type: string; itemKey?: string; decision?: Pick<Decision, "carried_from"> | null }): Decision[] {
   const from = it.decision?.carried_from;
   return log[it.type]?.[it.itemKey ?? ""] ?? (from ? log[it.type]?.[from] : undefined) ?? [];

@@ -9,7 +9,7 @@ import { ConfirmLayer } from "@/app/ui/Overlays";
 
 export default function App() {
   const [gate, setGate] = useState<GateMode>(null);
-  // 세션이 끊기면(401) 어느 요청에서든 로그인 화면으로 돌아갑니다.
+  // 세션이 끊기면(401) 어느 요청에서든 로그인 화면으로 돌아감
   useEffect(() => onUnauthorized(() => setGate("login")), []);
   const auth = useMemo(() => ({
     gate,
@@ -29,7 +29,7 @@ export default function App() {
 function Root() {
   const auth = useAuth();
   const me = useQuery(meQuery());
-  // 비밀번호를 바꾸기 전에는 다른 API 가 403 이라 껍데기를 띄우지 않습니다.
+  // 비밀번호를 바꾸기 전에는 다른 API 가 403 이라 껍데기를 띄우지 않음
   const mode = auth.gate ?? (me.data?.must_change_password ? "password-forced" : null);
   const shell = me.data && mode !== "login" && mode !== "password-forced" ? <AppShell me={me.data} /> : null;
   return (

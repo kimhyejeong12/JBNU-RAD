@@ -23,7 +23,7 @@ export function NodesPanel() {
   if (!ui.nodes.selected) return <SummaryPanel list={list} />;
   const n = list.find((x) => x.name === ui.nodes.selected);
   if (!n) return <Panel title="수집 노드"><div className={empty}>없는 노드입니다.</div></Panel>;
-  // key 로 노드마다 새로 그려 복사 버튼 상태가 다른 노드로 넘어가지 않게 합니다.
+  // key 로 노드마다 새로 그려 복사 버튼 상태가 다른 노드로 넘어가지 않게 함
   return <NodePanel key={n.name} n={n} />;
 }
 
@@ -64,7 +64,7 @@ function NodePanel({ n }: { n: NodeRow }) {
   const action = useNodeAction();
   const [cls, label, tip] = nodeState(n);
 
-  // 감시가 멈추는 끄기 · 수집이 끊기는 키 다시 발급만 묻습니다.
+  // 감시가 멈추는 끄기 · 수집이 끊기는 키 다시 발급만 물음
   const act = async (a: NodeAct) => {
     const q = a === "off"
       ? { title: "노드 끄기", confirm: "끄기", danger: true, message: `${n.name} 노드를 끕니다. 이 서버가 보내는 수집을 받지 않고 주기 점검에서도 빠져, 이 서버의 감시가 멈춥니다.` }
@@ -127,7 +127,7 @@ function NodeRecords({ d }: { d: NodeDetail }) {
   );
 }
 
-// 내부망 서비스라 노드 키를 언제든 다시 보여줍니다.
+// 내부망 서비스라 노드 키를 언제든 다시 보여줌
 export function NodeKey({ n, d }: { n: NodeRow; d?: NodeDetail }) {
   const input = useRef<HTMLInputElement>(null);
   const [labels, setLabels] = useState<Record<string, string>>({});
@@ -135,7 +135,7 @@ export function NodeKey({ n, d }: { n: NodeRow; d?: NodeDetail }) {
   if (!d.key) return <Section icon="lock" title="노드 키"><p className={note}>볼 수 없는 키입니다. [키 다시 발급]을 누르세요.</p></Section>;
   const cmd = `sudo sh node/install.sh --server ${location.origin} --key ${d.key}`;
 
-  // 사내망 http 화면에서는 클립보드 API 를 못 쓸 수 있어 키 칸을 골라 둡니다.
+  // 사내망 http 화면에서는 클립보드 API 를 못 쓸 수 있어 키 칸을 골라 둠
   async function copy(which: string, text: string) {
     try {
       await navigator.clipboard.writeText(text);

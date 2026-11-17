@@ -19,7 +19,7 @@ import { actionButton, box, dangerButton, goodButton, input, levelText, note, pa
 type RequestItem = Extract<QueueItem, { type: "req" }>;
 interface Draft { comment: string; reason: string }
 
-// key 를 항목 key 로만 두어 폴링으로 다시 그려도 입력 중인 의견이 남습니다.
+// key 를 항목 key 로만 두어 폴링으로 다시 그려도 입력 중인 의견이 남음
 export function RequestPanel({ it }: { it: RequestItem }) {
   const me = useMe();
   const { setPanelMsg } = useUi();
@@ -70,7 +70,7 @@ const FLOW_MARK: Record<FlowState, string> = {
 };
 const FLOW_LABEL: Record<FlowState, string> = { done: "text-ok", rejected: "text-risk", current: "text-ink", idle: "text-ink-faint", stopped: "text-ink-dim" };
 
-// 결재 단계 — 처리 상태 배지 · 결재 기록 칸을 이 한 줄로 대신합니다.
+// 결재 단계 — 처리 상태 배지 · 결재 기록 칸을 이 한 줄로 대신함
 function Flow({ r }: { r: RequestRow }) {
   const { steps, notes } = approvalFlow(r);
   return (

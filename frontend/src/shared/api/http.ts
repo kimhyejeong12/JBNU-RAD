@@ -1,4 +1,4 @@
-// 오류 문장은 서버가 준 것을 그대로 씁니다.
+// 오류 문장은 서버가 준 것을 그대로 씀
 
 export class ApiError extends Error {
   readonly status: number;

@@ -5,7 +5,7 @@ import { cn } from "@/shared/lib/cn";
 import { actionButton, dangerButton, primaryButton, cardTitle } from "@/shared/ui/styles";
 import { useEscape } from "@/shared/lib/hooks";
 
-// 마지막 자식으로 두어 opacity · transform 이 걸린 조상 밑에 들어가지 않게 합니다.
+// 마지막 자식으로 두어 opacity · transform 이 걸린 조상 밑에 들어가지 않게 함
 export function TooltipLayer() {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -28,7 +28,7 @@ export function TooltipLayer() {
       desc.style.cssText = body ? "" : "color:#fff;margin:0";
       delete tip.dataset.show;
       const pos = el.dataset.tipPos === "right" ? "right" : "bottom";
-      // 자리는 확대된 화면 좌표로 잡으므로 배율로 나눠 넣습니다.
+      // 자리는 확대된 화면 좌표로 잡으므로 배율로 나눠 넣음
       const z = pageScale();
       const size = tip.getBoundingClientRect();
       const { left, top } = placeTip(el.getBoundingClientRect(), pos, size.width, size.height, innerWidth, innerHeight);
@@ -50,7 +50,7 @@ export function TooltipLayer() {
         hide();
         return;
       }
-      // 목록을 훑을 때 깜빡이지 않게 사이드바 · 상단 바 밖에서는 살짝 늦게 띄웁니다.
+      // 목록을 훑을 때 깜빡이지 않게 사이드바 · 상단 바 밖에서는 살짝 늦게 띄움
       const instant = el.closest("[data-tip-instant]");
       timer = window.setTimeout(() => show(el), instant ? 0 : 220);
     };
@@ -74,7 +74,7 @@ export function TooltipLayer() {
     };
   }, []);
 
-  // transform 전환이라 Tailwind 의 translate 대신 transform 값을 그대로 씁니다.
+  // transform 전환이라 Tailwind 의 translate 대신 transform 값을 그대로 씀
   return (
     <div role="tooltip" ref={ref}
       className="pointer-events-none fixed z-60 max-w-67.5 rounded-lg bg-ink px-2.75 py-2 text-[12px] leading-normal text-white opacity-0 shadow-[0_8px_24px_rgba(0,0,0,.18)] wrap-anywhere transform-[translateY(3px)] [transition:opacity_.12s_ease,transform_.12s_ease] break-keep data-show:opacity-100 data-show:transform-none data-[pos=right]:not-data-show:transform-[translateX(-3px)]">
@@ -83,7 +83,7 @@ export function TooltipLayer() {
   );
 }
 
-// 버튼 순서는 확인 창 관례대로 [취소] 왼쪽 · 실행 오른쪽입니다.
+// 버튼 순서는 확인 창 관례대로 [취소] 왼쪽 · 실행 오른쪽임
 export function ConfirmLayer() {
   const [cur, setCur] = useState<{ a: Ask; done: (ok: boolean) => void } | null>(null);
   useEffect(() => {

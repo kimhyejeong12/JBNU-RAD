@@ -17,7 +17,7 @@ export function requestItem(r: RequestRow): QueueItem {
   };
 }
 
-// 퇴사는 코드가 바로 위험, 이동은 AI 판정입니다.
+// 퇴사는 코드가 바로 위험, 이동은 AI 판정임
 export function grantNote(r: RequestRow): string | undefined {
   const g = r.grant_review;
   if (!g) return undefined;
@@ -50,7 +50,7 @@ export function rejectNote(r: RequestRow): string | undefined {
   return `${a.step === "manager" ? "1차" : "최종"} 반려: ${a.comment || "의견 없음"}`;
 }
 
-// 신청자는 1차 결재 전에만 철회합니다 (서버도 같은 조건으로 막습니다).
+// 신청자는 1차 결재 전에만 철회함 (서버도 같은 조건으로 막음)
 export const canWithdraw = (r: RequestRow): boolean => r.stage === "manager";
 
 export interface AccessOptions {
@@ -79,7 +79,7 @@ export function accessOptions(catalog: AccessItem[], mine: RequestRow[], prev: s
   };
 }
 
-// 사용 기간 — 끝나는 날을 고르거나 기한 없음을 눌러야 하고, 끝이 시작보다 앞설 수 없습니다. 문제가 없으면 null.
+// 사용 기간 — 끝나는 날을 고르거나 기한 없음을 눌러야 하고, 끝이 시작보다 앞설 수 없음. 문제가 없으면 null
 export function periodProblem(start: string, end: string, open: boolean): string | null {
   if (open) return null;
   if (!end) return "사용 종료일을 고르거나 기한 없음을 누르세요";
@@ -87,7 +87,7 @@ export function periodProblem(start: string, end: string, open: boolean): string
   return null;
 }
 
-// 끝난 신청(반려 · 만료 등)의 내역 — "반려 1, 만료 2" 처럼 0 이 아닌 것만, 없으면 빈 글.
+// 끝난 신청(반려 · 만료 등)의 내역 — "반려 1, 만료 2" 처럼 0 이 아닌 것만, 없으면 빈 글
 export function endedBreakdown(mine: RequestRow[], on: string = today()): string {
   const n = { 반려: 0, 만료: 0, 회수: 0, 철회: 0 };
   for (const r of mine) {
@@ -100,7 +100,7 @@ export function endedBreakdown(mine: RequestRow[], on: string = today()): string
   return Object.entries(n).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(", ");
 }
 
-// 내 신청 표의 기간 한 줄 — 빈 종료일은 기한 없음입니다.
+// 내 신청 표의 기간 한 줄 — 빈 종료일은 기한 없음임
 export function periodText(r: Pick<RequestRow, "period_start" | "period_end">): string {
   if (r.period_end) return r.period_start ? `${r.period_start} ~ ${r.period_end}` : `${r.period_end}까지`;
   return r.period_start ? `${r.period_start}부터, 기한 없음` : "기한 없음";
@@ -114,7 +114,7 @@ export type FlowState = "done" | "rejected" | "current" | "idle" | "stopped";
 export interface FlowStep { label: string; who: string; state: FlowState }
 export interface FlowNote { label: string; text: string; alert: boolean }
 
-// 결재 단계 표시 — 신청 · 1차 · 최종 세 칸에 이름만, 의견 · 사유 · 만료는 아래 줄로.
+// 결재 단계 표시 — 신청 · 1차 · 최종 세 칸에 이름만, 의견 · 사유 · 만료는 아래 줄로
 export function approvalFlow(r: RequestRow, on: string = today()): { steps: FlowStep[]; notes: FlowNote[] } {
   const step = (s: "manager" | "top", name: string): FlowStep => {
     const a = r.approvals?.find((x) => x.step === s);

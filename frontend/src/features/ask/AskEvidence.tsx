@@ -5,7 +5,7 @@ import { KvTable, Section, LinesBox, Subject } from "@/shared/ui/parts";
 import { boxPre, clause, note } from "@/shared/ui/styles";
 import { stampRange } from "@/shared/lib/format";
 
-// 답 아래 근거 칩 하나 = 도구 호출 한 번. 도구마다 보여 주는 모양이 다릅니다.
+// 답 아래 근거 칩 하나 = 도구 호출 한 번. 도구마다 보여 주는 모양이 다름
 export function AskEvidence({ list }: { list: AskItem[] }) {
   const { ui } = useUi();
   const sel = ui.askSource;

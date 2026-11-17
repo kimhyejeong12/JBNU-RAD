@@ -23,7 +23,7 @@ export function Meter({ segs, total }: { segs: [cls: MarkKey, value: number][]; 
   );
 }
 
-// 표는 차트 자리에 바꿔 보여 카드가 길어지지 않게 합니다.
+// 표는 차트 자리에 바꿔 보여 카드가 길어지지 않게 함
 export function ViewSwitch({ id, table, onChange }: { id: string; table: boolean; onChange: (table: boolean) => void }) {
   return <Periods<"chart" | "table"> id={id} label="보기" labels={[["chart", "차트"], ["table", "표"]]} value={table ? "table" : "chart"} onChange={(k) => onChange(k === "table")} />;
 }
@@ -35,7 +35,7 @@ export interface DataRow {
   onSelect?: () => void;
 }
 
-// numCols 는 오른쪽 정렬(숫자) 칸의 번호입니다.
+// numCols 는 오른쪽 정렬(숫자) 칸의 번호임
 export function DataTable({ head, rows, empty, numCols = [], scroll }: { head: string[]; rows: DataRow[]; empty: string; numCols?: number[]; scroll?: boolean }) {
   if (!rows.length) return <p className={cardNote}>{empty}</p>;
   return (

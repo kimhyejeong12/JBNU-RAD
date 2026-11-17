@@ -21,7 +21,7 @@ type Open = "위험" | "주의";
 const SUB = cn(cardNote, "pb-3");
 const AREA_MARK = "inline-block size-2.5 flex-none rounded-xs";
 
-// 위 = 숫자, 가운데 = 그래프와 AI 요약, 아래 = 주요 이슈와 최근 조치. 위험 주의 타일을 누르면 이슈 표를 거릅니다.
+// 위 = 숫자, 가운데 = 그래프와 AI 요약, 아래 = 주요 이슈와 최근 조치. 위험 주의 타일을 누르면 이슈 표를 거름
 export function OverviewTab() {
   const { ui, setStats } = useUi();
   const period = ui.stats.period;
@@ -59,13 +59,13 @@ export function OverviewTab() {
   );
 }
 
-// 주요 이슈는 위험부터 10건이라, 위험이 많으면 주의는 열려 있어도 이 목록에 안 들어옵니다.
+// 주요 이슈는 위험부터 10건이라, 위험이 많으면 주의는 열려 있어도 이 목록에 안 들어옴
 function emptyText(level: Open | null, total: number): string {
   if (!level) return "열린 위험 없음";
   return total ? `위험이 많아 주요 이슈 10건에 ${level}가 들지 않았습니다` : `열린 ${level} 없음`;
 }
 
-// 전체 이슈 = 기간 안에 조치를 끝낸 것 + 지금 남은 것 — 조치 완료율의 분모입니다. 누르면 이슈 표의 거르기를 풉니다.
+// 전체 이슈 = 기간 안에 조치를 끝낸 것 + 지금 남은 것 — 조치 완료율의 분모임. 누르면 이슈 표의 거르기를 풂
 function Tiles({ d, level, onPick }: { d: Overview; level: Open | null; onPick: (l: Open | null) => void }) {
   const c = d.counts;
   const all = c.completion.done + c.completion.waiting;
@@ -82,7 +82,7 @@ function Tiles({ d, level, onPick }: { d: Overview; level: Open | null; onPick: 
   );
 }
 
-// 시안처럼 요약 셋 + 우선 조치 권고 — 요약은 AI 비서가 영역마다 낸 맨 앞 할 일(위험부터 셋), 권고는 AI 한 줄 요약입니다.
+// 요약 셋 = 영역마다 맨 앞 할 일(위험부터), 우선 조치 권고 = AI 한 줄 요약
 function Summary({ b, go }: { b: Briefing | null; go: Go }) {
   const jobs = useJobs();
   const start = useStartJob();
@@ -157,10 +157,10 @@ function AreaDonut({ d }: { d: Overview }) {
 
 const SERIES = ["위험", "주의"] as const;
 const LINE: Record<Open, string> = { "위험": "var(--color-risk)", "주의": "var(--color-warn)" };
-// 이 날 수까지는 날마다 점을 찍고, 넘으면 점이 겹쳐 마지막 날과 가리킨 날에만 찍습니다.
+// 이 날 수까지는 날마다 점을 찍고, 넘으면 점이 겹쳐 마지막 날과 가리킨 날에만 찍음
 const DOT_DAYS = 14;
 
-// 그날 끝에 남은 위험 주의 — 선 둘, 가리킨 날은 세로선과 값.
+// 그날 끝에 남은 위험 주의 — 선 둘, 가리킨 날은 세로선과 값
 function Trend({ d }: { d: Overview }) {
   const days = d.trend;
   const max = niceMax(Math.max(1, ...days.flatMap((x) => [x["위험"], x["주의"]])));
@@ -202,7 +202,7 @@ function Trend({ d }: { d: Overview }) {
   );
 }
 
-// 표는 한 쪽 5줄 — 10줄을 다 펼치면 화면이 길어져 쪽으로 넘깁니다.
+// 표는 한 쪽 5줄 — 10줄을 다 펼치면 화면이 길어져 쪽으로 넘김
 const PAGE = 5;
 
 function Issues({ id, title, rows, empty, go }: { id: string; title: string; rows: OverviewRow[]; empty: string; go: Go }) {
@@ -227,7 +227,7 @@ function Issues({ id, title, rows, empty, go }: { id: string; title: string; row
 }
 
 
-// 최근 조치 — 완료율의 "완료"로 센 것 (조치 완료 결정 · 회수), 늦은 것부터 10건. recent 가 없는 예전 서버에서도 깨지지 않게 합니다.
+// 최근 조치 — 완료율의 "완료"(조치 완료 결정 · 회수), 늦은 것부터 10건. recent 없는 예전 서버 대비
 function Recent({ d, go }: { d: Overview; go: Go }) {
   const rows = d.recent ?? [];
   const { shown, at, pages, setPage } = usePage(rows, PAGE);
@@ -249,10 +249,10 @@ function Recent({ d, go }: { d: Overview; go: Go }) {
   );
 }
 
-// 조치 완료 · 회수 모두 끝난 일이라 검토 현황의 "조치 완료" 배지 색을 씁니다.
+// 조치 완료 · 회수 모두 끝난 일이라 검토 현황의 "조치 완료" 배지 색을 씀
 const DONE_TONE = decisionState({ action: "done" }).tone;
 
-// 유형 — 메뉴 기호와 이름을 회색 배지로 묶어 내용 글과 나눕니다.
+// 유형 — 메뉴 기호와 이름을 회색 배지로 묶어 내용 글과 나눔
 function Area({ area, label }: { area: OverviewRow["area"]; label: string }) {
   return <IconBadge icon={AREA_ICON[area]}>{label}</IconBadge>;
 }

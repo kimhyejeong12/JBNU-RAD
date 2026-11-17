@@ -22,7 +22,7 @@ const LAUNCHER = "fixed right-5 bottom-5 z-40 flex size-13 items-center justify-
 const POPUP = "fixed right-5 bottom-21 z-60 flex h-[min(660px,calc(100vh-112px))] w-[min(460px,calc(100vw-40px))] flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-[0_16px_40px_rgba(0,0,0,.2)] phone:inset-0 phone:h-auto phone:w-auto phone:rounded-none phone:border-0";
 const CLOSE ="flex size-8 flex-none items-center justify-center rounded-[7px] border-0 bg-transparent text-ink-dim hover:bg-canvas hover:text-ink";
 
-// 어느 화면에서든 오른쪽 아래 버튼으로 여는 질의 에이전트입니다.
+// 어느 화면에서든 오른쪽 아래 버튼으로 여는 질의 에이전트임
 export function AskDock() {
   const me = useMe();
   const { ui, setAskOpen } = useUi();
@@ -56,7 +56,7 @@ function AskPopup() {
     if (el) el.scrollTop = el.scrollHeight;
   }, [list.length, busy, evidence]);
 
-  // 다른 Esc 동작(패널 닫기)보다 먼저 받아 근거 → 대화 → 닫기 순으로 물러납니다.
+  // 다른 Esc 동작(패널 닫기)보다 먼저 받아 근거 → 대화 → 닫기 순으로 물러남
   useEscape(() => (ui.askSource ? setAskSource(null) : setAskOpen(false)), true);
 
   const toggle = (i: number, n: number) => {

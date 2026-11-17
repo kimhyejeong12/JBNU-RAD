@@ -26,7 +26,7 @@ export function visible(items: QueueItem[], o: VisibleOptions): QueueItem[] {
   });
 }
 
-// 결정하지 않은 주의 · 위험을 위로 올려 쌓이는 판정에 묻히지 않게 합니다 (sort 는 같은 값끼리 순서를 지킴).
+// 결정하지 않은 주의 · 위험을 위로 올려 쌓이는 판정에 묻히지 않게 함 (sort 는 같은 값끼리 순서를 지킴)
 const waiting = (it: QueueItem) => (it.type === "policy" || it.type === "server" || it.type === "event") && !it.decision && (it.level === "주의" || it.level === "위험");
 export const todoFirst = (items: QueueItem[]): QueueItem[] => [...items].sort((a, b) => Number(waiting(b)) - Number(waiting(a)));
 
@@ -36,7 +36,7 @@ export function openRisks(items: QueueItem[], role: Role): QueueItem[] {
     it.type === "req" ? it.raw.stage === STEP[role] : (it.type === "policy" || it.type === "server" || it.type === "event") && !it.decision));
 }
 
-// 사이드바 숫자는 고른 탭 · 거르기와 상관없이 그 메뉴에서 내가 처리할 일입니다.
+// 사이드바 숫자는 고른 탭 · 거르기와 상관없이 그 메뉴에서 내가 처리할 일임
 const TODO: Partial<Record<View, (it: QueueItem, role: Role) => boolean>> = {
   requests: (it, role) => it.type === "req" && it.raw.stage === STEP[role],
   policies: (it) => (it.type === "policy" || it.type === "server") && (it.level === "주의" || it.level === "위험") && !it.decision,

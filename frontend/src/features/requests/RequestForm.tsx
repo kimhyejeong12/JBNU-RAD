@@ -11,16 +11,16 @@ import { card, formMsg, formMsgOk, input } from "@/shared/ui/styles";
 
 const EMPTY = { code: "", reason: "", start: "", end: "", open: false };
 const LABEL = "mb-1 block text-sm font-medium text-ink-soft";
-// 누른 칸은 2px 남색 테두리입니다 (테두리 1px + 바깥 링 1px).
+// 누른 칸은 2px 남색 테두리임 (테두리 1px + 바깥 링 1px)
 const FIELD = cn(input, "text-sm focus:border-brand focus:ring-1 focus:ring-brand");
 const REQUIRED = <b className="font-medium text-risk">*</b>;
-// 신청한 뒤의 일을 적습니다 — 일반 사용자는 누가 결재하는지, 권한이 언제 다시 검토되는지 모릅니다.
+// 신청한 뒤의 일을 적음 — 일반 사용자는 누가 결재하는지, 권한이 언제 다시 검토되는지 모름
 const GUIDE = [
   "보안 운영자(1차)와 보안 총책임자(최종)의 결재 후 부여됩니다.",
   "기간이 끝나거나 부서, 직무가 바뀌면 다시 검토될 수 있습니다.",
 ];
 
-// 현재 보유 권한은 서버가 신청 때 채워서 적지 않습니다.
+// 현재 보유 권한은 서버가 신청 때 채워서 적지 않음
 export function RequestForm() {
   const catalog = useCatalog();
   const mine = useMine();
@@ -64,7 +64,7 @@ export function RequestForm() {
   }
 
   return (
-    // 오른쪽 내 신청과 아래 끝을 맞추려 늘고, 남는 자리는 카드 맨 아래에 둡니다.
+    // 오른쪽 내 신청과 아래 끝을 맞추려 늘고, 남는 자리는 카드 맨 아래에 둠
     <section className={cn(card, "flex flex-1 flex-col p-6")} id="req-form">
       <h2 className="m-0 mb-5 text-lg font-bold">신규 권한 신청서</h2>
       <form id="new-request" className="flex flex-1 flex-col gap-5" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
@@ -89,7 +89,7 @@ export function RequestForm() {
           <textarea id="req-reason" className={cn(FIELD, "block resize-none p-3")} name="reason" maxLength={2000} rows={3} value={form.reason}
             onChange={(e) => set({ reason: e.target.value })} placeholder="예: 월말 급여 정산 담당으로 급여 테이블 조회가 필요합니다" />
         </div>
-        {/* 안내는 신청한 뒤의 일이라 버튼 아래에 — 버튼이 첫 화면에 들어오게 합니다. */}
+        {/* 안내는 신청한 뒤의 일이라 버튼 아래에 — 버튼이 첫 화면에 들어오게 함 */}
         <div className="flex flex-col gap-3">
           <div className="flex gap-3">
             <button type="button" className="flex-1 rounded-lg border border-line bg-surface py-2.5 text-base font-medium text-ink-soft hover:bg-row-hover"
@@ -110,14 +110,14 @@ export function RequestForm() {
   );
 }
 
-// 권한이 수백 개라 시스템별로 묶은 고르기 상자입니다. 이미 가졌거나 결재 중인 권한은 이유를 붙여 고르지 못하게 둡니다.
-// 브라우저 기본 고르기 상자는 맥에서 목록을 상자 위에 겹쳐 띄워, 운영체제와 상관없이 상자 아래로 펼치려 직접 그립니다.
+// 권한이 수백 개라 시스템별로 묶은 고르기 상자임. 이미 가졌거나 결재 중인 권한은 이유를 붙여 고르지 못하게 둠
+// 브라우저 기본 고르기 상자는 맥에서 목록을 상자 위에 겹쳐 띄워, 운영체제와 상관없이 상자 아래로 펼치려 직접 그림
 function AccessSelect({ o, onPick }: { o: AccessOptions; onPick: (code: string) => void }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const list = useRef<HTMLUListElement>(null);
   const button = useRef<HTMLButtonElement>(null);
-  // 시스템을 적지 않은 권한(기타)은 맨 뒤로 둡니다.
+  // 시스템을 적지 않은 권한(기타)은 맨 뒤로 둠
   const sys = (a: AccessItem) => a.system || "기타";
   const systems = [...new Set(o.items.map(sys))].sort((x, y) => Number(x === "기타") - Number(y === "기타"));
   const flat = systems.flatMap((system) => o.items.filter((a) => sys(a) === system));
@@ -132,7 +132,7 @@ function AccessSelect({ o, onPick }: { o: AccessOptions; onPick: (code: string) 
 
   if (o.empty) return <p className="m-0 text-sm text-ink-dim">신청할 수 있는 권한이 없습니다.</p>;
 
-  // 열면 고른 권한에, 없으면 고를 수 있는 첫 권한에 둡니다.
+  // 열면 고른 권한에, 없으면 고를 수 있는 첫 권한에 둠
   const show = () => { setActive(picked ? flat.indexOf(picked) : usable[0] ?? -1); setOpen(true); };
   const close = () => { setOpen(false); button.current?.focus(); };
   const choose = (i: number) => { if (usable.includes(i)) { onPick(flat[i].code); close(); } };
@@ -158,7 +158,7 @@ function AccessSelect({ o, onPick }: { o: AccessOptions; onPick: (code: string) 
         <button ref={button} type="button" id="req-access" name="access_code" aria-haspopup="listbox" aria-expanded={open} aria-controls="req-access-list"
           aria-labelledby="req-access-label req-access-value"
           className={cn(FIELD, "flex h-11 items-center py-2.5 pr-10 pl-2.5 text-left", !picked && "text-ink-dim", open && "border-brand ring-1 ring-brand")}
-          // 사파리는 누른 단추에 포커스를 주지 않아, 열린 목록이 먼저 닫혔다가 이 클릭에 다시 열리지 않게 막습니다.
+          // 사파리는 누른 단추에 포커스를 주지 않아, 열린 목록이 먼저 닫혔다가 이 클릭에 다시 열리지 않게 막음
           onMouseDown={(e) => { if (open) e.preventDefault(); }}
           onClick={() => (open ? close() : show())}
           onKeyDown={(e) => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); show(); } }}>

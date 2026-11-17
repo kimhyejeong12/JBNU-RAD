@@ -9,7 +9,7 @@ import { useMediaQuery } from "@/shared/lib/hooks";
 
 export const NARROW = "(max-width: 1150px)";
 
-// 오류 안내는 고칠 때까지 봐야 해서 완료(✓) 안내만 저절로 지웁니다.
+// 오류 안내는 고칠 때까지 봐야 해서 완료(✓) 안내만 저절로 지움
 export const DONE_MSG_MS = 4000;
 
 export interface UiStore {

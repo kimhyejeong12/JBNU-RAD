@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { cn } from "./cn";
 
-// Tailwind 는 소스 글자에서 클래스를 찾으므로 `bg-${tone}` 처럼 조각으로 만든 이름은 CSS 가 생기지 않습니다.
+// Tailwind 는 소스 글자에서 클래스를 찾으므로 `bg-${tone}` 처럼 조각으로 만든 이름은 CSS 가 생기지 않음
 const PREFIX = "(?:bg|text|border|shadow|fill|stroke|ring|outline|decoration|from|to|h|w|size|min-w|max-w|min-h|max-h|p[xytrbl]?|m[xytrbl]?"
   + "|gap(?:-[xy])?|space-[xy]|rounded(?:-[a-z]+)?|top|left|right|bottom|inset(?:-[xy])?|z|opacity|font|leading|tracking"
   + "|grid-cols|grid-rows|col-span|row-span|col-start|row-start|translate-[xy]|lv|mk)";

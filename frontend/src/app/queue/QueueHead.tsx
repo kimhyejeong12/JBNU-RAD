@@ -26,8 +26,8 @@ export function QueueHead() {
   const run = runButton(jobs, ui.view, start.isPending);
   const view = ui.view;
   const counted = view && LEVEL_VIEWS.has(view) ? levelCounts(items, view, ui.stageFilter, me.role) : null;
-  // 로그 감시는 주의 이상만 목록에 올라와, 정상은 서버가 센 건수만 보입니다 (누르지 않음).
-  // event_levels 가 없는 예전 서버와 붙어도 깨지지 않게 0 으로 둡니다.
+  // 로그 감시는 주의 이상만 목록에 올라와, 정상은 서버가 센 건수만 보임 (누르지 않음)
+  // event_levels 가 없는 예전 서버와 붙어도 깨지지 않게 0 으로 둠
   const normal = results.event_levels?.["정상"] ?? 0;
   const byLevel = counted && view === "events" ? { ...counted, "정상": normal, "전체": counted["전체"] + normal } : counted;
   return (
@@ -45,7 +45,7 @@ export function QueueHead() {
       </div>
       {byLevel && (
         <div className="grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-2.5" id="level-filter" role="group" aria-label="AI 판단 등급">
-          {/* 처리 방향은 숫자 옆에 — 노트북에서 타일이 높지 않게 합니다. */}
+          {/* 처리 방향은 숫자 옆에 — 노트북에서 타일이 높지 않게 함 */}
           <Tile label="전체" big={byLevel["전체"]} className="py-3" pressed={ui.filter === "전체"} onClick={() => setFilter("전체")} />
           {LEVELS.map((l) => {
             const countOnly = view === "events" && l === "정상";
@@ -62,7 +62,7 @@ export function QueueHead() {
   );
 }
 
-// 모델 서버가 응답하지 않으면 다른 작업이 모두 막혀서 강제 중지를 둡니다.
+// 모델 서버가 응답하지 않으면 다른 작업이 모두 막혀서 강제 중지를 둠
 export function JobReset() {
   const jobs = useJobs();
   const reset = useResetJobs();

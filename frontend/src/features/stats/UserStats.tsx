@@ -39,7 +39,7 @@ export function UserHead({ d, onSelect }: Props) {
   );
 }
 
-// 의심 점수는 기간과 무관한 마지막 예측입니다.
+// 의심 점수는 기간과 무관한 마지막 예측임
 export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jobs | null }) {
   const start = useStartJob();
   const sus = d.suspects || [];
@@ -48,7 +48,7 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
   return (
     <section className={cardCol} id="stat-suspects">
       <CardHead title="의심 점수">
-        {/* 둘 다 오른쪽으로 밀면 버튼이 가운데로 떠서 버튼만 오른쪽 끝에 둡니다. */}
+        {/* 둘 다 오른쪽으로 밀면 버튼이 가운데로 떠서 버튼만 오른쪽 끝에 둠 */}
         <span className={cardCountInline}>{sus.length ? `${sus.length}명, ${stamp(latest)}` : ""}</span>
         <button className={toolButton} id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
           <Icon name="activity" small />{running ? `예측 중…${jobProgress(jobs)}` : "지금 예측"}
@@ -67,7 +67,7 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
 }
 
 function ScoreCell({ p }: { p: Suspect }) {
-  if (!p.level) return null;   // 예측 실패는 부르는 쪽이 따로 적습니다
+  if (!p.level) return null;   // 예측 실패는 부르는 쪽이 따로 적음
   return (
     <span className="flex items-center gap-2 whitespace-nowrap">
       <span className="h-1.5 w-14 shrink-0 overflow-hidden rounded-sm bg-canvas"><span className={cn("block h-full", markTone[SUSPECT_COLOR[p.level]])} style={{ width: `${p.score}%` }} /></span>

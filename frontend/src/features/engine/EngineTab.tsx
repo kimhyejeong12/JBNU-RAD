@@ -11,7 +11,7 @@ const ROW = "flex items-center gap-3 px-4.5 py-2.75";
 const ICON_BOX = "flex size-8 flex-none items-center justify-center rounded-lg bg-canvas text-ink-soft";
 const at = (iso: string | null | undefined) => dayTime(iso).join(" ");
 
-// 왼쪽 = 작업 큐(지금 도는 것 · 기다리는 것, 실시간), 오른쪽 = 작업별 실행(예약 · 마지막 실행, 시스템이 어떻게 도는지).
+// 왼쪽 작업 큐(실시간), 오른쪽 작업별 실행(예약 · 마지막 실행)
 export function EngineTab() {
   const q = useQueueDetail();
   const clear = useClearQueue();
@@ -39,7 +39,7 @@ export function EngineTab() {
   );
 }
 
-// 첫 줄이 지금 도는 작업, 그 아래가 길마다 기다리는 작업입니다.
+// 첫 줄이 지금 도는 작업, 그 아래가 길마다 기다리는 작업임
 function Queue({ d }: { d: QueueDetail }) {
   const j = d.current;
   return (
@@ -76,7 +76,7 @@ function Queue({ d }: { d: QueueDetail }) {
   );
 }
 
-// 작업마다 한 줄 — 간격, 다음 실행, 마지막 실행과 그 결과.
+// 작업마다 한 줄 — 간격, 다음 실행, 마지막 실행과 그 결과
 function Jobs({ d }: { d: QueueDetail }) {
   const rows = jobRows(d);
   return (

@@ -11,13 +11,13 @@ import { cn } from "@/shared/lib/cn";
 import { IconBadge, LevelLabel } from "@/shared/ui/parts";
 import { empty, levelText, stageTone } from "@/shared/ui/styles";
 
-// 창 폭이 아니라 목록 폭(약 560px)으로 상세 · 시각을 숨깁니다 — 메뉴 · 패널을 펼치면 목록이 좁아져서.
+// 창 폭이 아니라 목록 폭(약 560px)으로 상세 · 시각을 숨김 — 메뉴 · 패널을 펼치면 목록이 좁아져서
 const GRID = "grid grid-cols-[minmax(120px,1fr)_minmax(140px,2fr)_120px_104px] items-center gap-3 px-4.5 @max-[560px]:grid-cols-[minmax(0,1fr)_100px]";
-// 판정 목록은 AI 판단과 사람의 처리 상태를 다른 열로 둡니다.
+// 판정 목록은 AI 판단과 사람의 처리 상태를 다른 열로 둠
 const GRID_SPLIT = "grid grid-cols-[minmax(120px,1fr)_minmax(140px,2fr)_120px_76px_128px] items-center gap-3 px-4.5 @max-[560px]:grid-cols-[minmax(0,1fr)_64px_96px]";
-// 줄마다 시각이 같은 목록(정책 관리)은 시간 열이 없습니다.
+// 줄마다 시각이 같은 목록(정책 관리)은 시간 열이 없음
 const GRID_SPLIT_NO_TIME = "grid grid-cols-[minmax(120px,1fr)_minmax(140px,2fr)_76px_128px] items-center gap-3 px-4.5 @max-[560px]:grid-cols-[minmax(0,1fr)_64px_96px]";
-// 셋째 칸이 배지(역할 · 업무 시스템)인 관리 목록입니다.
+// 셋째 칸이 배지(역할 · 업무 시스템)인 관리 목록임
 const GRID_BADGE = "grid grid-cols-[minmax(120px,1fr)_minmax(140px,1.6fr)_164px_120px_96px] items-center gap-3 px-4.5 @max-[560px]:grid-cols-[minmax(0,1fr)_100px]";
 const SLIM = "@max-[560px]:hidden";
 export function QueueTable() {
@@ -27,7 +27,7 @@ export function QueueTable() {
   const jobs = useJobs();
   const view = ui.view;
   const cols = view ? VIEWS[view].cols : [];
-  // 권한 신청 · 정책 관리 · 로그 감시는 AI 판단과 처리 상태를 다른 열로 둡니다.
+  // 권한 신청 · 정책 관리 · 로그 감시는 AI 판단과 처리 상태를 다른 열로 둠
   const split = !!view && LEVEL_VIEWS.has(view);
   const time = !view || VIEWS[view].time !== false;
   const badge = !!view && VIEWS[view].badge === true;
@@ -50,9 +50,9 @@ export function QueueTable() {
   );
 }
 
-// 처리 상태 — 신청은 결재 단계, 정책 · 서버 · 로그는 운영자 결정입니다 (1차 판정처럼 결정 전 글이 있으면 그 글).
+// 처리 상태 — 신청은 결재 단계, 정책 · 서버 · 로그는 운영자 결정임 (1차 판정처럼 결정 전 글이 있으면 그 글)
 function stateOf(it: QueueItem): { text: string; tone: string } {
-  // 재검토 글(이동 재검토 위험 등)은 AI 등급이 든 글이라 상태 색을 입히지 않습니다.
+  // 재검토 글(이동 재검토 위험 등)은 AI 등급이 든 글이라 상태 색을 입히지 않음
   if (it.type === "req") return { text: it.sub ?? "", tone: it.raw.grant_review ? "border-line text-ink-soft" : stageTone(it.raw) };
   if (it.decision || !it.sub) return decisionState(it.decision);
   return { text: it.sub, tone: "border-line text-ink-dim" };

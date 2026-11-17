@@ -7,7 +7,7 @@ import type { AccessItem, AskItem, Conversation, Jobs, Regulation, RegulationInd
 import { chipLabel, clauseHead, clauseText } from "@/shared/lib/clause";
 import { refreshResults, shouldRefresh } from "@/shared/api/jobs";
 
-// 받기 전에는 늘 같은 빈 배열을 돌려주어 useMemo 의존성이 그릴 때마다 바뀌지 않게 합니다.
+// 받기 전에는 늘 같은 빈 배열을 돌려주어 useMemo 의존성이 그릴 때마다 바뀌지 않게 함
 const NONE: never[] = [];
 
 export const useNeeds = (): DataNeeds => dataNeeds(useMe().role);
@@ -52,7 +52,7 @@ export function useRegulations(): Regulation[] {
   return useQuery({ ...regulationsQuery(), enabled }).data ?? NONE;
 }
 
-// 기준 문서마다 RAG 에 쌓인 조각 수 — 기준 문서 화면에서만 받습니다.
+// 기준 문서마다 RAG 에 쌓인 조각 수 — 기준 문서 화면에서만 받음
 export function useRegulationIndex(enabled: boolean): RegulationIndex | null {
   const operator = useNeeds().operator;
   return useQuery({ ...regulationIndexQuery(), enabled: enabled && operator }).data ?? null;
@@ -82,7 +82,7 @@ export function useClauses() {
   }), [regulations]);
 }
 
-// 받았는지 · 실패했는지를 봐야 해서 data.ts 의 훅 대신 쿼리를 직접 구독합니다.
+// 받았는지 · 실패했는지를 봐야 해서 data.ts 의 훅 대신 쿼리를 직접 구독함
 export function useBoot(): { ready: boolean; error: string | null } {
   const need = useNeeds();
   const required: [boolean, UseQueryResult<unknown>][] = [
@@ -92,7 +92,7 @@ export function useBoot(): { ready: boolean; error: string | null } {
     [need.catalog, useQuery({ ...catalogQuery(), enabled: need.catalog })],
     [need.results, useQuery({ ...resultsQuery(), enabled: need.results })],
   ];
-  // 엔진 상태 · 기준 문서 · 작업 · 지난 대화는 못 받아도 화면을 막지 않습니다.
+  // 엔진 상태 · 기준 문서 · 작업 · 지난 대화는 못 받아도 화면을 막지 않음
   useQuery({ ...healthQuery(), enabled: need.operator });
   useQuery({ ...conversationsQuery(), enabled: need.operator });
   useQuery({ ...regulationsQuery(), enabled: need.operator });
@@ -105,7 +105,7 @@ export function useBoot(): { ready: boolean; error: string | null } {
   };
 }
 
-// 같은 값이 다시 오면(StrictMode 두 번 마운트) 아무것도 하지 않습니다.
+// 같은 값이 다시 오면(StrictMode 두 번 마운트) 아무것도 하지 않음
 export function useJobsWatcher(enabled: boolean): void {
   const qc = useQueryClient();
   const jobs = useQuery({ ...jobsQuery(), enabled });
