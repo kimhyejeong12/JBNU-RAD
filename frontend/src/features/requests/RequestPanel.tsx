@@ -128,7 +128,7 @@ function RequestFoot({ r, role, draft, onDraft, act }: { r: RequestRow; role: Ro
     return (
       <>
         <h4 className={panelFootTitle}>{role === "manager" ? "1차 결재" : "최종 결재"}</h4>
-        <textarea className={cn(input, "min-h-14 resize-y")} id="decision-comment" maxLength={2000} placeholder="결재 의견 (선택)" value={draft.comment} onChange={(e) => onDraft({ ...draft, comment: e.target.value })} />
+        <textarea className={cn(input, "h-10 min-h-10 resize-y")} rows={1} id="decision-comment" maxLength={2000} placeholder="결재 의견 (선택)" value={draft.comment} onChange={(e) => onDraft({ ...draft, comment: e.target.value })} />
         <div className={panelActions}>
           <button className={cn(actionButton, goodButton, "flex-1")} onClick={() => act("approve")}>승인</button>
           <button className={cn(actionButton, dangerButton, "flex-1")} onClick={() => act("reject")}>반려</button>
