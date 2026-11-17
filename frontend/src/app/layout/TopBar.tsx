@@ -49,7 +49,7 @@ export function TopBar() {
         {/* 누구로 로그인했는지는 다른 곳에 없어 이름을 숨기지 않음 */}
         <div className="flex items-center text-sm phone:order-1 phone:ml-auto" id="who">
           <span id="who-name" className="flex flex-col items-end whitespace-nowrap leading-snug">
-            <span className="font-medium">{me.display_name} <span className="text-xs text-bar-line-hover">({ROLE_LABEL[me.role]}{me.is_root ? ", 루트" : ""})</span></span>
+            <span className="font-medium">{me.display_name} <span className="text-xs text-bar-line-hover">({ROLE_LABEL[me.role]})</span></span>
             {me.department && <span className="text-xs text-bar-line-hover">{me.department}</span>}
           </span>
         </div>

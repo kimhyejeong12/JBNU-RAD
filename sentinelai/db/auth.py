@@ -96,7 +96,7 @@ def _require_account_admin(by: User) -> None:
 def _guard_target(by: User, target: Row) -> None:
     # 다른 사람이 루트의 비밀번호를 바꾸면 루트를 가로챌 수 있어 막습니다.
     if target["is_root"] and not by.is_root:
-        raise Denied("루트 계정은 루트만 고칠 수 있습니다")
+        raise Denied("처음 설정한 계정은 본인만 고칠 수 있습니다")
 
 
 def create_user(db: Database, by: User, login_id: str, password: str, display_name: str, department: str, role: str,
@@ -143,7 +143,7 @@ def update_user(db: Database, by: User, user_id: int, **changes: object) -> User
             raise Denied("없는 계정입니다")
         _guard_target(by, target)
         if target["is_root"] and ("role" in fields or fields.get("is_active") in (0, False)):
-            raise Denied("루트의 역할을 바꾸거나 정지할 수 없습니다")
+            raise Denied("처음 설정한 계정은 역할을 바꾸거나 정지할 수 없습니다")
         # 자기 역할을 낮추거나 정지하면 되돌릴 수 없게 됩니다.
         if target["id"] == by.id and ("role" in fields or fields.get("is_active") in (0, False)):
             raise Denied("자기 계정의 역할을 바꾸거나 정지할 수 없습니다")

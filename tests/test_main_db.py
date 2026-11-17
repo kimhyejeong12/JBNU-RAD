@@ -52,7 +52,7 @@ def test_manager_manages_every_account_but_root(main_db, people):
     assert len(auth.list_users(main_db, top)) == 7
     with denied("자기 계정의 역할을 바꾸거나 정지할 수 없습니다"):
         auth.update_user(main_db, manager, manager.id, role="top")
-    with denied("루트 계정은 루트만 고칠 수 있습니다"):
+    with denied("처음 설정한 계정은 본인만 고칠 수 있습니다"):
         auth.update_user(main_db, manager, people["root"].id, display_name="바꿈")
     for denied_call in (lambda: auth.create_user(main_db, top, "t2", PASSWORD, "총", "", "user"),
                         lambda: auth.update_user(main_db, top, made.id, department="영업팀"),
@@ -111,7 +111,7 @@ def test_log_id_is_unique(main_db, people):
 
 
 def test_root_is_guarded(main_db, people):
-    with denied("루트 계정은 루트만 고칠 수 있습니다"):
+    with denied("처음 설정한 계정은 본인만 고칠 수 있습니다"):
         auth.reset_password(main_db, people["manager"], people["root"].id, "temp-pass")
 
 

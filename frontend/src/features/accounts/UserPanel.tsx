@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateUser, useUserAction } from "./api";
-import { roleMenus, roleText } from "./lib";
+import { roleMenus } from "./lib";
 import { useMe } from "@/app/session/me";
 import { canManageAccounts } from "@/app/session/views";
 import { useRequests } from "@/app/session/data";
@@ -89,8 +89,8 @@ function EditUser({ u }: { u: UserRow }) {
   const locked = !admin || (u.is_root && !me.is_root);
   const fixed = u.is_root || self;
   const lockText = !admin ? "계정 관리는 보안 운영자가 합니다."
-    : locked ? "루트 계정은 루트만 고칠 수 있습니다."
-    : u.is_root ? "루트는 역할을 바꾸거나 정지할 수 없습니다."
+    : locked ? "처음 설정한 계정이라 본인만 고칠 수 있습니다."
+    : u.is_root ? "처음 설정한 계정이라 역할을 바꾸거나 정지할 수 없습니다."
       : self ? "자기 계정의 역할을 바꾸거나 정지할 수 없습니다."
         : "";
 
@@ -152,7 +152,7 @@ function EditUser({ u }: { u: UserRow }) {
     <Panel title="계정 상세 정보" actions={edit} foot={<PanelFoot />}>
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <Subject title={<>{u.display_name} ({u.login_id})</>} className="mb-0" info={[roleText(u), u.department || "부서 없음"]} />
+          <Subject title={<>{u.display_name} ({u.login_id})</>} className="mb-0" info={[ROLE_LABEL[u.role], u.department || "부서 없음"]} />
         </div>
         <Pill tone={u.is_active ? goodButton : "border-line text-ink-dim"} className="gap-1 py-1">
           <Icon name={u.is_active ? "check" : "close"} small />{u.is_active ? "활성 계정" : "정지 계정"}
@@ -169,7 +169,7 @@ function EditUser({ u }: { u: UserRow }) {
           <InfoRow icon="list" label="직무">
             {editing ? <input className={input} name="job" aria-label="직무" defaultValue={u.job} maxLength={100} placeholder="예: 서버 운영 담당" /> : u.job || "없음"}
           </InfoRow>
-          <InfoRow icon="gear" label="역할">{editing && canRole ? <RoleSelect value={u.role} /> : roleText(u)}</InfoRow>
+          <InfoRow icon="gear" label="역할">{editing && canRole ? <RoleSelect value={u.role} /> : ROLE_LABEL[u.role]}</InfoRow>
           <InfoRow icon="key" label="업무 권한">{held.length ? held.join(", ") : "없음"}</InfoRow>
           <InfoRow icon="calendar" label="계정 생성일"><span className="tabular-nums">{stamp(u.created_at)}</span></InfoRow>
         </div>

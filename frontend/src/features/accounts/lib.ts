@@ -14,11 +14,9 @@ export function roleMenus(role: Role): string[] {
   return out;
 }
 
-export const roleText = (u: Pick<UserRow, "role" | "is_root">): string => ROLE_LABEL[u.role] + (u.is_root ? " (루트)" : "");
-
 // 목록 한 줄 — 부서 아래 직무, 역할은 배지 칸에 따로 둠
 export const userItem = (u: UserRow, day: string = today()): QueueItem => ({
-  type: "user", key: `user:${u.id}`, id: u.login_id, badge: { icon: ROLE_ICON[u.role], text: roleText(u) },
+  type: "user", key: `user:${u.id}`, id: u.login_id, badge: { icon: ROLE_ICON[u.role], text: ROLE_LABEL[u.role] },
   who: `${u.display_name} (${u.login_id})`, what: u.department || "부서 없음", note: u.job || undefined, when: stamp(u.last_login_at) || "—",
   judge: !u.is_active ? "정지" : u.locked_until && new Date(u.locked_until) > new Date() ? "잠김" : "활성",
   sub: [u.left_on && u.left_on <= day ? `${u.left_on} 퇴사` : "", u.must_change_password ? "비밀번호 변경 전" : ""].filter(Boolean).join(", "), raw: u,
