@@ -36,3 +36,13 @@ export function Icon({ name, small, className }: { name: string; small?: boolean
     </svg>
   );
 }
+
+// 로고 방패 — 선 방패는 남색 위에서 흐려 채워 그립니다.
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg className={cn("flex-none", className)} viewBox="0 0 24 24" aria-hidden="true">
+      <path className="fill-brand-red" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path className="fill-none stroke-white stroke-[2.2] [stroke-linecap:round] [stroke-linejoin:round]" d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}

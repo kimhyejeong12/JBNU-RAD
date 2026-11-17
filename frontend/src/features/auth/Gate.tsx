@@ -4,7 +4,7 @@ import { login, changePassword } from "./api";
 import { errorText } from "@/shared/api/http";
 import { cn } from "@/shared/lib/cn";
 import { formProblem } from "@/shared/lib/form";
-import { Icon } from "@/shared/ui/base/Icon";
+import { LogoMark } from "@/shared/ui/base/Icon";
 import { actionButton, field, formActions, formMsg, input, note, primaryButton } from "@/shared/ui/base/styles";
 import { forgetPages } from "@/app/session/lastPage";
 
@@ -40,7 +40,7 @@ function LoginForm() {
 
   return (
     <form className={CARD} id="login-form" autoComplete="on" noValidate onSubmit={onSubmit}>
-      <div className="flex items-center gap-2.25 text-[20px] font-extrabold"><Icon name="shield" className="size-6.5 stroke-risk stroke-[2.2]" />SentinelAI</div>
+      <div className="flex items-center gap-2 text-[20px] font-bold tracking-wide"><LogoMark className="size-7" /><span>Sentinel<span className="font-light">AI</span></span></div>
       <label className={field}>아이디<input className={input} name="login_id" autoComplete="username" required autoFocus /></label>
       <label className={field}>비밀번호<input className={input} ref={password} name="password" type="password" autoComplete="current-password" required /></label>
       <button type="submit" className={cn(primaryButton, "h-10 rounded-lg border-none font-bold")}>로그인</button>

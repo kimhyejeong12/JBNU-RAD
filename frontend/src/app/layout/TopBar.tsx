@@ -8,7 +8,7 @@ import { openRisks } from "@/app/queue/select";
 import { useAuth } from "@/features/auth/AuthContext";
 import { logout } from "@/features/auth/api";
 import { ROLE_LABEL } from "@/shared/lib/labels";
-import { Icon } from "@/shared/ui/base/Icon";
+import { Icon, LogoMark } from "@/shared/ui/base/Icon";
 import { LevelDot } from "@/shared/ui/base/parts";
 import type { QueueItem } from "@/app/queue/types";
 import { cn } from "@/shared/lib/cn";
@@ -38,12 +38,8 @@ export function TopBar() {
     <header data-tip-instant className="relative col-span-full flex h-14 items-center gap-6 bg-brand px-6 py-0 text-white narrow:h-auto narrow:min-h-14 narrow:flex-wrap narrow:gap-y-0 narrow:px-4 phone:pb-2">
       {/* 좁은 화면에서 메뉴가 아래 줄로 내려가도 로고 줄이 막대 높이를 지키게 합니다. */}
       <div className="flex flex-none items-center gap-2 narrow:h-13">
-        {/* 선 방패는 남색 위에서 흐려 채운 방패로 그립니다. */}
-        <svg className="size-8 flex-none" viewBox="0 0 24 24" aria-hidden="true">
-          <path className="fill-brand-red" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          <path className="fill-none stroke-white stroke-[2.2] [stroke-linecap:round] [stroke-linejoin:round]" d="m9 12 2 2 4-4" />
-        </svg>
-        <span className="text-[22px] font-bold tracking-wide">Sentinel<span className="font-light text-bar-ink">AI</span></span>
+        <LogoMark className="size-7.5" />
+        <span className="text-[20px] font-bold tracking-wide">Sentinel<span className="font-light text-bar-ink">AI</span></span>
       </div>
       <TopNav />
       {/* 휴대폰 폭에서만 이 묶음을 풀어 프로필 · 종은 로고 줄 오른쪽에, 버튼 둘은 그 아래 줄로 보냅니다. */}
