@@ -64,7 +64,7 @@ export function MineList() {
         </div>
         {/* 줄이 4건보다 적어도 4건 자리를 둠 — 거를 때마다 카드 높이가 바뀌지 않게 */}
         <div className="min-h-84 flex-1 overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse text-left">
+          <table className="w-full min-w-180 border-collapse text-left">
             <thead>
               <tr className="border-b border-line bg-canvas text-sm text-ink-dim">
                 <th className={cn(TH, "w-48")}>요청번호</th><th className={TH}>신청 권한</th><th className={cn(TH, "w-56")}>신청일, 기간</th><th className={cn(TH, "w-48 text-center")}>상태</th>

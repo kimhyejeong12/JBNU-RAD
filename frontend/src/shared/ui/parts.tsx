@@ -19,7 +19,7 @@ export function LevelLabel({ level }: { level: Level }) {
 
 // 알약 모양 배지 — 색은 tone 으로 줌
 export function Pill({ tone = "border-line text-ink-soft", className, children }: { tone?: string; className?: string; children: ReactNode }) {
-  return <span className={cn("inline-flex items-center rounded-full border border-solid px-2 py-0.25 text-[12px] font-bold whitespace-nowrap", tone, className)}>{children}</span>;
+  return <span className={cn("inline-flex items-center rounded-full border border-solid px-2 py-px text-[12px] font-bold whitespace-nowrap", tone, className)}>{children}</span>;
 }
 
 export function Section({ icon, title, className, children }: { icon: string; title: ReactNode; className?: string; children: ReactNode }) {

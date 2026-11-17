@@ -57,7 +57,7 @@ export const toolButton = `ml-auto ${toolButtonInline}`;
 export const note = "m-0 mt-1.5 text-[11.5px] text-ink-dim";
 export const noteError = cn(note, "text-risk");
 // 네모난 상태 배지 (처리 상태 · 실행 중)
-export const squarePill = "rounded-[4px] py-0.5";
+export const squarePill = "rounded-sm py-0.5";
 
 export const formMsg = "mr-auto text-[12.5px] text-risk";
 export const formMsgOk = "mr-auto text-[12.5px] text-ok";

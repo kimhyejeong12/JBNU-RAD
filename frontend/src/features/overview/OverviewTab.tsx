@@ -102,7 +102,7 @@ function Summary({ b, go }: { b: Briefing | null; go: Go }) {
             {firstTodos(b).map((t) => (
               <li key={`${t.area}:${t.item}`}>
                 <button onClick={() => go(t.area, t.key)} data-tip={`${t.label}, ${t.subject}|${t.why}`}
-                  className="flex w-full items-baseline rounded-md border-none bg-transparent px-1.5 py-1 text-left text-[13px] leading-[1.5] hover:bg-surface">
+                  className="flex w-full items-baseline rounded-md border-none bg-transparent px-1.5 py-1 text-left text-[13px] leading-normal hover:bg-surface">
                   <LevelDot level={t.level} /><span className="line-clamp-2">{t.task}</span>
                 </button>
               </li>
