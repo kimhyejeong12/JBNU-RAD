@@ -1,18 +1,34 @@
 import type { QueueItem } from "@/app/queue/types";
-import type { Decision, Results } from "@/shared/api/types";
+import type { Decision, Regulation, Results } from "@/shared/api/types";
+import { clauseHead } from "@/shared/lib/clause";
 import { points, stamp } from "@/shared/lib/format";
 
 const decisionOf = (r: Results, kind: string, key: string) => r.decisions?.[kind]?.[key];
 
-export function policyItems(r: Results): QueueItem[] {
-  return (r.policy_review?.issues ?? []).map((i, n) => ({
-    type: "policy", key: `policy:${i.key}`, itemKey: i.key, id: `ISSUE-${n + 1}`, level: i.level,
-    decision: decisionOf(r, "policy", i.key),
-    who: (i.policy_ids || []).join(" ↔ "),
-    lead: i.kind, what: i.reason,
-    when: stamp(r.sections?.policies?.generated_at),
-    judge: i.level, raw: i,
-  }));
+const DOC = /\[?([^\s[\]]+)\.(md|txt)\]?/;
+
+// 정책 문제의 대상 — 조항 번호 · 제목(원문에 없으면 문서 이름을 뺀 번호)과 문서 이름(확장자 없이, 한 번씩).
+export function policyTarget(ids: string[], regulations: Regulation[]): { who: string; docs: string } {
+  const heads = ids.map((id) => clauseHead(id, regulations));
+  const who = ids.map((id, n) => heads[n]?.title ?? (id.replace(DOC, "").trim() || id)).join(" ↔ ");
+  const docs = [...new Set(ids.map((id, n) => heads[n]?.doc ?? id.match(DOC)?.[1]).filter(Boolean))].join(", ");
+  return { who, docs };
+}
+
+// 대상은 조항 제목으로 줄이고, 아래 줄에 유형 · 문서 이름 — 검색은 원래 policy_ids 로도 됩니다(select.ts).
+export function policyItems(r: Results, regulations: Regulation[] = []): QueueItem[] {
+  return (r.policy_review?.issues ?? []).map((i) => {
+    const t = policyTarget(i.policy_ids || [], regulations);
+    return {
+      type: "policy", key: `policy:${i.key}`, itemKey: i.key, id: "", level: i.level,
+      typeLabel: t.docs ? `정책 문제 — ${t.docs}` : "정책 문제",
+      decision: decisionOf(r, "policy", i.key),
+      who: t.who,
+      lead: i.kind, what: i.reason,
+      when: stamp(r.sections?.policies?.generated_at),
+      judge: i.level, raw: i,
+    };
+  });
 }
 
 export function serverItems(r: Results): QueueItem[] {

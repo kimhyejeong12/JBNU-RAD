@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { EMPTY_RESULTS } from "@/shared/api/queries";
 import type { EventFinding, Results, ServerFinding } from "@/shared/api/types";
-import { compactLog, eventItems, logFacts, policyItems, serverItems } from "./lib";
+import { compactLog, eventItems, logFacts, policyItems, policyTarget, serverItems } from "./lib";
 import { DECISION_SET, decisionTone } from "@/app/ui/panel/decision";
 
 const decision = { id: 1, kind: "event" as const, item_key: "k1", subject: "", action: "approve", comment: "", ai_level: "위험" as const,
@@ -33,7 +33,14 @@ test("serverItems: 다른 곳이 있으면 개수를 앞 글로", () => {
 test("policyItems: 번호 · 정책 쌍 · 유형", () => {
   const r: Results = { ...EMPTY_RESULTS, policy_review: { summary: "", elapsed_sec: null, issues: [{ key: "p1", seq: 1, kind: "충돌", level: "위험", policy_ids: ["FW-004", "FW-005"], reason: "순서", recommendation: "r" }] },
     sections: { policies: { source: "data/policies", generated_at: "2026-10-29T03:00:00+09:00", load_issues: [] } } };
-  expect(policyItems(r)[0]).toMatchObject({ type: "policy", key: "policy:p1", itemKey: "p1", id: "ISSUE-1", who: "FW-004 ↔ FW-005", lead: "충돌", what: "순서", when: "2026-10-29 03:00", judge: "위험" });
+  expect(policyItems(r)[0]).toMatchObject({ type: "policy", key: "policy:p1", itemKey: "p1", id: "", typeLabel: "정책 문제", who: "FW-004 ↔ FW-005", lead: "충돌", what: "순서", when: "2026-10-29 03:00", judge: "위험" });
+});
+
+test("policyTarget: 조항 제목으로 줄이고 문서 이름은 한 번씩", () => {
+  const regs = [{ name: "접근권한_관리기준.md", content: "# 접근 권한\n## 3. 원칙\n### 3.1 권한 부여 원칙\n최소\n### 3.2 인사 정보 접근\n인사팀", updated_at: "" }];
+  expect(policyTarget(["접근권한_관리기준.md 3.1", "접근권한_관리기준.md 3.2"], regs)).toEqual({ who: "3.1 권한 부여 원칙 ↔ 3.2 인사 정보 접근", docs: "접근권한_관리기준" });
+  // 원문에 없는 문서는 번호만, 문서 이름은 확장자를 떼고
+  expect(policyTarget(["정책_운영기준.md 5.2"], regs)).toEqual({ who: "5.2", docs: "정책_운영기준" });
 });
 
 test("아무것도 돌리지 않은 서버는 세 목록이 모두 빈다", () => {

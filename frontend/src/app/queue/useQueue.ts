@@ -24,7 +24,7 @@ export function useQueue(): QueueItem[] {
     ...users.map((u) => userItem(u)),
     ...(hasAccess ? catalog.map(accessItem) : []),
     ...(hasDocs ? regulations.map((d) => docItem(d, index)) : []),
-    ...policyItems(results),
+    ...policyItems(results, regulations),
     ...serverItems(results),
     ...eventItems(results),
   ]), [requests, users, catalog, hasAccess, hasDocs, regulations, index, results]);
