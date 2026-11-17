@@ -11,6 +11,8 @@ import { box, card, levelText, clause, note } from "@/shared/ui/styles";
 
 const LEVEL_TINT: Record<Level, string> = { "정상": "bg-ok-tint", "주의": "bg-warn-tint", "위험": "bg-risk-tint" };
 const CAPTION = "mt-2 mb-1 text-[11.5px] font-semibold text-ink-dim";
+// 왜 · 조치 답 글 — 테두리 없이 바탕만 (카드 안 테두리 겹침 방지)
+const ANSWER = "rounded-lg bg-canvas px-3 py-2.5";
 
 export interface AiFinding { level: Level; reason: string; recommendation?: string | null; sources?: string[] | null; judgedAt?: string | null }
 
@@ -32,9 +34,9 @@ export function AiReport({ itemKey, f, wait, tip, lead, why, what, how = "어떻
       {badge}
       {f.judgedAt && <span className="ml-2 text-[11.5px] text-ink-dim">{stamp(f.judgedAt)} 판정</span>}
     </>],
-    ["왜 그렇게 판단했나요?", <><Points text={f.reason} />{why}</>, what ? badge : undefined],
+    ["왜 그렇게 판단했나요?", <><div className={ANSWER}><Points text={f.reason} /></div>{why}</>, what ? badge : undefined],
     ...(f.sources !== undefined ? [["어떤 규정에 해당하나요?", <SourceChips key="rules" itemKey={itemKey} sources={f.sources} />] as StepRow] : []),
-    ...(f.recommendation ? [[how, <Points key="how" text={f.recommendation} lead={lead} />] as StepRow] : []),
+    ...(f.recommendation ? [[how, <div key="how" className={ANSWER}><Points text={f.recommendation} lead={lead} /></div>] as StepRow] : []),
   ];
   return (
     <section className={cn(card, "mt-4.5 overflow-hidden")}>
