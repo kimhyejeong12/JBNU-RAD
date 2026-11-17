@@ -88,6 +88,12 @@ class Regulation(BaseModel):
     updated_at: str
 
 
+class RegulationIndex(BaseModel):
+    """문서마다 RAG 에 쌓인 조각 수 — 벡터 DB 에 닿지 않거나 비었으면 빈 칸입니다."""
+
+    chunks: dict[str, int]
+
+
 class ExtractedPdf(BaseModel):
     """PDF 에서 꺼낸 글 — 저장하지 않고 사람이 보고 고친 뒤 올립니다."""
 
@@ -898,6 +904,19 @@ class Briefing(BaseModel):
     current: bool
 
 
+class OverviewDone(BaseModel):
+    """최근 조치 한 건 — 완료율의 완료로 센 것 (조치 완료 결정 · 회수)."""
+
+    area: OverviewArea
+    area_label: str
+    key: str
+    subject: str
+    at: str
+    label: str
+    by: str | None
+    note: str  # 운영자 의견 · 회수 사유 (없으면 빈 글)
+
+
 class Overview(BaseModel):
     """보안 현황 종합 — 열린 것은 기간과 무관하고 완료율 · 추이만 기간 안에서 셉니다."""
 
@@ -909,6 +928,7 @@ class Overview(BaseModel):
     trend: list[ThreatDay]
     top: list[OverviewRow]
     failed: list[OverviewRow]
+    recent: list[OverviewDone]
     briefing: Briefing | None
 
 

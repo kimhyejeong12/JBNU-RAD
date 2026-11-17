@@ -222,10 +222,10 @@ def summarize(items: list[Item], log: dict[str, dict[str, list[dict[str, Any]]]]
         areas[i.area]["failed"] += 1
 
     # 완료 = 기간 안에 조치 완료로 정해 지금도 그대로인 항목(이어받은 판정은 원래 key 하나로) + 기간 안의 회수.
-    done_keys = {key for rs in log.values() for key, records in rs.items()
-                 if records[-1]["action"] == "done" and (not since or records[-1]["decided_at"] >= since)}
+    done_list = [(kind, key, records[-1]) for kind, rs in log.items() for key, records in rs.items()
+                 if records[-1]["action"] == "done" and (not since or records[-1]["decided_at"] >= since)]
     revoked = [r for r in revoked_list if r["level"] in ("주의", "위험") and (not since or r["revoked_at"] >= since)]
-    done = len(done_keys) + len(revoked)
+    done = len(done_list) + len(revoked)
     waiting = len(opened)
 
     first = since or min((i.opened for i in items), default=None)
@@ -239,7 +239,12 @@ def summarize(items: list[Item], log: dict[str, dict[str, list[dict[str, Any]]]]
         trend.append({"day": day, **counts})
 
     top = _ranked(opened)
-
+    by_decision = {i.decision: i for i in items if i.decision}
+    recent = [{"area": kind, "area_label": AREAS[kind], "key": key, "subject": by_decision[key].subject if key in by_decision else d["subject"],
+               "at": d["decided_at"], "label": ACTIONS["done"], "by": d["decider_name"], "note": d["comment"]} for kind, key, d in done_list]
+    recent += [{"area": "grant", "area_label": AREAS["grant"], "key": r["key"], "subject": r["subject"], "at": r["revoked_at"],
+                "label": "회수", "by": r["by"], "note": r["note"]} for r in revoked]
+    recent.sort(key=lambda r: r["at"], reverse=True)
 
     return {
         "generated_at": at, "since": since,
@@ -252,6 +257,7 @@ def summarize(items: list[Item], log: dict[str, dict[str, list[dict[str, Any]]]]
         "trend": trend,
         "top": [_row(i, d) for i, _, d in top[:TOP]],
         "failed": [_row(i, d) for i, _, d in failed[:TOP]],
+        "recent": recent[:TOP],   # 완료로 센 것 — 늦은 것부터
     }
 
 
@@ -259,7 +265,7 @@ def revokes(items: list[Item], grants: dict[str, list[dict[str, Any]]]) -> list[
     """회수 기록 — level 은 회수로 끝난 재검토 판정의 등급입니다 (판정 없이 회수했으면 None)."""
     level = {i.key: i.level for i in items if i.area == "grant" and i.revoked}
     return [{"key": f"grant/{g['request_no']}", "subject": f"{g['requester_department']} {g['requester_name']} {g['requested_access']}".strip(),
-             "revoked_at": g["revoked_at"],
+             "revoked_at": g["revoked_at"], "by": g["revoker_name"] or None, "note": g["revoke_reason"] or "",
              "level": level.get(f"grant/{g['request_no']}")} for g in grants["grants"] if g["revoked_at"]]
 
 

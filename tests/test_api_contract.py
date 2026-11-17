@@ -329,6 +329,13 @@ def test_extract_shapes():
     assert mismatch(R.ExtractedPdf, text) == [] and text["empty_pages"] == [2]
 
 
+def test_regulation_index_shape():
+    chunks = [SimpleNamespace(metadata={"source": n}) for n in ("a.md", "a.md", "b.md")]
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(engine=SimpleNamespace(documents=SimpleNamespace(chunks=lambda: chunks)))))
+    out = api_regulations.regulation_index(request)
+    assert mismatch(R.RegulationIndex, out) == [] and out["chunks"] == {"a.md": 2, "b.md": 1}
+
+
 def test_regulation_routes_open_to_manager_and_top():
     """기준 문서는 보안 운영자 이상의 일 — 팀 main 에서 따로 온 라우트도 같은지 봅니다."""
     def passes(check, who: str) -> bool:

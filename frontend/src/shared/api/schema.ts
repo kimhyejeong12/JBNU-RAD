@@ -517,6 +517,7 @@ export interface Overview {
   trend: ThreatDay[];
   top: OverviewRow[];
   failed: OverviewRow[];
+  recent: OverviewDone[];
   briefing: Briefing | null;
 }
 
@@ -526,6 +527,18 @@ export interface OverviewCounts {
   action: ActionCounts;
   completion: Completion;
   failed: number;
+}
+
+/** 최근 조치 한 건 — 완료율의 완료로 센 것 (조치 완료 결정 · 회수). */
+export interface OverviewDone {
+  area: "policy" | "server" | "event" | "suspect" | "grant";
+  area_label: string;
+  key: string;
+  subject: string;
+  at: string;
+  label: string;
+  by: string | null;
+  note: string;
 }
 
 /** 열린 판정 한 건 — level 이 null 이면 판정 실패. */
@@ -651,6 +664,11 @@ export interface Regulation {
   name: string;
   content: string;
   updated_at: string;
+}
+
+/** 문서마다 RAG 에 쌓인 조각 수 — 벡터 DB 에 닿지 않거나 비었으면 빈 칸입니다. */
+export interface RegulationIndex {
+  chunks: Record<string, number>;
 }
 
 /** 다시 판정을 큐에 넣은 결과. */

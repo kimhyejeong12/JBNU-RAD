@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import asdict
 from typing import Annotated, Any
@@ -19,7 +20,7 @@ from sentinelai.db.core import audit
 from .api_permissions import Approver, role
 from . import xlsx_text
 from .pdf_text import MAX_BYTES, PdfProblem, extract
-from .responses import ExtractedPdf, ExtractedTables, Named, Regulation
+from .responses import ExtractedPdf, ExtractedTables, Named, Regulation, RegulationIndex
 
 MAX_CHARS = 1_000_000
 # 위협 예측 · 정책 관리 검토가 수 분 걸려 넉넉히 기다립니다.
@@ -62,6 +63,12 @@ def _audit(request: Request, user: User, action: str, name: str, detail: dict[st
 @router.get("", dependencies=[Depends(role("manager", "top"))], response_model=list[Regulation])
 def regulations(request: Request) -> list[dict[str, str]]:
     return regs.list_all(request.app.state.main_db)
+
+
+@router.get("/index", dependencies=[Depends(role("manager", "top"))], response_model=RegulationIndex)
+def regulation_index(request: Request) -> dict[str, Any]:
+    """판정이 검색하는 RAG 에 문서마다 조각이 몇 개 있는지 — 엔진의 공개 기능(documents.chunks)으로 셉니다."""
+    return {"chunks": dict(Counter(d.metadata.get("source", "") for d in request.app.state.engine.documents.chunks()))}
 
 
 class NewRegulation(BaseModel):

@@ -90,6 +90,21 @@ def test_grant_review_until_revoked_and_leave():
     assert left["counts"]["위험"] == 1 and "퇴사" in left["top"][0]["reason"]
 
 
+def test_recent_lists_what_completion_counts():
+    judged = {"events": [_event(n, 10, "위험") for n in (1, 2, 3, 4)]}
+    log = _log(_decision(1, "event", "event_findings/1", "done", 11), _decision(2, "event", "event_findings/2", "done", 3),
+               _decision(3, "event", "event_findings/3", "done", 11), _decision(4, "event", "event_findings/3", "cancel", 12),
+               _decision(5, "event", "event_findings/4", "act", 12))
+    history = {"grants": [_grant(revoked_at=_at(13), revoker_name="운영자", revoke_reason="이동 뒤 필요 없음")], "moves": [{"id": 3, "user_id": 9, "recorded_at": _at(5)}],
+               "reviews": [{"id": 1, "request_id": 1, "move_id": 3, "level": "위험", "failed": False, "error": None,
+                            "reason": "예전 업무 권한", "judged_at": _at(5, 2)}]}
+    out = _run(judged, history, log, since=_at(9))
+    assert [(r["key"], r["label"], r["subject"], r["by"], r["note"]) for r in out["recent"]] == [
+        ("grant/REQ-20261101-001", "회수", "영업팀 김수영 급여 테이블 조회", "운영자", "이동 뒤 필요 없음"),
+        ("event_findings/1", "조치 완료", "재무 정다은", "운영자", "")]
+    assert len(out["recent"]) == out["counts"]["completion"]["done"]
+
+
 def test_policy_review_replaces_issues_and_trend():
     judged = {"reviews": [{"id": 1, "created_at": _at(10), "failed": False, "error": None},
                           {"id": 2, "created_at": _at(12), "failed": False, "error": None}],
