@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { MeContext, useMe, useViews } from "@/app/session/me";
-import { restorable } from "@/app/session/views";
+import { MeContext, useMe } from "@/app/session/me";
+import { HOME, restorable } from "@/app/session/views";
 import { readPage, savePage } from "@/app/session/lastPage";
 import { useNeeds } from "@/app/session/data";
 import { DONE_MSG_MS, NARROW, UiContext, useUiStore } from "@/app/ui/state/UiContext";
@@ -29,7 +29,6 @@ export function AppShell({ me }: { me: Me }) {
 // body 가 그리드라 감싸는 요소 없이 자식 순서를 지킵니다 (#root 는 display: contents).
 function Shell() {
   const me = useMe();
-  const views = useViews();
   const store = useUiStore();
   const { ui, dispatch, navigate } = store;
   const boot = useBoot();
@@ -53,8 +52,8 @@ function Shell() {
     if (!boot.ready || ui.view !== null) return;
     const saved = restorable(readPage(me.login_id), me.role);
     if (saved) store.restore(saved);
-    else navigate(views[0]);
-  }, [boot.ready, ui.view, navigate, views, me.login_id, me.role, store]);
+    else navigate(HOME[me.role]);
+  }, [boot.ready, ui.view, navigate, me.login_id, me.role, store]);
   useEffect(() => {
     if (ui.view) savePage(me.login_id, { view: ui.view, mainTab: ui.mainTab, stageFilter: ui.stageFilter, lastAdmin: ui.lastAdmin });
   }, [me.login_id, ui.view, ui.mainTab, ui.stageFilter, ui.lastAdmin]);

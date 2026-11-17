@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import type { Level } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
+import { dayTime } from "@/shared/lib/format";
+import { LEVEL_ICON } from "@/shared/lib/labels";
 import { Icon } from "./Icon";
 import { box, kvTable, kvTd, kvTh, levelDot, levelText } from "./styles";
 
@@ -8,9 +10,9 @@ export function LevelDot({ level, className }: { level?: Level | null; className
   return <i className={cn("mr-1.5 inline-block size-2 flex-none rounded-full align-[1px]", levelDot[level ?? "none"], className)} />;
 }
 
-// 점과 등급 글자를 한 줄로 — 표의 AI 판단 칸에 씁니다.
+// 등급 기호와 글자를 한 줄로 — 표의 AI 판단 칸에 씁니다 (검토 현황 · 종합 대시보드).
 export function LevelLabel({ level }: { level: Level }) {
-  return <span className={cn("whitespace-nowrap font-semibold", levelText[level])}><LevelDot level={level} />{level}</span>;
+  return <span className={cn("flex items-center gap-1.25 whitespace-nowrap font-semibold", levelText[level])}><Icon name={LEVEL_ICON[level]} small />{level}</span>;
 }
 
 // 알약 모양 배지 — 색은 tone 으로 줍니다.
@@ -24,6 +26,26 @@ export function Section({ icon, title, className, children }: { icon: string; ti
       <h4 className="m-0 mb-1.75 flex items-center gap-1.5 text-[12.5px] font-bold"><Icon name={icon} small />{title}</h4>
       {children}
     </div>
+  );
+}
+
+// 날짜(진하게) 위, 시각(연하게) 아래 — 표 · 목록의 시각 칸에 씁니다.
+export function DayTime({ iso, className }: { iso: string | null | undefined; className?: string }) {
+  const [day, time] = dayTime(iso);
+  return (
+    <span className={cn("flex flex-col whitespace-nowrap leading-tight tabular-nums", className)}>
+      <b className="text-[13px] font-semibold">{day}</b><small className="text-[11.5px] text-ink-dim">{time}</small>
+    </span>
+  );
+}
+
+// 패널 안의 묶음 상자 — 무엇에 쓰는 칸인지 제목으로 나눕니다 (관리 패널의 업무 정보 · 시스템 역할 · 검색 상태).
+export function GroupBox({ icon, title, className, children }: { icon: string; title: ReactNode; className?: string; children: ReactNode }) {
+  return (
+    <section className={cn("mt-4 rounded-xl border border-line bg-canvas px-3.5 pt-3 pb-3.5", className)}>
+      <h4 className="m-0 mb-2.5 flex items-center gap-1.5 text-[13px] font-bold"><Icon name={icon} small />{title}</h4>
+      {children}
+    </section>
   );
 }
 

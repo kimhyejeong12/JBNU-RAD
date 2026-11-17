@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { QueueItem } from "./types";
 import { todoFirst } from "./select";
-import { useCatalog, useRegulations, useRequests, useResults, useUsers } from "@/app/session/data";
+import { useCatalog, useRegulationIndex, useRegulations, useRequests, useResults, useUsers } from "@/app/session/data";
 import { useViews } from "@/app/session/me";
 import { userItem } from "@/features/accounts/lib";
 import { accessItem } from "@/features/catalog/lib";
@@ -18,13 +18,14 @@ export function useQueue(): QueueItem[] {
   const catalog = useCatalog();
   const results = useResults();
   const regulations = useRegulations();
+  const index = useRegulationIndex(hasDocs);
   return useMemo(() => todoFirst([
     ...requests.map(requestItem),
     ...users.map((u) => userItem(u)),
     ...(hasAccess ? catalog.map(accessItem) : []),
-    ...(hasDocs ? regulations.map(docItem) : []),
+    ...(hasDocs ? regulations.map((d) => docItem(d, index)) : []),
     ...policyItems(results),
     ...serverItems(results),
     ...eventItems(results),
-  ]), [requests, users, catalog, hasAccess, hasDocs, regulations, results]);
+  ]), [requests, users, catalog, hasAccess, hasDocs, regulations, index, results]);
 }

@@ -6,10 +6,9 @@ import { useQueue } from "./useQueue";
 import { inView, visible, emptyText } from "./select";
 import type { QueueItem } from "./types";
 import { DECISIONS, decisionState } from "@/app/ui/panel/decision";
-import { LEVEL_ICON } from "@/shared/lib/labels";
+import { StateCell } from "@/app/ui/panel/DecisionFoot";
 import { cn } from "@/shared/lib/cn";
-import { Icon } from "@/shared/ui/base/Icon";
-import { Pill } from "@/shared/ui/base/parts";
+import { LevelLabel } from "@/shared/ui/base/parts";
 import { empty, levelText, stageTone } from "@/shared/ui/base/styles";
 
 // 창 폭이 아니라 목록 폭(약 560px)으로 상세 · 시각을 숨깁니다 — 메뉴 · 패널을 펼치면 목록이 좁아져서.
@@ -77,17 +76,10 @@ function Row({ it, split, grid, time, current, onSelect }: { it: QueueItem; spli
       </span>
       {time && <span className={cn("text-[12.5px] whitespace-nowrap text-ink-dim tabular-nums", SLIM)}>{it.when}</span>}
       <span className="flex flex-col gap-px text-[13px] font-semibold">
-        {it.level
-          ? <span className={cn("flex items-center gap-1.25", levelText[it.level])}><Icon name={LEVEL_ICON[it.level]} small />{it.level}</span>
-          : <span className="flex items-center gap-1.25">{it.judge}</span>}
+        {it.level ? <LevelLabel level={it.level} /> : <span className="flex items-center gap-1.25">{it.judge}</span>}
         {!split && sub && <span className="text-[11px] font-medium text-ink-dim">{sub}</span>}
       </span>
-      {split && (
-        <span className="flex min-w-0 flex-col items-start gap-px">
-          <Pill tone={state.tone} className="block max-w-full truncate rounded-[4px] py-0.5">{state.text}</Pill>
-          {d && <span className="max-w-full truncate text-[11px] text-ink-dim">{d.decider_name}</span>}
-        </span>
-      )}
+      {split && <StateCell {...state} by={d?.decider_name} />}
     </>
   );
   return (

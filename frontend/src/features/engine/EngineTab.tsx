@@ -1,12 +1,16 @@
 import { ask } from "@/app/ui/confirm/ask";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/base/Icon";
+import { DayTime } from "@/shared/ui/base/parts";
 import { cn } from "@/shared/lib/cn";
 import { card, cardCount, cardHead, cardTitle, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton } from "@/shared/ui/base/styles";
 import { useClearQueue, useQueueDetail } from "./api";
-import { LANE_ROWS, jobName, jobTarget, lastRows, progress, waitingCount, type QueueDetail } from "./lib";
+import { LANE_ROWS, jobIcon, jobName, jobTarget, lastRows, progress, waitingCount, type QueueDetail } from "./lib";
 
 const section = cn(card, "flex flex-col");
+const ROWS = "m-0 list-none divide-y divide-line border-t border-line p-0";
+const ROW = "flex items-center gap-3 px-4.5 py-2.75";
+const ICON_BOX = "flex size-8 flex-none items-center justify-center rounded-lg bg-canvas text-ink-soft";
 
 export function EngineTab() {
   const q = useQueueDetail();
@@ -18,8 +22,10 @@ export function EngineTab() {
     if (await ask({ title: "작업 큐 강제 초기화", confirm: "초기화", danger: true, message })) clear.mutate();
   }
 
+  // 왼쪽 = 지금 도는 것 · 기다리는 것(실시간), 오른쪽 = 예약 · 마지막 실행(시스템이 어떻게 도는지).
   return (
-    <div className="flex flex-col gap-3.5" id="view-engine" role="tabpanel" aria-labelledby="tab-engine">
+    <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-start gap-3.5 narrow:grid-cols-[minmax(0,1fr)]" id="view-engine" role="tabpanel" aria-labelledby="tab-engine">
+      <div className="flex min-w-0 flex-col gap-3.5">
       <section className={section}>
         <div className={cardHead}>
           <h3 className={cardTitle}>작업 큐</h3>
@@ -32,8 +38,11 @@ export function EngineTab() {
           : d ? <Current d={d} /> : <p className={cn(note, "mx-4.5 mb-4")}>불러오는 중…</p>}
       </section>
       {d && <Waiting d={d} />}
-      {d && <Schedule d={d} />}
-      {d && <Last d={d} />}
+      </div>
+      <div className="flex min-w-0 flex-col gap-3.5">
+        {d && <Schedule d={d} />}
+        {d && <Last d={d} />}
+      </div>
     </div>
   );
 }
@@ -91,22 +100,21 @@ function Schedule({ d }: { d: QueueDetail }) {
   const rows = Object.entries(d.schedule);
   return (
     <section className={section}>
-      <div className={cardHead}><h3 className={cardTitle}>자동 실행 예약</h3></div>
-      <div className={ltableWrap}>
-        <table className={ltable}>
-          <thead><tr><th className={lth}>작업</th><th className={lth}>간격</th><th className={lth}>다음 실행</th></tr></thead>
-          <tbody>
-            {rows.length === 0 && <tr><td colSpan={3} className={ltdEmpty}>예약이 없습니다</td></tr>}
-            {rows.map(([kind, s]) => (
-              <tr key={kind}>
-                <td className={ltd}>{jobName(d, kind)}</td>
-                <td className={cn(ltd, "tabular-nums")}>{s.every_min}분마다</td>
-                <td className={cn(ltd, "tabular-nums")}>{stamp(s.next_at)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <div className={cardHead}><h3 className={cardTitle}>자동 실행 예약</h3><span className={cardCount}>다음 실행</span></div>
+      {rows.length === 0 ? <p className={cn(note, "mx-4.5 mb-4")}>예약이 없습니다</p> : (
+        <ul className={ROWS}>
+          {rows.map(([kind, s]) => (
+            <li key={kind} className={ROW}>
+              <span className={ICON_BOX}><Icon name={jobIcon(kind)} small /></span>
+              <span className="min-w-0 flex-1">
+                <b className="block truncate text-[13.5px]">{jobName(d, kind)}</b>
+                <small className="text-[12px] text-ink-dim tabular-nums">{s.every_min}분마다</small>
+              </span>
+              <DayTime iso={s.next_at} className="items-end" />
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -115,22 +123,23 @@ function Last({ d }: { d: QueueDetail }) {
   const rows = lastRows(d);
   return (
     <section className={section}>
-      <div className={cardHead}><h3 className={cardTitle}>마지막 실행</h3></div>
-      <div className={ltableWrap}>
-        <table className={ltable}>
-          <thead><tr><th className={lth}>작업</th><th className={lth}>끝난 시각</th><th className={lth}>결과</th></tr></thead>
-          <tbody>
-            {rows.length === 0 && <tr><td colSpan={3} className={ltdEmpty}>뜬 뒤 끝난 작업이 없습니다</td></tr>}
-            {rows.map(([kind, l]) => (
-              <tr key={kind}>
-                <td className={ltd}>{jobName(d, kind)}{l.auto ? " (자동)" : ""}</td>
-                <td className={cn(ltd, "tabular-nums")}>{stamp(l.finished_at)}</td>
-                <td className={cn(ltd, l.error ? "text-risk" : "text-ok")}>{l.error ?? "성공"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <div className={cardHead}><h3 className={cardTitle}>마지막 실행</h3><span className={cardCount}>끝난 시각</span></div>
+      {rows.length === 0 ? <p className={cn(note, "mx-4.5 mb-4")}>뜬 뒤 끝난 작업이 없습니다</p> : (
+        <ul className={ROWS}>
+          {rows.map(([kind, l]) => (
+            <li key={kind} className={ROW}>
+              <span className={ICON_BOX}><Icon name={jobIcon(kind)} small /></span>
+              <span className="min-w-0 flex-1">
+                <b className="block truncate text-[13.5px]">{jobName(d, kind)}</b>
+                <small className={cn("block truncate text-[12px]", l.error ? "text-risk" : "text-ok")} data-tip={l.error ?? undefined}>
+                  {l.error ? "실패" : "성공"}{l.auto ? ", 자동" : ""}
+                </small>
+              </span>
+              <DayTime iso={l.finished_at} className="items-end" />
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

@@ -27,6 +27,16 @@ export function JudgeState({ level, label, children }: { level: Level | null | u
   );
 }
 
+// 표의 처리 상태 칸 — 배지와 그 아래 정한 사람 (검토 현황 · 종합 대시보드).
+export function StateCell({ text, tone, by }: { text: string; tone: string; by?: string | null }) {
+  return (
+    <span className="flex min-w-0 flex-col items-start gap-px">
+      <Pill tone={tone} className="block max-w-full truncate rounded-[4px] py-0.5">{text}</Pill>
+      {by && <span className="max-w-full truncate text-[11px] text-ink-dim">{by}</span>}
+    </span>
+  );
+}
+
 export function DecisionBadge({ decision }: { decision: Pick<Decision, "action"> | null | undefined }) {
   const s = decisionState(decision);
   return <Pill tone={s.tone} className="rounded-[4px] py-0.5">{s.text}</Pill>;

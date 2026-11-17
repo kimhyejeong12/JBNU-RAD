@@ -1,13 +1,15 @@
 import type { QueueItem } from "@/app/queue/types";
-import type { Regulation, XlsxTable } from "@/shared/api/types";
+import type { Regulation, RegulationIndex, XlsxTable } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 
-export function docItem(d: Regulation): QueueItem {
+// index 를 받으면 조항 아래에 판정이 이 문서를 검색할 수 있는지 적습니다.
+export function docItem(d: Regulation, index?: RegulationIndex | null): QueueItem {
   const title = d.content.match(/^#\s+(.+)$/m)?.[1].trim() || d.name;
   const clauses = d.content.match(/^#{2,4}\s+\d+\.\d+/gm)?.length ?? 0;
   return {
     type: "doc", key: `doc:${d.name}`, id: "",
     who: title, what: d.name, when: stamp(d.updated_at), judge: clauses ? `${clauses}개` : "없음", raw: d,
+    sub: index ? (index.chunks[d.name] ? "검색 가능" : "검색 안 됨") : undefined,
   };
 }
 

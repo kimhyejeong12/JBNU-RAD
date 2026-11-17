@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { ChangeLog } from "@/app/ui/panel/ChangeLog";
 import { Panel, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
-import { useJobs, useRegulations } from "@/app/session/data";
+import { useHealth, useJobs, useRegulationIndex, useRegulations } from "@/app/session/data";
 import { busyJob } from "@/shared/api/jobs";
 import type { Regulation, XlsxTable } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
-import { Meta, Section } from "@/shared/ui/base/parts";
+import { Icon } from "@/shared/ui/base/Icon";
+import { GroupBox, Meta, Section } from "@/shared/ui/base/parts";
 import { actionButton, dangerButton, field, formActions, input, meta, note, panelActions, primaryButton, subject } from "@/shared/ui/base/styles";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useExtractPdf, useExtractXlsx, useRemoveRegulation, useUploadRegulation } from "./api";
@@ -129,17 +130,39 @@ function DocView({ d }: { d: Regulation }) {
         <>
           <div className={panelActions}>
             <button type="button" className={actionButton} onClick={() => setMode("edit")}>수정</button>
-            <button type="button" className={actionButton} onClick={() => setMode("remove")}>지우기</button>
+            <button type="button" className={cn(actionButton, "text-risk")} onClick={() => setMode("remove")}>지우기</button>
           </div>
+          <SearchState name={d.name} />
           <ChangeLog type="regulation" id={d.name} rev={d.updated_at ?? ""} />
           <Section icon="book" title="원문">
-            <pre className="m-0 whitespace-pre-wrap rounded-lg bg-canvas px-3.5 py-3 text-[13px] font-[inherit]">{d.content.trim()}</pre>
+            <pre className="m-0 max-h-90 overflow-auto whitespace-pre-wrap rounded-lg bg-canvas px-3.5 py-3 text-[13px] font-[inherit]">{d.content.trim()}</pre>
           </Section>
         </>
       )}
     </Panel>
   );
 }
+
+// 판정이 이 문서를 근거로 찾을 수 있는지 — RAG 에 쌓인 조각 수와 판정 모델 (관리자가 올린 규정을 AI 가 쓴다는 것을 보입니다).
+function SearchState({ name }: { name: string }) {
+  const index = useRegulationIndex(true);
+  const health = useHealth().data;
+  const n = index?.chunks[name] ?? 0;
+  const stored = !index ? "확인 중…" : n ? `벡터 DB에 적재됨 (조각 ${n}개)` : Object.keys(index.chunks).length ? "적재 안 됨" : "벡터 DB가 비었거나 닿지 않음";
+  const used = !health ? "AI 엔진 확인 못 함" : health.ok ? `판정, 질의가 근거로 검색 (${health.model})` : "AI 엔진 준비 안 됨";
+  return (
+    <GroupBox icon="db" title="검색 상태 (AI 판정 근거)">
+      <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[13px]">
+        <StateLine ok={n > 0}>{stored}</StateLine>
+        <StateLine ok={!!health?.ok && n > 0}>{used}</StateLine>
+      </ul>
+    </GroupBox>
+  );
+}
+
+const StateLine = ({ ok, children }: { ok: boolean; children: string }) => (
+  <li className="flex items-center gap-1.5"><Icon name={ok ? "ok" : "warn"} small className={ok ? "text-ok" : "text-warn"} />{children}</li>
+);
 
 // 판정의 근거가 바뀌므로 사유와 파일 이름을 입력해야 버튼이 켜집니다.
 function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {

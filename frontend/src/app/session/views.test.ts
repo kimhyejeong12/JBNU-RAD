@@ -14,7 +14,7 @@ test("보안 운영자와 보안 총책임자는 전부 받는다 (내 신청만
 test("사이드바 구역 — 역할 메뉴 순서대로 묶고, 관리 메뉴는 구역 대신 [관리] 하나로 뺀다", () => {
   const groups = [["결재", ["requests"]], ["보안 운영", ["policies", "events", "stats"]]];
   expect(navGroups(ROLE_VIEWS.manager)).toEqual(groups);
-  expect(navGroups(ROLE_VIEWS.top)).toEqual([["현황", ["home"]], ...groups]);
+  expect(navGroups(ROLE_VIEWS.top)).toEqual(groups);
   expect(ROLE_VIEWS.manager.filter(isAdminView)).toEqual(["access", "users", "docs", "jobs"]);
   expect(ROLE_VIEWS.top.filter(isAdminView)).toEqual(["access", "users", "docs", "jobs"]);
 });
@@ -23,7 +23,7 @@ test("새로고침 뒤 마지막 화면 — 이 역할에 있는 메뉴 · 탭�
   expect(restorable({ view: "policies", mainTab: "nodes", stageFilter: "active", lastAdmin: null }, "manager"))
     .toEqual({ view: "policies", mainTab: "nodes", stageFilter: "active", lastAdmin: null });
   expect(restorable({ view: "users", mainTab: "queue" }, "user")).toBeNull();
-  expect(restorable({ view: "home", mainTab: "home" }, "manager")).toBeNull();
+  expect(restorable({ view: "home", mainTab: "home" }, "top")).toBeNull();
   expect(restorable("망가진 값", "top")).toBeNull();
   expect(restorable(null, "top")).toBeNull();
   expect(restorable({ view: "requests", mainTab: "nodes", stageFilter: "x", lastAdmin: "policies" }, "top"))

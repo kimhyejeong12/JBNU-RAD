@@ -2,7 +2,7 @@ import { QueryClient, keepPreviousData, queryOptions } from "@tanstack/react-que
 import { getJSON } from "./http";
 import { jobsInterval } from "./jobs";
 import type {
-  AccessItem, AskItem, AuditRow, AuditTarget, Conversation, Health, Jobs, LogsPage, LogsParams, Me, NodeDetail, NodeRow, QaRecord, Regulation,
+  AccessItem, AskItem, AuditRow, AuditTarget, Conversation, Health, Jobs, LogsPage, LogsParams, Me, NodeDetail, NodeRow, QaRecord, Regulation, RegulationIndex,
   Overview, RequestRow, Results, RiskPeople, StatPeriod, Stats, UserRow, UserStats, WatchPerson,
 } from "./types";
 
@@ -23,6 +23,8 @@ export const meQuery = () => queryOptions({ queryKey: ["me"], queryFn: () => get
 
 export const healthQuery = () => queryOptions({ queryKey: ["health"], queryFn: () => getJSON<Health>("/api/health").catch(() => null) });
 export const regulationsQuery = () => queryOptions({ queryKey: ["regulations"], queryFn: () => getJSON<Regulation[]>("/api/regulations").catch(() => [] as Regulation[]) });
+// 키가 regulations 로 시작해 올리기 · 고치기 · 지우기 뒤 목록과 함께 다시 받습니다.
+export const regulationIndexQuery = () => queryOptions({ queryKey: ["regulations", "index"], queryFn: () => getJSON<RegulationIndex>("/api/regulations/index").catch(() => null) });
 
 // AI 판정 중인 신청이 있을 때만 3초마다, 뒤에 둔 탭에서도 받습니다.
 export const requestsQuery = (mine: boolean) => queryOptions({

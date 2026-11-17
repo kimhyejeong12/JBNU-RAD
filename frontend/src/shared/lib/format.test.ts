@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { niceMax, pct, person, points, stamp } from "./format";
+import { dayTime, niceMax, pct, person, points, stamp } from "./format";
 
 test("points: 줄이 여럿이면 줄마다, 번호 떼고 소제목 따로", () => {
   expect(points("1. 직무 연관성: 연관성이 부족합니다.\n2. 사용 기간: 적당합니다.")).toEqual([
@@ -48,4 +48,11 @@ test("person: 이름 뒤에 부서를 괄호로, 부서가 없으면 이름만",
   expect(person("김민수", "보안팀")).toBe("김민수 (보안팀)");
   expect(person("김민수", null)).toBe("김민수");
   expect(person("김민수", "")).toBe("김민수");
+});
+
+test("dayTime: 올해면 연도를 빼고 날짜 · 시각을 나눔", () => {
+  const now = new Date("2026-11-17T12:00:00+09:00");
+  expect(dayTime("2026-11-17T20:12:00+09:00", now)).toEqual(["11-17", "20:12"]);
+  expect(dayTime("2025-12-31T09:00:00+09:00", now)).toEqual(["2025-12-31", "09:00"]);
+  expect(dayTime(null, now)).toEqual(["", ""]);
 });

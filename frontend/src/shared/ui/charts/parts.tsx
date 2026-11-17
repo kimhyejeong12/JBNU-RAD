@@ -4,9 +4,9 @@ import { activateProps } from "@/shared/lib/hooks";
 import { Periods } from "@/shared/ui/base/parts";
 import { lrowTone, ltable, ltableWrap, ltd, lth, mark, markTone, type MarkKey } from "@/shared/ui/base/styles";
 
-export function Legend({ items, round }: { items: [cls: MarkKey, label: string][]; round?: boolean }) {
+export function Legend({ items, round, className }: { items: [cls: MarkKey, label: string][]; round?: boolean; className?: string }) {
   return (
-    <div className="flex flex-wrap gap-3.5 px-4.5 pt-2 pb-1 text-[12px] text-ink-dim">
+    <div className={cn("flex flex-wrap gap-3.5 px-4.5 pt-2 pb-1 text-[12px] text-ink-dim", className)}>
       {items.map(([k, label]) => (
         <span key={k}><i className={cn("mr-1.25 inline-block size-2.5 align-[-1px]", round ? "rounded-full" : "rounded-xs", markTone[k])} />{label}</span>
       ))}

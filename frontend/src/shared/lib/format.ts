@@ -1,6 +1,12 @@
 export const stamp = (iso: string | null | undefined): string =>
   iso ? new Date(iso).toLocaleString("sv-SE", { hour12: false }).slice(0, 16) : "";
 
+// 날짜와 시각을 두 줄로 나눌 때 — 올해면 연도를 뺍니다 (예: ["11-17", "20:12"]).
+export function dayTime(iso: string | null | undefined, now: Date = new Date()): [string, string] {
+  const [day = "", time = ""] = stamp(iso).split(" ");
+  return [day.startsWith(`${now.getFullYear()}-`) ? day.slice(5) : day, time];
+}
+
 export const pct = (n: number, d: number): string => (d ? `${Math.round((n / d) * 1000) / 10}%` : "—");
 
 export function niceMax(n: number): number {

@@ -8,6 +8,9 @@ export const AREA_COLOR: Record<OverviewArea, string> = {
   suspect: "var(--color-area-suspect)", grant: "var(--color-area-grant)",
 };
 
+// 표의 유형 칸 기호 — 메뉴 · 탭에 쓰는 기호 중에서 고릅니다 (등급 기호 warn · bad 와 헷갈리지 않게 사람 · 권한은 users · key).
+export const AREA_ICON: Record<OverviewArea, string> = { policy: "book", server: "server", event: "eye", suspect: "users", grant: "key" };
+
 // 항목 key 로 갈 곳을 정합니다 — 화면이 바로 열 수 있는 것만.
 export type Target =
   | { to: "queue"; key: string; view: "policies" | "events" }
@@ -41,6 +44,9 @@ export function arcs(areas: Overview["areas"]): { total: number; arcs: Arc[] } {
   return { total, arcs: out };
 }
 
+// 표 제목의 건수 — 보이는 줄보다 많으면 "11건 중 10건"
+export const ofText = (total: number, shown: number): string => (total > shown ? `${total}건 중 ${shown}건` : `${total}건`);
+
 export const rateText = (rate: number | null): string => (rate == null ? "—" : `${rate}%`);
 
 // 어제 끝과 지금의 차이 — 추이가 이틀이 안 되면 견줄 날이 없어 null 입니다.
@@ -53,7 +59,7 @@ export const deltaText = (n: number | null): string => (n == null ? "지금 열�
 
 export type FirstTodo = Todo & { area: OverviewArea; label: string };
 
-// 영역마다 맨 앞 할 일 하나씩, 위험부터 n 개 — 보안 총책임자에게는 먼저 볼 것만 보입니다.
+// 영역마다 맨 앞 할 일 하나씩, 위험부터 n 개 — 종합 대시보드의 AI 요약은 먼저 볼 것만 보입니다.
 export function firstTodos(b: Briefing, n = 3): FirstTodo[] {
   const firsts = b.areas.flatMap((a) => a.todos.slice(0, 1).map((t) => ({ ...t, area: a.area, label: a.label })));
   return firsts.sort((x, y) => Number(y.level === "위험") - Number(x.level === "위험")).slice(0, n);

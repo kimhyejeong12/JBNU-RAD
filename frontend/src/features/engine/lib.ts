@@ -35,6 +35,12 @@ export interface QueueDetail {
 // 길마다 이만큼만 줄로 보이고 나머지는 건수로 줄입니다.
 export const LANE_ROWS = 30;
 
+// 작업 기호 — 보안 현황 표의 유형 기호와 같게 둡니다 (로그 감시 눈, 서버 점검 서버, 위협 예측 사람, 정책 관리 문서).
+const JOB_ICON: Record<string, string> = {
+  events: "eye", events_fast: "eye", nodes: "server", suspects: "users", policies: "book", briefing: "bot", index: "db", request: "lock", grant: "key",
+};
+export const jobIcon = (kind: string): string => JOB_ICON[kind] ?? "list";
+
 export const jobName = (d: Pick<QueueDetail, "labels">, kind: string): string => d.labels[kind] ?? kind;
 
 // 잡 key 는 "종류:대상" 이고, 권한 신청은 신청 번호 그대로, 재검토는 grant:신청 번호:이동 id 입니다.
