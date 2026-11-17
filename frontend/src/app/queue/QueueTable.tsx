@@ -83,7 +83,7 @@ function Row({ it, split, badge, grid, time, current, onSelect }: { it: QueueIte
         {it.level ? <LevelLabel level={it.level} /> : <span className="flex items-center gap-1.25">{it.judge}</span>}
         {!split && sub && <span className="text-[11px] font-medium text-ink-dim">{sub}</span>}
       </span>
-      {split && <StateCell {...state} by={d?.decider_name} />}
+      {split && <StateCell {...state} />}
     </>
   );
   return (

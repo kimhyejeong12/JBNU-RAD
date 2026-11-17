@@ -152,8 +152,8 @@ function GapList({ itemKey, f }: { itemKey: string; f: ServerFinding }) {
 // 결정을 이어받은 판정은 자기 기록이 없어 지난 판정의 기록을 보여줌
 export function DecisionLog({ log, it }: { log: DecisionLogMap; it: ReviewItem }) {
   const from = it.decision?.carried_from;
-  const rows = logRows(log, it);
-  const steps = rows.map((d) => ({
+  // 최신부터 — 맨 위 줄이 지금 처리 상태
+  const steps = [...logRows(log, it)].reverse().map((d) => ({
     title: d.action === "cancel" ? "결정 취소" : DECISIONS[d.action],
     who: person(d.decider_name, d.decider_department),
     when: stamp(d.decided_at),

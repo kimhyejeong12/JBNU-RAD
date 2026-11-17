@@ -218,7 +218,7 @@ function Issues({ id, title, rows, empty, go }: { id: string; title: string; row
             <Area key="a" area={r.area} label={r.area_label} />,
             <Content key="c" subject={r.subject} note={r.reason} />,
             r.level ? <LevelLabel key="l" level={r.level} /> : <span key="l" className="text-ink-dim">판정 실패</span>,
-            <StateCell key="d" {...decisionState(r.decision)} by={r.decision?.by} />,
+            <StateCell key="d" {...decisionState(r.decision)} />,
           ],
         }))} />
       {pages > 1 && <Pager className="py-3" at={at} pages={pages} onPage={setPage} />}
@@ -241,7 +241,7 @@ function Recent({ d, go }: { d: Overview; go: Go }) {
             <DayTime key="t" iso={r.at} />,
             <Area key="a" area={r.area} label={r.area_label} />,
             <Content key="c" subject={r.subject} note={r.note} />,
-            <StateCell key="l" text={r.label} tone={DONE_TONE} by={r.by} />,
+            <StateCell key="l" text={r.label} tone={DONE_TONE} />,
           ],
         }))} />
       {pages > 1 && <Pager className="py-3" at={at} pages={pages} onPage={setPage} />}

@@ -27,12 +27,11 @@ export function JudgeState({ level, label, children }: { level: Level | null | u
   );
 }
 
-// 표의 처리 상태 칸 — 배지와 그 아래 정한 사람 (검토 현황 · 종합 대시보드)
-export function StateCell({ text, tone, by }: { text: string; tone: string; by?: string | null }) {
+// 표의 처리 상태 칸 — 배지만, 누가 · 언제는 패널 (검토 현황 · 종합 대시보드)
+export function StateCell({ text, tone }: { text: string; tone: string }) {
   return (
-    <span className="flex min-w-0 flex-col items-start gap-px">
+    <span className="flex min-w-0 flex-col items-start">
       <Pill tone={tone} className={cn("block max-w-full truncate", squarePill)}>{text}</Pill>
-      {by && <span className="max-w-full truncate text-[11px] text-ink-dim">{by}</span>}
     </span>
   );
 }
