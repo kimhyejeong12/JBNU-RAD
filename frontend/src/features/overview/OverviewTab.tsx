@@ -8,11 +8,11 @@ import { useUi } from "@/app/ui/state/UiContext";
 import { useStartJob } from "@/shared/api/jobs";
 import { overviewQuery } from "@/shared/api/queries";
 import type { Briefing, Overview, OverviewRow, StatPeriod } from "@/shared/api/types";
-import { niceMax, slotAt, stamp, rangeText } from "@/shared/lib/format";
+import { dayTime, niceMax, slotAt, stamp, rangeText } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/Icon";
 import { usePage } from "@/shared/lib/hooks";
-import { DayTime, IconBadge, LevelDot, LevelLabel, Pager, Periods, Tile, CardHead } from "@/shared/ui/parts";
+import { LevelDot, LevelLabel, Pager, Periods, Tile, CardHead } from "@/shared/ui/parts";
 import { DataTable, Legend, XTicks, YGrid } from "@/shared/ui/charts";
 import { brandCard, card, cardCount, levelText, markTone, toolButton, cardNote, tileGrid } from "@/shared/ui/styles";
 import { STAT_PERIODS } from "@/shared/lib/labels";
@@ -214,11 +214,11 @@ function Issues({ id, title, rows, empty, go }: { id: string; title: string; row
         rows={shown.map((r) => ({
           key: `${r.area}:${r.key}`, onSelect: () => go(r.area, r.key),
           cells: [
-            <DayTime key="o" iso={r.opened_at} />,
+            <Day key="o" iso={r.opened_at} />,
             <Area key="a" area={r.area} label={r.area_label} />,
             <Content key="c" subject={r.subject} note={r.reason} />,
             r.level ? <LevelLabel key="l" level={r.level} /> : <span key="l" className="text-ink-dim">판정 실패</span>,
-            <StateCell key="d" {...decisionState(r.decision)} />,
+            <State key="d" decision={r.decision} />,
           ],
         }))} />
       {pages > 1 && <Pager className="py-3" at={at} pages={pages} onPage={setPage} />}
@@ -238,7 +238,7 @@ function Recent({ d, go }: { d: Overview; go: Go }) {
         rows={shown.map((r) => ({
           key: `${r.area}:${r.key}:${r.at}`, onSelect: () => go(r.area, r.key),
           cells: [
-            <DayTime key="t" iso={r.at} />,
+            <Day key="t" iso={r.at} />,
             <Area key="a" area={r.area} label={r.area_label} />,
             <Content key="c" subject={r.subject} note={r.note} />,
             <StateCell key="l" text={r.label} tone={DONE_TONE} />,
@@ -252,9 +252,20 @@ function Recent({ d, go }: { d: Overview; go: Go }) {
 // 조치 완료 · 회수 모두 끝난 일이라 검토 현황의 "조치 완료" 배지 색을 씀
 const DONE_TONE = decisionState({ action: "done" }).tone;
 
-// 유형 — 메뉴 기호와 이름을 회색 배지로 묶어 내용 글과 나눔
+// 날짜만 한 줄 (올해면 연도 뺌), 시각은 툴팁
+function Day({ iso }: { iso: string }) {
+  return <span className="whitespace-nowrap tabular-nums" data-tip={stamp(iso)}>{dayTime(iso)[0]}</span>;
+}
+
+// 유형 — 상자 없이 메뉴 기호와 회색 글
 function Area({ area, label }: { area: OverviewRow["area"]; label: string }) {
-  return <IconBadge icon={AREA_ICON[area]}>{label}</IconBadge>;
+  return <span className="flex items-center gap-1 whitespace-nowrap text-ink-soft"><Icon name={AREA_ICON[area]} small />{label}</span>;
+}
+
+// 처리 상태 — 결정 없음은 글만, 결정이 있으면 배지 (조치 필요 · 승인 · 조건부 승인)
+function State({ decision }: { decision: OverviewRow["decision"] }) {
+  const s = decisionState(decision);
+  return decision ? <StateCell {...s} /> : <span className="whitespace-nowrap text-ink-dim">{s.text}</span>;
 }
 
 // 내용 — 대상(굵게) 위, 이유 · 의견(회색) 아래 한 줄씩, 전체 글은 툴팁
