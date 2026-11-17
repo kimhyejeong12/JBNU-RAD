@@ -65,17 +65,16 @@ function emptyText(level: Open | null, total: number): string {
   return total ? `위험이 많아 주요 이슈 10건에 ${level}가 들지 않았습니다` : `열린 ${level} 없음`;
 }
 
-// 전체 이슈 = 기간 안에 조치를 끝낸 것 + 지금 남은 것 — 조치 완료율의 분모임. 누르면 이슈 표의 거르기를 풂
+// 전체 이슈 = 지금 열린 위험 + 주의 — 아래 표와 같은 건수, 누르면 거르기를 풂. 기간은 완료율에만
 function Tiles({ d, level, onPick }: { d: Overview; level: Open | null; onPick: (l: Open | null) => void }) {
   const c = d.counts;
   const all = c.completion.done + c.completion.waiting;
   return (
     <div className={tileGrid} id="overview-tiles">
-      <Tile label="전체 이슈" big={all} pressed={level === null} onClick={() => onPick(null)}>남음 {c.completion.waiting}, 완료 {c.completion.done}</Tile>
+      <Tile label="전체 이슈" big={c.completion.waiting} pressed={level === null} onClick={() => onPick(null)}>결정 없음 {c.action.undecided}, 조치 중 {c.action.acting}</Tile>
       {(["위험", "주의"] as const).map((l) => (
         <Tile key={l} label={<><LevelDot level={l} />{l}</>} big={c[l]} tone={c[l] ? levelText[l] : undefined} pressed={level === l} onClick={() => onPick(l)}>{deltaText(delta(d.trend, l))}</Tile>
       ))}
-      <Tile label="조치 필요" big={c.action.total}>결정 없음 {c.action.undecided}, 조치 중 {c.action.acting}</Tile>
       <Tile label="조치 완료율" big={rateText(c.completion.rate)}>{c.completion.done} / {all}건</Tile>
       {c.failed > 0 && <Tile label="판정 실패" big={c.failed} tone="text-ink-dim">위험 주의에 안 셈</Tile>}
     </div>
