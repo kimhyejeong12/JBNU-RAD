@@ -2,10 +2,10 @@ import { Fragment } from "react";
 import { safetyTone, statLabel } from "./lib";
 import type { Level, SafetyScore } from "@/shared/api/types";
 import { activateProps } from "@/shared/lib/hooks";
-import { LevelDot } from "@/shared/ui/base/parts";
-import { Sparkline } from "@/shared/ui/charts/parts";
+import { LevelDot } from "@/shared/ui/parts";
+import { Sparkline } from "@/shared/ui/charts";
 import { cn } from "@/shared/lib/cn";
-import { levelText, note } from "@/shared/ui/base/styles";
+import { levelText, note } from "@/shared/ui/styles";
 
 const SCORE = "flex flex-col gap-0.5";
 const BIG = "text-[34px] leading-[1.1] font-extrabold tracking-[-1px]";

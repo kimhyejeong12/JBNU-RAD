@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AREA_COLOR, AREA_ICON, PERIODS, arcs, delta, deltaText, firstTodos, ofText, rangeText, rateText } from "./lib";
-import { useGo, type Go } from "./useGo";
+import { AREA_COLOR, AREA_ICON, PERIODS, arcs, delta, deltaText, firstTodos, ofText, rangeText, rateText, useGo, type Go } from "./lib";
 import { useJobs } from "@/app/session/data";
 import { StateCell } from "@/app/ui/panel/DecisionFoot";
 import { decisionState } from "@/app/ui/panel/decision";
@@ -11,11 +10,11 @@ import { overviewQuery } from "@/shared/api/queries";
 import type { Briefing, Overview, OverviewRow, StatPeriod } from "@/shared/api/types";
 import { niceMax, stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
-import { Icon } from "@/shared/ui/base/Icon";
+import { Icon } from "@/shared/ui/Icon";
 import { usePage } from "@/shared/lib/hooks";
-import { DayTime, IconBadge, LevelDot, LevelLabel, Pager, Periods, Tile } from "@/shared/ui/base/parts";
-import { DataTable, Legend } from "@/shared/ui/charts/parts";
-import { brandCard, card, cardCount, cardHead, cardTitle, levelText, markTone, toolButton } from "@/shared/ui/base/styles";
+import { DayTime, IconBadge, LevelDot, LevelLabel, Pager, Periods, Tile } from "@/shared/ui/parts";
+import { DataTable, Legend } from "@/shared/ui/charts";
+import { brandCard, card, cardCount, cardHead, cardTitle, levelText, markTone, toolButton } from "@/shared/ui/styles";
 
 type Open = "위험" | "주의";
 const SUB = "m-0 px-4.5 pb-3 text-[12.5px] text-ink-dim";

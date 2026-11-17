@@ -7,11 +7,11 @@ import type { RequestRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { stageGroup, today, type StageGroup } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
-import { Icon } from "@/shared/ui/base/Icon";
+import { Icon } from "@/shared/ui/Icon";
 import { usePage } from "@/shared/lib/hooks";
-import { Pager, Pill, Tile } from "@/shared/ui/base/parts";
-import { card, formMsg, formMsgOk, linkButton, stageColor, stageTone } from "@/shared/ui/base/styles";
-import { ask } from "@/app/ui/confirm/ask";
+import { Pager, Pill, Tile } from "@/shared/ui/parts";
+import { card, formMsg, formMsgOk, linkButton, stageColor, stageTone } from "@/shared/ui/styles";
+import { ask } from "@/app/ui/ask";
 
 // 한 쪽 4건 — 신청서와 아래 끝이 맞게 합니다.
 const PAGE = 4;

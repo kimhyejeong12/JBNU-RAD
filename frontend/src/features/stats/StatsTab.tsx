@@ -1,13 +1,12 @@
-import { STAT_PERIODS, STAT_TITLES, statCard, statSafety, statTiles } from "./lib";
+import { STAT_PERIODS, STAT_TITLES, statCard, statSafety, statTiles, useStatsData } from "./lib";
 import { SystemHead, SystemSections } from "./SystemStats";
 import { UserHead, UserSections } from "./UserStats";
-import { useStatsData } from "./useStatsData";
 import { useJobs } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { StatPeriod } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { Periods } from "@/shared/ui/base/parts";
-import { cardCount, cardHead, cardTitle } from "@/shared/ui/base/styles";
+import { Periods } from "@/shared/ui/parts";
+import { cardCount, cardHead, cardTitle } from "@/shared/ui/styles";
 
 export function StatsTab() {
   const { ui, setStats, openDrawer } = useUi();

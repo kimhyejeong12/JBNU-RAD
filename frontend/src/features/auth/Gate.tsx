@@ -1,12 +1,11 @@
 import { useRef, useState, type FormEvent } from "react";
-import { type GateMode, useAuth } from "./AuthContext";
-import { login, changePassword } from "./api";
+import { type GateMode, useAuth, login, changePassword } from "@/app/session/me";
 import { errorText } from "@/shared/api/http";
 import { cn } from "@/shared/lib/cn";
 import { formProblem } from "@/shared/lib/form";
-import { LogoMark } from "@/shared/ui/base/Icon";
-import { actionButton, field, formActions, formMsg, input, note, primaryButton } from "@/shared/ui/base/styles";
-import { forgetPages } from "@/app/session/lastPage";
+import { LogoMark } from "@/shared/ui/Icon";
+import { actionButton, field, formActions, formMsg, input, note, primaryButton } from "@/shared/ui/styles";
+import { forgetPages } from "@/app/session/views";
 
 const CARD = "flex w-[min(380px,100%)] flex-col gap-3 rounded-[14px] border border-line bg-surface px-6 pt-6.5 pb-4.5";
 

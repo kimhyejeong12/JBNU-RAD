@@ -8,8 +8,8 @@ import type { QueueItem } from "./types";
 import { DECISIONS, decisionState } from "@/app/ui/panel/decision";
 import { StateCell } from "@/app/ui/panel/DecisionFoot";
 import { cn } from "@/shared/lib/cn";
-import { IconBadge, LevelLabel } from "@/shared/ui/base/parts";
-import { empty, levelText, stageTone } from "@/shared/ui/base/styles";
+import { IconBadge, LevelLabel } from "@/shared/ui/parts";
+import { empty, levelText, stageTone } from "@/shared/ui/styles";
 
 // 창 폭이 아니라 목록 폭(약 560px)으로 상세 · 시각을 숨깁니다 — 메뉴 · 패널을 펼치면 목록이 좁아져서.
 const GRID = "grid grid-cols-[minmax(120px,1fr)_minmax(140px,2fr)_120px_104px] items-center gap-3 px-4.5 @max-[560px]:grid-cols-[minmax(0,1fr)_100px]";

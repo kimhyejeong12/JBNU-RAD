@@ -1,23 +1,19 @@
 import { useState } from "react";
-import { compactLog, countText, logFacts, logRows } from "./lib";
-import type { ReviewItem } from "./api";
-import { DecisionLog } from "./DecisionLog";
 import { useResults } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
 import { TYPE_LABEL } from "@/app/session/views";
-import { AiCaption, AiReport } from "@/app/ui/panel/AiReport";
+import { AiCaption, AiReport, SourceChips } from "@/app/ui/panel/AiReport";
 import { Panel } from "@/app/ui/panel/Panel";
 import { DecisionBadge, DecisionFoot } from "@/app/ui/panel/DecisionFoot";
-import { SourceChips } from "@/app/ui/panel/SourceChips";
+import { DECISIONS } from "@/app/ui/panel/decision";
+import { compactLog, countText, logFacts, logRows, type DecisionLogMap } from "./lib";
+import type { ReviewItem } from "@/features/review/lib";
 import type { EventFinding, ServerFinding, SnapshotState } from "@/shared/api/types";
-import { stamp } from "@/shared/lib/format";
-import { Icon } from "@/shared/ui/base/Icon";
-import { LevelDot, Meta, Periods, Section } from "@/shared/ui/base/parts";
-import { ModuleChanges, ModuleTables } from "@/shared/ui/server/ModuleTables";
+import { stamp, person } from "@/shared/lib/format";
+import { Icon } from "@/shared/ui/Icon";
+import { LevelDot, Meta, Periods, Section, ModuleChanges, ModuleTables, History } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
-import {
-  box, boxPre, kvTable, kvTd, kvTh, meta, note, panelFoot, panelFootTitle, subject, toolButton,
-} from "@/shared/ui/base/styles";
+import { box, boxPre, kvTable, kvTd, kvTh, meta, note, panelFoot, panelFootTitle, subject, toolButton } from "@/shared/ui/styles";
 
 type PanelTab = "ai" | "log";
 
@@ -151,5 +147,22 @@ function GapList({ itemKey, f }: { itemKey: string; f: ServerFinding }) {
       )) : <div className={box}>기준 문서와 다른 곳을 찾지 못했습니다.</div>}
       {f.unjudged.length > 0 && <p className={note}>판단 안 함: {f.unjudged.join(", ")}</p>}
     </>
+  );
+}
+
+// 결정을 이어받은 판정은 자기 기록이 없어 지난 판정의 기록을 보여줍니다.
+export function DecisionLog({ log, it }: { log: DecisionLogMap; it: ReviewItem }) {
+  const from = it.decision?.carried_from;
+  const rows = logRows(log, it);
+  const steps = rows.map((d) => ({
+    title: d.action === "cancel" ? "결정 취소" : DECISIONS[d.action],
+    who: person(d.decider_name, d.decider_department),
+    when: stamp(d.decided_at),
+    say: d.comment,
+  }));
+  return (
+    <Section icon="list" title={from ? "결정 기록 (이어받은 지난 판정)" : "결정 기록"}>
+      {steps.length ? <History steps={steps} /> : <p className={note}>아직 결정이 없습니다.</p>}
+    </Section>
   );
 }

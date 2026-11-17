@@ -112,3 +112,5 @@ export function logRows(log: DecisionLogMap, it: { type: string; itemKey?: strin
   const from = it.decision?.carried_from;
   return log[it.type]?.[it.itemKey ?? ""] ?? (from ? log[it.type]?.[from] : undefined) ?? [];
 }
+
+export type ReviewItem = Extract<QueueItem, { type: "policy" | "server" | "event" }>;

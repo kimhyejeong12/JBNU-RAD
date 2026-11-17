@@ -1,4 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
+import { useUi } from "@/app/ui/state/UiContext";
 import type { LogPeriod } from "@/shared/api/types";
+import { logsQuery } from "@/shared/api/queries";
 
 // 자주 쓰는 넷만 둡니다 (서버는 3개월 · 6개월 · 1년도 받습니다).
 export const PERIOD_LABEL: Record<LogPeriod, string> = { day: "하루", week: "일주일", month: "한 달", all: "전체" };
@@ -21,3 +24,9 @@ export const logAttrs = (e: { attributes?: Record<string, string | number> | nul
   Object.entries(e.attributes || {}).map(([k, v]) => `${k}=${v}`).join(", ");
 
 export const pageCount = (d: { total: number; page_size: number }): number => Math.max(1, Math.ceil(d.total / d.page_size));
+
+// 고른 줄은 조건이 아니라 키에 넣지 않습니다 (조회마다 감사 기록이 남습니다).
+export function useLogsPage() {
+  const { period, user, solution, how, page } = useUi().ui.logs;
+  return useQuery(logsQuery({ period, user, solution, how, page }));
+}

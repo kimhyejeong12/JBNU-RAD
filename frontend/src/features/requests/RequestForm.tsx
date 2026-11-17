@@ -6,8 +6,8 @@ import { DONE_MSG_MS } from "@/app/ui/state/UiContext";
 import { useCatalog, useMine } from "@/app/session/data";
 import { cn } from "@/shared/lib/cn";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { Icon } from "@/shared/ui/base/Icon";
-import { card, formMsg, formMsgOk, input } from "@/shared/ui/base/styles";
+import { Icon } from "@/shared/ui/Icon";
+import { card, formMsg, formMsgOk, input } from "@/shared/ui/styles";
 
 const EMPTY = { code: "", reason: "", start: "", end: "", open: false };
 const LABEL = "mb-1 block text-sm font-medium text-ink-soft";

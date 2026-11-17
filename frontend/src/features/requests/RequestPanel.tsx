@@ -1,23 +1,20 @@
 import { Fragment, useState, type ReactNode } from "react";
-import { ask } from "@/app/ui/confirm/ask";
+import { ask } from "@/app/ui/ask";
 import { useRequestAction, type RequestAct } from "./api";
 import { approvalFlow, moveText, type FlowState } from "./lib";
 import { useMe } from "@/app/session/me";
-import { AiReport } from "@/app/ui/panel/AiReport";
+import { AiReport, SourceChips } from "@/app/ui/panel/AiReport";
 import { Panel, PanelMsg } from "@/app/ui/panel/Panel";
-import { SourceChips } from "@/app/ui/panel/SourceChips";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { QueueItem } from "@/app/queue/types";
 import type { RequestRow, Role } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON, LEVEL_TIP } from "@/shared/lib/labels";
 import { STAGE_LABEL, STEP, period, requester } from "@/shared/lib/request";
-import { KvTable, Meta, Section } from "@/shared/ui/base/parts";
-import { Icon } from "@/shared/ui/base/Icon";
+import { KvTable, Meta, Section } from "@/shared/ui/parts";
+import { Icon } from "@/shared/ui/Icon";
 import { cn } from "@/shared/lib/cn";
-import {
-  actionButton, box, dangerButton, goodButton, input, levelText, meta, note, panelActions, panelFoot, panelFootTitle, recLine, subject, toolButton,
-} from "@/shared/ui/base/styles";
+import { actionButton, box, dangerButton, goodButton, input, levelText, meta, note, panelActions, panelFoot, panelFootTitle, recLine, subject, toolButton } from "@/shared/ui/styles";
 
 type RequestItem = Extract<QueueItem, { type: "req" }>;
 interface Draft { comment: string; reason: string }

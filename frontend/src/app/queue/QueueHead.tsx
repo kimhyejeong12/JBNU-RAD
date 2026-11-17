@@ -2,17 +2,17 @@ import { useMe } from "@/app/session/me";
 import { useJobs, useResults } from "@/app/session/data";
 import { LEVEL_VIEWS, VIEWS, canManageAccounts } from "@/app/session/views";
 import { useUi } from "@/app/ui/state/UiContext";
-import { JobReset } from "@/app/ui/jobs/JobReset";
 import { NEW_ITEM } from "@/app/ui/state/uiReducer";
-import { runButton, useStartJob } from "@/shared/api/jobs";
-import { cn } from "@/shared/lib/cn";
-import { Icon } from "@/shared/ui/base/Icon";
-import { levelText, searchBox, searchInput, toolButton } from "@/shared/ui/base/styles";
-import { LevelDot, Tile } from "@/shared/ui/base/parts";
-import { LEVEL_TIP } from "@/shared/lib/labels";
-import type { Level } from "@/shared/api/types";
+import { ask } from "@/app/ui/ask";
 import { useQueue } from "./useQueue";
 import { levelCounts } from "./select";
+import { runButton, useStartJob, busyJob, useResetJobs } from "@/shared/api/jobs";
+import { cn } from "@/shared/lib/cn";
+import { Icon } from "@/shared/ui/Icon";
+import { levelText, searchBox, searchInput, toolButton } from "@/shared/ui/styles";
+import { LevelDot, Tile } from "@/shared/ui/parts";
+import { LEVEL_TIP } from "@/shared/lib/labels";
+import type { Level } from "@/shared/api/types";
 
 export function QueueHead() {
   const me = useMe();
@@ -65,5 +65,24 @@ export function QueueHead() {
         </div>
       )}
     </div>
+  );
+}
+
+// 모델 서버가 응답하지 않으면 다른 작업이 모두 막혀서 강제 중지를 둡니다.
+export function JobReset() {
+  const jobs = useJobs();
+  const reset = useResetJobs();
+  const name = busyJob(jobs);
+  if (!name) return null;
+
+  async function onClick() {
+    const message = `${name}을(를) 끝내고 처음부터 다시 돌립니다.`;
+    if (await ask({ title: "작업 강제 중지", confirm: "다시 돌리기", danger: true, message })) reset.mutate(true);
+  }
+
+  return (
+    <button className={cn(toolButton, "ml-0")} id="job-reset" disabled={reset.isPending} onClick={() => void onClick()}>
+      {reset.isPending ? "끝내는 중…" : "다시 돌리기"}
+    </button>
   );
 }

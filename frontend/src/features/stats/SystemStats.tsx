@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { SafetyBand } from "./SafetyBand";
-import { Tile } from "@/shared/ui/base/parts";
+import { Tile } from "@/shared/ui/parts";
 import { mergeDays, statCard, statChart, statSafety, statSub, statTiles } from "./lib";
 import type { StatSelection } from "@/app/ui/state/uiReducer";
 import type { Stats } from "@/shared/api/types";
 import { niceMax, pct } from "@/shared/lib/format";
-import { DataTable, Legend, ViewSwitch } from "@/shared/ui/charts/parts";
+import { DataTable, Legend, ViewSwitch } from "@/shared/ui/charts";
 import { cn } from "@/shared/lib/cn";
-import { cardHead, cardTitle, mark, markTone, type MarkKey } from "@/shared/ui/base/styles";
+import { cardHead, cardTitle, mark, markTone, type MarkKey } from "@/shared/ui/styles";
 
 interface Props { d: Stats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
 

@@ -2,8 +2,8 @@ import { criteriaText, stepText } from "./lib";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { AskItem, AskStep, LogFacts, ServerFacts } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { KvTable, Section } from "@/shared/ui/base/parts";
-import { boxPre, clause, meta, note, subject } from "@/shared/ui/base/styles";
+import { KvTable, Section } from "@/shared/ui/parts";
+import { boxPre, clause, meta, note, subject } from "@/shared/ui/styles";
 
 // 답 아래 근거 칩 하나 = 도구 호출 한 번. 도구마다 보여 주는 모양이 다릅니다.
 export function AskEvidence({ list }: { list: AskItem[] }) {

@@ -43,7 +43,6 @@ export const note = "m-0 mt-1.5 text-[11.5px] text-ink-dim";
 export const formMsg = "mr-auto text-[12.5px] text-risk";
 export const formMsgOk = "mr-auto text-[12.5px] text-ok";
 
-export const chips = "flex flex-col gap-1.5";
 export const chip = "flex w-full items-center gap-1.75 rounded-lg border border-line bg-surface px-2.75 py-1.75 text-left text-[12.5px]";
 export const chipTone = (on: boolean): string => (on ? "border-warn bg-warn-tint" : "hover:border-ink-dim");
 export const clause = "mx-0 -mt-0.5 mb-1 rounded-r-md border-l-[3px] border-warn bg-canvas px-3 py-2.5 text-[12.5px] whitespace-pre-wrap";

@@ -1,18 +1,17 @@
 import { useState, type FormEvent } from "react";
-import { ChangeLog } from "@/app/ui/panel/ChangeLog";
-import { Panel, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
+import { ChangeLog, Panel, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
 import { useHealth, useJobs, useRegulationIndex, useRegulations } from "@/app/session/data";
 import { busyJob } from "@/shared/api/jobs";
 import type { Regulation, XlsxTable } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
-import { Icon } from "@/shared/ui/base/Icon";
-import { GroupBox, Meta, Section } from "@/shared/ui/base/parts";
-import { actionButton, dangerButton, field, formActions, input, meta, note, panelActions, primaryButton, subject } from "@/shared/ui/base/styles";
+import { Icon } from "@/shared/ui/Icon";
+import { GroupBox, Meta, Section } from "@/shared/ui/parts";
+import { actionButton, dangerButton, field, formActions, input, meta, note, panelActions, primaryButton, subject } from "@/shared/ui/styles";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useExtractPdf, useExtractXlsx, useRemoveRegulation, useUploadRegulation } from "./api";
 import { docItem, draftProblem, editProblem, isPdf, isXlsx, removeProblem, tablesText, textName, uploadProblem } from "./lib";
-import { ask } from "@/app/ui/confirm/ask";
+import { ask } from "@/app/ui/ask";
 
 // 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둡니다.
 export function DocPanel({ d }: { d: Regulation | null }) {

@@ -13,7 +13,7 @@ import type { View } from "@/app/session/views";
 import { Panel } from "@/app/ui/panel/Panel";
 import { cn } from "@/shared/lib/cn";
 import { NEW_ITEM, panelIdle } from "@/app/ui/state/uiReducer";
-import { empty } from "@/shared/ui/base/styles";
+import { empty } from "@/shared/ui/styles";
 
 export function RightPanel() {
   const { ui } = useUi();

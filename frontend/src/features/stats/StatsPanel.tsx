@@ -1,17 +1,16 @@
 import type { ReactNode } from "react";
-import { STAT_TITLES, SUSPECT_COLOR } from "./lib";
-import { useStatsData } from "./useStatsData";
+import { STAT_TITLES, SUSPECT_COLOR, useStatsData } from "./lib";
 import { useClauses, useResults } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
 import { Panel } from "@/app/ui/panel/Panel";
 import { DecisionBadge, DecisionFoot, JudgeState } from "@/app/ui/panel/DecisionFoot";
 import type { Stats, Suspect, UserStats } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { Icon } from "@/shared/ui/base/Icon";
-import { KvTable, Section } from "@/shared/ui/base/parts";
-import { Sparkline } from "@/shared/ui/charts/parts";
+import { Icon } from "@/shared/ui/Icon";
+import { KvTable, Section } from "@/shared/ui/parts";
+import { Sparkline } from "@/shared/ui/charts";
 import { cn } from "@/shared/lib/cn";
-import { box, boxPre, note, subject as subjectCls, toolButton } from "@/shared/ui/base/styles";
+import { box, boxPre, note, subject as subjectCls, toolButton } from "@/shared/ui/styles";
 
 const HELD_ROW = "grid cursor-pointer grid-cols-[1fr_auto] gap-x-2.5 gap-y-0.5 rounded-lg border border-line bg-surface px-2.5 py-2 text-left text-[13px] font-[inherit] [font-weight:inherit] leading-[inherit] hover:border-ink-dim";
 const HELD_SUB = "text-[12px] text-ink-dim";

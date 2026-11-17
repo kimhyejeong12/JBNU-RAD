@@ -1,8 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/shared/lib/cn";
 import { activateProps } from "@/shared/lib/hooks";
-import { Periods } from "@/shared/ui/base/parts";
-import { lrowTone, ltable, ltableWrap, ltd, lth, mark, markTone, type MarkKey } from "@/shared/ui/base/styles";
+import { Periods } from "@/shared/ui/parts";
+import { lrowTone, ltable, ltableWrap, ltd, lth, mark, markTone, type MarkKey } from "@/shared/ui/styles";
 
 export function Legend({ items, round, className }: { items: [cls: MarkKey, label: string][]; round?: boolean; className?: string }) {
   return (

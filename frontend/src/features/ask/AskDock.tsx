@@ -1,8 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
-import { ASK } from "./config";
+import { ASK, askWaitLabel, stepText, toolIcon, toolLabel, useAsk } from "@/features/ask/lib";
 import { AskEvidence } from "./AskEvidence";
-import { askWaitLabel, stepText, toolIcon, toolLabel } from "./lib";
-import { useAsk } from "./useAsk";
 import { useMe } from "@/app/session/me";
 import { useConversations } from "@/app/session/data";
 import { newConversation } from "@/app/ui/state/uiReducer";
@@ -11,8 +9,8 @@ import type { AskItem } from "@/shared/api/types";
 import { useNow } from "@/shared/lib/hooks";
 import { stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
-import { Icon } from "@/shared/ui/base/Icon";
-import { box, chip, chipTone, empty, note, toolButton } from "@/shared/ui/base/styles";
+import { Icon } from "@/shared/ui/Icon";
+import { box, chip, chipTone, empty, note, toolButton } from "@/shared/ui/styles";
 
 const ANSWER = cn(box, "whitespace-pre-wrap");
 const ANSWER_WAIT = cn(ANSWER, "text-ink-dim");

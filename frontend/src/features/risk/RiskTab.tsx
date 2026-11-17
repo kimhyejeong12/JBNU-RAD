@@ -2,16 +2,16 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KIND, mergeWatch, pickPeople, revokeReason, status, summarize, type Flag, type Person, type Pick } from "./lib";
 import { usePeople } from "@/app/session/data";
-import { ask } from "@/app/ui/confirm/ask";
+import { ask } from "@/app/ui/ask";
 import { useUi } from "@/app/ui/state/UiContext";
 import { send } from "@/shared/api/http";
 import { riskPeopleQuery } from "@/shared/api/queries";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
-import { Icon } from "@/shared/ui/base/Icon";
-import { Meta, Tile } from "@/shared/ui/base/parts";
-import { box, card, cardCount, cardHead, cardTitle, empty, levelText, note, toolButton } from "@/shared/ui/base/styles";
+import { Icon } from "@/shared/ui/Icon";
+import { Meta, Tile } from "@/shared/ui/parts";
+import { box, card, cardCount, cardHead, cardTitle, empty, levelText, note, toolButton } from "@/shared/ui/styles";
 
 export function RiskTab() {
   const q = useQuery(riskPeopleQuery());

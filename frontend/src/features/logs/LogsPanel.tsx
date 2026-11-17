@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
-import { PERIOD_LABEL } from "./lib";
-import { useLogsPage } from "./useLogsPage";
+import { PERIOD_LABEL, useLogsPage } from "./lib";
 import { useUi } from "@/app/ui/state/UiContext";
 import { Panel } from "@/app/ui/panel/Panel";
 import { stamp } from "@/shared/lib/format";
-import { Icon } from "@/shared/ui/base/Icon";
-import { KvTable, Meta, Section } from "@/shared/ui/base/parts";
-import { empty, meta, note, subject, toolButton } from "@/shared/ui/base/styles";
+import { Icon } from "@/shared/ui/Icon";
+import { KvTable, Meta, Section } from "@/shared/ui/parts";
+import { empty, meta, note, subject, toolButton } from "@/shared/ui/styles";
 
 export function LogsPanel() {
   const { ui, closePanel } = useUi();

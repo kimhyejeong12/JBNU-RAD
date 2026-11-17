@@ -1,6 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import type { StatKind } from "@/app/ui/state/uiReducer";
+import { useUi } from "@/app/ui/state/UiContext";
 import type { Level, StatPeriod, SuspectLevel, Suspect } from "@/shared/api/types";
-import { card } from "@/shared/ui/base/styles";
+import { card } from "@/shared/ui/styles";
+import { statsQuery, userStatsQuery } from "@/shared/api/queries";
 
 export const STAT_PERIODS: [StatPeriod, string][] = [["week", "일주일"], ["month", "한 달"], ["quarter", "3개월"], ["all", "전체"]];
 export const STAT_TITLES: Record<StatKind, string> = { stats: "시스템", ustats: "사용자" };
@@ -37,3 +40,12 @@ export const statChart = "px-4.5 pt-1 pb-1.5";
 export const statLabel = "text-[12px] font-semibold text-ink-dim";
 export const statTiles = "grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2.5 px-4.5 pb-4";
 export const statSafety = "mx-4.5 mb-3 grid grid-cols-[auto_minmax(0,1fr)_minmax(140px,220px)] items-center gap-4.5 rounded-[10px] border border-line px-4 py-3.5 empty:hidden phone:grid-cols-[auto_minmax(0,1fr)]";
+
+export function useStatsData() {
+  const { ui } = useUi();
+  const kind = ui.stats.kind ?? "stats";
+  const period = ui.stats.period;
+  const sys = useQuery({ ...statsQuery(period), enabled: kind === "stats" });
+  const usr = useQuery({ ...userStatsQuery(period), enabled: kind === "ustats" });
+  return { kind, period, sys, usr };
+}

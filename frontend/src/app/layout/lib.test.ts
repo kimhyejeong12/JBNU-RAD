@@ -1,7 +1,15 @@
 import { expect, test } from "vitest";
+import { scaleFor, engineProblems, footerWarnings, placeTip } from "@/app/layout/lib";
 import type { Health, Jobs } from "@/shared/api/types";
-import { engineProblems, footerWarnings } from "./warnings";
 import { EMPTY_RESULTS } from "@/shared/api/queries";
+
+test("큰 화면 배율 — 1920px 까지는 그대로, 넓으면 비율만큼(최대 2배)", () => {
+  expect(scaleFor(1280)).toBe(1);
+  expect(scaleFor(1920)).toBe(1);
+  expect(scaleFor(2560)).toBeCloseTo(1.333, 3);
+  expect(scaleFor(3840)).toBe(2);
+  expect(scaleFor(5120)).toBe(2);
+});
 
 const ok: Health = { base_url: "http://ollama:11434", error: null, ok: true, connected: true, model: "qwen3:14b", model_ready: true, qa_model: "qwen3:14b", qa_model_ready: true, embedding_model: "e", embedding_ready: true, index_ready: true };
 
@@ -36,4 +44,23 @@ test("판정 실패 · 읽기 문제 · 작업 실패를 차례로", () => {
     "data/policies 읽기 문제 2건 — x",
     "서버 점검 실패 — e",
   ]);
+});
+
+const r = { left: 100, top: 100, width: 50, height: 20, right: 150, bottom: 120 };
+
+test("아래에 공간이 있으면 가운데 아래", () => {
+  expect(placeTip(r, "bottom", 100, 40, 800, 600)).toEqual({ left: 75, top: 128 });
+});
+
+test("아래에 공간이 없으면 위로", () => {
+  expect(placeTip(r, "bottom", 100, 40, 800, 150)).toEqual({ left: 75, top: 52 });
+});
+
+test("오른쪽 배치는 요소 오른쪽 + 10, 세로 가운데", () => {
+  expect(placeTip(r, "right", 100, 40, 800, 600)).toEqual({ left: 160, top: 90 });
+});
+
+test("화면 밖으로 나가지 않게 8px 안쪽으로 막는다", () => {
+  expect(placeTip({ ...r, left: 0, right: 10, width: 10 }, "bottom", 100, 40, 800, 600).left).toBe(8);
+  expect(placeTip({ ...r, left: 790, right: 800, width: 10 }, "bottom", 100, 40, 800, 600).left).toBe(692);
 });

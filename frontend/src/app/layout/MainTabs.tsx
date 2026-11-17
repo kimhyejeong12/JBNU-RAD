@@ -4,7 +4,7 @@ import { useQueue } from "@/app/queue/useQueue";
 import { stageCounts } from "@/app/queue/select";
 import type { StageFilter } from "@/app/ui/state/uiReducer";
 import { useUi } from "@/app/ui/state/UiContext";
-import { Icon } from "@/shared/ui/base/Icon";
+import { Icon } from "@/shared/ui/Icon";
 
 const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
   { tab: "queue", icon: "list", label: "검토 현황", panel: "view-queue" },

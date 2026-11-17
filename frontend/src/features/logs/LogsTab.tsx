@@ -1,15 +1,14 @@
 import { useRef, type ReactNode } from "react";
-import { LOG_FILTERS, PERIOD_LABEL, filterChoices, logAttrs, pageCount } from "./lib";
-import { useLogsPage } from "./useLogsPage";
+import { LOG_FILTERS, PERIOD_LABEL, filterChoices, logAttrs, pageCount, useLogsPage } from "./lib";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { UiState } from "@/app/ui/state/uiReducer";
 import type { LogPeriod, LogsPage } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { activateProps } from "@/shared/lib/hooks";
-import { Periods } from "@/shared/ui/base/parts";
-import { Icon } from "@/shared/ui/base/Icon";
+import { Periods } from "@/shared/ui/parts";
+import { Icon } from "@/shared/ui/Icon";
 import { cn } from "@/shared/lib/cn";
-import { card, cardCount, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, searchBox, searchInput, toolButton } from "@/shared/ui/base/styles";
+import { card, cardCount, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, searchBox, searchInput, toolButton } from "@/shared/ui/styles";
 
 const PERIODS = Object.entries(PERIOD_LABEL) as [LogPeriod, string][];
 type LogCond = UiState["logs"];

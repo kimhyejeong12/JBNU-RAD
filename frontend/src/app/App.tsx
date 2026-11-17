@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { queryClient, meQuery } from "@/shared/api/queries";
 import { AppShell, LoadError } from "./layout/AppShell";
-import { AuthContext, useAuth, type GateMode } from "@/features/auth/AuthContext";
+import { AuthContext, useAuth, type GateMode } from "@/app/session/me";
 import { Gate } from "@/features/auth/Gate";
 import { onUnauthorized } from "@/shared/api/http";
-import { ConfirmLayer } from "@/app/ui/confirm/ConfirmLayer";
+import { ConfirmLayer } from "@/app/ui/Overlays";
 
 export default function App() {
   const [gate, setGate] = useState<GateMode>(null);

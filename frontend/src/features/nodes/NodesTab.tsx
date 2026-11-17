@@ -2,15 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { nodeState, nodeStateText, nodeStateTone } from "./lib";
 import { useJobs } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
-import { JobReset } from "@/app/ui/jobs/JobReset";
+import { JobReset } from "@/app/queue/QueueHead";
 import { useStartJob } from "@/shared/api/jobs";
 import { nodesQuery } from "@/shared/api/queries";
 import { stamp } from "@/shared/lib/format";
 import { activateProps } from "@/shared/lib/hooks";
-import { Icon } from "@/shared/ui/base/Icon";
-import { LevelDot } from "@/shared/ui/base/parts";
+import { Icon } from "@/shared/ui/Icon";
+import { LevelDot } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
-import { card, cardCount, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton } from "@/shared/ui/base/styles";
+import { card, cardCount, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton } from "@/shared/ui/styles";
 
 export function NodesTab() {
   const { ui, pickNode, addNode, dispatch } = useUi();

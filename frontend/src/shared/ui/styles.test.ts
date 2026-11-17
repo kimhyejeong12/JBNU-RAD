@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { levelDot, levelText, markTone } from "./styles";
+import { levelDot, levelText, markTone } from "@/shared/ui/styles";
 
 test("등급 표가 모든 키를 덮음", () => {
   expect(Object.keys(levelDot).sort()).toEqual(["none", "위험", "정상", "주의"]);

@@ -1,11 +1,10 @@
-import { ask } from "@/app/ui/confirm/ask";
+import { ask } from "@/app/ui/ask";
 import { dayTime } from "@/shared/lib/format";
-import { Icon } from "@/shared/ui/base/Icon";
-import { DayTime, Pill } from "@/shared/ui/base/parts";
+import { Icon } from "@/shared/ui/Icon";
+import { DayTime, Pill } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
-import { card, cardCount, cardHead, cardTitle, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton } from "@/shared/ui/base/styles";
-import { useClearQueue, useQueueDetail } from "./api";
-import { LANE_ROWS, jobIcon, jobName, jobRows, jobTarget, progress, waitingCount, type QueueDetail } from "./lib";
+import { card, cardCount, cardHead, cardTitle, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton } from "@/shared/ui/styles";
+import { useClearQueue, useQueueDetail, LANE_ROWS, jobIcon, jobName, jobRows, jobTarget, progress, waitingCount, type QueueDetail } from "@/features/engine/lib";
 
 const section = cn(card, "flex flex-col");
 const ROWS = "m-0 list-none divide-y divide-line border-t border-line p-0";

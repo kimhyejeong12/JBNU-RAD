@@ -3,11 +3,11 @@ import { DECISIONS, DECISION_SET, decisionState, decisionTone, useDecide, type D
 import { PanelMsg } from "./Panel";
 import type { Decision, Level } from "@/shared/api/types";
 import { LEVEL_ICON } from "@/shared/lib/labels";
-import { Icon } from "@/shared/ui/base/Icon";
+import { Icon } from "@/shared/ui/Icon";
 import { stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
-import { Meta, Pill } from "@/shared/ui/base/parts";
-import { input, levelText, panelFoot, panelFootTitle } from "@/shared/ui/base/styles";
+import { Meta, Pill } from "@/shared/ui/parts";
+import { input, levelText, panelFoot, panelFootTitle } from "@/shared/ui/styles";
 
 const STATE_LABEL = "text-[11.5px] font-semibold text-ink-dim";
 

@@ -1,14 +1,14 @@
 import { SUSPECT_COLOR, statCard, statSafety, statSub, statTiles, trendMark, verdictsText } from "./lib";
 import { SafetyBand } from "./SafetyBand";
-import { Tile } from "@/shared/ui/base/parts";
+import { Tile } from "@/shared/ui/parts";
 import type { StatSelection } from "@/app/ui/state/uiReducer";
-import { JobReset } from "@/app/ui/jobs/JobReset";
+import { JobReset } from "@/app/queue/QueueHead";
 import { useStartJob } from "@/shared/api/jobs";
 import type { Jobs, Suspect, SuspectLevel, UserStats } from "@/shared/api/types";
 import { pct, stamp } from "@/shared/lib/format";
-import { DataTable, Meter } from "@/shared/ui/charts/parts";
-import { Icon } from "@/shared/ui/base/Icon";
-import { cardCount, cardHead, cardTitle, markTone, toolButton } from "@/shared/ui/base/styles";
+import { DataTable, Meter } from "@/shared/ui/charts";
+import { Icon } from "@/shared/ui/Icon";
+import { cardCount, cardHead, cardTitle, markTone, toolButton } from "@/shared/ui/styles";
 import { cn } from "@/shared/lib/cn";
 
 interface Props { d: UserStats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }

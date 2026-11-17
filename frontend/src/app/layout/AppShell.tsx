@@ -1,21 +1,18 @@
 import { useEffect } from "react";
 import { MeContext, useMe } from "@/app/session/me";
-import { HOME, restorable } from "@/app/session/views";
-import { readPage, savePage } from "@/app/session/lastPage";
-import { useNeeds } from "@/app/session/data";
+import { HOME, restorable, readPage, savePage } from "@/app/session/views";
+import { useNeeds, useBoot, useJobsWatcher } from "@/app/session/data";
 import { DONE_MSG_MS, NARROW, UiContext, useUiStore } from "@/app/ui/state/UiContext";
 import { NEW_ITEM } from "@/app/ui/state/uiReducer";
-import { useBoot } from "@/app/session/useBoot";
-import { useJobsWatcher } from "@/app/session/useJobsWatcher";
 import { useQueue } from "@/app/queue/useQueue";
 import { TopBar } from "./TopBar";
 import { MainTabs } from "./MainTabs";
 import { Workspace, workspace } from "./Workspace";
-import { TooltipLayer } from "@/app/overlays/TooltipLayer";
+import { TooltipLayer } from "@/app/ui/Overlays";
 import { AskDock } from "@/features/ask/AskDock";
 import type { Me } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
-import { card, empty } from "@/shared/ui/base/styles";
+import { card, empty } from "@/shared/ui/styles";
 import { useMediaQuery } from "@/shared/lib/hooks";
 
 export function AppShell({ me }: { me: Me }) {
