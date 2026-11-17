@@ -4,8 +4,8 @@ import react from "@vitejs/plugin-react";
 import type { ProxyOptions } from "vite";
 import { defineConfig } from "vitest/config";
 
-// /api 를 8001 로 넘겨 쿠키 세션이 같은 출처처럼 동작합니다.
-const API = "http://127.0.0.1:8001";
+// /api 를 넘겨 쿠키 세션이 같은 출처처럼 동작합니다. 기본은 시험 웹 8001, SENTINELAI_API 로 바꿉니다.
+const API = process.env.SENTINELAI_API || "http://127.0.0.1:8001";
 
 // 브라우저는 호스트마다 세션 쿠키를 하나만 둬서 compare.html 의 칸(Referer 의 ?as=)마다 개발 서버가 쿠키를 따로 보관합니다.
 const jars = new Map<string, Map<string, string>>();
