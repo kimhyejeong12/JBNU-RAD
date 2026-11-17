@@ -323,7 +323,7 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 | `python -m sentinelai.dev api-check 주소 --login 아이디` | 떠 있는 서버의 실제 응답이 선언과 같은지 대조 (읽기만, 보안 운영자 이상 계정, 비밀번호는 화면 표시 없이 물음). 읽기 API 18개와 노드 상세 · 대화 한 건을 받아 어긋난 칸을 줄마다 적음. 선언을 바꾼 뒤나 새 환경에 올리기 전에. 로그 조회는 그 서버의 감사 기록에 조회로 남음 |
 | `python -m sentinelai.dev test [pytest 인자]` | DB 시험 — `sentinelai_test` 에 시험마다 새 스키마를 만들고 지움. 뒤에 붙인 인자는 pytest 에 그대로 (예: `test -k ground -x`) |
 | `python -m sentinelai.dev targets [up\|down]` | **진짜 수집** — podman compose로 점검 대상 컨테이너 2대(`target-weak`: 약한 설정 / `target-strict`: 잠근 설정)를 올리고 내림. 값은 `node/testenv/targets.env`(git 제외: `SERVER` · `KEY_WEAK` · `KEY_STRICT` · `INTERVAL`, 없으면 시험 환경 키로 만듦). SentinelAI를 바깥에 열지 않고(pasta `--map-host-loopback`) ufw가 실제로 켜짐(NET_ADMIN). 사용자 podman 소켓 필요. 10/20 시험: weak 위험 · strict 정상 |
-| `npm ci` · `npm run dev` · `npm test && npm run typecheck && npm run lint` (`frontend/`) | 화면 개발 — npm 의존성(처음 한 번) · 개발 서버 http://localhost:5173 (`/api`는 8001로, 컨테이너 웹이면 `SENTINELAI_API=http://127.0.0.1:8000 npm run dev`) · 시험 · 타입 검사 · 린트 |
+| `npm ci` · `npm run dev` · `npm test && npm run typecheck && npm run lint` (`frontend/`) | 화면 개발 — npm 의존성(처음 한 번) · 개발 서버 http://localhost:5173 (`/api`는 컨테이너 웹 8000으로, 시험 웹이면 `SENTINELAI_API=http://127.0.0.1:8001 npm run dev`) · 시험 · 타입 검사 · 린트 |
 | `npm run build` (`frontend/`) | 화면 빌드 → `sentinelai/web/static/` (**커밋**함 — 팀 서버에 Node · 외부망이 없어도 새 화면). 깨끗이 설치해(`npm ci`) 빌드한 뒤 `git status sentinelai/web/static`이 비면 커밋된 것과 같음 |
 
 - venv 준비(처음 한 번): `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && cp .env.example .env`. 팀 서버처럼 PostgreSQL 이 따로 있으면 `.env` 주소만
