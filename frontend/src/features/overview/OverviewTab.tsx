@@ -18,20 +18,20 @@ import { brandCard, card, cardCount, levelText, markTone, toolButton, cardNote, 
 import { STAT_PERIODS } from "@/shared/lib/labels";
 
 type Open = "위험" | "주의";
+type Pick = Open | "판정 실패";
 const SUB = cn(cardNote, "pb-3");
 const AREA_MARK = "inline-block size-2.5 flex-none rounded-xs";
 
-// 위 = 숫자, 가운데 = 그래프와 AI 요약, 아래 = 주요 이슈와 최근 조치. 위험 주의 타일을 누르면 이슈 표를 거름
+// 위 = 숫자, 가운데 = 그래프와 AI 요약, 아래 = 주요 이슈와 최근 조치. 위험 · 주의 · 판정 실패 타일을 누르면 이슈 표가 그것만 보임
 export function OverviewTab() {
   const { ui, setStats } = useUi();
   const period = ui.stats.period;
   const q = useQuery(overviewQuery(period));
   const d = q.data;
   const go = useGo();
-  const [level, setLevel] = useState<Open | null>(null);
-  const rows = d ? (level ? d.top.filter((r) => r.level === level) : d.top) : [];
-  const total = d ? (level ? d.counts[level] : d.counts["위험"] + d.counts["주의"]) : 0;
-  const title = `${level ? `열린 ${level}` : "주요 위험 이슈"} (${ofText(total, rows.length)})`;
+  const [level, setLevel] = useState<Pick | null>(null);
+  const { rows, total, name } = d ? picked(d, level) : { rows: [], total: 0, name: "" };
+  const title = `${name} (${ofText(total, rows.length)})`;
   return (
     <div className={cn("flex flex-col gap-3.5", q.isFetching && d && "opacity-55")} id="view-overview" role="tabpanel" aria-labelledby="tab-overview">
       <section className={card}>
@@ -52,21 +52,28 @@ export function OverviewTab() {
             <Issues key={level ?? "all"} id="overview-top" title={title} rows={rows} empty={emptyText(level, total)} go={go} />
             <Recent d={d} go={go} />
           </div>
-          {d.failed.length > 0 && <Issues id="overview-failed" title={`판정 실패 ${d.failed.length}`} rows={d.failed} empty="" go={go} />}
         </>
       )}
     </div>
   );
 }
 
+// 판정 실패는 따로 표를 두지 않고 타일로 골라 같은 표에서 봄
+function picked(d: Overview, level: Pick | null): { rows: OverviewRow[]; total: number; name: string } {
+  if (level === "판정 실패") return { rows: d.failed, total: d.counts.failed, name: "판정 실패" };
+  if (level) return { rows: d.top.filter((r) => r.level === level), total: d.counts[level], name: `열린 ${level}` };
+  return { rows: d.top, total: d.counts["위험"] + d.counts["주의"], name: "주요 위험 이슈" };
+}
+
 // 주요 이슈는 위험부터 10건이라, 위험이 많으면 주의는 열려 있어도 이 목록에 안 들어옴
-function emptyText(level: Open | null, total: number): string {
+function emptyText(level: Pick | null, total: number): string {
   if (!level) return "열린 위험 없음";
+  if (level === "판정 실패") return "판정 실패 없음";
   return total ? `위험이 많아 주요 이슈 10건에 ${level}가 들지 않았습니다` : `열린 ${level} 없음`;
 }
 
 // 전체 이슈 = 지금 열린 위험 + 주의 — 아래 표와 같은 건수, 누르면 거르기를 풂. 기간은 완료율에만
-function Tiles({ d, level, onPick }: { d: Overview; level: Open | null; onPick: (l: Open | null) => void }) {
+function Tiles({ d, level, onPick }: { d: Overview; level: Pick | null; onPick: (l: Pick | null) => void }) {
   const c = d.counts;
   const all = c.completion.done + c.completion.waiting;
   return (
@@ -76,7 +83,7 @@ function Tiles({ d, level, onPick }: { d: Overview; level: Open | null; onPick: 
         <Tile key={l} label={<><LevelDot level={l} />{l}</>} big={c[l]} tone={c[l] ? levelText[l] : undefined} pressed={level === l} onClick={() => onPick(l)}>{deltaText(delta(d.trend, l))}</Tile>
       ))}
       <Tile label="조치 완료율" big={rateText(c.completion.rate)}>{c.completion.done} / {all}건</Tile>
-      {c.failed > 0 && <Tile label="판정 실패" big={c.failed} tone="text-ink-dim">위험 주의에 안 셈</Tile>}
+      {c.failed > 0 && <Tile label="판정 실패" big={c.failed} tone="text-ink-dim" pressed={level === "판정 실패"} onClick={() => onPick("판정 실패")}>위험 주의에 안 셈</Tile>}
     </div>
   );
 }
