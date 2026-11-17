@@ -73,14 +73,13 @@ def health(request: Request) -> dict[str, Any]:
 
 @app.get("/api/results", responses={200: {"model": Results}})
 def results(request: Request, user: Approver) -> dict[str, Any]:
-    """보안 총책임자에게는 결정 기록 전부(decision_log, 취소 포함)를 더 줍니다."""
+    """결정 기록 전부(decision_log, 취소 포함)도 줍니다 — 결정을 나눠 내리는 보안 운영자 · 감독하는 보안 총책임자가 함께 봅니다."""
     rdb, mdb = request.app.state.results_db, request.app.state.main_db
     out = {**view.results(results_db.latest_policy_review(rdb), results_db.monitor_findings(rdb), results_db.latest_node_findings(rdb)),
            "decisions": {kind: decisions.current(mdb, kind) for kind in decisions.ACTIONS}}
     log = {kind: decisions.history(mdb, kind) for kind in decisions.ACTIONS}
     _carry(rdb, out, log)
-    if user.role == "top":
-        out["decision_log"] = log
+    out["decision_log"] = log
     return out
 
 

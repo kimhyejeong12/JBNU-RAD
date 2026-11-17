@@ -97,7 +97,7 @@ def change_password(body: PasswordBody, request: Request) -> dict[str, Any]:
     return _session_user(request).public()
 
 
-# --- 계정 (일반 사용자 계정은 보안 운영자 이상, 역할과 보안 운영자 이상 계정은 보안 총책임자) ---
+# --- 계정 (보안 운영자가 관리, 루트는 처음 설정 · 비상용, 루트 계정은 루트만) ---
 
 
 class NewUser(BaseModel):

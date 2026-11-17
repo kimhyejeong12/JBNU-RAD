@@ -30,31 +30,37 @@ def request_no(main_db, people, item):
 
 
 def test_who_creates_accounts(main_db, people):
-    with denied("계정은 보안 운영자 이상만 만들 수 있습니다"), main_db.transaction() as conn:
+    for who in ("user", "top"):   # 일반 사용자도, 루트가 아닌 보안 총책임자도 못 만듦
+        with denied("계정은 보안 운영자가 만듭니다"), main_db.transaction() as conn:
+            conn.execute("INSERT INTO users (login_id, password_hash, display_name, role, created_at, created_by)"
+                         " VALUES ('x', 'h', 'x', 'user', '2026-11-03', %s)", (people[who].id,))
+    with main_db.transaction() as conn:
         conn.execute("INSERT INTO users (login_id, password_hash, display_name, role, created_at, created_by)"
-                     " VALUES ('x', 'h', 'x', 'user', '2026-11-03', %s)", (people["user"].id,))
-    with denied("보안 운영자 이상 계정은 보안 총책임자만 만들 수 있습니다"), main_db.transaction() as conn:
-        conn.execute("INSERT INTO users (login_id, password_hash, display_name, role, created_at, created_by)"
-                     " VALUES ('x', 'h', 'x', 'manager', '2026-11-03', %s)", (people["manager"].id,))
+                     " VALUES ('x', 'h', 'x', 'top', '2026-11-03', %s)", (people["manager"].id,))
 
 
-def test_manager_manages_user_accounts_only(main_db, people):
-    manager, user = people["manager"], people["user"]
+def test_manager_manages_every_account_but_root(main_db, people):
+    """피드백 표대로 계정 · 역할 관리는 보안 운영자 — 보안 총책임자는 보기만 하고 알림 · 이력으로 감독합니다."""
+    manager, top, user = people["manager"], people["top"], people["user"]
     made = auth.create_user(main_db, manager, "new", PASSWORD, "새 사람", "영업팀", "user")
     assert auth.update_user(main_db, manager, made.id, department="재무팀", is_active=0).department == "재무팀"
     auth.reset_password(main_db, manager, user.id, "temp-pass")
-    assert len(auth.list_users(main_db, manager)) == 6
-    with denied("보안 운영자 이상 계정은 보안 총책임자만 만들 수 있습니다"):
-        auth.create_user(main_db, manager, "boss", PASSWORD, "새 운영자", "", "manager")
-    with denied("역할은 보안 총책임자만 바꿀 수 있습니다"):
-        auth.update_user(main_db, manager, user.id, role="top")
-    for target in (manager, people["top"]):
-        with denied("보안 운영자 이상 계정은 보안 총책임자만 고칠 수 있습니다"):
-            auth.update_user(main_db, manager, target.id, display_name="바꿈")
-        with denied("보안 운영자 이상 계정은 보안 총책임자만 고칠 수 있습니다"):
-            auth.reset_password(main_db, manager, target.id, "temp-pass")
+    assert auth.create_user(main_db, manager, "boss", PASSWORD, "새 운영자", "", "manager").role == "manager"
+    assert auth.update_user(main_db, manager, user.id, role="top").role == "top"
+    assert auth.update_user(main_db, manager, top.id, display_name="바꿈").display_name == "바꿈"
+    auth.reset_password(main_db, manager, top.id, "temp-pass")
+    assert len(auth.list_users(main_db, top)) == 7
+    with denied("자기 계정의 역할을 바꾸거나 정지할 수 없습니다"):
+        auth.update_user(main_db, manager, manager.id, role="top")
+    with denied("루트 계정은 루트만 고칠 수 있습니다"):
+        auth.update_user(main_db, manager, people["root"].id, display_name="바꿈")
+    for denied_call in (lambda: auth.create_user(main_db, top, "t2", PASSWORD, "총", "", "user"),
+                        lambda: auth.update_user(main_db, top, made.id, department="영업팀"),
+                        lambda: auth.reset_password(main_db, top, made.id, "temp-pass")):
+        with denied("계정 관리는 보안 운영자가 합니다"):
+            denied_call()
     with denied("계정 관리는 보안 운영자 이상만 할 수 있습니다"):
-        auth.list_users(main_db, user)
+        auth.list_users(main_db, people["user2"])
 
 
 def test_login_id_is_case_insensitive(main_db, people):
@@ -92,21 +98,21 @@ def test_change_password_keeps_only_current_session(main_db, people):
 
 def test_deactivate_with_bool_revokes_sessions(main_db, people):
     token, _ = auth.login(main_db, "user", PASSWORD)
-    auth.update_user(main_db, people["top"], people["user"].id, is_active=False)
+    auth.update_user(main_db, people["manager"], people["user"].id, is_active=False)
     assert auth.session_user(main_db, token) is None
     with denied("정지된 계정입니다"):
         auth.login(main_db, "user", PASSWORD)
 
 
 def test_log_id_is_unique(main_db, people):
-    auth.update_user(main_db, people["top"], people["user"].id, log_id="kim.hj")
+    auth.update_user(main_db, people["manager"], people["user"].id, log_id="kim.hj")
     with denied("다른 계정이 이미 쓰는 로그 사용자 ID 입니다"):
-        auth.update_user(main_db, people["top"], people["user2"].id, log_id="kim.hj")
+        auth.update_user(main_db, people["manager"], people["user2"].id, log_id="kim.hj")
 
 
 def test_root_is_guarded(main_db, people):
     with denied("루트 계정은 루트만 고칠 수 있습니다"):
-        auth.reset_password(main_db, people["top"], people["root"].id, "temp-pass")
+        auth.reset_password(main_db, people["manager"], people["root"].id, "temp-pass")
 
 
 # --- 권한 목록 ---

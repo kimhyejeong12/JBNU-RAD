@@ -195,7 +195,7 @@ def test_results_shape(world, people):
     for who in ("top", "manager"):
         out = main.results(world, people[who])
         assert mismatch(R.Results, out) == []
-        assert ("decision_log" in out) == (who == "top")
+        assert "decision_log" in out
     assert out["policy_review"]["issues"] and out["decisions"]["policy"]["policy_issues/2"]["carried_from"] == "policy_issues/1"
     assert {s["failed"] for s in out["servers"]} == {True, False} and len(out["servers"][1]["gaps"]) == 1
     assert {e["stage"] for e in out["events"]} == {"fast", "final"} and any(e["failed"] for e in out["events"])

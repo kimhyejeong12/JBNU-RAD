@@ -35,7 +35,7 @@ def _close_all() -> None:
 def open_main_db(url: str, schema: str = "main") -> Database:
     """처음이면 스키마를 만듭니다."""
     return _open(url, schema, "main.sql", "main_email.sql", "main_regulations.sql", "main_grounding.sql", "main_decisions_done.sql",
-                 "main_manage.sql")
+                 "main_manage.sql", "main_accounts.sql")
 
 
 def open_results_db(url: str, schema: str = "results") -> Database:

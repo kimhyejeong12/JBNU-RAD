@@ -498,7 +498,7 @@ class EventFinding(judged.Verdict):
 
 
 class Results(BaseModel):
-    """검토 결과 — decisions 는 종류 → 판정 key → 지금 결정, decision_log(결정 기록 전부)는 보안 총책임자에게만 줍니다."""
+    """검토 결과 — decisions 는 종류 → 판정 key → 지금 결정, decision_log(결정 기록 전부, 취소 포함)는 보안 운영자 이상 모두에게 줍니다."""
 
     generated_at: str | None
     summary: Summary
