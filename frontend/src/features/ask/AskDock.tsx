@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { ASK, askWaitLabel, stepText, toolIcon, toolLabel, useAsk } from "@/features/ask/lib";
 import { AskEvidence } from "./AskEvidence";
 import { useMe } from "@/app/session/me";
@@ -6,7 +6,7 @@ import { useConversations } from "@/app/session/data";
 import { newConversation } from "@/app/ui/state/uiReducer";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { AskItem } from "@/shared/api/types";
-import { useNow } from "@/shared/lib/hooks";
+import { useNow, useEscape } from "@/shared/lib/hooks";
 import { stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/Icon";
@@ -57,16 +57,7 @@ function AskPopup() {
   }, [list.length, busy, evidence]);
 
   // 다른 Esc 동작(패널 닫기)보다 먼저 받아 근거 → 대화 → 닫기 순으로 물러납니다.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      if (ui.askSource) setAskSource(null);
-      else setAskOpen(false);
-    };
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, [ui.askSource, setAskSource, setAskOpen]);
+  useEscape(() => (ui.askSource ? setAskSource(null) : setAskOpen(false)), true);
 
   const toggle = (i: number, n: number) => {
     const same = !!ui.askSource && ui.askSource.i === i && ui.askSource.n === n;

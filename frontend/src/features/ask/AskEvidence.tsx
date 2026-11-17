@@ -1,9 +1,9 @@
 import { criteriaText, stepText } from "./lib";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { AskItem, AskStep, LogFacts, ServerFacts } from "@/shared/api/types";
-import { stamp } from "@/shared/lib/format";
 import { KvTable, Section, LinesBox, Subject } from "@/shared/ui/parts";
 import { boxPre, clause, note } from "@/shared/ui/styles";
+import { stampRange } from "@/shared/lib/format";
 
 // 답 아래 근거 칩 하나 = 도구 호출 한 번. 도구마다 보여 주는 모양이 다릅니다.
 export function AskEvidence({ list }: { list: AskItem[] }) {
@@ -32,7 +32,7 @@ function Logs({ s, f }: Props & { f: LogFacts }) {
   const rows: [string, string][] = [
     ["조건", criteriaText(s.criteria, "조건 없음 (전체 로그)")],
     ["해당 로그", `${f.count}건`],
-    ["기간", f.count ? `${stamp(f.first)} ~ ${stamp(f.last)}` : "—"],
+    ["기간", f.count ? stampRange(f.first, f.last) : "—"],
     ...Object.entries(f.by_user).map(([u, n]) => [u, `${n}건`] as [string, string]),
     ...Object.entries(f.attribute_totals).map(([k, v]) => [`${k} 합계`, String(v)] as [string, string]),
   ];
@@ -59,7 +59,7 @@ function Servers({ s, f }: Props & { f: ServerFacts }) {
     <>
       <Section icon="activity" title="집계">
         <KvTable rows={[["조건", criteriaText(s.criteria, "전체")], ["서버", `${f["노드 수"]}대`], ["마지막 판정", levels],
-          ["기간 안 수집", first ? `${stamp(first)} ~ ${stamp(f["기간 안 마지막 수집"])}` : "없음"], ...nodes]} />
+          ["기간 안 수집", first ? stampRange(first, f["기간 안 마지막 수집"]) : "없음"], ...nodes]} />
       </Section>
       <Section icon="file" title="기록">
         <LinesBox lines={evidence} empty="기록이 없습니다." />

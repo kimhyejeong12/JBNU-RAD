@@ -13,7 +13,7 @@ import { AskDock } from "@/features/ask/AskDock";
 import type { Me } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { card, empty } from "@/shared/ui/styles";
-import { useMediaQuery } from "@/shared/lib/hooks";
+import { useMediaQuery, useEscape } from "@/shared/lib/hooks";
 import { isDone } from "@/shared/lib/format";
 
 export function AppShell({ me }: { me: Me }) {
@@ -38,14 +38,7 @@ function Shell() {
   useEffect(() => {
     if (!narrow) dispatch({ type: "CLOSE_DRAWER" });
   }, [narrow, dispatch]);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      dispatch({ type: "CLOSE_PANEL" });
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [dispatch]);
+  useEscape(() => dispatch({ type: "CLOSE_PANEL" }));
   useEffect(() => {
     if (!boot.ready || ui.view !== null) return;
     const saved = restorable(readPage(me.login_id), me.role);

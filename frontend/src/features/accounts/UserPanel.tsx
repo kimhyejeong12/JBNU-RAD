@@ -13,12 +13,12 @@ import { isActive } from "@/shared/lib/request";
 import { ROLE_LABEL } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
 import { useUi } from "@/app/ui/state/UiContext";
-import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { actionButton, field, formActions, input, note, toolButton, fieldGrid, goodButton, panelFormGrid, primaryAction, wideActions, wideField } from "@/shared/ui/styles";
 import { Icon } from "@/shared/ui/Icon";
 import { Pill, Section, Switch, Subject } from "@/shared/ui/parts";
 import { ask } from "@/app/ui/ask";
+import { checkForm } from "@/shared/lib/form";
 
 const BOX = "rounded-xl border border-line px-3.5 py-3";
 
@@ -55,10 +55,9 @@ function NewUser() {
   const create = useCreateUser();
   const { setPanelMsg } = useUi();
   function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const problem = formProblem(e.currentTarget);
-    if (problem) return setPanelMsg(problem);
-    create.mutate(Object.fromEntries(new FormData(e.currentTarget)));
+    const f = checkForm(e, setPanelMsg);
+    if (!f) return;
+    create.mutate(Object.fromEntries(f));
   }
   return (
     <Panel title="새 계정">

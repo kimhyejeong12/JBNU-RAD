@@ -1,10 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import type { StatKind } from "@/app/ui/state/uiReducer";
 import { useUi } from "@/app/ui/state/UiContext";
-import type { Level, StatPeriod, SuspectLevel, Suspect } from "@/shared/api/types";
+import type { Level, SuspectLevel, Suspect } from "@/shared/api/types";
 import { statsQuery, userStatsQuery } from "@/shared/api/queries";
 
-export const STAT_PERIODS: [StatPeriod, string][] = [["week", "일주일"], ["month", "한 달"], ["quarter", "3개월"], ["all", "전체"]];
 export const STAT_TITLES: Record<StatKind, string> = { stats: "시스템", ustats: "사용자" };
 
 export const SUSPECT_COLOR: Record<SuspectLevel, Level> = { "높음": "위험", "보통": "주의", "낮음": "정상" };

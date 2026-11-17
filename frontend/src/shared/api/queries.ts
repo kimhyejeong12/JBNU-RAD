@@ -89,23 +89,13 @@ export const logsQuery = (p: LogsParams) => queryOptions({
   placeholderData: keepPreviousData,
 });
 
-// 노드와 같은 이유로 staleTime 0 입니다.
-export const statsQuery = (period: StatPeriod) => queryOptions({
-  queryKey: ["stats", "stats", period],
-  queryFn: () => getJSON<Stats>(`/api/stats?period=${period}`),
+// 기간별 집계 — 노드와 같은 이유로 staleTime 0, 키가 stats 아래라 작업이 끝나면 함께 다시 받음
+const periodQuery = <T>(kind: string, url: string) => (period: StatPeriod) => queryOptions({
+  queryKey: ["stats", kind, period],
+  queryFn: () => getJSON<T>(`${url}?period=${period}`),
   staleTime: 0,
   placeholderData: keepPreviousData,
 });
-// 키가 stats 아래라 작업이 끝나면 함께 다시 받습니다.
-export const overviewQuery = (period: StatPeriod) => queryOptions({
-  queryKey: ["stats", "overview", period],
-  queryFn: () => getJSON<Overview>(`/api/overview?period=${period}`),
-  staleTime: 0,
-  placeholderData: keepPreviousData,
-});
-export const userStatsQuery = (period: StatPeriod) => queryOptions({
-  queryKey: ["stats", "ustats", period],
-  queryFn: () => getJSON<UserStats>(`/api/user-stats?period=${period}`),
-  staleTime: 0,
-  placeholderData: keepPreviousData,
-});
+export const statsQuery = periodQuery<Stats>("stats", "/api/stats");
+export const overviewQuery = periodQuery<Overview>("overview", "/api/overview");
+export const userStatsQuery = periodQuery<UserStats>("ustats", "/api/user-stats");

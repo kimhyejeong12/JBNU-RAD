@@ -10,11 +10,11 @@ import { stamp } from "@/shared/lib/format";
 import { isActive } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
 import { useUi } from "@/app/ui/state/UiContext";
-import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { box, field, formActions, input, fieldGrid, panelFormGrid, primaryAction, wideActions, wideField } from "@/shared/ui/styles";
 import { GroupBox, Switch, Subject } from "@/shared/ui/parts";
 import { ask } from "@/app/ui/ask";
+import { checkForm } from "@/shared/lib/form";
 
 
 const Fields = ({ v }: { v?: AccessItem }) => (
@@ -35,10 +35,9 @@ function NewAccess() {
   const create = useCreateAccess();
   const { setPanelMsg } = useUi();
   function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const problem = formProblem(e.currentTarget);
-    if (problem) return setPanelMsg(problem);
-    create.mutate(Object.fromEntries(new FormData(e.currentTarget)));
+    const f = checkForm(e, setPanelMsg);
+    if (!f) return;
+    create.mutate(Object.fromEntries(f));
   }
   return (
     <Panel title="권한 등록">
@@ -62,10 +61,8 @@ function EditAccess({ a }: { a: AccessItem }) {
   const active = used.filter((r) => isActive(r)).length;
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const problem = formProblem(e.currentTarget);
-    if (problem) return setPanelMsg(problem);
-    const f = new FormData(e.currentTarget);
+    const f = checkForm(e, setPanelMsg);
+    if (!f) return;
     update.mutate({ code: a.code, patch: { name: f.get("name"), system: f.get("system"), category: f.get("category"), description: f.get("description") } });
   }
   // 끄면 새 신청이 바로 막혀서 끌 때만 묻습니다.

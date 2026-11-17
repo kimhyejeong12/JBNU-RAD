@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { dayTime, niceMax, pageLinks, pct, person, points, stamp } from "./format";
+import { dayTime, niceMax, pageLinks, pct, person, points, rangeText, stamp } from "./format";
 
 test("points: 줄이 여럿이면 줄마다, 번호 떼고 소제목 따로", () => {
   expect(points("1. 직무 연관성: 연관성이 부족합니다.\n2. 사용 기간: 적당합니다.")).toEqual([
@@ -63,4 +63,12 @@ test("쪽 번호는 지금 쪽을 가운데 두고 5개까지", () => {
   expect(pageLinks(1, 12)).toEqual([1, 2, 3, 4, 5]);
   expect(pageLinks(6, 12)).toEqual([4, 5, 6, 7, 8]);
   expect(pageLinks(12, 12)).toEqual([8, 9, 10, 11, 12]);
+});
+
+test("rangeText: 세는 중, 오류, 시작점", () => {
+  expect(rangeText({ isFetching: true, error: null, data: { since: "" } })).toBe("세는 중…");
+  expect(rangeText({ isFetching: false, error: new Error("끊김"), data: { since: "" } })).toBe("끊김");
+  expect(rangeText({ isFetching: false, error: null })).toBe("");
+  expect(rangeText({ isFetching: false, error: null, data: { since: "" } }, "완료율 ")).toBe("완료율 처음부터");
+  expect(rangeText({ isFetching: false, error: null, data: { since: "2026-11-01T00:00:00+09:00" } }, "완료율 ")).toMatch(/^완료율 .+ 부터$/);
 });

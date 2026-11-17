@@ -5,7 +5,7 @@ import { useUi } from "@/app/ui/state/UiContext";
 import { Panel } from "@/app/ui/panel/Panel";
 import { DecisionBadge, DecisionFoot, JudgeState } from "@/app/ui/panel/DecisionFoot";
 import type { Stats, Suspect, UserStats } from "@/shared/api/types";
-import { stamp } from "@/shared/lib/format";
+import { stamp, stampRange } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
 import { KvTable, Section, LinesBox, Subject } from "@/shared/ui/parts";
 import { Sparkline } from "@/shared/ui/charts";
@@ -104,7 +104,7 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
             ["하루 양", `${g.baseline_daily_volume} → ${g.recent_daily_volume}${g.volume_ratio != null ? ` (${g.volume_ratio}배)` : ""}`],
             ["근무 시간 밖", `${Math.round((g.off_hours_ratio ?? 0) * 100)}%`], ["예외 승인", `${Math.round((g.exception_ratio ?? 0) * 100)}%`],
             ["민감 문서", `${g.sensitive_events}건${g.sensitive_words?.length ? ` (${g.sensitive_words.join(", ")})` : ""}`],
-            ["30분 안 최대", `${g.max_burst_30min}건`], ["로그 기간", `${stamp(g.first_seen)} ~ ${stamp(g.last_seen)}`]]} />
+            ["30분 안 최대", `${g.max_burst_30min}건`], ["로그 기간", stampRange(g.first_seen, g.last_seen)]]} />
         ) : <p className={note}>로그 없음</p>}
       </Section>
       <Section icon="list" title="기록 (35일)">

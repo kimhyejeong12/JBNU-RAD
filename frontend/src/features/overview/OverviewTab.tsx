@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AREA_COLOR, AREA_ICON, PERIODS, arcs, delta, deltaText, firstTodos, ofText, rangeText, rateText, useGo, type Go } from "./lib";
+import { AREA_COLOR, AREA_ICON, arcs, delta, deltaText, firstTodos, ofText, rateText, useGo, type Go } from "./lib";
 import { useJobs } from "@/app/session/data";
 import { StateCell } from "@/app/ui/panel/DecisionFoot";
 import { decisionState } from "@/app/ui/panel/decision";
@@ -8,13 +8,14 @@ import { useUi } from "@/app/ui/state/UiContext";
 import { useStartJob } from "@/shared/api/jobs";
 import { overviewQuery } from "@/shared/api/queries";
 import type { Briefing, Overview, OverviewRow, StatPeriod } from "@/shared/api/types";
-import { niceMax, slotAt, stamp } from "@/shared/lib/format";
+import { niceMax, slotAt, stamp, rangeText } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/Icon";
 import { usePage } from "@/shared/lib/hooks";
 import { DayTime, IconBadge, LevelDot, LevelLabel, Pager, Periods, Tile, CardHead } from "@/shared/ui/parts";
 import { DataTable, Legend, XTicks, YGrid } from "@/shared/ui/charts";
 import { brandCard, card, cardCount, levelText, markTone, toolButton, cardNote, tileGrid } from "@/shared/ui/styles";
+import { STAT_PERIODS } from "@/shared/lib/labels";
 
 type Open = "위험" | "주의";
 const SUB = cn(cardNote, "pb-3");
@@ -35,8 +36,8 @@ export function OverviewTab() {
     <div className={cn("flex flex-col gap-3.5", q.isFetching && d && "opacity-55")} id="view-overview" role="tabpanel" aria-labelledby="tab-overview">
       <section className={card}>
         <CardHead title="종합 대시보드">
-          <Periods<StatPeriod> id="overview-periods" labels={PERIODS} value={period} onChange={(p) => { if (p !== period) setStats({ period: p }); }} />
-          <span className={cardCount}>{rangeText(q)}</span>
+          <Periods<StatPeriod> id="overview-periods" labels={STAT_PERIODS} value={period} onChange={(p) => { if (p !== period) setStats({ period: p }); }} />
+          <span className={cardCount}>{rangeText(q, "완료율 ")}</span>
         </CardHead>
         {d && <Tiles d={d} level={level} onPick={(l) => setLevel(l === level ? null : l)} />}
       </section>

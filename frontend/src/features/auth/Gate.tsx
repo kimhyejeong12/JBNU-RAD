@@ -2,10 +2,10 @@ import { useRef, useState, type FormEvent } from "react";
 import { type GateMode, useAuth, login, changePassword } from "@/app/session/me";
 import { errorText } from "@/shared/api/http";
 import { cn } from "@/shared/lib/cn";
-import { formProblem } from "@/shared/lib/form";
 import { LogoMark } from "@/shared/ui/Icon";
 import { actionButton, field, formActions, formMsg, input, note, primaryButton } from "@/shared/ui/styles";
 import { forgetPages } from "@/app/session/views";
+import { checkForm } from "@/shared/lib/form";
 
 const CARD = "flex w-[min(380px,100%)] flex-col gap-3 rounded-[14px] border border-line bg-surface px-6 pt-6.5 pb-4.5";
 
@@ -22,11 +22,9 @@ function LoginForm() {
   const password = useRef<HTMLInputElement>(null);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
     setMsg("");
-    const problem = formProblem(e.currentTarget);
-    if (problem) return setMsg(problem);
-    const f = new FormData(e.currentTarget);
+    const f = checkForm(e, setMsg);
+    if (!f) return;
     try {
       await login(String(f.get("login_id")), String(f.get("password")));
       forgetPages();   // 새로고침과 같은 reload 라 여기서 마지막 화면을 지웁니다
@@ -53,10 +51,8 @@ function PasswordForm({ forced }: { forced: boolean }) {
   const [msg, setMsg] = useState("");
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const problem = formProblem(e.currentTarget);
-    if (problem) return setMsg(problem);
-    const f = new FormData(e.currentTarget);
+    const f = checkForm(e, setMsg);
+    if (!f) return;
     const next = String(f.get("new"));
     if (next !== String(f.get("confirm"))) {
       setMsg("새 비밀번호 두 칸이 다릅니다");

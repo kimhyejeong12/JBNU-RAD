@@ -4,6 +4,9 @@ import type { JobKind, Jobs } from "./types";
 
 const VIEW_KIND: Record<string, JobKind> = { policies: "policies" };
 
+// 버튼 글 뒤 " 3/8" — 셀 것이 없으면 빈 글
+export const jobProgress = (jobs: Jobs | null | undefined): string => (jobs?.total ? ` ${jobs.done}/${jobs.total}` : "");
+
 // 두 번 누르면 두 번째가 409 를 받으므로 시작 요청이 가는 동안(pending) 막습니다.
 export function runButton(jobs: Jobs | null | undefined, view: string | null, pending = false): { hidden: boolean; disabled: boolean; text: string } {
   const kind = view ? VIEW_KIND[view] : undefined;
@@ -12,7 +15,7 @@ export function runButton(jobs: Jobs | null | undefined, view: string | null, pe
   if (pending) return { hidden: false, disabled: true, text: `${jobs.kinds[kind] || "분석"} 실행` };
   if (jobs.running) {
     const name = jobs.kinds[jobs.running] || jobs.running;
-    return { hidden: false, disabled: true, text: `${name}${jobs.auto ? "(자동)" : ""} 중…${jobs.total ? ` ${jobs.done}/${jobs.total}` : ""}` };
+    return { hidden: false, disabled: true, text: `${name}${jobs.auto ? "(자동)" : ""} 중…${jobProgress(jobs)}` };
   }
   return { hidden: false, disabled: false, text: `${jobs.kinds[kind] || "분석"} 실행` };
 }

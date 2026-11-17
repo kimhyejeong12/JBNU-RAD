@@ -3,7 +3,7 @@ import { SafetyBand } from "./SafetyBand";
 import { Tile, CardHead } from "@/shared/ui/parts";
 import type { StatSelection } from "@/app/ui/state/uiReducer";
 import { JobReset } from "@/app/queue/QueueHead";
-import { useStartJob } from "@/shared/api/jobs";
+import { useStartJob, jobProgress } from "@/shared/api/jobs";
 import type { Jobs, Suspect, SuspectLevel, UserStats } from "@/shared/api/types";
 import { pct, stamp } from "@/shared/lib/format";
 import { DataTable, Meter } from "@/shared/ui/charts";
@@ -51,7 +51,7 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
         {/* 둘 다 오른쪽으로 밀면 버튼이 가운데로 떠서 버튼만 오른쪽 끝에 둡니다. */}
         <span className={cardCountInline}>{sus.length ? `${sus.length}명, ${stamp(latest)}` : ""}</span>
         <button className={toolButton} id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
-          <Icon name="activity" small />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
+          <Icon name="activity" small />{running ? `예측 중…${jobProgress(jobs)}` : "지금 예측"}
         </button>
         <JobReset />
       </CardHead>

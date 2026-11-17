@@ -1,4 +1,23 @@
-import { useEffect, useMemo, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+
+// Esc 키 — first 면 다른 Esc 동작(패널 닫기)보다 먼저 받아 멈춤, on 이 null 이면 안 받음
+export function useEscape(on: (() => void) | null, first = false) {
+  const latest = useRef(on);
+  useEffect(() => {
+    latest.current = on;
+  });
+  const active = !!on;
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Escape" || !latest.current) return;
+      if (first) e.stopPropagation();
+      latest.current();
+    };
+    document.addEventListener("keydown", onKey, first);
+    return () => document.removeEventListener("keydown", onKey, first);
+  }, [active, first]);
+}
 
 // 줄을 size 개씩 쪽으로 나눕니다 — 거르기로 줄이 줄어 지금 쪽이 없어지면 마지막 쪽을 보입니다.
 export function usePage<T>(rows: T[], size: number) {

@@ -3,7 +3,7 @@ import { nodeState, nodeStateText, nodeStateTone } from "./lib";
 import { useJobs } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
 import { JobReset } from "@/app/queue/QueueHead";
-import { useStartJob } from "@/shared/api/jobs";
+import { useStartJob, jobProgress } from "@/shared/api/jobs";
 import { nodesQuery } from "@/shared/api/queries";
 import { stamp } from "@/shared/lib/format";
 import { activateProps } from "@/shared/lib/hooks";
@@ -27,7 +27,7 @@ export function NodesTab() {
         <span className={cardCountInline} id="node-count">{nodes.data ? `${list.length}대` : ""}</span>
         <button className={toolButton} id="check-now" disabled={!jobs || !!jobs.running || start.isPending} onClick={() => start.mutate("nodes")}>
           <Icon name="activity" small />
-          <span id="check-now-txt">{checking ? `점검 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 점검"}</span>
+          <span id="check-now-txt">{checking ? `점검 중…${jobProgress(jobs)}` : "지금 점검"}</span>
         </button>
         <JobReset />
         <button className={toolButtonInline} id="add-node" onClick={addNode}><Icon name="plus" small />노드 등록</button>

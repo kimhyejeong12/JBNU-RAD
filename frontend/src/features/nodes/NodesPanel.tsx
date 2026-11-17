@@ -12,9 +12,9 @@ import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
 import { KvTable, LevelDot, Section, ModuleTables, Subject } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
-import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { box, boxPre, empty, formGrid, formMsg, input, meta, note, recLine, toolButton, primaryAction, wideActions, wideField } from "@/shared/ui/styles";
+import { checkForm } from "@/shared/lib/form";
 
 export function NodesPanel() {
   const { ui } = useUi();
@@ -31,10 +31,9 @@ function AddNodePanel() {
   const create = useCreateNode();
   const { setPanelMsg } = useUi();
   function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const problem = formProblem(e.currentTarget);
-    if (problem) return setPanelMsg(problem);
-    create.mutate(String(new FormData(e.currentTarget).get("name") ?? "").trim());
+    const f = checkForm(e, setPanelMsg);
+    if (!f) return;
+    create.mutate(String(f.get("name") ?? "").trim());
   }
   return (
     <Panel title="노드 등록">

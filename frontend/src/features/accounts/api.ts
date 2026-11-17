@@ -1,21 +1,10 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { usePanelAction, useUi } from "@/app/ui/state/UiContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { usePanelAction, usePanelCreate } from "@/app/ui/state/UiContext";
 import { send } from "@/shared/api/http";
 import type { UserRow } from "@/shared/api/types";
 
-export function useCreateUser() {
-  const qc = useQueryClient();
-  const { selectSilent, setPanelMsg } = useUi();
-  return useMutation({
-    mutationFn: (body: Record<string, FormDataEntryValue>) => send<UserRow>("/api/users", body),
-    onSuccess: async (made) => {
-      setPanelMsg(`✓ ${made.login_id} 계정을 만들었습니다`);
-      await qc.invalidateQueries({ queryKey: ["users"] });
-      selectSilent(`user:${made.id}`);
-    },
-    onError: (e) => setPanelMsg(e.message),
-  });
-}
+export const useCreateUser = () => usePanelCreate((body: Record<string, FormDataEntryValue>) => send<UserRow>("/api/users", body),
+  "users", (made) => [`✓ ${made.login_id} 계정을 만들었습니다`, `user:${made.id}`]);
 
 // 자기 계정을 고치면 위쪽 바(["me"])도 다시 받아 옛 이름이 남지 않게 합니다.
 export function useUserAction() {

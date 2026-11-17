@@ -1,6 +1,5 @@
 import { expect, test } from "vitest";
-import type { Overview } from "@/shared/api/types";
-import { arcs, delta, deltaText, firstTodos, rangeText, rateText, targetOf } from "./lib";
+import { arcs, delta, deltaText, firstTodos, rateText, targetOf } from "./lib";
 
 const area = (area: "policy" | "server" | "event" | "suspect" | "grant", 위험: number, 주의: number) => ({ area, label: area, 위험, 주의, failed: 0 });
 
@@ -41,11 +40,3 @@ test("firstTodos: 영역마다 맨 앞 하나씩, 위험부터", () => {
   expect(firstTodos(b as never, 2).map((t) => [t.area, t.item])).toEqual([["event", "e1"], ["policy", "p1"]]);
 });
 
-test("카드 머리 글 — 세는 중, 오류, 완료율 시작점", () => {
-  const d = { since: "" } as Overview;
-  expect(rangeText({ isFetching: true, error: null, data: d })).toBe("세는 중…");
-  expect(rangeText({ isFetching: false, error: new Error("끊김"), data: d })).toBe("끊김");
-  expect(rangeText({ isFetching: false, error: null })).toBe("");
-  expect(rangeText({ isFetching: false, error: null, data: d })).toBe("완료율 처음부터");
-  expect(rangeText({ isFetching: false, error: null, data: { since: "2026-11-01T00:00:00+09:00" } as Overview })).toMatch(/^완료율 .+ 부터$/);
-});

@@ -144,3 +144,19 @@ export function usePanelAction<V>(run: (v: V) => Promise<string>, refresh: Query
     onSettled: () => qc.invalidateQueries({ queryKey: refresh }),
   });
 }
+
+// 만들고 그 항목을 고름 — done 이 만든 값에서 [완료 글, 고를 key]
+export function usePanelCreate<B, T>(post: (body: B) => Promise<T>, refresh: string, done: (made: T) => [msg: string, key: string]) {
+  const qc = useQueryClient();
+  const { selectSilent, setPanelMsg } = useUi();
+  return useMutation({
+    mutationFn: post,
+    onSuccess: async (made) => {
+      const [msg, key] = done(made);
+      setPanelMsg(msg);
+      await qc.invalidateQueries({ queryKey: [refresh] });
+      selectSilent(key);
+    },
+    onError: (e) => setPanelMsg(e.message),
+  });
+}

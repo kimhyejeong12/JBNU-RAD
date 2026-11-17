@@ -3,6 +3,7 @@ import { placeTip, pageScale } from "@/app/layout/lib";
 import { registerConfirm, type Ask } from "@/app/ui/ask";
 import { cn } from "@/shared/lib/cn";
 import { actionButton, dangerButton, primaryButton, cardTitle } from "@/shared/ui/styles";
+import { useEscape } from "@/shared/lib/hooks";
 
 // 마지막 자식으로 두어 opacity · transform 이 걸린 조상 밑에 들어가지 않게 합니다.
 export function TooltipLayer() {
@@ -89,18 +90,11 @@ export function ConfirmLayer() {
     registerConfirm((a, done) => setCur({ a, done }));
     return () => registerConfirm(null);
   }, []);
-  useEffect(() => {
-    if (!cur) return;
-    // 패널 닫기 등 다른 Esc 동작보다 먼저 받아 확인 창만 닫습니다.
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.stopPropagation();
-      cur.done(false);
-      setCur(null);
-    };
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, [cur]);
+  // 패널 닫기 등 다른 Esc 동작보다 먼저 받아 확인 창만 닫음
+  useEscape(cur && (() => {
+    cur.done(false);
+    setCur(null);
+  }), true);
   if (!cur) return null;
   const { a } = cur;
   const close = (ok: boolean) => {

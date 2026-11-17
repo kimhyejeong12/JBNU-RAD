@@ -1,23 +1,12 @@
 import { useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useUi } from "@/app/ui/state/UiContext";
+import { useUi, usePanelCreate } from "@/app/ui/state/UiContext";
 import { getJSON, send } from "@/shared/api/http";
 import { regulationsQuery } from "@/shared/api/queries";
 import type { ExtractedPdf, ExtractedTables, Regulation } from "@/shared/api/types";
 
-export function useUploadRegulation() {
-  const qc = useQueryClient();
-  const { selectSilent, setPanelMsg } = useUi();
-  return useMutation({
-    mutationFn: (body: { name: string; content: string; source?: string }) => send<Regulation>("/api/regulations", body),
-    onSuccess: async (made) => {
-      setPanelMsg(`✓ ${made.name} 를 올렸습니다`);
-      await qc.invalidateQueries({ queryKey: ["regulations"] });
-      selectSilent(`doc:${made.name}`);
-    },
-    onError: (e) => setPanelMsg(e.message),
-  });
-}
+export const useUploadRegulation = () => usePanelCreate((body: { name: string; content: string; source?: string }) => send<Regulation>("/api/regulations", body),
+  "regulations", (made) => [`✓ ${made.name} 를 올렸습니다`, `doc:${made.name}`]);
 
 // 저장하지 않고 꺼낸 글만 받습니다.
 export function useExtractPdf() {
@@ -45,9 +34,7 @@ export function useEditRegulation() {
   const mutation = useMutation({
     mutationFn: ({ name, content, reason }: { name: string; content: string; reason: string }) => {
       ctrl.current = new AbortController();
-      return getJSON<Regulation>(`/api/regulations/${encodeURIComponent(name)}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content, reason }), signal: ctrl.current.signal,
-      });
+      return send<Regulation>(`/api/regulations/${encodeURIComponent(name)}`, { content, reason }, "PUT", ctrl.current.signal);
     },
     onSuccess: () => setPanelMsg("✓ 고쳤습니다. 이 문서만 다시 적재했습니다"),
     onError: (e) => {

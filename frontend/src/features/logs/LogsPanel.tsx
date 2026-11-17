@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { PERIOD_LABEL, useLogsPage } from "./lib";
 import { useUi } from "@/app/ui/state/UiContext";
 import { Panel } from "@/app/ui/panel/Panel";
-import { stamp } from "@/shared/lib/format";
+import { stamp, stampRange } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
 import { KvTable, Section, Subject } from "@/shared/ui/parts";
 import { empty, note, toolButton } from "@/shared/ui/styles";
@@ -46,7 +46,7 @@ export function LogsPanel() {
           <Section icon="activity" title="합계">
             <KvTable rows={[
               ["해당 로그", `${f.count.toLocaleString()}건`],
-              ...(f.count ? [["기간", `${stamp(f.first)} ~ ${stamp(f.last)}`] as [string, string]] : []),
+              ...(f.count ? [["기간", stampRange(f.first, f.last)] as [string, string]] : []),
               ...Object.entries(f.attribute_totals).map(([k, v]) => [`${k} 합계`, String(v)] as [string, string]),
             ]} />
           </Section>

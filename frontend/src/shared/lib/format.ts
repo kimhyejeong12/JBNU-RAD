@@ -1,6 +1,16 @@
 export const stamp = (iso: string | null | undefined): string =>
   iso ? new Date(iso).toLocaleString("sv-SE", { hour12: false }).slice(0, 16) : "";
 
+export const stampRange = (from: string | null | undefined, to: string | null | undefined): string => `${stamp(from)} ~ ${stamp(to)}`;
+
+// 카드 머리 오른쪽 글 — 세는 중, 오류, 센 시작점
+export function rangeText(q: { isFetching: boolean; error: Error | null; data?: { since?: string | null } }, lead = ""): string {
+  if (q.isFetching) return "세는 중…";
+  if (q.error) return q.error.message;
+  if (!q.data) return "";
+  return q.data.since ? `${lead}${stamp(q.data.since)} 부터` : `${lead}처음부터`;
+}
+
 // 날짜와 시각을 두 줄로 나눌 때 — 올해면 연도를 뺍니다 (예: ["11-17", "20:12"]).
 export function dayTime(iso: string | null | undefined, now: Date = new Date()): [string, string] {
   const [day = "", time = ""] = stamp(iso).split(" ");

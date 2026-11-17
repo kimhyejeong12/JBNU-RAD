@@ -1,3 +1,4 @@
+import type { FormEvent } from "react";
 // 브라우저 기본 말풍선은 브라우저마다 모양 · 말이 달라 폼 옆 안내 글자로 알립니다.
 
 // 받침이 있으면 을, 없으면 를 (한글이 아니면 을(를)).
@@ -31,4 +32,15 @@ export function formProblem(form: HTMLFormElement): string | null {
     return problemText(name, kind, pick, el.title || undefined);
   }
   return null;
+}
+
+// 제출 막고 칸 검사 — 문제면 onProblem 후 null
+export function checkForm(e: FormEvent<HTMLFormElement>, onProblem: (msg: string) => void): FormData | null {
+  e.preventDefault();
+  const problem = formProblem(e.currentTarget);
+  if (problem) {
+    onProblem(problem);
+    return null;
+  }
+  return new FormData(e.currentTarget);
 }
