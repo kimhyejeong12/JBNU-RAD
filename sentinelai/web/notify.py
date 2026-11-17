@@ -10,7 +10,7 @@ import urllib.request
 from dataclasses import dataclass
 from email.message import EmailMessage
 
-from sentinelai.db import Database, auth, results, watch
+from sentinelai.db import Database, auth, watch
 from sentinelai.engine.settings import BOOT_ENV, Settings
 
 log = logging.getLogger(__name__)
@@ -228,12 +228,12 @@ class RiskWatcher(Poller):
         super().__init__(chat, every)
         self.db = db
         # 웹이 뜨기 전 판정은 알리지 않습니다 (다시 띄울 때마다 예전 위험이 다시 가지 않게).
-        self.after = results.last_finding_id(db)
+        self.after = watch.last_finding_id(db)
         self.alerted: list[dict] = []
 
     def check(self) -> list[str]:
         """보낸 문장들. 확정은 1차 때 알린 사람 · 로그 구간과 겹치면 넘깁니다."""
-        rows = results.findings_after(self.db, self.after)
+        rows = watch.findings_after(self.db, self.after)
         if not rows:
             return []
         self.after = rows[-1]["id"]

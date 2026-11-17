@@ -1,10 +1,30 @@
-"""예외 알림 · 변경 이력이 읽는 권한 DB 변화 — 감사 기록 · 보유 권한 재검토 · 계정 상태 · 퇴사자 권한 (읽기만)."""
+"""알림 · 변경 이력이 읽는 DB 변화 — AI 결과 DB 의 로그 감시 위험 판정, 권한 DB 의 감사 기록 · 보유 권한 재검토 · 계정 상태 · 퇴사자 권한 (읽기만)."""
 from __future__ import annotations
 
 import json
 from typing import Any
 
 from .core import Database, today
+
+# --- 로그 감시 위험 (AI 결과 DB) ---
+
+def last_finding_id(db: Database) -> int:
+    """로그 감시 판정의 마지막 id(없으면 0) — 알림이 여기서부터 새 판정을 셉니다."""
+    with db.connection() as conn:
+        return conn.execute("SELECT coalesce(max(id), 0) FROM event_findings").fetchone()[0]
+
+
+def findings_after(db: Database, after: int, level: str = "위험") -> list[dict[str, Any]]:
+    """after 뒤로 쌓인 그 등급의 로그 감시 판정(실패 제외) — id · 사용자 · 로그 구간 · 단계(fast · final)."""
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT f.id, f.\"user\", f.first_event_at, f.last_event_at, m.stage FROM event_findings f"
+            " JOIN monitor_runs m ON m.id = f.run_id WHERE f.id > %s AND f.level = %s AND f.failed = 0 ORDER BY f.id",
+            (after, level)).fetchall()
+    return [dict(r) for r in rows]
+
+
+# --- 예외 상황 (권한 DB) ---
 
 #: 알리는 감사 기록 — 보안 설정 변경과 결재(AI 위험인데 최종 승인을 고르려고).
 ACTIONS = ("regulation_upload", "regulation_edit", "regulation_remove", "access_create", "access_update",
