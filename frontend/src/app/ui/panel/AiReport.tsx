@@ -36,7 +36,7 @@ export function AiReport({ itemKey, f, wait, tip, lead, why, what, how = "어떻
   ];
   return (
     <section className={cn(card, "mt-4.5 overflow-hidden")}>
-      <h4 className="m-0 flex items-center gap-1.5 border-b border-line bg-canvas px-3 py-2 text-[13px] font-bold"><Icon name="activity" small />AI 분석 결과</h4>
+      <h4 className="m-0 flex items-center gap-1.5 border-b border-line bg-canvas px-3 py-2 text-[13px] font-bold"><Icon name="bot" small />AI 분석 결과</h4>
       {!f ? <div className={cn(box, "m-3")}>{wait}</div> : (
         <div className="divide-y divide-line px-3">
           {steps.map(([title, body, side], i) => <Step key={title} n={i + 1} title={title} side={side}>{body}</Step>)}

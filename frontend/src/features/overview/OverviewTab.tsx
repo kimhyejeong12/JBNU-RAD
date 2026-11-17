@@ -78,7 +78,7 @@ function Assistant({ b, go }: { b: Briefing | null; go: Go }) {
   return (
     <section className={cn(card, brandCard)} id="overview-briefing">
       <div className={cardHead}>
-        <h3 className={cardTitle}>AI 비서</h3>
+        <h3 className={cn(cardTitle, "flex items-center gap-1.5")}><Icon name="bot" />AI 비서</h3>
         {b && !b.current && !busy && <Pill tone="border-warn-line bg-warn-tint text-warn-ink" className="text-[11.5px]">그 뒤 바뀜</Pill>}
         <span className={cardCount}>{busy ? "정리 중…" : b ? stamp(b.created_at) : ""}</span>
         <button className={cn(toolButton, "ml-0")} id="briefing-run" disabled={busy} onClick={() => start.mutate("briefing")}>

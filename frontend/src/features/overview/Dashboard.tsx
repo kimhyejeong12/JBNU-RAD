@@ -9,6 +9,7 @@ import { useMe } from "@/app/session/me";
 import { useUi } from "@/app/ui/state/UiContext";
 import { overviewQuery } from "@/shared/api/queries";
 import type { Briefing, Overview, StatPeriod } from "@/shared/api/types";
+import { Icon } from "@/shared/ui/base/Icon";
 import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
 import { STEP } from "@/shared/lib/request";
@@ -87,7 +88,7 @@ function Summary({ b, go }: { b: Briefing | null; go: Go }) {
   return (
     <section className={cn(card, brandCard)} id="home-summary">
       <div className={cardHead}>
-        <h3 className={cardTitle}>AI 종합 요약</h3>
+        <h3 className={cn(cardTitle, "flex items-center gap-1.5")}><Icon name="bot" />AI 종합 요약</h3>
         {b && !b.current && <Pill tone="border-warn-line bg-warn-tint text-warn-ink" className="text-[11.5px]">그 뒤 바뀜</Pill>}
         <span className={cardCount}>{b ? stamp(b.created_at) : ""}</span>
       </div>

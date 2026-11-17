@@ -16,6 +16,8 @@ const ICONS: Record<string, ReactNode> = {
   back: <path d="m15 6-6 6 6 6" />,
   close: <path d="M18 6 6 18M6 6l12 12" />,
   check: <path d="M20 6 9 17l-5-5" />,
+  // AI 가 쓴 칸에만 씁니다 (AI 분석 결과 · AI 비서 · AI 종합 요약).
+  bot: <><rect x="4" y="8" width="16" height="12" rx="2" /><path d="M12 8V4H8M2 14h2M20 14h2M15 13v2M9 13v2" /></>,
   file: <><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></>,
   db: <><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></>,
   activity: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,
