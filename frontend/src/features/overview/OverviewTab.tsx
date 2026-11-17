@@ -14,7 +14,7 @@ import { Icon } from "@/shared/ui/Icon";
 import { usePage } from "@/shared/lib/hooks";
 import { LevelDot, LevelLabel, Pager, Periods, Tile, CardHead } from "@/shared/ui/parts";
 import { DataTable, Legend, XTicks, YGrid } from "@/shared/ui/charts";
-import { brandCard, card, cardCount, levelText, markTone, toolButton, cardNote, tileGrid } from "@/shared/ui/styles";
+import { card, cardCount, levelText, markTone, toolButton, cardNote, tileGrid } from "@/shared/ui/styles";
 import { STAT_PERIODS } from "@/shared/lib/labels";
 
 type Open = "위험" | "주의";
@@ -94,8 +94,8 @@ function Summary({ b, go }: { b: Briefing | null; go: Go }) {
   const start = useStartJob();
   const busy = start.isPending || jobs?.running === "briefing";
   return (
-    <section className={cn(card, brandCard)} id="overview-briefing">
-      <CardHead title="AI 종합 분석 요약" icon="bot">
+    <section className={card} id="overview-briefing">
+      <CardHead title="AI 종합 분석 요약" icon="bot" iconClass="text-brand">
         {b && <span className="text-[12px] text-ink-dim tabular-nums">{stamp(b.created_at)}</span>}
         <button className={cn(toolButton, "p-1.5")} id="briefing-run" disabled={busy} aria-label="다시 정리" data-tip="다시 정리"
           onClick={() => start.mutate("briefing")}>
@@ -108,15 +108,15 @@ function Summary({ b, go }: { b: Briefing | null; go: Go }) {
             {firstTodos(b).map((t) => (
               <li key={`${t.area}:${t.item}`}>
                 <button onClick={() => go(t.area, t.key)} data-tip={`${t.label}, ${t.subject}|${t.why}`}
-                  className="flex w-full items-baseline rounded-md border-none bg-transparent px-1.5 py-1 text-left text-[13px] leading-normal hover:bg-surface">
+                  className="flex w-full items-baseline rounded-md border-none bg-transparent px-1.5 py-1 text-left text-[13px] leading-normal hover:bg-row-hover">
                   <LevelDot level={t.level} /><span className="line-clamp-2">{t.task}</span>
                 </button>
               </li>
             ))}
           </ul>
-          <p className="m-0 flex items-start gap-1.5 rounded-lg bg-surface px-3 py-2 text-[13px] font-semibold">
-            <Icon name="bulb" small className="mt-0.75 text-ink-dim" />
-            <span><span className="mr-1.5 text-[12px] text-ink-dim">우선 조치 권고</span>{b.headline}</span>
+          <p className="m-0 flex items-start gap-1.5 rounded-lg border border-brand-soft-line bg-brand-soft px-3 py-2 text-[13px] font-semibold text-brand">
+            <Icon name="bulb" small className="mt-0.75" />
+            <span><span className="mr-1.5 text-[12px] font-bold">우선 조치 권고</span>{b.headline}</span>
           </p>
         </div>
       )}

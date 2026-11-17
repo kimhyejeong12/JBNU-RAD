@@ -203,11 +203,11 @@ export function ModuleTables({ snap }: { snap: SnapshotState }) {
   );
 }
 
-// 카드 머리 — 제목 뒤 건수 · 버튼은 children
-export function CardHead({ title, icon, id, children }: { title: ReactNode; icon?: string; id?: string; children?: ReactNode }) {
+// 카드 머리 — 제목 뒤 건수 · 버튼은 children, iconClass 는 기호에만 색을 줄 때
+export function CardHead({ title, icon, iconClass, id, children }: { title: ReactNode; icon?: string; iconClass?: string; id?: string; children?: ReactNode }) {
   return (
     <div className={cardHead}>
-      <h3 className={cn(cardTitle, icon && "flex items-center gap-1.5")} id={id}>{icon && <Icon name={icon} />}{title}</h3>
+      <h3 className={cn(cardTitle, icon && "flex items-center gap-1.5")} id={id}>{icon && <Icon name={icon} className={iconClass} />}{title}</h3>
       {children}
     </div>
   );

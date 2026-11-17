@@ -7,8 +7,6 @@ import { stageGroup, today, type StageGroup } from "@/shared/lib/request";
 
 export const card = "rounded-xl border border-line bg-surface";
 export const cardCol = `${card} flex flex-col`;
-// AI 가 정리한 칸처럼 화면에서 하나만 띄울 카드 — card 뒤에 붙임
-export const brandCard = "border-brand-tint-line bg-brand-tint";
 export const empty = "px-4.5 py-9 text-center text-ink-dim";
 export const panelBody = "flex-1 overflow-auto px-4.5 py-4";
 export const panelFoot = "border-t border-line bg-surface px-4.5 py-2.5";
