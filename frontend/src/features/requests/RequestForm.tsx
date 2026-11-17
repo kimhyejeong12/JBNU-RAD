@@ -98,7 +98,8 @@ export function RequestForm() {
               disabled={create.isPending}>{create.isPending ? "신청하는 중…" : "결재 신청"}</button>
           </div>
           {msg.text && <p className={cn(msg.ok ? formMsgOk : formMsg, "m-0")} id="req-form-msg" role="status">{msg.text}</p>}
-          <ul className="m-0 flex list-none flex-col gap-1 rounded-lg border border-brand-soft-line bg-brand-soft p-3 text-xs leading-relaxed text-brand" id="req-guide">
+          {/* 안내는 칸 사이와 같은 20px 띄움 (버튼 묶음과 구분) */}
+          <ul className="m-0 mt-2 flex list-none flex-col gap-1 rounded-lg border border-brand-soft-line bg-brand-soft p-3 text-xs leading-relaxed text-brand" id="req-guide">
             {GUIDE.map((line) => (
               <li key={line} className="flex gap-2"><i className="mt-1.75 inline-block size-1 flex-none rounded-full bg-brand" aria-hidden="true" />{line}</li>
             ))}
