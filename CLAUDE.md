@@ -120,13 +120,12 @@ JBNU-RAD/
 ├── frontend/                 React 화면 소스 (김혜정) — TypeScript · Vite · TanStack Query · Vitest · Tailwind v4. 10/29에 옛 index.html 을 기능 · 모양 그대로 옮기고 10/30에 CSS를 Tailwind로 바꿨음 (화면 그대로, 리디자인은 다음)
 │   └── src/
 │       ├── app/                  껍데기 — App(로그인 게이트) · styles.css(CSS는 이 파일 하나 — Tailwind · 색 토큰 · 화면 틀)
-│       │   ├── layout/             화면 틀 — AppShell · TopBar · TopNav(메뉴) · Workspace · MainTabs · RightPanel · Footer · 큰 화면 확대(pageScale)
-│       │   ├── overlays/           툴팁
-│       │   ├── session/            로그인한 사람(me) · 역할별 메뉴(views) · 역할별 데이터 훅(data) · 부팅(useBoot) · 새로고침 뒤 마지막 화면(lastPage)
-│       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · SourceChips) · confirm/(확인 창 — ask · ConfirmLayer)
-│       │   └── queue/              검토 현황 공통 — useQueue · select · QueueTable …
-│       ├── shared/               api/(http · types · schema(백엔드 응답 모델에서 생성 — 손으로 안 고침) · queries · jobs) · lib/(format · request · clause · labels · form(필수 칸 안내) …) · ui/(base — 공통 모양 상수 styles.ts · charts · server)
-│       └── features/             메뉴별 — auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(질의 팝업 AskDock — 오른쪽 아래 버튼으로 어느 화면에서든 열고, 대화 · 근거 칩 · 도구별 근거 보기, 예시 질문은 config.ts) · stats · risk(보안 현황의 권한 변동 탭 — 사람 카드 · 회수) · overview(보안 현황의 종합 대시보드 `OverviewTab`) · catalog · accounts · regulations(기준 문서) · engine(관리의 큐 탭). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
+│       │   ├── layout/             화면 틀 — AppShell · TopBar(메뉴 포함) · Workspace(탭 내용 · 아래 줄) · MainTabs · RightPanel · lib(큰 화면 확대 · 경고 · 툴팁 자리)
+│       │   ├── session/            me(로그인한 사람 · 로그인 API) · views(역할별 메뉴 · 마지막 화면) · data(역할별 데이터 훅 · 부팅)
+│       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · AiReport · DecisionFoot) · Overlays(확인 창 · 툴팁) · ask(확인 창 열기)
+│       │   └── queue/              검토 현황 공통 — useQueue · select · QueueHead · QueueTable
+│       ├── shared/               api/(http · types · schema(백엔드 응답 모델에서 생성 — 손으로 안 고침) · queries · jobs) · lib/(format · request · clause · labels · form · hooks) · ui/(parts 공용 부품 · styles 클래스 묶음 · charts · Icon)
+│       └── features/             메뉴별 — 화면(.tsx) · lib(계산 · 훅) · api(서버 호출). auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(질의 팝업 AskDock — 오른쪽 아래 버튼으로 어느 화면에서든 열고, 대화 · 근거 칩 · 도구별 근거 보기, 예시 질문은 lib.ts) · stats · risk(보안 현황의 권한 변동 탭 — 사람 카드 · 회수) · overview(보안 현황의 종합 대시보드 `OverviewTab`) · catalog · accounts · regulations(기준 문서) · engine(관리의 큐 탭). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
 ├── data/                     DLP 로그 (위치는 .env) · 예시 기준 문서. 컨테이너에는 읽기만으로 붙음
 │   └── example-regulations/    예시 기준 문서(.md · .txt) · 참고 pptx — 웹은 읽지 않음. 시험 환경 setup 이 권한 DB 에 넣음, 운영은 화면에서 올림 (11/9, 예전 docs/ → examples/regulations/)
 │       ├── 접근권한_관리기준.md     3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
@@ -353,13 +352,14 @@ Makefile은 11/5에 없앴음 — 컨테이너는 `docker compose`, CLI는 `./se
 - ❌ CDN · 외부에서 받는 웹폰트 · 외부 이미지 (외부망 차단 전제). 폰트는 파일을 빌드에 넣어 우리 서버가 줌 — Noto Sans KR(OFL, `@fontsource-variable/noto-sans-kr`, 11/16). 아이콘은 Lucide(ISC, 일부 Feather MIT) 선 모양을 `Icon.tsx` 에 옮겨 씀 — 라이선스 원문 `frontend/public/licenses/lucide.txt`(빌드에 함께 실림), 새 아이콘도 같은 세트에서 (11/17). 화면은 React + Vite, 빌드 결과를 커밋 (서버에 Node 불필요). 화면 소스를 고치면 `npm run build` 결과를 같은 커밋에. 스타일은 Tailwind v4 유틸리티. shadcn/ui 부품 등 새 의존성은 리디자인 때 정함
 - ❌ 기준 문서(.md · .txt · .pdf · .xlsx, 보안 운영자 이상) 말고는 파일 업로드. PDF 는 글만, 엑셀은 고른 표만 조항 글로 꺼내 사람이 확인한 뒤 .txt 로 올림 — 원본은 남기지 않음 (11/13 · 11/16). pptx · docx · OCR 은 §8 7
 - ❌ 정책 자동 수정 · 권한 자동 승인 — 결정은 사람이 함
+- **화면 파일** (11/17): 여러 화면이 쓰거나 40줄이 넘을 때만 따로 파일. 되풀이는 화면 조각 `shared/ui/parts.tsx` · 클래스 묶음 `styles.ts` · 함수 `shared/lib/` 에 한 번. .tsx 에는 컴포넌트만 (린트 규칙)
 - **화면 글**: 가운뎃점(·) 쓰지 않음 — 값 목록은 쉼표, 한 줄 정보는 간격(`Meta`)으로 나눔. 라벨 · 버튼 · 빈 화면은 몇 단어, 설명 문단 · 확인 창 글머리표 없이 화면만 보고 알게 함 (11/6 사용자 요청)
 - ❌ 엔진 출력을 손으로 고치기 · 근거 없는 목업 데이터 · 사전 계산 답을 실시간처럼 보이는 연출 (10/8에 모두 걷어냈음)
 - ❌ 여러 모듈을 한꺼번에 바꾸기 — 하나씩 바꾸고 확인. 막히면 우회하지 말고 사용자에게 보고
 - DB · 로그인(ID/PW, 운영자 분리)은 10/11에 금지를 풀고 구현했음 — 더 이상 데모 아님
 - **문서(md)**: 명사형 개조식 (~함 · ~했음). 한 줄 한 사실, 표와 같은 내용을 산문으로 되풀이하지 않음
 - **커밋**: Conventional Commits `type: 한국어 요약` 한 줄, 50자 이내. 한 커밋에 한 타입 (`feat` · `fix` · `docs` · `style` · `refactor` · `test` · `chore`)
-- **주석** (11/5 정리): "~합니다"체 한 줄. 코드 · 설정 파일에서 보기만으로는 알 수 없는 이유나 묶음 설명만. docstring도 한 줄. 날짜 · 경위는 주석에 적지 않고 §9에. 출력 타입(`engine/worker.py`)의 docstring은 모델에 그대로 들어가므로 판정 문구로 다룸
+- **주석** (11/5 정리, 11/17 명사형으로): 핵심만 명사형으로 끝냄 (~것 · ~함 · ~용). 주석 때문에 코드가 길어지지 않게 한 줄. 코드 · 설정 파일에서 보기만으로는 알 수 없는 이유나 묶음 설명만. docstring도 한 줄. 날짜 · 경위는 주석에 적지 않고 §9에. 출력 타입(`engine/worker.py`)의 docstring은 모델에 그대로 들어가므로 판정 문구로 다룸
 
 ---
 
