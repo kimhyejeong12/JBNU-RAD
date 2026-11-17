@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCreateUser, useUserAction } from "./api";
 import { useMe } from "@/app/session/me";
 import { ChangeLog } from "@/app/ui/panel/ChangeLog";
-import { PanelHead, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
+import { Panel, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
 import { usersQuery } from "@/shared/api/queries";
 import type { Role, UserRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
@@ -12,7 +12,7 @@ import { cn } from "@/shared/lib/cn";
 import { useUi } from "@/app/ui/state/UiContext";
 import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+import { actionButton, field, formActions, formGrid, input, meta, primaryButton, subject } from "@/shared/ui/base/styles";
 import { Meta, Switch } from "@/shared/ui/base/parts";
 import { ask } from "@/app/ui/confirm/ask";
 
@@ -47,19 +47,18 @@ function NewUser() {
     create.mutate(Object.fromEntries(new FormData(e.currentTarget)));
   }
   return (
-    <>
-      <PanelHead title="새 계정" />
-      {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓습니다(content-start). */}
-      <form className={cn(panelBody, formGrid, "content-start px-4.5 py-4")} id="user-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
-        <label className={field}>아이디<input className={input} name="login_id" required maxLength={100} autoComplete="off" /></label>
-        <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
-        <label className={field}>부서<input className={input} name="department" maxLength={100} /></label>
-        <label className={field}>직무<input className={input} name="job" maxLength={100} placeholder="예: 서버 운영 담당" /></label>
-        {top ? <div className={WIDE_FIELD}>역할<RoleSelect value="user" /></div> : <input type="hidden" name="role" value="user" />}
-        <label className={WIDE_FIELD}>임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input className={input} name="password" type="password" required autoComplete="new-password" /></label>
-        <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>계정 만들기</button></div>
-      </form>
-    </>
+    <Panel title="새 계정">
+    {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓습니다(content-start). */}
+    <form className={cn(formGrid, "content-start p-0")} id="user-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+      <label className={field}>아이디<input className={input} name="login_id" required maxLength={100} autoComplete="off" /></label>
+      <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
+      <label className={field}>부서<input className={input} name="department" maxLength={100} /></label>
+      <label className={field}>직무<input className={input} name="job" maxLength={100} placeholder="예: 서버 운영 담당" /></label>
+      {top ? <div className={WIDE_FIELD}>역할<RoleSelect value="user" /></div> : <input type="hidden" name="role" value="user" />}
+      <label className={WIDE_FIELD}>임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input className={input} name="password" type="password" required autoComplete="new-password" /></label>
+      <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>계정 만들기</button></div>
+    </form>
+    </Panel>
   );
 }
 
@@ -130,33 +129,29 @@ function EditUser({ u }: { u: UserRow }) {
   }
 
   return (
-    <>
-      <PanelHead title="계정" />
-      <div className={panelBody}>
-        <p className={subject}>{u.display_name} ({u.login_id})</p>
-        <div className={meta}><Meta items={[ROLE_LABEL[u.role] + (u.is_root ? " (루트)" : ""), `만든 날 ${stamp(u.created_at)}`, u.last_login_at && `마지막 로그인 ${stamp(u.last_login_at)}`]} /></div>
-        {!locked && (
-          <>
-            <Switch className="mt-3.5" checked={u.is_active} disabled={fixed || action.isPending} onChange={onToggle}
-              label={u.is_active ? "활성" : "정지"} hint={u.is_active ? "로그인 가능" : "로그인 막힘"} />
-            <form key={`edit:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-edit" onKeyDown={noEnterSubmit} onSubmit={onEdit}>
-              <label className={field}>이름<input className={input} name="display_name" defaultValue={u.display_name} maxLength={100} /></label>
-              <label className={field}>부서<input className={input} name="department" defaultValue={u.department ?? ""} maxLength={100} /></label>
-              <label className={field}>직무<input className={input} name="job" defaultValue={u.job} maxLength={100} placeholder="예: 서버 운영 담당" /></label>
-              {top && <div className={WIDE_FIELD}>역할<RoleSelect value={u.role} disabled={fixed} /></div>}
-              <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="로그의 UserID" /></label>
-              <label className={field}>퇴사일<input className={input} name="left_on" type="date" defaultValue={u.left_on} /></label>
-              <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
-            </form>
-            <form key={`reset:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-reset" noValidate onKeyDown={noEnterSubmit} onSubmit={onReset}>
-              <label className={WIDE_FIELD}>임시 비밀번호<input className={input} name="temporary_password" type="password" required autoComplete="new-password" /></label>
-              <div className={WIDE_ACTIONS}><button type="submit" className={actionButton}>초기화</button></div>
-            </form>
-          </>
-        )}
-        <ChangeLog type="user" id={String(u.id)} rev={formKey} />
-      </div>
-      <PanelFoot note={note} />
-    </>
+    <Panel title="계정" foot={<PanelFoot note={note} />}>
+      <p className={subject}>{u.display_name} ({u.login_id})</p>
+      <div className={meta}><Meta items={[ROLE_LABEL[u.role] + (u.is_root ? " (루트)" : ""), `만든 날 ${stamp(u.created_at)}`, u.last_login_at && `마지막 로그인 ${stamp(u.last_login_at)}`]} /></div>
+      {!locked && (
+        <>
+          <Switch className="mt-3.5" checked={u.is_active} disabled={fixed || action.isPending} onChange={onToggle}
+            label={u.is_active ? "활성" : "정지"} hint={u.is_active ? "로그인 가능" : "로그인 막힘"} />
+          <form key={`edit:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-edit" onKeyDown={noEnterSubmit} onSubmit={onEdit}>
+            <label className={field}>이름<input className={input} name="display_name" defaultValue={u.display_name} maxLength={100} /></label>
+            <label className={field}>부서<input className={input} name="department" defaultValue={u.department ?? ""} maxLength={100} /></label>
+            <label className={field}>직무<input className={input} name="job" defaultValue={u.job} maxLength={100} placeholder="예: 서버 운영 담당" /></label>
+            {top && <div className={WIDE_FIELD}>역할<RoleSelect value={u.role} disabled={fixed} /></div>}
+            <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="로그의 UserID" /></label>
+            <label className={field}>퇴사일<input className={input} name="left_on" type="date" defaultValue={u.left_on} /></label>
+            <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
+          </form>
+          <form key={`reset:${formKey}`} className={cn(formGrid, "px-0 pt-3 pb-0")} id="user-reset" noValidate onKeyDown={noEnterSubmit} onSubmit={onReset}>
+            <label className={WIDE_FIELD}>임시 비밀번호<input className={input} name="temporary_password" type="password" required autoComplete="new-password" /></label>
+            <div className={WIDE_ACTIONS}><button type="submit" className={actionButton}>초기화</button></div>
+          </form>
+        </>
+      )}
+      <ChangeLog type="user" id={String(u.id)} rev={formKey} />
+    </Panel>
   );
 }

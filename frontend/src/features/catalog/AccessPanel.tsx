@@ -2,7 +2,7 @@ import type { FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateAccess, useUpdateAccess } from "./api";
 import { useRequests } from "@/app/session/data";
-import { PanelHead, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
+import { Panel, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
 import { catalogQuery } from "@/shared/api/queries";
 import type { AccessItem } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
@@ -11,7 +11,7 @@ import { cn } from "@/shared/lib/cn";
 import { useUi } from "@/app/ui/state/UiContext";
 import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { actionButton, field, formActions, formGrid, input, meta, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+import { actionButton, field, formActions, formGrid, input, meta, primaryButton, subject } from "@/shared/ui/base/styles";
 import { Meta, Switch } from "@/shared/ui/base/parts";
 import { ask } from "@/app/ui/confirm/ask";
 
@@ -42,15 +42,14 @@ function NewAccess() {
     create.mutate(Object.fromEntries(new FormData(e.currentTarget)));
   }
   return (
-    <>
-      <PanelHead title="권한 등록" />
-      {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓습니다(content-start). */}
-      <form className={cn(panelBody, formGrid, "content-start px-4.5 py-4")} id="access-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
-        <label className={field}>코드 (바꿀 수 없음)<input className={input} name="code" required maxLength={64} pattern="[A-Za-z0-9_.\-]+" title="영문, 숫자, _ . -" autoComplete="off" placeholder="예: HR_SALARY_READ" /></label>
-        <Fields />
-        <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>등록</button></div>
-      </form>
-    </>
+    <Panel title="권한 등록">
+    {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓습니다(content-start). */}
+    <form className={cn(formGrid, "content-start p-0")} id="access-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+      <label className={field}>코드 (바꿀 수 없음)<input className={input} name="code" required maxLength={64} pattern="[A-Za-z0-9_.\-]+" title="영문, 숫자, _ . -" autoComplete="off" placeholder="예: HR_SALARY_READ" /></label>
+      <Fields />
+      <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>등록</button></div>
+    </form>
+    </Panel>
   );
 }
 
@@ -80,20 +79,16 @@ function EditAccess({ a }: { a: AccessItem }) {
   }
 
   return (
-    <>
-      <PanelHead title="권한" />
-      <div className={panelBody}>
-        <p className={subject}>{a.name} ({a.code})</p>
-        <div className={meta}><Meta items={[`신청 ${used.length}건`, `유효 ${active}건`, `등록 ${stamp(a.created_at)}`]} /></div>
-        <Switch className="mt-3.5" checked={a.is_active} disabled={update.isPending} onChange={onToggle}
-          label={a.is_active ? "켜짐" : "꺼짐"}
-          hint={a.is_active ? "신청 가능" : "신청 막힘"} />
-        <form key={formKey} className={cn(formGrid, "px-0 pt-3 pb-0")} id="access-edit" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
-          <Fields v={a} />
-          <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
-        </form>
-      </div>
-      <PanelFoot />
-    </>
+    <Panel title="권한" foot={<PanelFoot />}>
+      <p className={subject}>{a.name} ({a.code})</p>
+      <div className={meta}><Meta items={[`신청 ${used.length}건`, `유효 ${active}건`, `등록 ${stamp(a.created_at)}`]} /></div>
+      <Switch className="mt-3.5" checked={a.is_active} disabled={update.isPending} onChange={onToggle}
+        label={a.is_active ? "켜짐" : "꺼짐"}
+        hint={a.is_active ? "신청 가능" : "신청 막힘"} />
+      <form key={formKey} className={cn(formGrid, "px-0 pt-3 pb-0")} id="access-edit" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+        <Fields v={a} />
+        <div className={WIDE_ACTIONS}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
+      </form>
+    </Panel>
   );
 }

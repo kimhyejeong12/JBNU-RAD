@@ -22,7 +22,7 @@ const EXAMPLE = "rounded-[99px] border border-line bg-surface px-3 py-1 text-lef
 const SELECT = "h-8 min-w-0 flex-1 rounded-[7px] border border-line bg-surface px-2 text-[12.5px] text-ink";
 const LAUNCHER = "fixed right-5 bottom-5 z-40 flex size-13 items-center justify-center rounded-full border-0 bg-brand text-white shadow-[0_8px_24px_rgba(0,0,0,.22)] hover:opacity-90";
 const POPUP = "fixed right-5 bottom-21 z-60 flex h-[min(660px,calc(100vh-112px))] w-[min(460px,calc(100vw-40px))] flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-[0_16px_40px_rgba(0,0,0,.2)] phone:inset-0 phone:h-auto phone:w-auto phone:rounded-none phone:border-0";
-const CLOSE = "flex size-8 flex-none items-center justify-center rounded-[7px] border-0 bg-transparent text-ink-dim hover:bg-canvas hover:text-ink";
+const CLOSE ="flex size-8 flex-none items-center justify-center rounded-[7px] border-0 bg-transparent text-ink-dim hover:bg-canvas hover:text-ink";
 
 // 어느 화면에서든 오른쪽 아래 버튼으로 여는 질의 에이전트입니다.
 export function AskDock() {

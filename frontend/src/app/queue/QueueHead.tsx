@@ -30,10 +30,10 @@ export function QueueHead() {
   const levels: Level[] = view === "events" ? ["주의", "위험"] : ["정상", "주의", "위험"];
   const byLevel = view && LEVEL_VIEWS.has(view) ? levelCounts(items, view, ui.stageFilter, me.role) : null;
   return (
-    <div className="flex flex-col gap-2.5 px-4.5 pt-4 pb-3">
+    <div className="flex flex-col gap-2.5">
       <div className="flex flex-wrap items-center gap-3">
         <h3 id="queue-title" className="m-0 text-[15.5px] font-bold">{title}</h3>
-        <label className={cn(searchBox, "ml-auto max-w-[320px] flex-[1_1_220px]")}>
+        <label className={cn(searchBox, "ml-auto max-w-64 flex-[1_1_200px]")}>
           <Icon name="search" small />
           <input id="q" type="search" className={searchInput} placeholder={meta?.search ?? ""} autoComplete="off" value={ui.query} onChange={(e) => setQuery(e.target.value)} />
         </label>
@@ -47,12 +47,12 @@ export function QueueHead() {
       </div>
       {byLevel && (
         <div className="grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-2.5" id="level-filter" role="group" aria-label="AI 판단 등급">
-          <Tile label="전체" big={byLevel["전체"]} pressed={ui.filter === "전체"} onClick={() => setFilter("전체")} />
+          {/* 처리 방향은 숫자 옆에 — 노트북에서 타일이 높지 않게 합니다. */}
+          <Tile label="전체" big={byLevel["전체"]} className="py-3" pressed={ui.filter === "전체"} onClick={() => setFilter("전체")} />
           {levels.map((l) => (
-            <Tile key={l} label={<><LevelDot level={l} />{l}</>} big={byLevel[l]} tone={byLevel[l] ? levelText[l] : undefined}
-              pressed={ui.filter === l} onClick={() => setFilter(ui.filter === l ? "전체" : l)}>
-              {view === "requests" ? LEVEL_TIP[l] : null}
-            </Tile>
+            <Tile key={l} label={<><LevelDot level={l} />{l}</>} className="py-3" tone={byLevel[l] ? levelText[l] : undefined}
+              big={<>{byLevel[l]}{view === "requests" && <span className="ml-1.5 text-xs font-normal text-ink-dim">{LEVEL_TIP[l]}</span>}</>}
+              pressed={ui.filter === l} onClick={() => setFilter(ui.filter === l ? "전체" : l)} />
           ))}
         </div>
       )}

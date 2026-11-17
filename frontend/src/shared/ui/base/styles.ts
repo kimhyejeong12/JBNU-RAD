@@ -1,4 +1,5 @@
-import type { Level } from "@/shared/api/types";
+import type { Level, RequestRow } from "@/shared/api/types";
+import { stageGroup, today, type StageGroup } from "@/shared/lib/request";
 
 // 쓰는 곳에서 덮어쓸 때는 cn() 으로 합칩니다.
 
@@ -63,6 +64,16 @@ export const levelDot: Record<Level | "none", string> = {
 };
 
 export const levelText: Record<Level, string> = { "정상": "text-ok", "주의": "text-warn", "위험": "text-risk" };
+
+// 신청 상태 색 — 일반 사용자 화면과 운영자 목록이 같이 씁니다. 철회만 회색.
+export const stageColor: Record<StageGroup | "all", { dot: string; pill: string }> = {
+  all: { dot: "var(--color-ink-ghost)", pill: "border-transparent bg-canvas text-ink-dim" },
+  pending: { dot: "var(--color-brand)", pill: "border-transparent bg-brand-soft text-brand" },
+  active: { dot: "var(--color-ok)", pill: "border-transparent bg-ok-tint text-ok" },
+  done: { dot: "var(--color-risk)", pill: "border-transparent bg-risk-tint text-risk" },
+};
+export const stageTone = (r: Pick<RequestRow, "stage" | "period_end">, on: string = today()): string =>
+  r.stage === "withdrawn" ? stageColor.all.pill : stageColor[stageGroup(r, on)].pill;
 
 export type MarkKey = Level | "기타";
 export const mark = "block flex-none";

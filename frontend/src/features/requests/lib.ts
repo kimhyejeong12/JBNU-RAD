@@ -1,8 +1,7 @@
 import type { QueueItem } from "@/app/queue/types";
 import type { RequestRow, AccessItem, WatchPerson } from "@/shared/api/types";
-import { stamp, person } from "@/shared/lib/format";
-import { STAGE_LABEL, isActive, requester, today } from "@/shared/lib/request";
-import type { HistoryStep } from "@/shared/ui/base/parts";
+import { stamp } from "@/shared/lib/format";
+import { STAGE_LABEL, isActive, requester, stageGroup, today } from "@/shared/lib/request";
 
 export function requestItem(r: RequestRow): QueueItem {
   const v = r.ai_verdict;
@@ -44,12 +43,6 @@ export const moveText = (m: { moved_on: string; from_department: string; from_jo
   const side = (d: string, j: string) => `${d || "부서 없음"}${j ? `(${j})` : ""}`;
   return `${m.moved_on} ${side(m.from_department, m.from_job)} → ${side(m.to_department, m.to_job)}`;
 };
-
-export type MineGroup = "pending" | "active" | "done";
-export function mineGroup(r: RequestRow, on: string = today()): MineGroup {
-  if (r.stage === "manager" || r.stage === "top") return "pending";
-  return isActive(r, on) ? "active" : "done";
-}
 
 export function mineStatus(r: RequestRow, on: string = today()): string {
   if (r.stage !== "approved") return STAGE_LABEL[r.stage];
@@ -110,7 +103,7 @@ export function periodProblem(start: string, end: string, open: boolean): string
 export function endedBreakdown(mine: RequestRow[], on: string = today()): string {
   const n = { 반려: 0, 만료: 0, 회수: 0, 철회: 0 };
   for (const r of mine) {
-    if (mineGroup(r, on) !== "done") continue;
+    if (stageGroup(r, on) !== "done") continue;
     if (r.stage === "rejected") n.반려 += 1;
     else if (r.stage === "revoked") n.회수 += 1;
     else if (r.stage === "withdrawn") n.철회 += 1;
@@ -129,17 +122,28 @@ export function heldLabel(periodEnd: string | null, on: string = today()): strin
   return periodEnd ? `보유 중 (${shortDate(periodEnd, on)}까지)` : "보유 중";
 }
 
-export function approvalSteps(r: RequestRow): HistoryStep[] {
-  const steps: HistoryStep[] = (r.approvals ?? []).map((a) => ({
-    title: `${a.step === "manager" ? "1차" : "최종"} ${a.action === "approve" ? "승인" : "반려"}`,
-    who: person(a.approver_name, a.approver_department),
-    when: stamp(a.decided_at),
-    say: a.comment,
+export type FlowState = "done" | "rejected" | "current" | "idle" | "stopped";
+export interface FlowStep { label: string; who: string; state: FlowState }
+export interface FlowNote { label: string; text: string; alert: boolean }
+
+// 결재 단계 표시 — 신청 · 1차 · 최종 세 칸에 이름만, 의견 · 사유 · 만료는 아래 줄로.
+export function approvalFlow(r: RequestRow, on: string = today()): { steps: FlowStep[]; notes: FlowNote[] } {
+  const step = (s: "manager" | "top", name: string): FlowStep => {
+    const a = r.approvals?.find((x) => x.step === s);
+    if (a) return { label: `${name} ${a.action === "approve" ? "승인" : "반려"}`, who: a.approver_name, state: a.action === "approve" ? "done" : "rejected" };
+    return { label: `${name} 결재`, who: "", state: r.stage === s ? "current" : "idle" };
+  };
+  const steps: FlowStep[] = [
+    { label: r.stage === "withdrawn" ? "철회" : "신청 완료", who: r.requester_name, state: r.stage === "withdrawn" ? "stopped" : "done" },
+    step("manager", "1차"),
+    step("top", "최종"),
+  ];
+  const notes: FlowNote[] = (r.approvals ?? []).filter((a) => a.comment).map((a) => ({
+    label: `${a.step === "manager" ? "1차" : "최종"} ${a.action === "approve" ? "의견" : "반려 의견"}`, text: a.comment, alert: a.action === "reject",
   }));
-  if (r.revocation) {
-    steps.push({ title: "회수", who: person(r.revocation.revoker_name, r.revocation.revoker_department), when: stamp(r.revocation.revoked_at), say: r.revocation.reason });
-  }
-  return steps;
+  if (r.revocation) notes.push({ label: "회수", text: `${r.revocation.reason} (${r.revocation.revoker_name})`, alert: true });
+  else if (r.stage === "approved" && !isActive(r, on)) notes.push({ label: "만료", text: `사용 기간 끝 ${r.period_end}`, alert: true });
+  return { steps, notes };
 }
 
 // 쪽 번호는 지금 쪽을 가운데 두고 5개까지 — 신청이 많아도 쪽 번호 줄이 넘치지 않게 합니다.

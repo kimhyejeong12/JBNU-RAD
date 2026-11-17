@@ -17,7 +17,7 @@ export function TopNav() {
   const btn = (key: string, label: string, current: boolean, onClick: () => void, count?: number) => (
     <button key={key} className={TOP_NAV} data-view={key} aria-current={current} onClick={onClick}>
       {label}
-      {count ? <span className="rounded-[99px] bg-risk px-1.75 text-[11.5px] tabular-nums text-white">{count}</span> : null}
+      {count ? <span className="flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-risk px-0.5 text-[11px] font-bold tabular-nums text-white">{count}</span> : null}
     </button>
   );
   return (

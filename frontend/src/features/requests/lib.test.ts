@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { RequestRow, AccessItem, Verdict } from "@/shared/api/types";
-import { accessOptions, approvalSteps, canWithdraw, endedBreakdown, heldLabel, mineGroup, mineStatus, moveText, pageLinks, periodProblem, periodText, personItem, rejectNote, requestItem, shortDate } from "./lib";
+import { accessOptions, approvalFlow, canWithdraw, endedBreakdown, heldLabel, mineStatus, moveText, pageLinks, periodProblem, periodText, personItem, rejectNote, requestItem, shortDate } from "./lib";
 
 const row = (p: Partial<RequestRow>): RequestRow => ({
   id: 1, request_no: "REQ-2026-0001", requester_id: 4, requester_name: "김민수", requester_department: "인사팀", requester_job: "",
@@ -67,20 +67,25 @@ test("켜진 권한이 없으면 비었다고 알린다", () => {
 
 const approval = { step: "manager", action: "approve", approver_id: 7, approver_name: "박운영", approver_department: "보안팀", decided_at: "2026-10-29T03:49:00+09:00", ai_level: "주의", comment: "확인했습니다" } as const;
 
-test("결재 기록 — 단계 · 결정 · 이름 (부서) · 시각 · 그때 AI 판정 · 의견", () => {
-  expect(approvalSteps(row({ approvals: [approval] }))).toEqual([
-    { title: "1차 승인", who: "박운영 (보안팀)", when: "2026-10-29 03:49", say: "확인했습니다" },
+test("결재 단계 — 1차 승인 뒤 최종 결재 대기, 의견은 아래 줄", () => {
+  const f = approvalFlow(row({ stage: "top", approvals: [approval] }));
+  expect(f.steps).toEqual([
+    { label: "신청 완료", who: "김민수", state: "done" },
+    { label: "1차 승인", who: "박운영", state: "done" },
+    { label: "최종 결재", who: "", state: "current" },
   ]);
+  expect(f.notes).toEqual([{ label: "1차 의견", text: "확인했습니다", alert: false }]);
 });
 
-test("최종 반려와 회수는 기록 끝에 붙는다", () => {
-  const steps = approvalSteps(row({
-    approvals: [approval, { ...approval, step: "top", action: "reject", approver_department: null, comment: "" }],
-    revocation: { revoker_id: 9, revoker_name: "최책임", revoker_department: null, revoked_at: "2026-10-30T09:00:00+09:00", reason: "퇴사" },
-  }));
-  expect(steps.map((s) => s.title)).toEqual(["1차 승인", "최종 반려", "회수"]);
-  expect(steps[1].who).toBe("박운영");
-  expect(steps[2]).toEqual({ title: "회수", who: "최책임", when: "2026-10-30 09:00", say: "퇴사" });
+test("결재 단계 — 최종 반려 · 철회 · 회수 · 만료", () => {
+  const reject = approvalFlow(row({ stage: "rejected", approvals: [approval, { ...approval, step: "top", action: "reject", comment: "" }] }));
+  expect(reject.steps.map((s) => s.state)).toEqual(["done", "done", "rejected"]);
+  expect(approvalFlow(row({ stage: "withdrawn" })).steps.map((s) => [s.label, s.state])).toEqual([["철회", "stopped"], ["1차 결재", "idle"], ["최종 결재", "idle"]]);
+  const top = { ...approval, step: "top", comment: "" } as const;
+  const revoked = approvalFlow(row({ stage: "revoked", approvals: [approval, top], revocation: { revoker_id: 9, revoker_name: "최책임", revoker_department: null, revoked_at: "2026-10-30T09:00:00+09:00", reason: "퇴사" } }));
+  expect(revoked.notes.at(-1)).toEqual({ label: "회수", text: "퇴사 (최책임)", alert: true });
+  const expired = approvalFlow(row({ stage: "approved", period_end: "2026-10-31", approvals: [approval, top] }), "2026-11-02");
+  expect(expired.notes.at(-1)).toEqual({ label: "만료", text: "사용 기간 끝 2026-10-31", alert: true });
 });
 
 test("반려 의견 — 반려한 단계 · 결재자 · 의견, 의견이 없으면 그렇게 적음", () => {
@@ -101,15 +106,6 @@ test("보유 중 배지의 기간 — 올해면 월/일까지, 다른 해면 날
   expect(heldLabel("2026-12-31", "2026-11-02")).toBe("보유 중 (12/31까지)");
   expect(heldLabel("2027-01-15", "2026-11-02")).toBe("보유 중 (2027-01-15까지)");
   expect(accessOptions([access("A-1", "A")], [mine("A-1", "approved", "2999-03-05")], "").reason["A-1"]).toBe("보유 중 (2999-03-05까지)");
-});
-
-test("내 신청 묶음 — 결재 중(1차 · 최종) · 사용 중(승인 · 기간 남음) · 끝난 것(반려 · 철회 · 회수 · 기간 끝남)", () => {
-  const on = "2026-11-02";
-  expect(mineGroup(row({ stage: "manager" }), on)).toBe("pending");
-  expect(mineGroup(row({ stage: "top" }), on)).toBe("pending");
-  expect(mineGroup(row({ stage: "approved", period_end: "" }), on)).toBe("active");
-  expect(mineGroup(row({ stage: "approved", period_end: "2026-10-31" }), on)).toBe("done");
-  for (const stage of ["rejected", "withdrawn", "revoked"] as const) expect(mineGroup(row({ stage }), on)).toBe("done");
 });
 
 test("내 신청 상태 글자 — 사용 중은 기간까지, 기간이 끝난 승인은 만료, 나머지는 단계 이름", () => {

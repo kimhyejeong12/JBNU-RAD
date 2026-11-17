@@ -36,14 +36,14 @@ export function TopBar() {
 
   return (
     <header data-tip-instant className="relative col-span-full flex h-14 items-center gap-6 bg-brand px-6 py-0 text-white narrow:h-auto narrow:min-h-14 narrow:flex-wrap narrow:gap-y-0 narrow:px-4 phone:pb-2">
-      {/* 좁은 화면에서 메뉴가 아래 줄로 내려가도 로고 줄이 막대 높이를 지키게 합니다. */}
-      <div className="flex flex-none items-center gap-2 narrow:h-13">
+      {/* 로고 · 오른쪽 묶음이 남는 폭을 1:2 로 나눠 메뉴가 가운데보다 조금 왼쪽에 섭니다. */}
+      <div className="flex flex-1 items-center gap-2 narrow:h-13">
         <LogoMark className="size-7.5" />
         <span className="text-[20px] font-bold tracking-wide">Sentinel<span className="font-light text-bar-ink">AI</span></span>
       </div>
       <TopNav />
       {/* 휴대폰 폭에서만 이 묶음을 풀어 프로필 · 종은 로고 줄 오른쪽에, 버튼 둘은 그 아래 줄로 보냅니다. */}
-      <div className="ml-auto flex items-center gap-4 phone:contents">
+      <div className="flex flex-2 items-center justify-end gap-4 phone:contents">
         <span className="flex items-center whitespace-nowrap rounded-[7px] bg-white phone:order-2 px-2.75 py-1.25 text-[12.5px] font-bold text-risk" id="engine-warn" hidden={!problems.length}
           data-tip={`점검 필요|${problems.join(", ")}`}>
           <LevelDot level="위험" />AI 엔진 점검 필요

@@ -1,10 +1,10 @@
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { ask } from "@/app/ui/confirm/ask";
 import { useRequestAction, type RequestAct } from "./api";
-import { approvalSteps, moveText } from "./lib";
+import { approvalFlow, moveText, type FlowState } from "./lib";
 import { useMe } from "@/app/session/me";
-import { JudgeState } from "@/app/ui/panel/DecisionFoot";
-import { PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
+import { AiReport } from "@/app/ui/panel/AiReport";
+import { Panel, PanelMsg } from "@/app/ui/panel/Panel";
 import { SourceChips } from "@/app/ui/panel/SourceChips";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { QueueItem } from "@/app/queue/types";
@@ -12,11 +12,11 @@ import type { RequestRow, Role } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { LEVEL_ICON, LEVEL_TIP } from "@/shared/lib/labels";
 import { STAGE_LABEL, STEP, period, requester } from "@/shared/lib/request";
-import { History, KvTable, Meta, Pill, Section } from "@/shared/ui/base/parts";
+import { KvTable, Meta, Section } from "@/shared/ui/base/parts";
 import { Icon } from "@/shared/ui/base/Icon";
 import { cn } from "@/shared/lib/cn";
 import {
-  actionButton, box, dangerButton, goodButton, input, levelText, meta, note, panelActions, panelBody, panelFoot, panelFootTitle, recLine, subject, toolButton,
+  actionButton, box, dangerButton, goodButton, input, levelText, meta, note, panelActions, panelFoot, panelFootTitle, recLine, subject, toolButton,
 } from "@/shared/ui/base/styles";
 
 type RequestItem = Extract<QueueItem, { type: "req" }>;
@@ -48,51 +48,60 @@ export function RequestPanel({ it }: { it: RequestItem }) {
     ["신청자", requester(r)],
     ["신청 때 직무", r.requester_job || "적지 않음"],
     ["신청 권한", r.access_code ? `${r.requested_access} (${r.access_code})` : r.requested_access],
-    ["신청 때 보유 권한", r.current_access || "—"],
     ["신청 사유", r.reason || "—"],
     ["사용 기간", period(r)],
-    ["신청 시각", stamp(r.submitted_at)],
   ];
-  const steps = approvalSteps(r);
-
+  const v = r.ai_verdict;
+  const level = v && !v.failed ? v.level : null;
   return (
-    <>
-      <PanelHead title="권한 신청 검토">
-        {rejudge && <button className={toolButton} onClick={() => act("rejudge")}><Icon name="activity" small />다시 판정</button>}
-      </PanelHead>
-      <div className={panelBody}>
-        <p className={subject}>{r.requested_access}</p>
-        <div className={meta}><Meta items={[no, requester(r)]} /></div>
-        <JudgeState level={it.level} label={it.level ? undefined : it.judge}>
-          <Pill>{STAGE_LABEL[r.stage]}</Pill>
-        </JudgeState>
-        <Section icon="file" title="신청 내용"><KvTable rows={rows} /></Section>
-        <AiVerdict it={it} />
-        {r.grant_review && <GrantReview it={it} />}
-        <Section icon="list" title="결재 기록">
-          {steps.length ? <History steps={steps} /> : <p className={note}>아직 결재가 없습니다.</p>}
-        </Section>
-      </div>
-      <div className={panelFoot}>
-        <RequestFoot r={r} role={me.role} draft={draft} onDraft={setDraft} act={act} />
-        <PanelMsg />
-      </div>
-    </>
+    <Panel title="권한 신청 검토"
+      actions={rejudge && <button className={toolButton} onClick={() => act("rejudge")}><Icon name="refresh" small />다시 판정</button>}
+      foot={<div className={panelFoot}><RequestFoot r={r} role={me.role} draft={draft} onDraft={setDraft} act={act} /><PanelMsg /></div>}>
+      <p className={subject}>{r.requested_access}</p>
+      <div className={meta}><Meta items={[no, requester(r)]} /></div>
+      <Flow r={r} />
+      <Section icon="file" title="신청 내용"><KvTable rows={rows} /></Section>
+      <AiReport itemKey={it.key} f={v && level ? { level, reason: v.reason, recommendation: v.recommendation, sources: v.sources, judgedAt: v.judged_at } : null}
+        wait={r.judging ? "AI 판정 중…" : !v ? "아직 판정이 없습니다." : <span className="text-risk">판정 실패: {v.error || "원인 불명"}</span>}
+        tip={level ? LEVEL_TIP[level] : undefined} lead={level && <b className={cn("mr-1.5", levelText[level])}>{LEVEL_TIP[level]}</b>} />
+      {r.grant_review && <GrantReview it={it} />}
+    </Panel>
   );
 }
 
-function AiVerdict({ it }: { it: RequestItem }) {
-  const v = it.raw.ai_verdict;
-  if (it.raw.judging) return <Section icon="activity" title="AI 판정"><div className={box}>AI 판정 중…</div></Section>;
-  if (!v) return <Section icon="activity" title="AI 판정"><div className={box}>아직 판정이 없습니다.</div></Section>;
-  if (v.failed || !v.level) return <Section icon="activity" title="AI 판정"><div className={cn(box, "text-risk")}>판정 실패: {v.error || "원인 불명"}</div></Section>;
+const FLOW_MARK: Record<FlowState, string> = {
+  done: "bg-ok-tint text-ok", rejected: "bg-risk-tint text-risk", current: "bg-brand text-white", idle: "border border-line bg-surface text-ink-faint", stopped: "bg-line text-ink-dim",
+};
+const FLOW_LABEL: Record<FlowState, string> = { done: "text-ok", rejected: "text-risk", current: "text-ink", idle: "text-ink-faint", stopped: "text-ink-dim" };
+
+// 결재 단계 — 처리 상태 배지 · 결재 기록 칸을 이 한 줄로 대신합니다.
+function Flow({ r }: { r: RequestRow }) {
+  const { steps, notes } = approvalFlow(r);
   return (
-    <>
-      <Section icon="activity" title="판단 이유"><div className={box}>{v.reason}</div></Section>
-      <Section icon="ok" title="권고"><div className={box}><b className={cn("block", levelText[v.level])}>{LEVEL_TIP[v.level]}</b>{v.recommendation}</div></Section>
-      <Section icon="db" title="근거 조항"><SourceChips itemKey={it.key} sources={v.sources} /></Section>
-      <p className={note}>{stamp(v.judged_at)} 판정</p>
-    </>
+    <div className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2.5">
+      <div className="flex items-center gap-2" aria-label="결재 단계">
+        {steps.map((s, i) => (
+          <Fragment key={i}>
+            {i > 0 && <span aria-hidden="true" className="h-px min-w-2 flex-1 bg-line" />}
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className={cn("flex size-6 flex-none items-center justify-center rounded-full text-[11px] font-bold", FLOW_MARK[s.state])}>
+                {s.state === "done" ? <Icon name="check" small /> : s.state === "rejected" || s.state === "stopped" ? <Icon name="close" small /> : i + 1}
+              </span>
+              <span className="min-w-0 leading-tight">
+                <span className={cn("block truncate text-[11.5px] font-semibold", FLOW_LABEL[s.state])}>{s.label}</span>
+                {s.state === "current" ? <span className="block text-[12px] text-ink-dim">대기 중</span>
+                  : s.who && <span className="block truncate text-[12.5px] font-bold">{s.who}</span>}
+              </span>
+            </div>
+          </Fragment>
+        ))}
+      </div>
+      {notes.length > 0 && (
+        <div className="mt-2 flex flex-col gap-0.5 border-t border-line pt-2 text-[12px]">
+          {notes.map((n, i) => <p key={i} className="m-0"><b className={cn("mr-1.5", n.alert && "text-risk")}>{n.label}</b>{n.text}</p>)}
+        </div>
+      )}
+    </div>
   );
 }
 

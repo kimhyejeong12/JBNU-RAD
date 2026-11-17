@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { ChangeLog } from "@/app/ui/panel/ChangeLog";
-import { PanelFoot, PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
+import { Panel, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
 import { useJobs, useRegulations } from "@/app/session/data";
 import { busyJob } from "@/shared/api/jobs";
 import type { Regulation, XlsxTable } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
 import { Meta, Section } from "@/shared/ui/base/parts";
-import { actionButton, dangerButton, field, formActions, input, meta, note, panelActions, panelBody, primaryButton, subject } from "@/shared/ui/base/styles";
+import { actionButton, dangerButton, field, formActions, input, meta, note, panelActions, primaryButton, subject } from "@/shared/ui/base/styles";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useExtractPdf, useExtractXlsx, useRemoveRegulation, useUploadRegulation } from "./api";
 import { docItem, draftProblem, editProblem, isPdf, isXlsx, removeProblem, tablesText, textName, uploadProblem } from "./lib";
@@ -75,46 +75,45 @@ function UploadDoc() {
   }
 
   return (
-    <>
-      <PanelHead title="기준 문서 올리기" />
-      <form className={panelBody} id="doc-upload" noValidate onKeyDown={noEnterSubmit} onSubmit={(e) => void onSubmit(e)}>
-        <label className={field}>문서 파일 (.md, .txt, .pdf, .xlsx)
-          <input className={input} type="file" accept=".md,.txt,.pdf,.xlsx" required
-            onChange={(e) => onPick(e.target.files?.[0] ?? null)} />
-        </label>
-        {pending && <p className={note}>글을 꺼내는 중…</p>}
-        {draft && (
-          <div className="mt-3 flex flex-col gap-3">
-            {sheet ? (
-              <fieldset className={field}>
-                <legend className="mb-1">올릴 표</legend>
-                {sheet.tables.map((t, i) => (
-                  <label key={i} className="flex items-start gap-2 font-normal">
-                    <input type="checkbox" className="mt-1" checked={sheet.picked[i]} onChange={(e) => pick(sheet.tables, sheet.picked.map((v, j) => (j === i ? e.target.checked : v)), draft.name)} />
-                    <span className="min-w-0">
-                      {t.title}
-                      <span className={cn(meta, "block")}><Meta items={[t.sheet, `${t.rows.length}줄`, t.personal && "사람 기록"]} /></span>
-                    </span>
-                  </label>
-                ))}
-                {sheet.picked.some((v, i) => v && sheet.tables[i].personal) && <p className={cn(note, "text-risk")}>사번, 이름이 든 표를 골랐습니다</p>}
-              </fieldset>
-            ) : <div className={meta}><Meta items={[`${draft.pages}쪽`, draft.empty.length > 0 && `글자 없는 쪽 ${draft.empty.join(", ")} (스캔본은 못 읽음)`]} /></div>}
-            <label className={field}>저장할 이름
-              <input className={input} value={draft.name} maxLength={100} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-            </label>
-            <label className={field}>꺼낸 글
-              <textarea className={cn(input, "resize-y font-normal")} rows={18} value={draft.content} onChange={(e) => setDraft({ ...draft, content: e.target.value })} />
-            </label>
-          </div>
-        )}
-        {problem && <p className={cn(note, "text-risk")}>{problem}</p>}
-        <div className={cn(formActions, "mt-3")}>
-          <PanelMsg />
-          <button type="submit" className={cn(actionButton, primaryButton)} disabled={upload.isPending || pending}>{upload.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "올리는 중…") : "올리기"}</button>
+    <Panel title="기준 문서 올리기">
+    <form id="doc-upload" noValidate onKeyDown={noEnterSubmit} onSubmit={(e) => void onSubmit(e)}>
+      <label className={field}>문서 파일 (.md, .txt, .pdf, .xlsx)
+        <input className={input} type="file" accept=".md,.txt,.pdf,.xlsx" required
+          onChange={(e) => onPick(e.target.files?.[0] ?? null)} />
+      </label>
+      {pending && <p className={note}>글을 꺼내는 중…</p>}
+      {draft && (
+        <div className="mt-3 flex flex-col gap-3">
+          {sheet ? (
+            <fieldset className={field}>
+              <legend className="mb-1">올릴 표</legend>
+              {sheet.tables.map((t, i) => (
+                <label key={i} className="flex items-start gap-2 font-normal">
+                  <input type="checkbox" className="mt-1" checked={sheet.picked[i]} onChange={(e) => pick(sheet.tables, sheet.picked.map((v, j) => (j === i ? e.target.checked : v)), draft.name)} />
+                  <span className="min-w-0">
+                    {t.title}
+                    <span className={cn(meta, "block")}><Meta items={[t.sheet, `${t.rows.length}줄`, t.personal && "사람 기록"]} /></span>
+                  </span>
+                </label>
+              ))}
+              {sheet.picked.some((v, i) => v && sheet.tables[i].personal) && <p className={cn(note, "text-risk")}>사번, 이름이 든 표를 골랐습니다</p>}
+            </fieldset>
+          ) : <div className={meta}><Meta items={[`${draft.pages}쪽`, draft.empty.length > 0 && `글자 없는 쪽 ${draft.empty.join(", ")} (스캔본은 못 읽음)`]} /></div>}
+          <label className={field}>저장할 이름
+            <input className={input} value={draft.name} maxLength={100} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+          </label>
+          <label className={field}>꺼낸 글
+            <textarea className={cn(input, "resize-y font-normal")} rows={18} value={draft.content} onChange={(e) => setDraft({ ...draft, content: e.target.value })} />
+          </label>
         </div>
-      </form>
-    </>
+      )}
+      {problem && <p className={cn(note, "text-risk")}>{problem}</p>}
+      <div className={cn(formActions, "mt-3")}>
+        <PanelMsg />
+        <button type="submit" className={cn(actionButton, primaryButton)} disabled={upload.isPending || pending}>{upload.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "올리는 중…") : "올리기"}</button>
+      </div>
+    </form>
+    </Panel>
   );
 }
 
@@ -123,26 +122,22 @@ function DocView({ d }: { d: Regulation }) {
   const [mode, setMode] = useState<"view" | "edit" | "remove">("view");
   const close = () => setMode("view");
   return (
-    <>
-      <PanelHead title="기준 문서" />
-      <div className={panelBody}>
-        <p className={subject}>{it.who}</p>
-        <div className={meta}><Meta items={[d.name, d.updated_at && `고친 시각 ${stamp(d.updated_at)}`, `조항 ${it.judge}`]} /></div>
-        {mode === "edit" ? <EditDoc d={d} onClose={close} /> : mode === "remove" ? <RemoveDoc d={d} onClose={close} /> : (
-          <>
-            <div className={panelActions}>
-              <button type="button" className={actionButton} onClick={() => setMode("edit")}>수정</button>
-              <button type="button" className={actionButton} onClick={() => setMode("remove")}>지우기</button>
-            </div>
-            <ChangeLog type="regulation" id={d.name} rev={d.updated_at ?? ""} />
-            <Section icon="book" title="원문">
-              <pre className="m-0 whitespace-pre-wrap rounded-lg bg-canvas px-3.5 py-3 text-[13px] font-[inherit]">{d.content.trim()}</pre>
-            </Section>
-          </>
-        )}
-      </div>
-      <PanelFoot />
-    </>
+    <Panel title="기준 문서" foot={<PanelFoot />}>
+      <p className={subject}>{it.who}</p>
+      <div className={meta}><Meta items={[d.name, d.updated_at && `고친 시각 ${stamp(d.updated_at)}`, `조항 ${it.judge}`]} /></div>
+      {mode === "edit" ? <EditDoc d={d} onClose={close} /> : mode === "remove" ? <RemoveDoc d={d} onClose={close} /> : (
+        <>
+          <div className={panelActions}>
+            <button type="button" className={actionButton} onClick={() => setMode("edit")}>수정</button>
+            <button type="button" className={actionButton} onClick={() => setMode("remove")}>지우기</button>
+          </div>
+          <ChangeLog type="regulation" id={d.name} rev={d.updated_at ?? ""} />
+          <Section icon="book" title="원문">
+            <pre className="m-0 whitespace-pre-wrap rounded-lg bg-canvas px-3.5 py-3 text-[13px] font-[inherit]">{d.content.trim()}</pre>
+          </Section>
+        </>
+      )}
+    </Panel>
   );
 }
 

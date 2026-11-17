@@ -9,6 +9,7 @@ import { useBoot } from "@/app/session/useBoot";
 import { useJobsWatcher } from "@/app/session/useJobsWatcher";
 import { useQueue } from "@/app/queue/useQueue";
 import { TopBar } from "./TopBar";
+import { MainTabs } from "./MainTabs";
 import { Workspace, workspace } from "./Workspace";
 import { TooltipLayer } from "@/app/overlays/TooltipLayer";
 import { AskDock } from "@/features/ask/AskDock";
@@ -71,6 +72,8 @@ function Shell() {
   return (
     <UiContext.Provider value={store}>
       <TopBar />
+      {/* 탭이 없어도 자리를 둡니다 — body 그리드 줄이 밀리지 않게. */}
+      <div>{me.role !== "user" && <MainTabs />}</div>
       {boot.error ? <LoadError message={boot.error} /> : <Workspace />}
       <div id="drawer-back" onClick={store.closePanel}
         className={cn("hidden", ui.drawerOpen && "narrow:fixed narrow:inset-0 narrow:z-45 narrow:block narrow:bg-[rgba(17,17,17,.4)]")} />

@@ -11,7 +11,8 @@ export function QueueTab() {
   const me = useMe();
   const { ui } = useUi();
   return (
-    <div className="flex flex-col gap-3.5" id="view-queue" role="tabpanel" aria-labelledby="tab-queue" hidden={ui.mainTab !== "queue"}>
+    // 운영자는 목록 카드가 남는 높이를 채우고 그 안에서 스크롤합니다 — 왼쪽 칸의 shrink-0 을 이 칸만 풉니다.
+    <div className={cn("flex flex-col gap-3.5", me.role !== "user" && "min-h-0 flex-1 shrink!")} id="view-queue" role="tabpanel" aria-labelledby="tab-queue" hidden={ui.mainTab !== "queue"}>
       {me.role === "user" ? (
         // 왼쪽 신청서(1/3) · 오른쪽 내 신청(2/3) — 좁은 화면에서는 신청서가 위로 갑니다.
         <div className="mx-auto flex w-full max-w-[1600px] flex-col px-6 py-8 phone:px-4 phone:py-5">
@@ -25,10 +26,10 @@ export function QueueTab() {
           </div>
         </div>
       ) : (
-        <section className={cn(card, "flex min-h-80 flex-col")}>
+        <>
           <QueueHead />
-          <QueueTable />
-        </section>
+          <section className={cn(card, "flex min-h-80 flex-1 flex-col overflow-hidden")}><QueueTable /></section>
+        </>
       )}
     </div>
   );

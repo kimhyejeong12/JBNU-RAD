@@ -1,12 +1,12 @@
 import type { QueueItem } from "@/app/queue/types";
-import { PanelHead } from "@/app/ui/panel/Panel";
+import { Panel } from "@/app/ui/panel/Panel";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { WatchFlag } from "@/shared/api/types";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { KvTable, Meta, Section } from "@/shared/ui/base/parts";
 import { Icon } from "@/shared/ui/base/Icon";
 import { cn } from "@/shared/lib/cn";
-import { box, levelText, meta, panelBody, recLine, subject, toolButton } from "@/shared/ui/base/styles";
+import { box, levelText, meta, recLine, subject, toolButton } from "@/shared/ui/base/styles";
 
 type PersonItem = Extract<QueueItem, { type: "person" }>;
 
@@ -21,35 +21,32 @@ export function PersonPanel({ it }: { it: PersonItem }) {
     select(`req:${no}`);
   };
   return (
-    <>
-      <PanelHead title="확인할 사람" />
-      <div className={panelBody}>
-        <p className={subject}>{p.name} ({p.login_id})</p>
-        <div className={cn(recLine, levelText[p.level])}><Icon name={LEVEL_ICON[p.level]} className="size-5" />{p.level}</div>
-        <div className={meta}>{p.flags.length}건, 최근 {p.at}</div>
-        <Section icon="users" title="계정">
-          <KvTable rows={[
-            ["부서", p.department || "—"],
-            ["직무", p.job || "적지 않음"],
-            ["상태", p.is_active ? "활성" : "정지"],
-            ["퇴사일", p.left_on || "—"],
-          ]} />
-        </Section>
-        <Section icon="warn" title="확인할 것">
-          <ul className="grid gap-1.5">
-            {p.flags.map((f, n) => (
-              <li key={n} className={cn(box, "flex items-start gap-2")}>
-                <Icon name={LEVEL_ICON[f.level]} className={cn("mt-0.5 size-4 shrink-0", levelText[f.level])} />
-                <span className="min-w-0 flex-1">
-                  <small className="block text-[11px] text-ink-faint"><Meta items={[KIND[f.kind], f.at, f.request_no]} /></small>
-                  {f.text}
-                </span>
-                {f.request_no && <button className={toolButton} onClick={() => open(f.request_no!)}>신청 보기</button>}
-              </li>
-            ))}
-          </ul>
-        </Section>
-      </div>
-    </>
+    <Panel title="확인할 사람">
+      <p className={subject}>{p.name} ({p.login_id})</p>
+      <div className={cn(recLine, levelText[p.level])}><Icon name={LEVEL_ICON[p.level]} className="size-5" />{p.level}</div>
+      <div className={meta}>{p.flags.length}건, 최근 {p.at}</div>
+      <Section icon="users" title="계정">
+        <KvTable rows={[
+          ["부서", p.department || "—"],
+          ["직무", p.job || "적지 않음"],
+          ["상태", p.is_active ? "활성" : "정지"],
+          ["퇴사일", p.left_on || "—"],
+        ]} />
+      </Section>
+      <Section icon="warn" title="확인할 것">
+        <ul className="grid gap-1.5">
+          {p.flags.map((f, n) => (
+            <li key={n} className={cn(box, "flex items-start gap-2")}>
+              <Icon name={LEVEL_ICON[f.level]} className={cn("mt-0.5 size-4 shrink-0", levelText[f.level])} />
+              <span className="min-w-0 flex-1">
+                <small className="block text-[11px] text-ink-faint"><Meta items={[KIND[f.kind], f.at, f.request_no]} /></small>
+                {f.text}
+              </span>
+              {f.request_no && <button className={toolButton} onClick={() => open(f.request_no!)}>신청 보기</button>}
+            </li>
+          ))}
+        </ul>
+      </Section>
+    </Panel>
   );
 }

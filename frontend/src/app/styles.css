@@ -172,7 +172,8 @@
     height: var(--page-h, 100vh);
     overflow: hidden;
     display: grid;
-    grid-template-rows: 56px minmax(0, 1fr);
+    /* 위 막대 · 탭 줄 · 작업 칸 */
+    grid-template-rows: 56px auto minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr);
     background: var(--color-canvas);
     color: var(--color-ink);
@@ -188,7 +189,7 @@
     body {
       height: auto;
       overflow: auto;
-      grid-template-rows: auto auto;
+      grid-template-rows: auto auto auto;
     }
     body[data-drawer-open] {
       overflow: hidden;

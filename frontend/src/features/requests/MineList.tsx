@@ -1,15 +1,15 @@
 import { Fragment, useState } from "react";
-import { canWithdraw, endedBreakdown, mineGroup, mineStatus, pageLinks, periodText, rejectNote, type MineGroup } from "./lib";
+import { canWithdraw, endedBreakdown, mineStatus, pageLinks, periodText, rejectNote } from "./lib";
 import { useRequestAction } from "./api";
 import { useMine } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
 import type { RequestRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
-import { today } from "@/shared/lib/request";
+import { stageGroup, today, type StageGroup } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
 import { Pill, Tile } from "@/shared/ui/base/parts";
-import { card, formMsg, formMsgOk, linkButton } from "@/shared/ui/base/styles";
+import { card, formMsg, formMsgOk, linkButton, stageColor, stageTone } from "@/shared/ui/base/styles";
 import { ask } from "@/app/ui/confirm/ask";
 
 // 한 쪽 4건 — 신청서와 아래 끝이 맞게 합니다.
@@ -18,17 +18,9 @@ const TH = "p-4 font-medium";
 const TD = "p-4 align-middle";
 const PAGER = "flex size-8 items-center justify-center rounded border border-line bg-surface text-sm font-medium text-ink-soft hover:bg-row-hover disabled:cursor-default disabled:opacity-50 aria-[current=true]:border-brand aria-[current=true]:bg-brand aria-[current=true]:text-white";
 
-type MineView = MineGroup | "all";
+type MineView = StageGroup | "all";
+// 타일 이름 앞 점과 표의 배지가 같은 색이라 표를 보고 어느 타일인지 이어집니다.
 const TILES: [MineView, string][] = [["all", "전체 신청"], ["pending", "결재 대기"], ["active", "사용 중"], ["done", "반려, 만료"]];
-
-// 상태마다 색 하나 — 타일 이름 앞 점과 표의 배지가 같은 색이라 표를 보고 어느 타일인지 이어집니다.
-// 결재 대기는 테마 남색 (주황은 운영자 화면에서 "주의"라 겹치지 않게).
-const COLOR: Record<MineView, { dot: string; pill: string }> = {
-  all: { dot: "var(--color-ink-ghost)", pill: "border-transparent bg-canvas text-ink-dim" },
-  pending: { dot: "var(--color-brand)", pill: "border-transparent bg-brand-soft text-brand" },
-  active: { dot: "var(--color-ok)", pill: "border-transparent bg-ok-tint text-ok" },
-  done: { dot: "var(--color-risk)", pill: "border-transparent bg-risk-tint text-risk" },
-};
 const EMPTY: Record<MineView, string> = {
   pending: "결재 중인 신청이 없습니다.",
   active: "지금 쓰는 권한이 없습니다.",
@@ -36,22 +28,19 @@ const EMPTY: Record<MineView, string> = {
   all: "아직 신청한 권한이 없습니다.",
 };
 
-// 상태 배지 — 묶음의 색, 스스로 철회한 것만 회색입니다 (확인할 일이 아니라서).
-const statusTone = (r: RequestRow, group: MineGroup): string => (r.stage === "withdrawn" ? COLOR.all.pill : COLOR[group].pill);
-
 // 결재 대기가 있으면 그것부터, 없으면 전체를 보여 줍니다 — 처음 들어와 빈 목록을 보지 않게.
 export function MineList() {
   const mine = useMine();
   const { ui, toggleChip } = useUi();
   const on = today();
   const counts: Record<MineView, number> = { pending: 0, active: 0, done: 0, all: mine.length };
-  for (const r of mine) counts[mineGroup(r, on)] += 1;
+  for (const r of mine) counts[stageGroup(r, on)] += 1;
   const [picked, setPicked] = useState<MineView | null>(null);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const group = picked ?? (counts.pending ? "pending" : "all");
   const q = query.trim().toLowerCase();
-  const rows = mine.filter((r) => (group === "all" || mineGroup(r, on) === group)
+  const rows = mine.filter((r) => (group === "all" || stageGroup(r, on) === group)
     && (!q || [r.requested_access, r.access_code, r.request_no, r.reason].join(" ").toLowerCase().includes(q)));
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   const at = Math.min(page, pages);
@@ -61,7 +50,7 @@ export function MineList() {
       <div className="grid grid-cols-4 gap-4 phone:grid-cols-2" id="mine-tiles" role="group" aria-label="내 신청">
         {TILES.map(([k, label]) => (
           // 내역은 숫자 옆에 작게 — 아래 줄에 두면 이 타일만 높아져 네 타일 높이가 어긋납니다.
-          <Tile key={k} label={label} pressed={group === k} dot={COLOR[k].dot} onClick={() => { setPicked(k); setPage(1); }}
+          <Tile key={k} label={label} pressed={group === k} dot={stageColor[k].dot} onClick={() => { setPicked(k); setPage(1); }}
             big={<>{counts[k]}{k === "done" && counts.done > 0 && <span className="ml-1.5 text-xs font-normal text-ink-dim">{endedBreakdown(mine, on)}</span>}</>} />
         ))}
       </div>
@@ -105,7 +94,7 @@ export function MineList() {
 
 function MineRow({ r, on, open, onNote }: { r: RequestRow; on: string; open: boolean; onNote: () => void }) {
   const note = rejectNote(r);
-  const group = mineGroup(r, on);
+  const group = stageGroup(r, on);
   return (
     <Fragment>
       <tr className={cn("border-b border-line hover:bg-row-hover", open && "border-b-0")}>
@@ -122,7 +111,7 @@ function MineRow({ r, on, open, onNote }: { r: RequestRow; on: string; open: boo
         </td>
         <td className={cn(TD, "text-center")}>
           <span className="inline-flex items-center gap-2.5">
-            <Pill tone={statusTone(r, group)} className="px-3 py-1.5 text-xs">{mineStatus(r, on)}</Pill>
+            <Pill tone={stageTone(r, on)} className="px-3 py-1.5 text-xs">{mineStatus(r, on)}</Pill>
             <WithdrawButton r={r} />
             {note && <button type="button" className={cn(linkButton, "self-center")} aria-expanded={open} onClick={onNote}>{open ? "접기" : "사유"}</button>}
           </span>

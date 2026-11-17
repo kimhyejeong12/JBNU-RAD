@@ -10,7 +10,7 @@ import { LEVEL_ICON } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
 import { Pill } from "@/shared/ui/base/parts";
-import { empty, levelText } from "@/shared/ui/base/styles";
+import { empty, levelText, stageTone } from "@/shared/ui/base/styles";
 
 // 창 폭이 아니라 목록 폭(약 560px)으로 상세 · 시각을 숨깁니다 — 메뉴 · 패널을 펼치면 목록이 좁아져서.
 const GRID = "grid grid-cols-[minmax(120px,1fr)_minmax(140px,2fr)_120px_104px] items-center gap-3 px-4.5 @max-[560px]:grid-cols-[minmax(0,1fr)_100px]";
@@ -33,8 +33,8 @@ export function QueueTable() {
   const anyInView = !!view && items.some((it) => inView(it, view, ui.stageFilter, me.role));
   const onRow = (key: string) => (key === ui.selected ? dispatch({ type: "DESELECT" }) : select(key));
   return (
-    <div className="@container border-t border-line">
-      <div id="thead" className={cn(grid, "h-9.5 border-b border-line text-[12px] font-semibold text-ink-dim")}>
+    <div className="@container min-h-0 flex-1 overflow-auto">
+      <div id="thead" className={cn(grid, "sticky top-0 z-1 h-9.5 border-b border-line bg-surface text-[12px] font-semibold text-ink-dim")}>
         {cols.map((c, i) => <span key={c} className={cn(SLIM_HIDE.has(i) && SLIM)}>{c}</span>)}
       </div>
       <div id="rows">
@@ -48,7 +48,8 @@ export function QueueTable() {
 
 // 처리 상태 — 신청은 결재 단계, 정책 · 서버 · 로그는 운영자 결정입니다 (1차 판정처럼 결정 전 글이 있으면 그 글).
 function stateOf(it: QueueItem): { text: string; tone: string } {
-  if (it.type === "req") return { text: it.sub ?? "", tone: "border-line text-ink-soft" };
+  // 재검토 글(이동 재검토 위험 등)은 AI 등급이 든 글이라 상태 색을 입히지 않습니다.
+  if (it.type === "req") return { text: it.sub ?? "", tone: it.raw.grant_review ? "border-line text-ink-soft" : stageTone(it.raw) };
   if (it.decision || !it.sub) return decisionState(it.decision);
   return { text: it.sub, tone: "border-line text-ink-dim" };
 }
@@ -77,7 +78,7 @@ function Row({ it, split, current, onSelect }: { it: QueueItem; split: boolean; 
       </span>
       {split && (
         <span className="flex min-w-0 flex-col items-start gap-px">
-          <Pill tone={state.tone} className="block max-w-full truncate">{state.text}</Pill>
+          <Pill tone={state.tone} className="block max-w-full truncate rounded-[4px] py-0.5">{state.text}</Pill>
           {d && <span className="max-w-full truncate text-[11px] text-ink-dim">{d.decider_name}</span>}
         </span>
       )}

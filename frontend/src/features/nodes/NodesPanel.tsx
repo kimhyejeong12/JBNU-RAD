@@ -6,7 +6,7 @@ import { useCreateNode, useNodeAction, type NodeAct } from "./api";
 import { NodeKey } from "./NodeKey";
 import { useQueue } from "@/app/queue/useQueue";
 import { useUi } from "@/app/ui/state/UiContext";
-import { PanelHead, PanelMsg } from "@/app/ui/panel/Panel";
+import { Panel, PanelMsg } from "@/app/ui/panel/Panel";
 import { nodeQuery, nodesQuery } from "@/shared/api/queries";
 import type { NodeDetail, NodeRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
@@ -17,7 +17,7 @@ import { cn } from "@/shared/lib/cn";
 import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import {
-  actionButton, box, boxPre, empty, field, formActions, formGrid, formMsg, input, meta, note, panelBody, primaryButton, recLine, subject, toolButton,
+  actionButton, box, boxPre, empty, field, formActions, formGrid, formMsg, input, meta, note, primaryButton, recLine, subject, toolButton,
 } from "@/shared/ui/base/styles";
 
 export function NodesPanel() {
@@ -26,7 +26,7 @@ export function NodesPanel() {
   if (ui.nodes.adding) return <AddNodePanel />;
   if (!ui.nodes.selected) return <SummaryPanel list={list} />;
   const n = list.find((x) => x.name === ui.nodes.selected);
-  if (!n) return <><PanelHead title="수집 노드" /><div className={panelBody}><div className={empty}>없는 노드입니다.</div></div></>;
+  if (!n) return <Panel title="수집 노드"><div className={empty}>없는 노드입니다.</div></Panel>;
   // key 로 노드마다 새로 그려 복사 버튼 상태가 다른 노드로 넘어가지 않게 합니다.
   return <NodePanel key={n.name} n={n} />;
 }
@@ -41,32 +41,26 @@ function AddNodePanel() {
     create.mutate(String(new FormData(e.currentTarget).get("name") ?? "").trim());
   }
   return (
-    <>
-      <PanelHead title="노드 등록" />
-      <div className={panelBody}>
-        <form id="node-form" className={formGrid} noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
-          <label className={cn(field, "col-span-full")}><span>노드 이름 <b className="text-risk">*</b></span><input className={input} id="node-name" name="name" required maxLength={64} pattern="[A-Za-z0-9._\-]+" title="영문, 숫자, . _ -" placeholder="예: cust-db01" autoFocus /></label>
-          <div className={cn(formActions, "col-span-full")}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>등록하고 키 발급</button></div>
-        </form>
-      </div>
-    </>
+    <Panel title="노드 등록">
+      <form id="node-form" className={formGrid} noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+        <label className={cn(field, "col-span-full")}><span>노드 이름 <b className="text-risk">*</b></span><input className={input} id="node-name" name="name" required maxLength={64} pattern="[A-Za-z0-9._\-]+" title="영문, 숫자, . _ -" placeholder="예: cust-db01" autoFocus /></label>
+        <div className={cn(formActions, "col-span-full")}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>등록하고 키 발급</button></div>
+      </form>
+    </Panel>
   );
 }
 
 function SummaryPanel({ list }: { list: NodeRow[] }) {
   const count = (k: NodeStateClass) => list.filter((n) => nodeState(n)[0] === k).length;
   return (
-    <>
-      <PanelHead title="수집 노드" />
-      <div className={panelBody}>
-        <Section icon="activity" title="상태">
-          <KvTable rows={[["노드", `${list.length}대`], ["수집 중", `${count("on")}대`], ["끊김", `${count("stale")}대`], ["꺼짐", `${count("off") + count("wait")}대`]]} />
-        </Section>
-        <Section icon="server" title="노드 깔기">
-          <div className={boxPre}>node/install.sh --server {location.origin} --key {"<키>"}</div>
-        </Section>
-      </div>
-    </>
+    <Panel title="수집 노드">
+      <Section icon="activity" title="상태">
+        <KvTable rows={[["노드", `${list.length}대`], ["수집 중", `${count("on")}대`], ["끊김", `${count("stale")}대`], ["꺼짐", `${count("off") + count("wait")}대`]]} />
+      </Section>
+      <Section icon="server" title="노드 깔기">
+        <div className={boxPre}>node/install.sh --server {location.origin} --key {"<키>"}</div>
+      </Section>
+    </Panel>
   );
 }
 
@@ -92,26 +86,23 @@ function NodePanel({ n }: { n: NodeRow }) {
   ] as [string, string | null][]).filter((row): row is [string, string] => !!row[1]);
 
   return (
-    <>
-      <PanelHead title="수집 노드" />
-      <div className={panelBody}>
-        <p className={subject}>{n.name}</p>
-        <div className={recLine}><span className={cn(nodeStateText, nodeStateTone[cls])}>{label}</span></div>
-        <div className={meta}>{tip}</div>
-        <Section icon="server" title="노드">
-          <KvTable rows={info} />
-          <div className={nodeActions}>
-            <button className={toolButton} onClick={() => act(n.enabled ? "off" : "on")}>{n.enabled ? "노드 끄기" : "노드 켜기"}</button>
-            <button className={toolButton} onClick={() => act("key")}>{n.key_issued ? "키 다시 발급" : "키 발급"}</button>
-          </div>
-          <PanelMsg />
-        </Section>
-        <NodeKey n={n} d={detail.data} />
-        {detail.data ? <NodeRecords d={detail.data} />
-          : detail.isError ? <p className={cn(formMsg, "my-[1em]")}>{detail.error.message}</p>
-            : <div className={empty}>불러오는 중…</div>}
-      </div>
-    </>
+    <Panel title="수집 노드">
+      <p className={subject}>{n.name}</p>
+      <div className={recLine}><span className={cn(nodeStateText, nodeStateTone[cls])}>{label}</span></div>
+      <div className={meta}>{tip}</div>
+      <Section icon="server" title="노드">
+        <KvTable rows={info} />
+        <div className={nodeActions}>
+          <button className={toolButton} onClick={() => act(n.enabled ? "off" : "on")}>{n.enabled ? "노드 끄기" : "노드 켜기"}</button>
+          <button className={toolButton} onClick={() => act("key")}>{n.key_issued ? "키 다시 발급" : "키 발급"}</button>
+        </div>
+        <PanelMsg />
+      </Section>
+      <NodeKey n={n} d={detail.data} />
+      {detail.data ? <NodeRecords d={detail.data} />
+        : detail.isError ? <p className={cn(formMsg, "my-[1em]")}>{detail.error.message}</p>
+          : <div className={empty}>불러오는 중…</div>}
+    </Panel>
   );
 }
 

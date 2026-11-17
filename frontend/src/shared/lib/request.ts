@@ -17,3 +17,8 @@ export const today = (): string => new Date().toLocaleDateString("sv-SE");
 // 권한 DB 의 active_grants 뷰와 같은 조건입니다.
 export const isActive = (r: Pick<RequestRow, "stage" | "period_end">, on: string = today()): boolean =>
   r.stage === "approved" && (!r.period_end || r.period_end >= on);
+
+// 신청 상태 묶음 — 끝남은 반려 · 만료 · 회수 · 철회입니다.
+export type StageGroup = "pending" | "active" | "done";
+export const stageGroup = (r: Pick<RequestRow, "stage" | "period_end">, on: string = today()): StageGroup =>
+  r.stage === "manager" || r.stage === "top" ? "pending" : isActive(r, on) ? "active" : "done";

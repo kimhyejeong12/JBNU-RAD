@@ -6,7 +6,7 @@ import {
   EMPTY_RESULTS, catalogQuery, healthQuery, jobsQuery, peopleQuery, conversationQuery, conversationsQuery, regulationsQuery, requestsQuery, resultsQuery, usersQuery,
 } from "@/shared/api/queries";
 import type { AccessItem, AskItem, Conversation, Jobs, Regulation, RequestRow, Results, UserRow, WatchPerson } from "@/shared/api/types";
-import { chipLabel, clauseText } from "@/shared/lib/clause";
+import { chipLabel, clauseHead, clauseText } from "@/shared/lib/clause";
 
 // 받기 전에는 늘 같은 빈 배열을 돌려주어 useMemo 의존성이 그릴 때마다 바뀌지 않게 합니다.
 const NONE: never[] = [];
@@ -73,5 +73,6 @@ export function useClauses() {
   return useMemo(() => ({
     label: (source: string) => chipLabel(source, regulations),
     text: (source: string) => clauseText(source, regulations),
+    head: (source: string) => clauseHead(source, regulations),
   }), [regulations]);
 }
