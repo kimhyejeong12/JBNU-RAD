@@ -8,7 +8,7 @@ import type { QueueItem } from "./types";
 import { DECISIONS, decisionState } from "@/app/ui/panel/decision";
 import { StateCell } from "@/app/ui/panel/DecisionFoot";
 import { cn } from "@/shared/lib/cn";
-import { LevelLabel } from "@/shared/ui/base/parts";
+import { IconBadge, LevelLabel } from "@/shared/ui/base/parts";
 import { empty, levelText, stageTone } from "@/shared/ui/base/styles";
 
 // 창 폭이 아니라 목록 폭(약 560px)으로 상세 · 시각을 숨깁니다 — 메뉴 · 패널을 펼치면 목록이 좁아져서.
@@ -17,6 +17,8 @@ const GRID = "grid grid-cols-[minmax(120px,1fr)_minmax(140px,2fr)_120px_104px] i
 const GRID_SPLIT = "grid grid-cols-[minmax(120px,1fr)_minmax(140px,2fr)_120px_76px_128px] items-center gap-3 px-4.5 @max-[560px]:grid-cols-[minmax(0,1fr)_64px_96px]";
 // 줄마다 시각이 같은 목록(정책 관리)은 시간 열이 없습니다.
 const GRID_SPLIT_NO_TIME = "grid grid-cols-[minmax(120px,1fr)_minmax(140px,2fr)_76px_128px] items-center gap-3 px-4.5 @max-[560px]:grid-cols-[minmax(0,1fr)_64px_96px]";
+// 셋째 칸이 배지(역할 · 업무 시스템)인 관리 목록입니다.
+const GRID_BADGE = "grid grid-cols-[minmax(120px,1fr)_minmax(140px,1.6fr)_164px_120px_96px] items-center gap-3 px-4.5 @max-[560px]:grid-cols-[minmax(0,1fr)_100px]";
 const SLIM = "@max-[560px]:hidden";
 export function QueueTable() {
   const me = useMe();
@@ -28,8 +30,9 @@ export function QueueTable() {
   // 권한 신청 · 정책 관리 · 로그 감시는 AI 판단과 처리 상태를 다른 열로 둡니다.
   const split = !!view && LEVEL_VIEWS.has(view);
   const time = !view || VIEWS[view].time !== false;
-  const grid = !split ? GRID : time ? GRID_SPLIT : GRID_SPLIT_NO_TIME;
-  const slim = time ? [1, 2] : [1];
+  const badge = !!view && VIEWS[view].badge === true;
+  const grid = badge ? GRID_BADGE : !split ? GRID : time ? GRID_SPLIT : GRID_SPLIT_NO_TIME;
+  const slim = badge ? [1, 2, 3] : time ? [1, 2] : [1];
   const rows = view ? visible(items, { view, stageFilter: ui.stageFilter, role: me.role, filter: ui.filter, query: ui.query }) : [];
   const anyInView = !!view && items.some((it) => inView(it, view, ui.stageFilter, me.role));
   const onRow = (key: string) => (key === ui.selected ? dispatch({ type: "DESELECT" }) : select(key));
@@ -40,7 +43,7 @@ export function QueueTable() {
       </div>
       <div id="rows">
         {rows.length
-          ? rows.map((it) => <Row key={it.key} it={it} split={split} grid={grid} time={time} current={it.key === ui.selected} onSelect={() => onRow(it.key)} />)
+          ? rows.map((it) => <Row key={it.key} it={it} split={split} badge={badge} grid={grid} time={time} current={it.key === ui.selected} onSelect={() => onRow(it.key)} />)
           : view && <div className={empty}>{emptyText(view, ui.stageFilter, jobs, anyInView)}</div>}
       </div>
     </div>
@@ -57,7 +60,7 @@ function stateOf(it: QueueItem): { text: string; tone: string } {
 
 const MIXED = new Set<ItemType>(["policy", "server"]);
 const ROW = "min-h-14 w-full border-0 border-b border-l-[3px] border-b-line border-l-transparent bg-surface py-2 pr-4.5 pl-3.75 text-left";
-function Row({ it, split, grid, time, current, onSelect }: { it: QueueItem; split: boolean; grid: string; time: boolean; current: boolean; onSelect: () => void }) {
+function Row({ it, split, badge, grid, time, current, onSelect }: { it: QueueItem; split: boolean; badge: boolean; grid: string; time: boolean; current: boolean; onSelect: () => void }) {
   const d = it.decision;
   const sub = d ? `${DECISIONS[d.action]} (${d.decider_name})` : it.sub;
   const state = stateOf(it);
@@ -74,6 +77,7 @@ function Row({ it, split, grid, time, current, onSelect }: { it: QueueItem; spli
         </span>
         {it.note && <small className="mt-0.5 block truncate text-[11.5px] text-ink-dim">{it.note}</small>}
       </span>
+      {badge && <span className={cn("min-w-0", SLIM)}>{it.badge && <IconBadge icon={it.badge.icon}>{it.badge.text}</IconBadge>}</span>}
       {time && <span className={cn("text-[12.5px] whitespace-nowrap text-ink-dim tabular-nums", SLIM)}>{it.when}</span>}
       <span className="flex flex-col gap-px text-[13px] font-semibold">
         {it.level ? <LevelLabel level={it.level} /> : <span className="flex items-center gap-1.25">{it.judge}</span>}

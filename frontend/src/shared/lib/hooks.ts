@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 
+// 줄을 size 개씩 쪽으로 나눕니다 — 거르기로 줄이 줄어 지금 쪽이 없어지면 마지막 쪽을 보입니다.
+export function usePage<T>(rows: T[], size: number) {
+  const [page, setPage] = useState(1);
+  const pages = Math.max(1, Math.ceil(rows.length / size));
+  const at = Math.min(page, pages);
+  return { shown: rows.slice((at - 1) * size, at * size), at, pages, setPage };
+}
+
 export function useNow(everyMs: number, active: boolean): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {

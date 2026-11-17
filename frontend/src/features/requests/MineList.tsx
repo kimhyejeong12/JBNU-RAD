@@ -1,5 +1,5 @@
 import { Fragment, useState } from "react";
-import { canWithdraw, endedBreakdown, mineStatus, pageLinks, periodText, rejectNote } from "./lib";
+import { canWithdraw, endedBreakdown, mineStatus, periodText, rejectNote } from "./lib";
 import { useRequestAction } from "./api";
 import { useMine } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
@@ -8,7 +8,8 @@ import { stamp } from "@/shared/lib/format";
 import { stageGroup, today, type StageGroup } from "@/shared/lib/request";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
-import { Pill, Tile } from "@/shared/ui/base/parts";
+import { usePage } from "@/shared/lib/hooks";
+import { Pager, Pill, Tile } from "@/shared/ui/base/parts";
 import { card, formMsg, formMsgOk, linkButton, stageColor, stageTone } from "@/shared/ui/base/styles";
 import { ask } from "@/app/ui/confirm/ask";
 
@@ -16,7 +17,6 @@ import { ask } from "@/app/ui/confirm/ask";
 const PAGE = 4;
 const TH = "p-4 font-medium";
 const TD = "p-4 align-middle";
-const PAGER = "flex size-8 items-center justify-center rounded border border-line bg-surface text-sm font-medium text-ink-soft hover:bg-row-hover disabled:cursor-default disabled:opacity-50 aria-[current=true]:border-brand aria-[current=true]:bg-brand aria-[current=true]:text-white";
 
 type MineView = StageGroup | "all";
 // 타일 이름 앞 점과 표의 배지가 같은 색이라 표를 보고 어느 타일인지 이어집니다.
@@ -37,14 +37,11 @@ export function MineList() {
   for (const r of mine) counts[stageGroup(r, on)] += 1;
   const [picked, setPicked] = useState<MineView | null>(null);
   const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
   const group = picked ?? (counts.pending ? "pending" : "all");
   const q = query.trim().toLowerCase();
   const rows = mine.filter((r) => (group === "all" || stageGroup(r, on) === group)
     && (!q || [r.requested_access, r.access_code, r.request_no, r.reason].join(" ").toLowerCase().includes(q)));
-  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
-  const at = Math.min(page, pages);
-  const shown = rows.slice((at - 1) * PAGE, at * PAGE);
+  const { shown, at, pages, setPage } = usePage(rows, PAGE);
   return (
     <div className="flex h-full min-w-0 flex-col gap-6">
       <div className="grid grid-cols-4 gap-4 phone:grid-cols-2" id="mine-tiles" role="group" aria-label="내 신청">
@@ -80,13 +77,7 @@ export function MineList() {
             </tbody>
           </table>
         </div>
-        <nav className="flex items-center justify-center gap-2 border-t border-line p-4" aria-label="쪽">
-          <button type="button" className={PAGER} disabled={at === 1} onClick={() => setPage(at - 1)} aria-label="앞 쪽"><Icon name="back" small /></button>
-          {pageLinks(at, pages).map((n) => (
-            <button type="button" key={n} className={PAGER} aria-current={n === at} onClick={() => setPage(n)}>{n}</button>
-          ))}
-          <button type="button" className={PAGER} disabled={at === pages} onClick={() => setPage(at + 1)} aria-label="다음 쪽"><Icon name="chev" small /></button>
-        </nav>
+        <Pager className="border-t border-line p-4" at={at} pages={pages} onPage={setPage} />
       </section>
     </div>
   );

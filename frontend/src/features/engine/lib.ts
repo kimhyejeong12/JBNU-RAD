@@ -60,6 +60,13 @@ export function progress(d: Pick<QueueDetail, "batches">, j: QueueJob | null): s
   return b ? `${b.done}/${b.total}` : "";
 }
 
-// 마지막 실행은 최근 것부터 봅니다.
-export const lastRows = (d: Pick<QueueDetail, "last">): [string, QueueDetail["last"][string]][] =>
-  Object.entries(d.last).sort(([, a], [, b]) => (b.finished_at ?? "").localeCompare(a.finished_at ?? ""));
+export interface JobRow { kind: string; everyMin: number | null; nextAt: string | null; last: QueueDetail["last"][string] | null }
+
+// 작업마다 한 줄 — 예약(간격 · 다음 실행)과 마지막 실행을 합칩니다. 예약된 작업은 서버 순서 그대로, 예약 없이 돈 작업은 늦게 끝난 것부터.
+export function jobRows(d: Pick<QueueDetail, "schedule" | "last">): JobRow[] {
+  const planned = Object.entries(d.schedule).map(([kind, s]) => ({ kind, everyMin: s.every_min, nextAt: s.next_at, last: d.last[kind] ?? null }));
+  const others = Object.entries(d.last).filter(([kind]) => !(kind in d.schedule))
+    .sort(([, a], [, b]) => (b.finished_at ?? "").localeCompare(a.finished_at ?? ""))
+    .map(([kind, last]) => ({ kind, everyMin: null, nextAt: null, last }));
+  return [...planned, ...others];
+}

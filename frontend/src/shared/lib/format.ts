@@ -7,6 +7,12 @@ export function dayTime(iso: string | null | undefined, now: Date = new Date()):
   return [day.startsWith(`${now.getFullYear()}-`) ? day.slice(5) : day, time];
 }
 
+// 쪽 번호는 지금 쪽을 가운데 두고 5개까지 — 줄이 많아도 쪽 번호 줄이 넘치지 않게 합니다.
+export function pageLinks(at: number, pages: number, links = 5): number[] {
+  const first = Math.max(1, Math.min(at - Math.floor(links / 2), pages - links + 1));
+  return Array.from({ length: Math.min(links, pages) }, (_, i) => first + i);
+}
+
 export const pct = (n: number, d: number): string => (d ? `${Math.round((n / d) * 1000) / 10}%` : "—");
 
 export function niceMax(n: number): number {

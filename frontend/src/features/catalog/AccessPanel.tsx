@@ -1,6 +1,7 @@
 import type { FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useCreateAccess, useUpdateAccess } from "./api";
+import { accessState } from "./lib";
 import { useRequests } from "@/app/session/data";
 import { ChangeLog } from "@/app/ui/panel/ChangeLog";
 import { Panel, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
@@ -73,10 +74,10 @@ function EditAccess({ a }: { a: AccessItem }) {
   // 끄면 새 신청이 바로 막혀서 끌 때만 묻습니다.
   async function onToggle(on: boolean) {
     if (!on && !(await ask({
-      title: "권한 끄기", confirm: "끄기", danger: true,
+      title: "신청 막기", confirm: "막기", danger: true,
       message: `${a.name} 권한의 새 신청을 막습니다.`,
     }))) return;
-    update.mutate({ code: a.code, patch: { is_active: on }, done: on ? "✓ 켰습니다" : "✓ 껐습니다" });
+    update.mutate({ code: a.code, patch: { is_active: on }, done: on ? "✓ 신청을 열었습니다" : "✓ 신청을 막았습니다" });
   }
 
   return (
@@ -84,8 +85,7 @@ function EditAccess({ a }: { a: AccessItem }) {
       <p className={subject}>{a.name} ({a.code})</p>
       <div className={meta}><Meta items={[`신청 ${used.length}건`, `유효 ${active}건`, `등록 ${stamp(a.created_at)}`]} /></div>
       <div className={cn(box, "mt-3.5")}>
-        <Switch checked={a.is_active} disabled={update.isPending} onChange={onToggle}
-          label={a.is_active ? "켜짐" : "꺼짐"} hint={a.is_active ? "신청 화면에 보임" : "신청 막힘"} />
+        <Switch checked={a.is_active} disabled={update.isPending} onChange={onToggle} label={accessState(a.is_active)} />
       </div>
       {/* 시스템 · 분류 · 설명은 신청 판정의 입력에 들어갑니다 (sources/people.py). */}
       <form key={formKey} id="access-edit" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>

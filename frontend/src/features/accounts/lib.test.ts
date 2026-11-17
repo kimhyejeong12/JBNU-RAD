@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import type { UserRow } from "@/shared/api/types";
-import { userItem } from "./lib";
+import { roleMenus, userItem } from "./lib";
 
 const user = (p: Partial<UserRow>): UserRow => ({
   id: 7, login_id: "dev-op", display_name: "보안 운영자", department: "보안팀", role: "manager", is_root: false, is_active: true,
@@ -8,18 +8,24 @@ const user = (p: Partial<UserRow>): UserRow => ({
 });
 
 test("userItem: 정지 · 잠김 · 활성, 비밀번호 변경 전, 루트 표시", () => {
-  expect(userItem(user({}))).toMatchObject({ type: "user", key: "user:7", id: "dev-op", typeLabel: "보안 운영자", who: "보안 운영자 (dev-op)", what: "보안팀", when: "2026-10-29 05:00", judge: "활성", sub: "" });
+  expect(userItem(user({}))).toMatchObject({ type: "user", key: "user:7", id: "dev-op", badge: { icon: "gear", text: "보안 운영자" }, who: "보안 운영자 (dev-op)", what: "보안팀", note: undefined, when: "2026-10-29 05:00", judge: "활성", sub: "" });
   expect(userItem(user({ is_active: false })).judge).toBe("정지");
   expect(userItem(user({ locked_until: "2999-01-01T00:00:00+09:00" })).judge).toBe("잠김");
   expect(userItem(user({ locked_until: "2000-01-01T00:00:00+09:00" })).judge).toBe("활성");
   expect(userItem(user({ must_change_password: true })).sub).toBe("비밀번호 변경 전");
-  expect(userItem(user({ role: "top", is_root: true })).typeLabel).toBe("보안 총책임자 (루트)");
+  expect(userItem(user({ role: "top", is_root: true })).badge?.text).toBe("보안 총책임자 (루트)");
   expect(userItem(user({ department: "", last_login_at: null })) ).toMatchObject({ what: "부서 없음", when: "—" });
 });
 
-test("userItem: 직무는 부서 옆에, 퇴사일이 지났으면 아래 줄에 퇴사", () => {
-  expect(userItem(user({ job: "보안 관제" })).what).toBe("보안팀, 보안 관제");
+test("userItem: 직무는 부서 아래 줄에, 퇴사일이 지났으면 상태 아래 줄에 퇴사", () => {
+  expect(userItem(user({ job: "보안 관제" }))).toMatchObject({ what: "보안팀", note: "보안 관제" });
   expect(userItem(user({ left_on: "2026-11-01" }), "2026-11-03").sub).toBe("2026-11-01 퇴사");
   expect(userItem(user({ left_on: "2026-11-10" }), "2026-11-03").sub).toBe("");
   expect(userItem(user({ left_on: "2026-11-01", must_change_password: true }), "2026-11-03").sub).toBe("2026-11-01 퇴사, 비밀번호 변경 전");
+});
+
+test("roleMenus: 역할마다 쓸 수 있는 메뉴", () => {
+  expect(roleMenus("user")).toEqual(["내 신청"]);
+  expect(roleMenus("manager")).toEqual(["1차 결재", "정책 관리", "로그 감시", "보안 현황", "관리", "계정, 역할 관리"]);
+  expect(roleMenus("top")).toEqual(["최종 결재", "정책 관리", "로그 감시", "보안 현황", "관리"]);
 });

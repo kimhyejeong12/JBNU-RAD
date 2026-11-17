@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { dayTime, niceMax, pct, person, points, stamp } from "./format";
+import { dayTime, niceMax, pageLinks, pct, person, points, stamp } from "./format";
 
 test("points: 줄이 여럿이면 줄마다, 번호 떼고 소제목 따로", () => {
   expect(points("1. 직무 연관성: 연관성이 부족합니다.\n2. 사용 기간: 적당합니다.")).toEqual([
@@ -55,4 +55,12 @@ test("dayTime: 올해면 연도를 빼고 날짜 · 시각을 나눔", () => {
   expect(dayTime("2026-11-17T20:12:00+09:00", now)).toEqual(["11-17", "20:12"]);
   expect(dayTime("2025-12-31T09:00:00+09:00", now)).toEqual(["2025-12-31", "09:00"]);
   expect(dayTime(null, now)).toEqual(["", ""]);
+});
+
+test("쪽 번호는 지금 쪽을 가운데 두고 5개까지", () => {
+  expect(pageLinks(1, 1)).toEqual([1]);
+  expect(pageLinks(1, 3)).toEqual([1, 2, 3]);
+  expect(pageLinks(1, 12)).toEqual([1, 2, 3, 4, 5]);
+  expect(pageLinks(6, 12)).toEqual([4, 5, 6, 7, 8]);
+  expect(pageLinks(12, 12)).toEqual([8, 9, 10, 11, 12]);
 });

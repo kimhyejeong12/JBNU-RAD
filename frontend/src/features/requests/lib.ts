@@ -133,9 +133,3 @@ export function approvalFlow(r: RequestRow, on: string = today()): { steps: Flow
   else if (r.stage === "approved" && !isActive(r, on)) notes.push({ label: "만료", text: `사용 기간 끝 ${r.period_end}`, alert: true });
   return { steps, notes };
 }
-
-// 쪽 번호는 지금 쪽을 가운데 두고 5개까지 — 신청이 많아도 쪽 번호 줄이 넘치지 않게 합니다.
-export function pageLinks(at: number, pages: number, links = 5): number[] {
-  const first = Math.max(1, Math.min(at - Math.floor(links / 2), pages - links + 1));
-  return Array.from({ length: Math.min(links, pages) }, (_, i) => first + i);
-}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { compactLog, countText, logFacts } from "./lib";
+import { compactLog, countText, logFacts, logRows } from "./lib";
 import type { ReviewItem } from "./api";
 import { DecisionLog } from "./DecisionLog";
 import { useResults } from "@/app/session/data";
@@ -12,15 +12,23 @@ import { SourceChips } from "@/app/ui/panel/SourceChips";
 import type { EventFinding, ServerFinding, SnapshotState } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/base/Icon";
-import { LevelDot, Meta, Section } from "@/shared/ui/base/parts";
+import { LevelDot, Meta, Periods, Section } from "@/shared/ui/base/parts";
 import { ModuleChanges, ModuleTables } from "@/shared/ui/server/ModuleTables";
 import { cn } from "@/shared/lib/cn";
 import {
   box, boxPre, kvTable, kvTd, kvTh, meta, note, panelFoot, panelFootTitle, subject, toolButton,
 } from "@/shared/ui/base/styles";
 
+type PanelTab = "ai" | "log";
+
+// 다른 줄을 고르면 [AI 분석]으로 돌아가게 항목 key 로 다시 그립니다.
 export function ReviewPanel({ it }: { it: ReviewItem }) {
+  return <Review key={it.key} it={it} />;
+}
+
+function Review({ it }: { it: ReviewItem }) {
   const { openLogs } = useUi();
+  const [tab, setTab] = useState<PanelTab>("ai");
   const results = useResults();
   const r = it.raw;
   // 10/14 전 서버 점검 결과(recommendation 이 있음)는 예전 칸으로 보입니다.
@@ -35,18 +43,26 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
     <Panel title={`${TYPE_LABEL[it.type]} 검토`} foot={foot}>
       <p className={subject}>{title}</p>
       <div className={cn(meta, "flex items-center gap-1.5")}>처리 상태{fast ? <b className="text-ink-dim">확정 대기</b> : <DecisionBadge decision={it.decision} />}</div>
-      {/* 원자료가 길어 결론이 밀려나지 않게 결론을 먼저 둡니다. */}
-      <AiReport itemKey={it.key} wait="판정 결과가 없습니다." how="어떻게 조치할까요?" tip={it.type === "policy" ? it.raw.kind : undefined}
-        what={it.type === "event" ? <EventWhat f={it.raw} /> : undefined}
-        f={it.level ? {
-          level: it.level, reason: r.reason, recommendation: r.recommendation,
-          // 서버 점검은 다른 곳마다 근거 조항이 붙어 아래 목록에 둡니다.
-          sources: gapped ? undefined : it.type === "policy" ? it.raw.policy_ids : it.raw.sources,
-        } : null}
-        why={gapped && it.type === "server" && <GapList itemKey={it.key} f={it.raw} />} />
-      {it.type === "server" && <ServerSections f={it.raw} />}
-      {it.type === "event" && <EventSection f={it.raw} onLogs={() => openLogs({ user: it.raw.title, period: "month" })} />}
-      {results.decision_log && <DecisionLog log={results.decision_log} it={it} />}
+      {/* 결정 기록이 길어도 AI 분석이 밀리지 않게 탭으로 나눕니다 — 지금 결정은 아래 처리 칸에 늘 보입니다. */}
+      {!fast && (
+        <Periods<PanelTab> id="review-tabs" label="패널 보기" fill className="mt-3" value={tab} onChange={setTab}
+          labels={[["ai", "AI 분석"], ["log", `결정 기록 ${logRows(results.decision_log ?? {}, it).length}`]]} />
+      )}
+      {tab === "log" && !fast ? <DecisionLog log={results.decision_log ?? {}} it={it} /> : (
+        <>
+          {/* 원자료가 길어 결론이 밀려나지 않게 결론을 먼저 둡니다. */}
+          <AiReport itemKey={it.key} wait="판정 결과가 없습니다." how="어떻게 조치할까요?" tip={it.type === "policy" ? it.raw.kind : undefined}
+            what={it.type === "event" ? <EventWhat f={it.raw} /> : undefined}
+            f={it.level ? {
+              level: it.level, reason: r.reason, recommendation: r.recommendation,
+              // 서버 점검은 다른 곳마다 근거 조항이 붙어 아래 목록에 둡니다.
+              sources: gapped ? undefined : it.type === "policy" ? it.raw.policy_ids : it.raw.sources,
+            } : null}
+            why={gapped && it.type === "server" && <GapList itemKey={it.key} f={it.raw} />} />
+          {it.type === "server" && <ServerSections f={it.raw} />}
+          {it.type === "event" && <EventSection f={it.raw} onLogs={() => openLogs({ user: it.raw.title, period: "month" })} />}
+        </>
+      )}
     </Panel>
   );
 }

@@ -1,6 +1,7 @@
 import type { AuditRow, Role, Level } from "@/shared/api/types";
 
 export const ROLE_LABEL: Record<Role, string> = { top: "보안 총책임자", manager: "보안 운영자", user: "일반 사용자" };
+export const ROLE_ICON: Record<Role, string> = { top: "shield", manager: "gear", user: "users" };
 export const MODULE_LABEL: Record<string, string> = { ufw: "UFW", sshd: "SSH", pam: "PAM", accounts: "계정, sudo" };
 
 export const LEVELS: readonly Level[] = ["정상", "주의", "위험"];

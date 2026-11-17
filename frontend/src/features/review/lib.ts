@@ -1,5 +1,5 @@
 import type { QueueItem } from "@/app/queue/types";
-import type { Results } from "@/shared/api/types";
+import type { Decision, Results } from "@/shared/api/types";
 import { points, stamp } from "@/shared/lib/format";
 
 const decisionOf = (r: Results, kind: string, key: string) => r.decisions?.[kind]?.[key];
@@ -88,3 +88,11 @@ export function firstPoint(reason: string): string {
 
 // 예: "출력행위 20건, 조회 3건"
 export const countText = (xs: [string, number][]): string => xs.map(([k, n]) => `${k} ${n}건`).join(", ");
+
+export type DecisionLogMap = Record<string, Record<string, Decision[]>>;
+
+// 한 판정의 결정 기록 — 결정을 이어받은 판정은 자기 기록이 없어 지난 판정의 기록입니다.
+export function logRows(log: DecisionLogMap, it: { type: string; itemKey?: string; decision?: Pick<Decision, "carried_from"> | null }): Decision[] {
+  const from = it.decision?.carried_from;
+  return log[it.type]?.[it.itemKey ?? ""] ?? (from ? log[it.type]?.[from] : undefined) ?? [];
+}

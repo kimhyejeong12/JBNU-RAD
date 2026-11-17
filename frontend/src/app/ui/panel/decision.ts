@@ -26,12 +26,20 @@ export const decisionTone: Record<DecisionColor, string> = {
   done: "border-ink bg-ink text-white",
 };
 
-// 처리 상태 — AI 판정과 따로 보입니다. 조치 필요는 아직 끝나지 않은 일입니다.
+// 처리 상태 배지는 누른 결정 버튼과 같은 색의 테두리 — 승인 · 이상 없음 초록, 조건부 승인 주황, 반려 확정 · 조치 필요 빨강, 조치 완료 검정.
+const ACTION_COLOR: Record<string, DecisionColor> = { approve: "approve", clear: "approve", cond: "cond", reject: "reject", act: "reject", done: "done" };
+const stateTone: Record<DecisionColor, string> = {
+  approve: "border-ok-line text-ok",
+  cond: "border-warn-line text-warn-ink",
+  reject: "border-risk text-risk",
+  done: "border-ink text-ink",
+};
+
+// 처리 상태 — AI 판정과 따로 보입니다.
 export function decisionState(d: Pick<Decision, "action"> | null | undefined): { text: string; tone: string } {
   if (!d) return { text: "결정 없음", tone: "border-line text-ink-dim" };
-  if (d.action === "act") return { text: DECISIONS.act, tone: "border-risk text-risk" };
-  if (d.action === "done") return { text: DECISIONS.done, tone: "border-ink text-ink" };
-  return { text: DECISIONS[d.action] ?? d.action, tone: "border-ok-line text-ok" };
+  const color = ACTION_COLOR[d.action];
+  return { text: DECISIONS[d.action] ?? d.action, tone: color ? stateTone[color] : "border-line text-ink-soft" };
 }
 
 export interface DecisionTarget { kind: DecisionKind; itemKey: string; level: string | null; subject: string }

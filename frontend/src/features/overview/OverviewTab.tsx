@@ -12,7 +12,8 @@ import type { Briefing, Overview, OverviewRow, StatPeriod } from "@/shared/api/t
 import { niceMax, stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/base/Icon";
-import { DayTime, LevelDot, LevelLabel, Periods, Pill, Tile } from "@/shared/ui/base/parts";
+import { usePage } from "@/shared/lib/hooks";
+import { DayTime, IconBadge, LevelDot, LevelLabel, Pager, Periods, Tile } from "@/shared/ui/base/parts";
 import { DataTable, Legend } from "@/shared/ui/charts/parts";
 import { brandCard, card, cardCount, cardHead, cardTitle, levelText, markTone, toolButton } from "@/shared/ui/base/styles";
 
@@ -49,7 +50,7 @@ export function OverviewTab() {
             <Summary b={d.briefing} go={go} />
           </div>
           <div className="grid grid-cols-[minmax(0,7fr)_minmax(0,5fr)] items-start gap-3.5 narrow:grid-cols-[minmax(0,1fr)]">
-            <Issues id="overview-top" title={title} rows={rows} empty={emptyText(level, total)} go={go} />
+            <Issues key={level ?? "all"} id="overview-top" title={title} rows={rows} empty={emptyText(level, total)} go={go} />
             <Recent d={d} go={go} />
           </div>
           {d.failed.length > 0 && <Issues id="overview-failed" title={`판정 실패 ${d.failed.length}`} rows={d.failed} empty="" go={go} />}
@@ -109,10 +110,10 @@ function Summary({ b, go }: { b: Briefing | null; go: Go }) {
               </li>
             ))}
           </ul>
-          <div className="rounded-lg bg-surface px-3 py-2.5">
-            <p className="m-0 mb-1 flex items-center gap-1.5 text-[12px] font-bold text-ink-dim"><Icon name="bulb" small />우선 조치 권고</p>
-            <p className="m-0 text-[13.5px] font-semibold">{b.headline}</p>
-          </div>
+          <p className="m-0 flex items-start gap-1.5 rounded-lg bg-surface px-3 py-2 text-[13px] font-semibold">
+            <Icon name="bulb" small className="mt-0.75 text-ink-dim" />
+            <span><span className="mr-1.5 text-[12px] text-ink-dim">우선 조치 권고</span>{b.headline}</span>
+          </p>
         </div>
       )}
     </section>
@@ -179,7 +180,7 @@ function Trend({ d }: { d: Overview }) {
       {!last ? <p className={SUB}>기록 없음</p> : (
         <>
           <div className="px-4.5 pt-1 pb-1.5">
-            <div className="relative ml-7.5 h-44 border-b border-line" role="img" aria-label={`일별 위험 주의 (그날 끝에 남은 것), ${last.day} 위험 ${last["위험"]}, 주의 ${last["주의"]}`}>
+            <div className="relative ml-7.5 h-32 border-b border-line" role="img" aria-label={`일별 위험 주의 (그날 끝에 남은 것), ${last.day} 위험 ${last["위험"]}, 주의 ${last["주의"]}`}>
               {[max, Math.round(max / 2)].map((v) => <span key={v} className="absolute -left-7.5 right-0 border-t border-line text-[10.5px] text-ink-dim tabular-nums" style={{ bottom: `${(v / max) * 100}%` }}><span className="absolute -top-1.75 left-0 w-6.5 bg-surface text-right">{v}</span></span>)}
               <svg className="absolute inset-0 size-full" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
                 <polygon points={`${at(0) * 10},100 ${line("위험")} ${at(days.length - 1) * 10},100`} fill={LINE["위험"]} fillOpacity={0.1} />
@@ -208,12 +209,16 @@ function Trend({ d }: { d: Overview }) {
   );
 }
 
+// 표는 한 쪽 5줄 — 10줄을 다 펼치면 화면이 길어져 쪽으로 넘깁니다.
+const PAGE = 5;
+
 function Issues({ id, title, rows, empty, go }: { id: string; title: string; rows: OverviewRow[]; empty: string; go: Go }) {
+  const { shown, at, pages, setPage } = usePage(rows, PAGE);
   return (
     <section className={card} id={id}>
       <div className={cardHead}><h3 className={cardTitle}>{title}</h3></div>
       <DataTable head={["발생일", "유형", "대상, 내용", "AI 판단", "처리 상태"]} empty={empty}
-        rows={rows.map((r) => ({
+        rows={shown.map((r) => ({
           key: `${r.area}:${r.key}`, onSelect: () => go(r.area, r.key),
           cells: [
             <DayTime key="o" iso={r.opened_at} />,
@@ -223,6 +228,7 @@ function Issues({ id, title, rows, empty, go }: { id: string; title: string; row
             <StateCell key="d" {...decisionState(r.decision)} by={r.decision?.by} />,
           ],
         }))} />
+      {pages > 1 && <Pager className="py-3" at={at} pages={pages} onPage={setPage} />}
     </section>
   );
 }
@@ -231,11 +237,12 @@ function Issues({ id, title, rows, empty, go }: { id: string; title: string; row
 // 최근 조치 — 완료율의 "완료"로 센 것 (조치 완료 결정 · 회수), 늦은 것부터 10건. recent 가 없는 예전 서버에서도 깨지지 않게 합니다.
 function Recent({ d, go }: { d: Overview; go: Go }) {
   const rows = d.recent ?? [];
+  const { shown, at, pages, setPage } = usePage(rows, PAGE);
   return (
     <section className={card} id="overview-recent">
       <div className={cardHead}><h3 className={cardTitle}>최근 조치 내역 ({ofText(d.counts.completion.done, rows.length)})</h3></div>
       <DataTable head={["처리일", "유형", "대상, 조치 내용", "결과"]} empty="기간 안 조치 없음"
-        rows={rows.map((r) => ({
+        rows={shown.map((r) => ({
           key: `${r.area}:${r.key}:${r.at}`, onSelect: () => go(r.area, r.key),
           cells: [
             <DayTime key="t" iso={r.at} />,
@@ -244,6 +251,7 @@ function Recent({ d, go }: { d: Overview; go: Go }) {
             <StateCell key="l" text={r.label} tone={DONE_TONE} by={r.by} />,
           ],
         }))} />
+      {pages > 1 && <Pager className="py-3" at={at} pages={pages} onPage={setPage} />}
     </section>
   );
 }
@@ -253,7 +261,7 @@ const DONE_TONE = decisionState({ action: "done" }).tone;
 
 // 유형 — 메뉴 기호와 이름을 회색 배지로 묶어 내용 글과 나눕니다.
 function Area({ area, label }: { area: OverviewRow["area"]; label: string }) {
-  return <Pill tone="border-transparent bg-canvas text-ink-soft" className="gap-1 rounded-md py-0.75"><Icon name={AREA_ICON[area]} small />{label}</Pill>;
+  return <IconBadge icon={AREA_ICON[area]}>{label}</IconBadge>;
 }
 
 // 내용 — 대상(굵게) 위, 이유 · 의견(회색) 아래 한 줄씩, 전체 글은 툴팁

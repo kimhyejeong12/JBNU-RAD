@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { Level } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
-import { dayTime } from "@/shared/lib/format";
+import { dayTime, pageLinks } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { Icon } from "./Icon";
 import { box, kvTable, kvTd, kvTh, levelDot, levelText } from "./styles";
@@ -37,6 +37,24 @@ export function DayTime({ iso, className }: { iso: string | null | undefined; cl
       <b className="text-[13px] font-semibold">{day}</b><small className="text-[11.5px] text-ink-dim">{time}</small>
     </span>
   );
+}
+
+const PAGER = "flex size-8 items-center justify-center rounded border border-line bg-surface text-sm font-medium text-ink-soft hover:bg-row-hover disabled:cursor-default disabled:opacity-50 aria-[current=true]:border-brand aria-[current=true]:bg-brand aria-[current=true]:text-white";
+
+// 쪽 번호 줄 — 표를 쪽으로 나눠 스크롤을 줄입니다 (내 신청 · 종합 대시보드 표).
+export function Pager({ at, pages, onPage, className }: { at: number; pages: number; onPage: (n: number) => void; className?: string }) {
+  return (
+    <nav className={cn("flex items-center justify-center gap-2", className)} aria-label="쪽">
+      <button type="button" className={PAGER} disabled={at === 1} onClick={() => onPage(at - 1)} aria-label="앞 쪽"><Icon name="back" small /></button>
+      {pageLinks(at, pages).map((n) => <button type="button" key={n} className={PAGER} aria-current={n === at} onClick={() => onPage(n)}>{n}</button>)}
+      <button type="button" className={PAGER} disabled={at === pages} onClick={() => onPage(at + 1)} aria-label="다음 쪽"><Icon name="chev" small /></button>
+    </nav>
+  );
+}
+
+// 기호와 글을 묶은 회색 배지 — 표의 분류 칸 (보안 현황 유형, 계정 역할, 권한의 업무 시스템).
+export function IconBadge({ icon, children }: { icon: string; children: ReactNode }) {
+  return <Pill tone="border-transparent bg-canvas text-ink-soft" className="max-w-full gap-1 rounded-md py-0.75"><Icon name={icon} small /><span className="truncate">{children}</span></Pill>;
 }
 
 // 패널 안의 묶음 상자 — 무엇에 쓰는 칸인지 제목으로 나눕니다 (관리 패널의 업무 정보 · 시스템 역할 · 검색 상태).
@@ -95,9 +113,13 @@ export function Tile({ label, big, tone, extra, onClick, pressed, dot, className
   );
 }
 
-export function Periods<K extends string>({ id, labels, value, onChange, label = "기간" }: { id: string; labels: [K, ReactNode][]; value: K; onChange: (k: K) => void; label?: string }) {
+// 바꿔 보기 버튼 줄 — 기간 고르기, 패널 안 탭(검토 패널)이 함께 씁니다. fill 이면 칸을 같은 폭으로 채웁니다.
+export function Periods<K extends string>({ id, labels, value, onChange, label = "기간", fill, className }: {
+  id: string; labels: [K, ReactNode][]; value: K; onChange: (k: K) => void; label?: string; fill?: boolean; className?: string;
+}) {
   return (
-    <div className="flex flex-wrap gap-0.5 rounded-lg bg-canvas p-0.75" id={id} role="group" aria-label={label}>
+    <div className={cn("flex flex-wrap gap-0.5 rounded-lg bg-canvas p-0.75", fill && "grid", className)} id={id} role="group" aria-label={label}
+      style={fill ? { gridTemplateColumns: `repeat(${labels.length}, minmax(0, 1fr))` } : undefined}>
       {labels.map(([k, label]) => (
         <button key={k} aria-pressed={k === value} onClick={() => onChange(k)}
           className="rounded-md border-none bg-transparent px-2.75 py-1.25 text-[12.5px] font-semibold text-ink-dim aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-[0_1px_2px_rgba(0,0,0,.08)]">
@@ -140,17 +162,18 @@ export function Meta({ items, className }: { items: ReactNode[]; className?: str
 }
 
 // 보이는 값은 서버 값이라 확인 창에서 취소하면 그대로 남습니다.
-export function Switch({ checked, disabled, label, hint, onChange, className }: {
-  checked: boolean; disabled?: boolean; label: string; hint: string; onChange: (next: boolean) => void; className?: string;
+// labelFirst 면 글이 왼쪽, 스위치가 오른쪽 끝입니다 (패널 머리의 활성 스위치).
+export function Switch({ checked, disabled, label, hint, labelFirst, onChange, className }: {
+  checked: boolean; disabled?: boolean; label: string; hint?: string; labelFirst?: boolean; onChange: (next: boolean) => void; className?: string;
 }) {
   return (
-    <label className={cn("flex items-start gap-2.5 text-[13px]", disabled ? "cursor-not-allowed" : "cursor-pointer", className)}>
+    <label className={cn("flex items-start gap-2.5 text-[13px]", labelFirst && "flex-row-reverse", disabled ? "cursor-not-allowed" : "cursor-pointer", className)}>
       <input className="peer sr-only" type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span aria-hidden="true"
         className="relative mt-px h-5 w-9 shrink-0 rounded-full bg-line transition-colors after:absolute after:top-0.5 after:left-0.5 after:size-4 after:rounded-full after:bg-surface after:shadow-[0_1px_2px_rgba(0,0,0,.2)] after:transition-transform peer-checked:bg-ink peer-checked:after:translate-x-4 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink peer-disabled:opacity-40" />
       <span className="flex flex-col gap-0.5 text-ink peer-disabled:text-ink-dim">
         <span className="font-semibold">{label}</span>
-        <span className="text-[12px] text-ink-dim">{hint}</span>
+        {hint && <span className="text-[12px] text-ink-dim">{hint}</span>}
       </span>
     </label>
   );

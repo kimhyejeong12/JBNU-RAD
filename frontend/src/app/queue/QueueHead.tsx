@@ -1,6 +1,6 @@
 import { useMe } from "@/app/session/me";
 import { useJobs, useResults } from "@/app/session/data";
-import { LEVEL_VIEWS, VIEWS } from "@/app/session/views";
+import { LEVEL_VIEWS, VIEWS, canManageAccounts } from "@/app/session/views";
 import { useUi } from "@/app/ui/state/UiContext";
 import { JobReset } from "@/app/ui/jobs/JobReset";
 import { NEW_ITEM } from "@/app/ui/state/uiReducer";
@@ -45,7 +45,7 @@ export function QueueHead() {
           <Icon name="activity" small /><span id="run-txt">{run.text}</span>
         </button>
         {!run.hidden && <JobReset />}
-        <button className={cn(toolButton, "ml-0")} id="add-user" hidden={ui.view !== "users"} onClick={() => select(NEW_ITEM)}><Icon name="plus" small />새 계정</button>
+        <button className={cn(toolButton, "ml-0")} id="add-user" hidden={ui.view !== "users" || !canManageAccounts(me)} onClick={() => select(NEW_ITEM)}><Icon name="plus" small />새 계정</button>
         <button className={cn(toolButton, "ml-0")} id="add-access" hidden={ui.view !== "access"} onClick={() => select(NEW_ITEM)}><Icon name="plus" small />권한 등록</button>
         <button className={cn(toolButton, "ml-0")} id="add-doc" hidden={ui.view !== "docs"} onClick={() => select(NEW_ITEM)}><Icon name="plus" small />문서 업로드</button>
       </div>
