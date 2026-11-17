@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sentinelai.db import results
+from sentinelai.db import results, watch
 from sentinelai.web import notify
 
 
@@ -12,6 +12,25 @@ def _run(db, stage, *findings):
 def _f(user, first, last, level="위험"):
     return {"user": user, "subject": "", "first_event_at": first, "last_event_at": last, "events": "- 로그", "level": level,
             "failed": False}
+
+
+def test_findings_after(results_db):
+    assert watch.last_finding_id(results_db) == 0
+    base = {"user": "kim.hj", "subject": "인사팀 김혜정", "first_event_at": "2026-11-01T10:00:00+00:00",
+            "last_event_at": "2026-11-01T11:00:00+00:00", "events": "- 로그", "level": "위험", "failed": False}
+    results.save_monitor_run(results_db, {"last_event_at": "2026-11-01T11:00:00+00:00", "findings": [base]}, "m", stage="fast")
+    start = watch.last_finding_id(results_db)
+    results.save_monitor_run(results_db, {"last_event_at": "2026-11-01T12:00:00+00:00", "findings": [
+        {**base, "user": "lee", "level": "주의"},
+        {**base, "user": "park", "level": None, "failed": True, "error": "모델 응답 없음"},
+        {**base, "user": "choi"},
+    ]}, "m")
+
+    found = watch.findings_after(results_db, start)
+    assert [(f["user"], f["stage"]) for f in found] == [("choi", "final")]
+    assert found[0]["first_event_at"] == "2026-11-01T10:00:00+00:00"
+    assert [f["user"] for f in watch.findings_after(results_db, 0)] == ["kim.hj", "choi"]
+    assert [f["user"] for f in watch.findings_after(results_db, start, "주의")] == ["lee"]
 
 
 def test_risk_watcher(results_db, monkeypatch):
