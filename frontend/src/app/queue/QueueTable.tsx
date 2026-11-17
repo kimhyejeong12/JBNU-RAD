@@ -69,8 +69,11 @@ function Row({ it, split, grid, time, current, onSelect }: { it: QueueItem; spli
         <span className="line-clamp-2 font-semibold leading-[1.35]">{it.who}</span>
         {tag && <small className="mt-0.5 block truncate text-[11px] text-ink-faint tabular-nums">{tag}</small>}
       </span>
-      <span className={cn("cursor-pointer truncate text-ink-soft", SLIM)} data-tip={it.what}>
-        {it.lead && <b className={cn("mr-1", it.level && levelText[it.level])}>{it.lead} —</b>}{it.what}
+      <span className={cn("min-w-0 cursor-pointer", SLIM)} data-tip={it.note ? `${it.what}|${it.note}` : it.what}>
+        <span className={cn("block truncate", it.note ? "font-semibold" : "text-ink-soft")}>
+          {it.lead && <b className={cn("mr-1", it.level && levelText[it.level])}>{it.lead} —</b>}{it.what}
+        </span>
+        {it.note && <small className="mt-0.5 block truncate text-[11.5px] text-ink-dim">{it.note}</small>}
       </span>
       {time && <span className={cn("text-[12.5px] whitespace-nowrap text-ink-dim tabular-nums", SLIM)}>{it.when}</span>}
       <span className="flex flex-col gap-px text-[13px] font-semibold">

@@ -500,6 +500,7 @@ class Results(BaseModel):
     policy_review: PolicyReview | None
     servers: list[ServerFinding]
     events: list[EventFinding]
+    event_levels: LevelCounts   # 로그 감시 판정 등급별 수 — 목록(events)은 주의 이상만
     decisions: dict[str, dict[str, Decision]]
     decision_log: dict[str, dict[str, list[DecisionRecord]]] | None = None
 

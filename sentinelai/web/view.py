@@ -50,8 +50,9 @@ def server(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def results(policies: dict[str, Any] | None, events: dict[str, Any] | None, node_findings: list[dict[str, Any]]) -> dict[str, Any]:
-    # 로그 감시는 주의 이상만 올립니다 (판정 실패도 "주의"라 빠지지 않음).
-    findings = [f for f in (finding(f) for f in events["findings"]) if f["level"] in REVIEW_LEVELS] if events else []
+    # 로그 감시는 주의 이상만 올립니다 (판정 실패도 "주의"라 빠지지 않음). 정상은 건수만 (event_levels).
+    judged = [finding(f) for f in events["findings"]] if events else []
+    findings = [f for f in judged if f["level"] in REVIEW_LEVELS]
     servers = [server(f) for f in node_findings]
     if policies and policies["failed"]:
         policy_review = {"summary": f"판정 실패: {policies['error']}", "issues": [], "elapsed_sec": policies["elapsed_sec"]}
@@ -84,4 +85,5 @@ def results(policies: dict[str, Any] | None, events: dict[str, Any] | None, node
         "policy_review": policy_review,
         "servers": servers,
         "events": findings,
+        "event_levels": {level: sum(f["level"] == level for f in judged) for level in LEVELS},
     }

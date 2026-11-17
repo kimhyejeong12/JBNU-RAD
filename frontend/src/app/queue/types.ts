@@ -12,6 +12,7 @@ interface Base {
   when: string;
   judge: string;
   lead?: string;         // 주요 문제 칸 앞 굵은 글 (정책 유형 · 다른 곳 수)
+  note?: string;         // 그 칸 아래 작은 줄 (로그 감시의 AI 이유 첫 요점)
   sub?: string;
 }
 

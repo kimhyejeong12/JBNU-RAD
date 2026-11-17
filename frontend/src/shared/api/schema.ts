@@ -706,6 +706,7 @@ export interface Results {
   policy_review: PolicyReview | null;
   servers: ServerFinding[];
   events: EventFinding[];
+  event_levels: LevelCounts;
   decisions: Record<string, Record<string, Decision>>;
   decision_log?: Record<string, Record<string, DecisionRecord[]>> | null;
 }

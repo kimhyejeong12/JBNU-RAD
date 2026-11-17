@@ -359,3 +359,14 @@ def test_every_route_declares_its_shape():
             if not any("$ref" in str(s) for s in shapes):
                 missing.append(f"{method.upper()} {path}")
     assert missing == []
+
+
+def test_event_levels_count_normal_but_list_only_caution_up():
+    from sentinelai.web import view
+    row = {"id": "u@t", "subject": "재무 김", "events": "", "first_event_at": "t", "last_event_at": "t", "elapsed_sec": 1.0,
+           "reason": "r", "sources": [], "recommendation": "c", "error": None, "stage": "final"}
+    events = {"generated_at": "t", "source": "f", "load_issues": [], "findings": [{**row, "key": f"event_findings/{i}", "level": lv, "failed": failed}
+                           for i, (lv, failed) in enumerate([("정상", False), ("정상", False), ("주의", False), ("정상", True)])]}
+    out = view.results(None, events, [])
+    assert out["event_levels"] == {"정상": 2, "주의": 2, "위험": 0}   # 판정 실패는 주의로 셈
+    assert [f["key"] for f in out["events"]] == ["event_findings/2", "event_findings/3"]

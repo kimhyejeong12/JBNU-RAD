@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { EMPTY_RESULTS } from "@/shared/api/queries";
 import type { EventFinding, Results, ServerFinding } from "@/shared/api/types";
-import { compactLog, eventItems, policyItems, serverItems } from "./lib";
+import { compactLog, eventItems, logFacts, policyItems, serverItems } from "./lib";
 import { DECISION_SET, decisionTone } from "@/app/ui/panel/decision";
 
 const decision = { id: 1, kind: "event" as const, item_key: "k1", subject: "", action: "approve", comment: "", ai_level: "위험" as const,
@@ -17,9 +17,9 @@ test("eventItems: 로그 줄 수 · 1차 판정 · 결정", () => {
   const r: Results = { ...EMPTY_RESULTS, events: [event({ detail: { events: "a\nb\n", first_event_at: "2026-10-20T18:00:00+09:00", last_event_at: "2026-10-20T18:30:00+09:00" }, stage: "fast" })], decisions: { event: { k1: decision } } };
   expect(eventItems(r)[0]).toMatchObject({
     type: "event", key: "event:k1", itemKey: "k1", id: "LOG-abc", level: "위험", judge: "위험",
-    who: "A 개발 박민수", what: "로그 2건 — 퇴근 뒤 출력", when: "2026-10-20 18:30", sub: "1차 판정", decision,
+    who: "A 개발 박민수", what: "로그 2건", note: "퇴근 뒤 출력", when: "2026-10-20 18:30", sub: "1차 판정", decision,
   });
-  expect(eventItems({ ...EMPTY_RESULTS, events: [event({ stage: "final" })] })[0]).toMatchObject({ what: "로그 0건 — 퇴근 뒤 출력", sub: "", decision: undefined });
+  expect(eventItems({ ...EMPTY_RESULTS, events: [event({ stage: "final" })] })[0]).toMatchObject({ what: "로그 0건", note: "퇴근 뒤 출력", sub: "", decision: undefined });
 });
 
 test("serverItems: 다른 곳이 있으면 개수를 앞 글로", () => {
@@ -46,6 +46,19 @@ test("결정 버튼 표가 모든 버튼 색을 덮음", () => {
   const used = new Set(Object.values(DECISION_SET).flatMap((set) => Object.values(set)));
   expect(Object.keys(decisionTone).sort()).toEqual([...used].sort());
   expect(Object.values(DECISION_SET).every((set) => "done" in set)).toBe(true);
+});
+
+test("logFacts: 행위 · 위치별 수와 기간, 목록 행동 칸은 행위별 수", () => {
+  const text = "- 2026-09-16 03:00:35 UTC [SecureMark] 재무 정다은(1.1.1.6) — VDI / 출력행위\n"
+    + "- 2026-09-15 00:10:07 UTC [SecureMark] 재무 정다은(1.1.1.6) — PC / 출력행위 / PrintCount=3\n"
+    + "- 2026-09-17 01:00:00 UTC [SecureMark] 재무 정다은(1.1.1.6) — PC / 조회";
+  expect(logFacts(text)).toEqual({
+    head: "[SecureMark] 재무 정다은(1.1.1.6)", first: "2026-09-15 09:10", last: "2026-09-17 10:00", count: 3,
+    acts: [["출력행위", 2], ["조회", 1]], places: [["PC", 2], ["VDI", 1]],
+  });
+  expect(logFacts("a\nb")).toBeNull();
+  expect(eventItems({ ...EMPTY_RESULTS, events: [event({ reason: "1. **최소 권한 위반**: 넓습니다.\n2. 기간: 없음", detail: { events: text, first_event_at: "", last_event_at: "" } })] })[0])
+    .toMatchObject({ what: "출력행위 2건, 조회 1건", note: "최소 권한 위반" });
 });
 
 test("compactLog: 줄마다 같은 [솔루션] 부서 이름(IP)는 머리로 한 번, 줄은 한국 시간 · 위치 · 행위 · 항목", () => {

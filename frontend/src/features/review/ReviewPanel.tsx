@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { compactLog } from "./lib";
+import { compactLog, countText, logFacts } from "./lib";
 import type { ReviewItem } from "./api";
 import { DecisionLog } from "./DecisionLog";
 import { useResults } from "@/app/session/data";
@@ -36,8 +36,8 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
       <p className={subject}>{title}</p>
       <div className={cn(meta, "flex items-center gap-1.5")}>처리 상태{fast ? <b className="text-ink-dim">확정 대기</b> : <DecisionBadge decision={it.decision} />}</div>
       {/* 원자료가 길어 결론이 밀려나지 않게 결론을 먼저 둡니다. */}
-      {it.type === "event" && <EventWhat f={it.raw} />}
       <AiReport itemKey={it.key} wait="판정 결과가 없습니다." how="어떻게 조치할까요?" tip={it.type === "policy" ? it.raw.kind : undefined}
+        what={it.type === "event" ? <EventWhat f={it.raw} /> : undefined}
         f={it.level ? {
           level: it.level, reason: r.reason, recommendation: r.recommendation,
           // 서버 점검은 다른 곳마다 근거 조항이 붙어 아래 목록에 둡니다.
@@ -51,15 +51,19 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
   );
 }
 
-// 누가 어디서 무엇을 했는지 한 줄로 — 원문 줄은 아래에 접어 둡니다.
+// 무슨 일 — 로그에서 센 누가 · 무엇을 · 어디서 · 언제. 줄을 읽지 못하면 머리 · 줄 수 · 마지막 시각.
 function EventWhat({ f }: { f: EventFinding }) {
-  const log = compactLog(f.detail?.events ?? "");
+  const facts = logFacts(f.detail?.events ?? "");
+  if (!facts) {
+    const log = compactLog(f.detail?.events ?? "");
+    return <Meta items={[log.head || f.title, `로그 ${log.lines.length}줄`, f.detail?.last_event_at && `마지막 ${stamp(f.detail.last_event_at)}`]} />;
+  }
   return (
-    <Section icon="eye" title="무슨 일">
-      <div className={box}>
-        <Meta items={[log.head || f.title, `로그 ${log.lines.length}줄`, f.detail?.last_event_at && `마지막 ${stamp(f.detail.last_event_at)}`]} />
-      </div>
-    </Section>
+    <div className="flex flex-col gap-0.5">
+      <b>{facts.head}</b>
+      <span>{countText(facts.acts)}</span>
+      <Meta className="text-[12px] text-ink-dim" items={[countText(facts.places), `${facts.first} ~ ${facts.last}`]} />
+    </div>
   );
 }
 
