@@ -30,17 +30,18 @@ export function visible(items: QueueItem[], o: VisibleOptions): QueueItem[] {
 const waiting = (it: QueueItem) => (it.type === "policy" || it.type === "server" || it.type === "event") && !it.decision && (it.level === "주의" || it.level === "위험");
 export const todoFirst = (items: QueueItem[]): QueueItem[] => [...items].sort((a, b) => Number(waiting(b)) - Number(waiting(a)));
 
+// 보안 총책임자는 최종 결재만 — 정책 · 로그 결정 알림은 보안 운영자 몫
 export function openRisks(items: QueueItem[], role: Role): QueueItem[] {
   if (role === "user") return [];
   return items.filter((it) => it.level === "위험" && (
-    it.type === "req" ? it.raw.stage === STEP[role] : (it.type === "policy" || it.type === "server" || it.type === "event") && !it.decision));
+    it.type === "req" ? it.raw.stage === STEP[role] : role === "manager" && (it.type === "policy" || it.type === "server" || it.type === "event") && !it.decision));
 }
 
-// 사이드바 숫자는 고른 탭 · 거르기와 상관없이 그 메뉴에서 내가 처리할 일임
+// 메뉴 숫자는 고른 탭 · 거르기와 상관없이 그 메뉴에서 내가 처리할 일
 const TODO: Partial<Record<View, (it: QueueItem, role: Role) => boolean>> = {
   requests: (it, role) => it.type === "req" && it.raw.stage === STEP[role],
-  policies: (it) => (it.type === "policy" || it.type === "server") && (it.level === "주의" || it.level === "위험") && !it.decision,
-  events: (it) => it.type === "event" && (it.level === "주의" || it.level === "위험") && !it.decision && it.raw.stage !== "fast",
+  policies: (it, role) => role === "manager" && (it.type === "policy" || it.type === "server") && (it.level === "주의" || it.level === "위험") && !it.decision,
+  events: (it, role) => role === "manager" && it.type === "event" && (it.level === "주의" || it.level === "위험") && !it.decision && it.raw.stage !== "fast",
 };
 
 export function todoCounts(items: readonly QueueItem[], views: View[], role: Role): Record<string, number> {

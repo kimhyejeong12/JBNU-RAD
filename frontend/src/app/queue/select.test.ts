@@ -39,9 +39,11 @@ test("visible: 등급 거르기와 검색 (정책 ID 포함, 대소문자 무시
   expect(visible([...items, item({ type: "policy", key: "policy:c", level: "주의", raw: {} })], { ...base, filter: "주의" }).map((i) => i.key)).toEqual(["policy:c"]);
 });
 
-test("openRisks: 내가 결재할 위험 신청 + 결정하지 않은 위험 판정", () => {
-  expect(openRisks(items, "manager").map((i) => i.key)).toEqual(["req:1", "policy:a"]);
-  expect(openRisks(items, "top").map((i) => i.key)).toEqual(["policy:a"]);
+const reqFinal = item({ type: "req", key: "req:3", level: "위험", raw: { stage: "top" } });
+
+test("openRisks: 보안 운영자는 1차 결재할 위험 신청 + 결정하지 않은 위험 판정, 보안 총책임자는 최종 결재할 위험 신청만", () => {
+  expect(openRisks([...items, reqFinal], "manager").map((i) => i.key)).toEqual(["req:1", "policy:a"]);
+  expect(openRisks([...items, reqFinal], "top").map((i) => i.key)).toEqual(["req:3"]);
   expect(openRisks(items, "user")).toEqual([]);
 });
 
@@ -49,7 +51,7 @@ test("todoCounts: 사이드바 숫자는 할 일 — 내 단계 결재 대기 ·
   const evtFast = item({ type: "event", key: "event:f", level: "위험", raw: { stage: "fast" } });
   const frozen = Object.freeze([...items, evtFast]);
   expect(todoCounts(frozen, ["requests", "policies", "events", "docs"], "manager")).toEqual({ requests: 1, policies: 1, events: 1 });
-  expect(todoCounts(frozen, ["requests", "policies", "events"], "top").requests).toBe(0);
+  expect(todoCounts([...frozen, reqFinal], ["requests", "policies", "events"], "top")).toEqual({ requests: 1, policies: 0, events: 0 });
 });
 
 test("todoFirst: 결정하지 않은 주의 이상이 위로, 같은 무리 안 순서와 신청끼리의 순서는 그대로", () => {
