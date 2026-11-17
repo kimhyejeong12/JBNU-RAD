@@ -6,7 +6,7 @@ import { useQueue } from "@/app/queue/useQueue";
 import { todoCounts } from "@/app/queue/select";
 
 // 선택된 메뉴는 아래 빨간 줄 — 버튼이 위 막대 높이를 다 채워서 줄이 막대 바닥에 붙습니다.
-const TOP_NAV = "flex h-full flex-none items-center gap-1.5 whitespace-nowrap border-0 border-y-4 border-transparent bg-transparent px-6 text-base font-medium text-bar-line-hover hover:text-bar-ink aria-[current=true]:border-b-brand-red aria-[current=true]:bg-white/5 aria-[current=true]:text-white narrow:h-12 narrow:px-4";
+const TOP_NAV = "flex h-full flex-none items-center gap-1.5 whitespace-nowrap border-0 border-y-3 border-transparent bg-transparent px-4 text-[15px] font-medium text-bar-line-hover hover:text-bar-ink aria-[current=true]:border-b-brand-red aria-[current=true]:bg-white/5 aria-[current=true]:text-white narrow:h-12";
 
 // 메뉴를 위 막대에 둡니다. 좁은 화면에서는 막대 아래 줄로 내려가 옆으로 밉니다.
 export function TopNav() {
