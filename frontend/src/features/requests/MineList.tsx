@@ -100,11 +100,14 @@ function MineRow({ r, on, open, onNote }: { r: RequestRow; on: string; open: boo
           <span className="block">{stamp(r.submitted_at)}</span>
           <span className="mt-0.5 block text-xs">기간: {periodText(r)}</span>
         </td>
-        <td className={cn(TD, "text-center")}>
-          <span className="inline-flex items-center gap-2.5">
-            <Pill tone={stageTone(r, on)} className="px-3 py-1.5 text-xs">{mineStatus(r, on)}</Pill>
-            <WithdrawButton r={r} />
-            {note && <button type="button" className={cn(linkButton, "self-center")} aria-expanded={open} onClick={onNote}>{open ? "접기" : "사유"}</button>}
+        <td className={TD}>
+          {/* 배지는 칸 가운데 고정(줄마다 정렬), 철회 · 사유 단추는 그 오른쪽 */}
+          <span className="grid grid-cols-[1fr_auto_1fr] items-center gap-2.5">
+            <Pill tone={stageTone(r, on)} className="col-start-2 px-3 py-1.5 text-xs">{mineStatus(r, on)}</Pill>
+            <span className="flex items-center gap-2.5 justify-self-start">
+              <WithdrawButton r={r} />
+              {note && <button type="button" className={linkButton} aria-expanded={open} onClick={onNote}>{open ? "접기" : "사유"}</button>}
+            </span>
           </span>
         </td>
       </tr>
