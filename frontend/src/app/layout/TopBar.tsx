@@ -38,7 +38,7 @@ export function TopBar() {
     <header data-tip-instant className="relative col-span-full flex h-14 items-center gap-6 bg-brand px-6 py-0 text-white narrow:h-auto narrow:min-h-14 narrow:flex-wrap narrow:gap-y-0 narrow:px-4 phone:pb-2">
       {/* 좁은 화면에서 메뉴가 아래 줄로 내려가도 로고 줄이 막대 높이를 지키게 합니다. */}
       <div className="flex flex-none items-center gap-2 narrow:h-13">
-        {/* 공용 Icon 의 방패는 선만 그려 남색 위에서 흐려서, 로고만 방패를 채우고 체크를 흰 선으로 그립니다. */}
+        {/* 선 방패는 남색 위에서 흐려 채운 방패로 그립니다. */}
         <svg className="size-8 flex-none" viewBox="0 0 24 24" aria-hidden="true">
           <path className="fill-brand-red" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           <path className="fill-none stroke-white stroke-[2.2] [stroke-linecap:round] [stroke-linejoin:round]" d="m9 12 2 2 4-4" />
@@ -67,7 +67,7 @@ export function TopBar() {
         <button className="relative rounded-[7px] border-none bg-transparent p-1.5 text-white hover:bg-bar-hover phone:order-1" id="bell" hidden={me.role === "user"} aria-label="위험 알림"
           data-tip={risks.length ? `위험 알림 — 미결 ${risks.length}건|눌러서 목록을 봅니다` : "위험 알림|미결 위험이 없습니다"}
           onClick={(e) => { e.stopPropagation(); setPopOpen((o) => !o); }}>
-          {/* 글 줄 기준선에 앉으면 아래 글자 자리만큼 떠서 블록으로 둡니다. */}
+          {/* 인라인이면 기준선에 앉아 떠 보입니다. */}
           <Icon name="bell" className="block" />
           <span id="bell-count" className={cn("absolute top-px right-0 h-4 min-w-4 items-center justify-center rounded-[99px] bg-risk px-1 text-[10.5px] font-bold", risks.length ? "flex" : "hidden")}>{risks.length}</span>
         </button>
