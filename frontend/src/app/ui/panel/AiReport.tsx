@@ -12,37 +12,29 @@ const CAPTION = "mt-2 mb-1 text-[11.5px] font-semibold text-ink-dim";
 
 export interface AiFinding { level: Level; reason: string; recommendation?: string | null; sources?: string[] | null; judgedAt?: string | null }
 
-// AI 판정을 세 질문으로 — 어떻게 판단 · 왜 · 어떻게 처리. 판정을 보이는 패널이 모두 씁니다.
-// wait = 판정이 없을 때 글, tip = 등급 옆 처리 방향, lead = 권고 앞 굵은 글, why = 이유 아래 덧붙일 것.
-export function AiReport({ itemKey, f, wait, tip, lead, why }: {
-  itemKey: string; f: AiFinding | null; wait?: ReactNode; tip?: string; lead?: ReactNode; why?: ReactNode;
+// AI 판정을 네 질문으로 — 어떻게 판단 · 왜 · 어떤 규정 · 어떻게 처리. 판정을 보이는 패널이 모두 씁니다.
+// wait = 판정이 없을 때 글, tip = 등급 옆 글, why = 이유 아래 덧붙일 것, how · lead = 마지막 칸 제목 · 권고 앞 굵은 글.
+// 근거 조항(sources)이나 권고가 없으면 그 칸을 빼고 번호를 당깁니다.
+export function AiReport({ itemKey, f, wait, tip, lead, why, how = "어떻게 처리하면 좋을까요?" }: {
+  itemKey: string; f: AiFinding | null; wait?: ReactNode; tip?: string; lead?: ReactNode; why?: ReactNode; how?: string;
 }) {
+  const steps: [string, ReactNode][] = !f ? [] : [
+    ["AI가 어떻게 판단했나요?", <>
+      <span className={cn("inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[13px] font-bold", levelText[f.level], LEVEL_TINT[f.level])}>
+        <Icon name={LEVEL_ICON[f.level]} small />{f.level}{tip && ` (${tip})`}
+      </span>
+      {f.judgedAt && <span className="ml-2 text-[11.5px] text-ink-dim">{stamp(f.judgedAt)} 판정</span>}
+    </>],
+    ["왜 그렇게 판단했나요?", <><Points text={f.reason} />{why}</>],
+    ...(f.sources !== undefined ? [["어떤 규정에 해당하나요?", <SourceChips key="rules" itemKey={itemKey} sources={f.sources} />] as [string, ReactNode]] : []),
+    ...(f.recommendation ? [[how, <Points key="how" text={f.recommendation} lead={lead} />] as [string, ReactNode]] : []),
+  ];
   return (
     <section className={cn(card, "mt-4.5 overflow-hidden")}>
       <h4 className="m-0 flex items-center gap-1.5 border-b border-line bg-canvas px-3 py-2 text-[13px] font-bold"><Icon name="activity" small />AI 분석 결과</h4>
       {!f ? <div className={cn(box, "m-3")}>{wait}</div> : (
         <div className="divide-y divide-line px-3">
-          <Step n={1} title="AI가 어떻게 판단했나요?">
-            <span className={cn("inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[13px] font-bold", levelText[f.level], LEVEL_TINT[f.level])}>
-              <Icon name={LEVEL_ICON[f.level]} small />{f.level}{tip && ` (${tip})`}
-            </span>
-            {f.judgedAt && <span className="ml-2 text-[11.5px] text-ink-dim">{stamp(f.judgedAt)} 판정</span>}
-          </Step>
-          <Step n={2} title="왜 그렇게 판단했나요?">
-            <Points text={f.reason} />
-            {why}
-            {f.sources !== undefined && (
-              <>
-                <p className={CAPTION}>기준 문서에서 찾은 조항</p>
-                <SourceChips itemKey={itemKey} sources={f.sources} />
-              </>
-            )}
-          </Step>
-          {f.recommendation && (
-            <Step n={3} title="어떻게 처리하면 좋을까요?">
-              <Points text={f.recommendation} lead={lead} />
-            </Step>
-          )}
+          {steps.map(([title, body], i) => <Step key={title} n={i + 1} title={title}>{body}</Step>)}
         </div>
       )}
     </section>

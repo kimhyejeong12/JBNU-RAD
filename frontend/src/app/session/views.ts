@@ -16,6 +16,7 @@ interface ViewMeta {
   tabs: MainTab[];
   cols: string[];
   search: string;
+  time?: false;   // 줄마다 시각이 같아 시간 열을 두지 않는 목록
 }
 
 export const VIEWS: Record<View, ViewMeta> = {
@@ -24,7 +25,7 @@ export const VIEWS: Record<View, ViewMeta> = {
   requests: { group: "결재", label: "권한 신청", icon: "lock", tip: "권한 신청",
               tabs: ["queue"], cols: ["신청자", "신청 권한", "신청 시각", "AI 판단", "처리 상태"], search: "검색" },
   policies: { group: "보안 운영", title: "정책 관리 현황", label: "정책 관리", icon: "server", tip: "정책 관리",
-              tabs: ["queue", "nodes"], cols: ["대상", "상세 내용", "시간", "AI 판단", "처리 상태"], search: "검색" },
+              tabs: ["queue", "nodes"], cols: ["대상", "주요 문제", "AI 판단", "처리 상태"], search: "검색", time: false },
   stats: { group: "보안 운영", title: "보안 현황", label: "보안 현황", icon: "activity", tip: "보안 현황",
            tabs: ["overview", "risk", "stats", "ustats"], cols: [], search: "" },
   events: { group: "보안 운영", title: "로그 감시 현황", label: "로그 감시", icon: "eye", tip: "로그 감시",

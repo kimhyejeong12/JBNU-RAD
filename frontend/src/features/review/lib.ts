@@ -9,7 +9,7 @@ export function policyItems(r: Results): QueueItem[] {
     type: "policy", key: `policy:${i.key}`, itemKey: i.key, id: `ISSUE-${n + 1}`, level: i.level,
     decision: decisionOf(r, "policy", i.key),
     who: (i.policy_ids || []).join(" ↔ "),
-    what: `${i.kind} — ${i.reason}`,
+    lead: i.kind, what: i.reason,
     when: stamp(r.sections?.policies?.generated_at),
     judge: i.level, raw: i,
   }));
@@ -22,7 +22,7 @@ export function serverItems(r: Results): QueueItem[] {
       type: "server", key: `server:${s.key}`, itemKey: s.key, id: s.id, level: s.level,
       decision: decisionOf(r, "server", s.key),
       who: s.title,
-      what: gaps.length ? `정책과 다른 곳 ${gaps.length} — ${s.reason}` : s.reason,
+      lead: gaps.length ? `다른 곳 ${gaps.length}` : undefined, what: s.reason,
       when: stamp(r.sections?.servers?.generated_at),
       judge: s.level, raw: s,
     };

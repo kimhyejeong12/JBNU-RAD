@@ -21,7 +21,7 @@ export function visible(items: QueueItem[], o: VisibleOptions): QueueItem[] {
     if (o.filter !== "전체" && it.level !== o.filter) return false;
     if (!q) return true;
     const raw = it.raw as { reason?: string | null; recommendation?: string | null; policy_ids?: string[]; content?: string };
-    const hay = [it.id, it.who, it.what, it.judge, raw.reason, raw.recommendation, raw.content, ...(raw.policy_ids || [])].join(" ").toLowerCase();
+    const hay = [it.id, it.who, it.lead, it.what, it.judge, raw.reason, raw.recommendation, raw.content, ...(raw.policy_ids || [])].join(" ").toLowerCase();
     return hay.includes(q);
   });
 }

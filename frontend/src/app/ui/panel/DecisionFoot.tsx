@@ -29,7 +29,7 @@ export function JudgeState({ level, label, children }: { level: Level | null | u
 
 export function DecisionBadge({ decision }: { decision: Pick<Decision, "action"> | null | undefined }) {
   const s = decisionState(decision);
-  return <Pill tone={s.tone}>{s.text}</Pill>;
+  return <Pill tone={s.tone} className="rounded-[4px] py-0.5">{s.text}</Pill>;
 }
 
 export function DecisionFoot({ target, decision }: { target: DecisionTarget; decision: Decision | null | undefined }) {

@@ -34,10 +34,10 @@ export function ReviewPanel({ it }: { it: ReviewItem }) {
   return (
     <Panel title={`${TYPE_LABEL[it.type]} 검토`} foot={foot}>
       <p className={subject}>{title}</p>
-      <div className={meta}>{fast ? <span className="text-[12px] font-bold text-ink-dim">확정 대기</span> : <DecisionBadge decision={it.decision} />}</div>
+      <div className={cn(meta, "flex items-center gap-1.5")}>처리 상태{fast ? <b className="text-ink-dim">확정 대기</b> : <DecisionBadge decision={it.decision} />}</div>
       {/* 원자료가 길어 결론이 밀려나지 않게 결론을 먼저 둡니다. */}
       {it.type === "event" && <EventWhat f={it.raw} />}
-      <AiReport itemKey={it.key} wait="판정 결과가 없습니다."
+      <AiReport itemKey={it.key} wait="판정 결과가 없습니다." how="어떻게 조치할까요?" tip={it.type === "policy" ? it.raw.kind : undefined}
         f={it.level ? {
           level: it.level, reason: r.reason, recommendation: r.recommendation,
           // 서버 점검은 다른 곳마다 근거 조항이 붙어 아래 목록에 둡니다.

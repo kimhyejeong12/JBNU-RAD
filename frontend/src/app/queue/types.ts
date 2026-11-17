@@ -11,6 +11,7 @@ interface Base {
   what: string;
   when: string;
   judge: string;
+  lead?: string;         // 주요 문제 칸 앞 굵은 글 (정책 유형 · 다른 곳 수)
   sub?: string;
 }
 

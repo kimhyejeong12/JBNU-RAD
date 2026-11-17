@@ -22,18 +22,18 @@ test("eventItems: 로그 줄 수 · 1차 판정 · 결정", () => {
   expect(eventItems({ ...EMPTY_RESULTS, events: [event({ stage: "final" })] })[0]).toMatchObject({ what: "로그 0건 — 퇴근 뒤 출력", sub: "", decision: undefined });
 });
 
-test("serverItems: 다른 곳이 있으면 개수를 앞에", () => {
+test("serverItems: 다른 곳이 있으면 개수를 앞 글로", () => {
   const gap = { level: "위험" as const, item: "UFW", current: "inactive", required: "active", change: "ufw enable", source: "정책_운영기준.md 5.2" };
   const r: Results = { ...EMPTY_RESULTS, servers: [server({ gaps: [gap, gap] }), server({ key: "s2", id: "NODE-x" })], sections: { servers: { source: "nodes", generated_at: "2026-10-29T03:00:00+09:00", load_issues: [] } } };
   const [a, b] = serverItems(r);
-  expect(a).toMatchObject({ type: "server", key: "server:s1", itemKey: "s1", id: "NODE-sim-01", what: "정책과 다른 곳 2 — 요약", when: "2026-10-29 03:00", judge: "주의" });
-  expect(b.what).toBe("요약");
+  expect(a).toMatchObject({ type: "server", key: "server:s1", itemKey: "s1", id: "NODE-sim-01", lead: "다른 곳 2", what: "요약", when: "2026-10-29 03:00", judge: "주의" });
+  expect(b).toMatchObject({ lead: undefined, what: "요약" });
 });
 
 test("policyItems: 번호 · 정책 쌍 · 유형", () => {
   const r: Results = { ...EMPTY_RESULTS, policy_review: { summary: "", elapsed_sec: null, issues: [{ key: "p1", seq: 1, kind: "충돌", level: "위험", policy_ids: ["FW-004", "FW-005"], reason: "순서", recommendation: "r" }] },
     sections: { policies: { source: "data/policies", generated_at: "2026-10-29T03:00:00+09:00", load_issues: [] } } };
-  expect(policyItems(r)[0]).toMatchObject({ type: "policy", key: "policy:p1", itemKey: "p1", id: "ISSUE-1", who: "FW-004 ↔ FW-005", what: "충돌 — 순서", when: "2026-10-29 03:00", judge: "위험" });
+  expect(policyItems(r)[0]).toMatchObject({ type: "policy", key: "policy:p1", itemKey: "p1", id: "ISSUE-1", who: "FW-004 ↔ FW-005", lead: "충돌", what: "순서", when: "2026-10-29 03:00", judge: "위험" });
 });
 
 test("아무것도 돌리지 않은 서버는 세 목록이 모두 빈다", () => {
