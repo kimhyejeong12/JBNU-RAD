@@ -13,6 +13,9 @@ export function pageLinks(at: number, pages: number, links = 5): number[] {
   return Array.from({ length: Math.min(links, pages) }, (_, i) => first + i);
 }
 
+// "✓" 로 시작하면 완료 글 (아니면 오류)
+export const isDone = (msg: string): boolean => msg.startsWith("✓");
+
 export const pct = (n: number, d: number): string => (d ? `${Math.round((n / d) * 1000) / 10}%` : "—");
 
 export function niceMax(n: number): number {

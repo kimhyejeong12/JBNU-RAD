@@ -1,9 +1,12 @@
 import type { Level, RequestRow } from "@/shared/api/types";
+import { cn } from "@/shared/lib/cn";
+import { isDone } from "@/shared/lib/format";
 import { stageGroup, today, type StageGroup } from "@/shared/lib/request";
 
 // 쓰는 곳에서 덮어쓸 때는 cn() 으로 합칩니다.
 
 export const card = "rounded-xl border border-line bg-surface";
+export const cardCol = `${card} flex flex-col`;
 // AI 가 정리한 칸처럼 화면에서 하나만 띄울 카드 — card 뒤에 붙입니다.
 export const brandCard = "border-brand-tint-line bg-brand-tint";
 export const empty = "px-4.5 py-9 text-center text-ink-dim";
@@ -22,26 +25,43 @@ export const kvTd = "whitespace-pre-line px-0 py-1 text-left align-top";
 
 export const cardHead = "flex flex-wrap items-center gap-2.5 px-4.5 pt-4 pb-2.5";
 export const cardTitle = "m-0 text-[15.5px] font-bold";
-export const cardCount = "ml-auto text-[12.5px] text-ink-dim tabular-nums";
+export const cardCountInline = "text-[12.5px] text-ink-dim tabular-nums";
+export const cardCount = `ml-auto ${cardCountInline}`;
+// 카드 머리 아래 설명 · 빈 글
+export const cardNote = "m-0 px-4.5 pb-2.5 text-[12.5px] text-ink-dim";
+// 숫자 타일 줄 (종합 대시보드 · 권한 변동 · 통계)
+export const tileGrid = "grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2.5 px-4.5 pb-4";
 
 export const formGrid = "grid grid-cols-[1fr_1fr] gap-x-3.5 gap-y-2.5 px-4.5 pt-1 pb-4 narrow:grid-cols-[1fr]";
 export const field = "flex flex-col gap-1 text-[12.5px] font-semibold text-ink-dim";
+export const wideField = `${field} col-span-full`;
+// 패널 안 두 칸 입력 줄 · 패널 높이를 채우는 폼 격자(위에서부터 쌓음)
+export const fieldGrid = "grid grid-cols-2 gap-x-3 gap-y-2.5 narrow:grid-cols-1";
+export const panelFormGrid = cn(formGrid, "content-start p-0");
 export const input = "w-full rounded-lg border border-line bg-surface px-2.5 py-2 text-[13.5px] font-normal text-ink outline-none font-[inherit] leading-[inherit] focus:border-ink disabled:bg-canvas disabled:text-ink-dim";
 export const searchBox = "flex h-8 items-center gap-2 rounded-lg border border-line bg-surface px-2.75 text-[13px] text-ink-dim focus-within:border-ink";
 export const searchInput = "flex-1 border-none bg-transparent px-0.5 py-px text-ink outline-none font-[inherit] [font-size:inherit] [font-weight:inherit] leading-[inherit]";
 export const linkButton = "self-start border-none bg-transparent p-0 text-[11px] font-medium text-ink-dim underline hover:text-ink disabled:cursor-progress";
 export const formActions = "flex items-center justify-end gap-2";
+export const wideActions = `${formActions} col-span-full`;
 export const panelActions = "mt-1.5 flex gap-2";
 export const actionButton = "h-9 rounded-lg border border-line bg-surface px-4 font-bold";
 export const primaryButton = "border-brand bg-brand text-white hover:border-brand-hover hover:bg-brand-hover";
 export const dangerButton = "border-risk bg-risk text-white";
 export const goodButton = "border-ok-line bg-ok-tint text-ok";
+export const primaryAction = cn(actionButton, primaryButton);
+export const dangerAction = cn(actionButton, dangerButton);
 
-export const toolButton = "ml-auto flex items-center gap-1.5 rounded-[7px] border border-line bg-surface px-2.75 py-1.5 text-[12.5px] font-semibold hover:border-ink-dim disabled:cursor-progress disabled:bg-canvas disabled:text-ink-dim";
+export const toolButtonInline = "flex items-center gap-1.5 rounded-[7px] border border-line bg-surface px-2.75 py-1.5 text-[12.5px] font-semibold hover:border-ink-dim disabled:cursor-progress disabled:bg-canvas disabled:text-ink-dim";
+export const toolButton = `ml-auto ${toolButtonInline}`;
 export const note = "m-0 mt-1.5 text-[11.5px] text-ink-dim";
+export const noteError = cn(note, "text-risk");
+// 네모난 상태 배지 (처리 상태 · 실행 중)
+export const squarePill = "rounded-[4px] py-0.5";
 
 export const formMsg = "mr-auto text-[12.5px] text-risk";
 export const formMsgOk = "mr-auto text-[12.5px] text-ok";
+export const msgTone = (msg: string): string => (isDone(msg) ? formMsgOk : formMsg);
 
 export const chip = "flex w-full items-center gap-1.75 rounded-lg border border-line bg-surface px-2.75 py-1.75 text-left text-[12.5px]";
 export const chipTone = (on: boolean): string => (on ? "border-warn bg-warn-tint" : "hover:border-ink-dim");

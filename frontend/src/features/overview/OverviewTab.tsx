@@ -14,10 +14,10 @@ import { Icon } from "@/shared/ui/Icon";
 import { usePage } from "@/shared/lib/hooks";
 import { DayTime, IconBadge, LevelDot, LevelLabel, Pager, Periods, Tile } from "@/shared/ui/parts";
 import { DataTable, Legend } from "@/shared/ui/charts";
-import { brandCard, card, cardCount, cardHead, cardTitle, levelText, markTone, toolButton } from "@/shared/ui/styles";
+import { brandCard, card, cardCount, cardHead, cardTitle, levelText, markTone, toolButton, cardNote, tileGrid } from "@/shared/ui/styles";
 
 type Open = "위험" | "주의";
-const SUB = "m-0 px-4.5 pb-3 text-[12.5px] text-ink-dim";
+const SUB = cn(cardNote, "pb-3");
 const AREA_MARK = "inline-block size-2.5 flex-none rounded-xs";
 
 // 위 = 숫자, 가운데 = 그래프와 AI 요약, 아래 = 주요 이슈와 최근 조치. 위험 주의 타일을 누르면 이슈 표를 거릅니다.
@@ -70,7 +70,7 @@ function Tiles({ d, level, onPick }: { d: Overview; level: Open | null; onPick: 
   const c = d.counts;
   const all = c.completion.done + c.completion.waiting;
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2.5 px-4.5 pb-4" id="overview-tiles">
+    <div className={tileGrid} id="overview-tiles">
       <Tile label="전체 이슈" big={all} pressed={level === null} onClick={() => onPick(null)}>남음 {c.completion.waiting}, 완료 {c.completion.done}</Tile>
       {(["위험", "주의"] as const).map((l) => (
         <Tile key={l} label={<><LevelDot level={l} />{l}</>} big={c[l]} tone={c[l] ? levelText[l] : undefined} pressed={level === l} onClick={() => onPick(l)}>{deltaText(delta(d.trend, l))}</Tile>

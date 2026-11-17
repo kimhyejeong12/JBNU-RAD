@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUi } from "@/app/ui/state/UiContext";
 import { send } from "@/shared/api/http";
 import type { Decision, DecisionResult, Results } from "@/shared/api/types";
+import { goodButton } from "@/shared/ui/styles";
 
 export type DecisionKind = "policy" | "event" | "server" | "suspect";
 
@@ -20,7 +21,7 @@ export const DECISION_SET: Record<DecisionKind, Record<string, DecisionColor>> =
 };
 
 export const decisionTone: Record<DecisionColor, string> = {
-  approve: "border-ok-line bg-ok-tint text-ok",
+  approve: goodButton,
   cond: "border-warn-line bg-warn-tint text-warn-ink",
   reject: "border-risk bg-risk text-white",
   done: "border-ink bg-ink text-white",

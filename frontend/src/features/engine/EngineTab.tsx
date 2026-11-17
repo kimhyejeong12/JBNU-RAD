@@ -3,10 +3,9 @@ import { dayTime } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
 import { DayTime, Pill } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
-import { card, cardCount, cardHead, cardTitle, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton } from "@/shared/ui/styles";
+import { cardHead, cardTitle, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton, cardCol, cardCountInline, squarePill } from "@/shared/ui/styles";
 import { useClearQueue, useQueueDetail, LANE_ROWS, jobIcon, jobName, jobRows, jobTarget, progress, waitingCount, type QueueDetail } from "@/features/engine/lib";
 
-const section = cn(card, "flex flex-col");
 const ROWS = "m-0 list-none divide-y divide-line border-t border-line p-0";
 const ROW = "flex items-center gap-3 px-4.5 py-2.75";
 const ICON_BOX = "flex size-8 flex-none items-center justify-center rounded-lg bg-canvas text-ink-soft";
@@ -25,10 +24,10 @@ export function EngineTab() {
 
   return (
     <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-start gap-3.5 narrow:grid-cols-[minmax(0,1fr)]" id="view-engine" role="tabpanel" aria-labelledby="tab-engine">
-      <section className={section}>
+      <section className={cardCol}>
         <div className={cardHead}>
           <h3 className={cardTitle}>작업 큐</h3>
-          <span className={cn(cardCount, "ml-0")} id="queue-count">{d ? `실행 ${d.current ? 1 : 0}, 대기 ${waitingCount(d)}` : ""}</span>
+          <span className={cardCountInline} id="queue-count">{d ? `실행 ${d.current ? 1 : 0}, 대기 ${waitingCount(d)}` : ""}</span>
           <button className={cn(toolButton, "border-risk text-risk")} id="queue-clear" disabled={!d || clear.isPending} onClick={() => void onClear()}>
             <Icon name="warn" small />{clear.isPending ? "초기화하는 중…" : "강제 초기화"}
           </button>
@@ -52,7 +51,7 @@ function Queue({ d }: { d: QueueDetail }) {
           {!j && waitingCount(d) === 0 && <tr><td colSpan={5} className={ltdEmpty}>쉬는 중입니다</td></tr>}
           {j && (
             <tr>
-              <td className={ltd}><Pill tone="border-brand text-brand" className="rounded-[4px] py-0.5">실행 중</Pill></td>
+              <td className={ltd}><Pill tone="border-brand text-brand" className={squarePill}>실행 중</Pill></td>
               <td className={cn(ltd, "font-semibold")}>{jobName(d, j.kind)}{j.auto ? " (자동)" : ""}</td>
               <td className={ltd}>{jobTarget(j)}</td>
               <td className={cn(ltd, "tabular-nums")}>{progress(d, j)}</td>
@@ -82,7 +81,7 @@ function Queue({ d }: { d: QueueDetail }) {
 function Jobs({ d }: { d: QueueDetail }) {
   const rows = jobRows(d);
   return (
-    <section className={section}>
+    <section className={cardCol}>
       <div className={cardHead}><h3 className={cardTitle}>작업별 실행</h3></div>
       {rows.length === 0 ? <p className={cn(note, "mx-4.5 mb-4")}>예약도 끝난 작업도 없습니다</p> : (
         <ul className={ROWS}>

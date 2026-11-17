@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/shared/lib/cn";
 import { activateProps } from "@/shared/lib/hooks";
 import { Periods } from "@/shared/ui/parts";
-import { lrowTone, ltable, ltableWrap, ltd, lth, mark, markTone, type MarkKey } from "@/shared/ui/styles";
+import { lrowTone, ltable, ltableWrap, ltd, lth, mark, markTone, type MarkKey, cardNote } from "@/shared/ui/styles";
 
 export function Legend({ items, round, className }: { items: [cls: MarkKey, label: string][]; round?: boolean; className?: string }) {
   return (
@@ -36,7 +36,7 @@ export interface DataRow {
 
 // numCols 는 오른쪽 정렬(숫자) 칸의 번호입니다.
 export function DataTable({ head, rows, empty, numCols = [], scroll }: { head: string[]; rows: DataRow[]; empty: string; numCols?: number[]; scroll?: boolean }) {
-  if (!rows.length) return <p className="m-0 px-4.5 pt-0 pb-2.5 text-[12.5px] text-ink-dim">{empty}</p>;
+  if (!rows.length) return <p className={cardNote}>{empty}</p>;
   return (
     <div className={cn(ltableWrap, scroll && "max-h-80 overflow-y-auto")}>
       <table className={ltable}>

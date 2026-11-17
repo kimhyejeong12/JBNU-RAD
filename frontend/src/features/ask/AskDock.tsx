@@ -10,7 +10,7 @@ import { useNow } from "@/shared/lib/hooks";
 import { stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/Icon";
-import { box, chip, chipTone, empty, note, toolButton } from "@/shared/ui/styles";
+import { box, chip, chipTone, empty, note, toolButtonInline } from "@/shared/ui/styles";
 
 const ANSWER = cn(box, "whitespace-pre-wrap");
 const ANSWER_WAIT = cn(ANSWER, "text-ink-dim");
@@ -88,7 +88,7 @@ function AskPopup() {
     <section className={POPUP} id="ask-popup" role="dialog" aria-label="질의">
       <div className="flex items-center gap-2 border-b border-line px-3.5 py-2.5">
         {evidence ? (
-          <button type="button" className={cn(toolButton, "ml-0")} id="ask-back" onClick={() => setAskSource(null)}>
+          <button type="button" className={toolButtonInline} id="ask-back" onClick={() => setAskSource(null)}>
             <Icon name="back" small />대화
           </button>
         ) : (
@@ -101,7 +101,7 @@ function AskPopup() {
                 <option key={c.conversation_id} value={c.conversation_id}>{stamp(c.asked_at)}  {c.question}{c.turns > 1 ? ` (${c.turns})` : ""}</option>
               ))}
             </select>
-            <button type="button" className={cn(toolButton, "ml-0")} id="ask-new" disabled={!list.length} onClick={() => setConversation(newConversation())}>새 대화</button>
+            <button type="button" className={toolButtonInline} id="ask-new" disabled={!list.length} onClick={() => setConversation(newConversation())}>새 대화</button>
           </>
         )}
         <button type="button" className={cn(CLOSE, "ml-auto")} aria-label="닫기" onClick={() => setAskOpen(false)}><Icon name="close" small /></button>

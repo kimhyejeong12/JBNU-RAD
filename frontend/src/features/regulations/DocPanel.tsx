@@ -7,7 +7,7 @@ import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
 import { GroupBox, Meta, Section } from "@/shared/ui/parts";
-import { actionButton, dangerButton, field, formActions, input, meta, note, panelActions, primaryButton, subject } from "@/shared/ui/styles";
+import { actionButton, field, formActions, input, meta, note, panelActions, subject, dangerAction, noteError, primaryAction } from "@/shared/ui/styles";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useExtractPdf, useExtractXlsx, useRemoveRegulation, useUploadRegulation } from "./api";
 import { docItem, draftProblem, editProblem, isPdf, isXlsx, removeProblem, tablesText, textName, uploadProblem } from "./lib";
@@ -96,7 +96,7 @@ function UploadDoc() {
                   </span>
                 </label>
               ))}
-              {sheet.picked.some((v, i) => v && sheet.tables[i].personal) && <p className={cn(note, "text-risk")}>사번, 이름이 든 표를 골랐습니다</p>}
+              {sheet.picked.some((v, i) => v && sheet.tables[i].personal) && <p className={noteError}>사번, 이름이 든 표를 골랐습니다</p>}
             </fieldset>
           ) : <div className={meta}><Meta items={[`${draft.pages}쪽`, draft.empty.length > 0 && `글자 없는 쪽 ${draft.empty.join(", ")} (스캔본은 못 읽음)`]} /></div>}
           <label className={field}>저장할 이름
@@ -107,10 +107,10 @@ function UploadDoc() {
           </label>
         </div>
       )}
-      {problem && <p className={cn(note, "text-risk")}>{problem}</p>}
+      {problem && <p className={noteError}>{problem}</p>}
       <div className={cn(formActions, "mt-3")}>
         <PanelMsg />
-        <button type="submit" className={cn(actionButton, primaryButton)} disabled={upload.isPending || pending}>{upload.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "올리는 중…") : "올리기"}</button>
+        <button type="submit" className={primaryAction} disabled={upload.isPending || pending}>{upload.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "올리는 중…") : "올리기"}</button>
       </div>
     </form>
     </Panel>
@@ -200,7 +200,7 @@ function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
       {busy && !problem && <p className={note}>{busy} 끝난 뒤 적용됩니다.</p>}
       <div className={formActions}>
         <button type="button" className={actionButton} onClick={() => void onCancel()}>취소</button>
-        <button type="submit" className={cn(actionButton, primaryButton)} disabled={edit.isPending}>{edit.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "적재하는 중…") : "고치기"}</button>
+        <button type="submit" className={primaryAction} disabled={edit.isPending}>{edit.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "적재하는 중…") : "고치기"}</button>
       </div>
     </form>
   );
@@ -235,7 +235,7 @@ function RemoveDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
       <div className={formActions}>
         <PanelMsg />
         <button type="button" className={actionButton} onClick={onClose} disabled={remove.isPending}>취소</button>
-        <button type="submit" className={cn(actionButton, dangerButton)} disabled={remove.isPending}>{remove.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "지우는 중…") : "지우기"}</button>
+        <button type="submit" className={dangerAction} disabled={remove.isPending}>{remove.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "지우는 중…") : "지우기"}</button>
       </div>
     </form>
   );

@@ -15,13 +15,11 @@ import { cn } from "@/shared/lib/cn";
 import { useUi } from "@/app/ui/state/UiContext";
 import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { actionButton, field, formActions, formGrid, input, meta, note, primaryButton, subject, toolButton } from "@/shared/ui/styles";
+import { actionButton, field, formActions, input, meta, note, subject, toolButton, fieldGrid, goodButton, panelFormGrid, primaryAction, wideActions, wideField } from "@/shared/ui/styles";
 import { Icon } from "@/shared/ui/Icon";
 import { Meta, Pill, Section, Switch } from "@/shared/ui/parts";
 import { ask } from "@/app/ui/ask";
 
-const WIDE_FIELD = cn(field, "col-span-full");
-const WIDE_ACTIONS = cn(formActions, "col-span-full");
 const BOX = "rounded-xl border border-line px-3.5 py-3";
 
 // 정보 상자 한 줄 — 왼쪽 기호와 이름, 오른쪽 값(고칠 수 있으면 입력 칸).
@@ -65,14 +63,14 @@ function NewUser() {
   return (
     <Panel title="새 계정">
     {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓습니다(content-start). */}
-    <form className={cn(formGrid, "content-start p-0")} id="user-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+    <form className={panelFormGrid} id="user-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
       <label className={field}>아이디<input className={input} name="login_id" required maxLength={100} autoComplete="off" /></label>
       <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
       <label className={field}>부서<input className={input} name="department" maxLength={100} /></label>
       <label className={field}>직무<input className={input} name="job" maxLength={100} placeholder="예: 서버 운영 담당" /></label>
-      <div className={WIDE_FIELD}>역할<RoleSelect value="user" /></div>
-      <label className={WIDE_FIELD}>임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input className={input} name="password" type="password" required autoComplete="new-password" /></label>
-      <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>계정 만들기</button></div>
+      <div className={wideField}>역할<RoleSelect value="user" /></div>
+      <label className={wideField}>임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input className={input} name="password" type="password" required autoComplete="new-password" /></label>
+      <div className={wideActions}><PanelMsg /><button type="submit" className={primaryAction}>계정 만들기</button></div>
     </form>
     </Panel>
   );
@@ -158,7 +156,7 @@ function EditUser({ u }: { u: UserRow }) {
           <p className={cn(subject, "mb-0")}>{u.display_name} ({u.login_id})</p>
           <div className={meta}><Meta items={[roleText(u), u.department || "부서 없음"]} /></div>
         </div>
-        <Pill tone={u.is_active ? "border-ok-line bg-ok-tint text-ok" : "border-line text-ink-dim"} className="gap-1 py-1">
+        <Pill tone={u.is_active ? goodButton : "border-line text-ink-dim"} className="gap-1 py-1">
           <Icon name={u.is_active ? "check" : "close"} small />{u.is_active ? "활성 계정" : "정지 계정"}
         </Pill>
       </div>
@@ -200,7 +198,7 @@ function EditUser({ u }: { u: UserRow }) {
         )}
         <Section icon="gear" title="추가 설정">
           {editing ? (
-            <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 narrow:grid-cols-1">
+            <div className={fieldGrid}>
               <label className={field}>로그 사용자 ID<input className={input} name="log_id" defaultValue={u.log_id || ""} maxLength={100} placeholder="로그의 UserID" /></label>
               <label className={field}>퇴사일<input className={input} name="left_on" type="date" defaultValue={u.left_on} /></label>
             </div>
@@ -214,7 +212,7 @@ function EditUser({ u }: { u: UserRow }) {
         {editing && (
           <div className={cn(formActions, "mt-3")}>
             <button type="button" className={actionButton} onClick={() => setEditing(false)}>취소</button>
-            <button type="submit" className={cn(actionButton, primaryButton)}>저장</button>
+            <button type="submit" className={primaryAction}>저장</button>
           </div>
         )}
       </form>

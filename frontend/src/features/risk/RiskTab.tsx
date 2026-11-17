@@ -6,12 +6,12 @@ import { ask } from "@/app/ui/ask";
 import { useUi } from "@/app/ui/state/UiContext";
 import { send } from "@/shared/api/http";
 import { riskPeopleQuery } from "@/shared/api/queries";
-import { stamp } from "@/shared/lib/format";
+import { stamp, isDone } from "@/shared/lib/format";
 import { LEVEL_ICON } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/Icon";
 import { Meta, Tile } from "@/shared/ui/parts";
-import { box, card, cardCount, cardHead, cardTitle, empty, levelText, note, toolButton } from "@/shared/ui/styles";
+import { box, card, cardCount, cardHead, cardTitle, empty, levelText, note, toolButton, tileGrid } from "@/shared/ui/styles";
 
 export function RiskTab() {
   const q = useQuery(riskPeopleQuery());
@@ -32,7 +32,7 @@ export function RiskTab() {
             {q.isError ? q.error.message : d ? stamp(d.generated_at) : ""}
           </span>
         </div>
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2.5 px-4.5 pb-4" id="risk-tiles">
+        <div className={tileGrid} id="risk-tiles">
           <Tile label="위험" big={`${sum.danger}명`} tone={sum.danger ? levelText["위험"] : undefined} {...tile("danger")}>주의 {sum.caution}명</Tile>
           <Tile label="부서 이동" big={`${sum.moved}명`} {...tile("moved")}>맞지 않는 권한 {sum.grants}명</Tile>
           <Tile label="이동 뒤 이상 행동" big={`${sum.events}명`} {...tile("events")} />
@@ -100,7 +100,7 @@ function PersonCard({ p }: { p: Person }) {
           );
         })}
       </ul>
-      {msg && <p className={cn(note, msg.startsWith("✓") ? "text-ok" : "text-risk")} role="status">{msg}</p>}
+      {msg && <p className={cn(note, isDone(msg) ? "text-ok" : "text-risk")} role="status">{msg}</p>}
     </article>
   );
 }

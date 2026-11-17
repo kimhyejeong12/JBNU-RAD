@@ -1,4 +1,4 @@
-import { STAT_PERIODS, STAT_TITLES, statCard, statSafety, statTiles, useStatsData } from "./lib";
+import { STAT_PERIODS, STAT_TITLES, statSafety, useStatsData } from "./lib";
 import { SystemHead, SystemSections } from "./SystemStats";
 import { UserHead, UserSections } from "./UserStats";
 import { useJobs } from "@/app/session/data";
@@ -6,7 +6,7 @@ import { useUi } from "@/app/ui/state/UiContext";
 import type { StatPeriod } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { Periods } from "@/shared/ui/parts";
-import { cardCount, cardHead, cardTitle } from "@/shared/ui/styles";
+import { cardCount, cardHead, cardTitle, cardCol, tileGrid } from "@/shared/ui/styles";
 
 export function StatsTab() {
   const { ui, setStats, openDrawer } = useUi();
@@ -23,7 +23,7 @@ export function StatsTab() {
   };
   return (
     <div className="flex flex-col gap-3.5" id="view-stats" role="tabpanel" aria-labelledby="tab-stats" style={{ opacity: q.isFetching && d ? 0.55 : undefined }}>
-      <section className={statCard}>
+      <section className={cardCol}>
         <div className={cardHead}>
           <h3 className={cardTitle} id="stat-title">{STAT_TITLES[kind]}</h3>
           <Periods<StatPeriod> id="stat-periods" labels={STAT_PERIODS} value={period} onChange={(p) => { if (p !== period) setStats({ period: p }); }} />
@@ -40,4 +40,4 @@ export function StatsTab() {
   );
 }
 
-const EmptyHead = () => <><div className={statSafety} id="stat-safety" /><div className={statTiles} id="stat-tiles" /></>;
+const EmptyHead = () => <><div className={statSafety} id="stat-safety" /><div className={tileGrid} id="stat-tiles" /></>;

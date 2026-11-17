@@ -12,19 +12,17 @@ import { cn } from "@/shared/lib/cn";
 import { useUi } from "@/app/ui/state/UiContext";
 import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { actionButton, box, field, formActions, formGrid, input, meta, primaryButton, subject } from "@/shared/ui/styles";
+import { box, field, formActions, input, meta, subject, fieldGrid, panelFormGrid, primaryAction, wideActions, wideField } from "@/shared/ui/styles";
 import { GroupBox, Meta, Switch } from "@/shared/ui/parts";
 import { ask } from "@/app/ui/ask";
 
-const WIDE_FIELD = cn(field, "col-span-full");
-const WIDE_ACTIONS = cn(formActions, "col-span-full");
 
 const Fields = ({ v }: { v?: AccessItem }) => (
   <>
     <label className={field}>이름<input className={input} name="name" required maxLength={100} defaultValue={v?.name ?? ""} placeholder="예: 급여 테이블 조회" /></label>
     <label className={field}>시스템<input className={input} name="system" maxLength={100} defaultValue={v?.system ?? ""} placeholder="예: 인사 시스템" /></label>
-    <label className={WIDE_FIELD}>분류<input className={input} name="category" maxLength={100} defaultValue={v?.category ?? ""} placeholder="예: 급여정보" /></label>
-    <label className={WIDE_FIELD}>설명<textarea className={input} name="description" rows={3} maxLength={2000} defaultValue={v?.description ?? ""} placeholder="무엇을 할 수 있는 권한인지" /></label>
+    <label className={wideField}>분류<input className={input} name="category" maxLength={100} defaultValue={v?.category ?? ""} placeholder="예: 급여정보" /></label>
+    <label className={wideField}>설명<textarea className={input} name="description" rows={3} maxLength={2000} defaultValue={v?.description ?? ""} placeholder="무엇을 할 수 있는 권한인지" /></label>
   </>
 );
 
@@ -45,10 +43,10 @@ function NewAccess() {
   return (
     <Panel title="권한 등록">
     {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓습니다(content-start). */}
-    <form className={cn(formGrid, "content-start p-0")} id="access-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
+    <form className={panelFormGrid} id="access-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
       <label className={field}>코드 (바꿀 수 없음)<input className={input} name="code" required maxLength={64} pattern="[A-Za-z0-9_.\-]+" title="영문, 숫자, _ . -" autoComplete="off" placeholder="예: HR_SALARY_READ" /></label>
       <Fields />
-      <div className={WIDE_ACTIONS}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>등록</button></div>
+      <div className={wideActions}><PanelMsg /><button type="submit" className={primaryAction}>등록</button></div>
     </form>
     </Panel>
   );
@@ -89,9 +87,9 @@ function EditAccess({ a }: { a: AccessItem }) {
       {/* 시스템 · 분류 · 설명은 신청 판정의 입력에 들어갑니다 (sources/people.py). */}
       <form key={formKey} id="access-edit" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <GroupBox icon="key" title="권한 정보 (AI 판정 근거)">
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 narrow:grid-cols-1"><Fields v={a} /></div>
+          <div className={fieldGrid}><Fields v={a} /></div>
         </GroupBox>
-        <div className={cn(formActions, "mt-3")}><button type="submit" className={cn(actionButton, primaryButton)}>저장</button></div>
+        <div className={cn(formActions, "mt-3")}><button type="submit" className={primaryAction}>저장</button></div>
       </form>
       <ChangeLog type="access" id={a.code} rev={formKey} />
     </Panel>

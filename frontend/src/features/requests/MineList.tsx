@@ -10,7 +10,7 @@ import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/Icon";
 import { usePage } from "@/shared/lib/hooks";
 import { Pager, Pill, Tile } from "@/shared/ui/parts";
-import { card, formMsg, formMsgOk, linkButton, stageColor, stageTone } from "@/shared/ui/styles";
+import { card, linkButton, stageColor, stageTone, msgTone } from "@/shared/ui/styles";
 import { ask } from "@/app/ui/ask";
 
 // 한 쪽 4건 — 신청서와 아래 끝이 맞게 합니다.
@@ -55,7 +55,7 @@ export function MineList() {
         <div className="flex flex-wrap items-center gap-3 border-b border-line bg-canvas/50 p-5">
           <h2 className="m-0 text-lg font-bold">나의 권한 신청 내역</h2>
           {/* 패널이 없어 철회 결과를 여기에 띄웁니다. */}
-          {ui.panelMsg && <span className={ui.panelMsg.startsWith("✓") ? formMsgOk : formMsg}>{ui.panelMsg}</span>}
+          {ui.panelMsg && <span className={msgTone(ui.panelMsg)}>{ui.panelMsg}</span>}
           <label className="relative ml-auto w-64 phone:w-full">
             <span className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-faint"><Icon name="search" small /></span>
             <input type="search" className="w-full rounded-md border border-line bg-surface py-1.5 pr-4 pl-9 text-sm outline-none focus:border-brand"

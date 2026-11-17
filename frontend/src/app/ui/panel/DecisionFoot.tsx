@@ -7,7 +7,7 @@ import { Icon } from "@/shared/ui/Icon";
 import { stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Meta, Pill } from "@/shared/ui/parts";
-import { input, levelText, panelFoot, panelFootTitle } from "@/shared/ui/styles";
+import { input, levelText, panelFoot, panelFootTitle, squarePill } from "@/shared/ui/styles";
 
 const STATE_LABEL = "text-[11.5px] font-semibold text-ink-dim";
 
@@ -31,7 +31,7 @@ export function JudgeState({ level, label, children }: { level: Level | null | u
 export function StateCell({ text, tone, by }: { text: string; tone: string; by?: string | null }) {
   return (
     <span className="flex min-w-0 flex-col items-start gap-px">
-      <Pill tone={tone} className="block max-w-full truncate rounded-[4px] py-0.5">{text}</Pill>
+      <Pill tone={tone} className={cn("block max-w-full truncate", squarePill)}>{text}</Pill>
       {by && <span className="max-w-full truncate text-[11px] text-ink-dim">{by}</span>}
     </span>
   );
@@ -39,7 +39,7 @@ export function StateCell({ text, tone, by }: { text: string; tone: string; by?:
 
 export function DecisionBadge({ decision }: { decision: Pick<Decision, "action"> | null | undefined }) {
   const s = decisionState(decision);
-  return <Pill tone={s.tone} className="rounded-[4px] py-0.5">{s.text}</Pill>;
+  return <Pill tone={s.tone} className={squarePill}>{s.text}</Pill>;
 }
 
 export function DecisionFoot({ target, decision }: { target: DecisionTarget; decision: Decision | null | undefined }) {

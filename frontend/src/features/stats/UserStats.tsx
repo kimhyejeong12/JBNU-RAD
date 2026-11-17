@@ -1,4 +1,4 @@
-import { SUSPECT_COLOR, statCard, statSafety, statSub, statTiles, trendMark, verdictsText } from "./lib";
+import { SUSPECT_COLOR, statSafety, trendMark, verdictsText } from "./lib";
 import { SafetyBand } from "./SafetyBand";
 import { Tile } from "@/shared/ui/parts";
 import type { StatSelection } from "@/app/ui/state/uiReducer";
@@ -8,7 +8,7 @@ import type { Jobs, Suspect, SuspectLevel, UserStats } from "@/shared/api/types"
 import { pct, stamp } from "@/shared/lib/format";
 import { DataTable, Meter } from "@/shared/ui/charts";
 import { Icon } from "@/shared/ui/Icon";
-import { cardCount, cardHead, cardTitle, markTone, toolButton } from "@/shared/ui/styles";
+import { cardHead, cardTitle, markTone, toolButton, cardCountInline, cardCol, cardNote, tileGrid } from "@/shared/ui/styles";
 import { cn } from "@/shared/lib/cn";
 
 interface Props { d: UserStats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
@@ -27,7 +27,7 @@ export function UserHead({ d, onSelect }: Props) {
         <SafetyBand label="사용자 안전 점수" safety={d.safety} onSelect={onSelect} names={0}
           groups={[["의심 높음", susGroup("높음"), "suspect", "위험"], ["의심 보통", susGroup("보통"), "suspect", "주의"]]} />
       </div>
-      <div className={statTiles} id="stat-tiles">
+      <div className={tileGrid} id="stat-tiles">
         <Tile label="위협 사용자" big={`${ev.users.length}명`}>위험 {ev.users.filter((u) => u["위험"]).length}명, 반복 {repeat}명</Tile>
         <Tile label="신청 중 위험 비율" big={pct(ai["위험"] || 0, judged)}
           extra={judged ? <Meter segs={[["위험", ai["위험"] || 0], ["주의", ai["주의"] || 0], ["정상", ai["정상"] || 0]]} total={judged} /> : null}>
@@ -46,11 +46,11 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
   const running = jobs?.running === "suspects";
   const latest = sus.map((p) => p.created_at).sort().pop();
   return (
-    <section className={statCard} id="stat-suspects">
+    <section className={cardCol} id="stat-suspects">
       <div className={cardHead}>
         <h3 className={cardTitle}>의심 점수</h3>
         {/* 둘 다 오른쪽으로 밀면 버튼이 가운데로 떠서 버튼만 오른쪽 끝에 둡니다. */}
-        <span className={cn(cardCount, "ml-0")}>{sus.length ? `${sus.length}명, ${stamp(latest)}` : ""}</span>
+        <span className={cardCountInline}>{sus.length ? `${sus.length}명, ${stamp(latest)}` : ""}</span>
         <button className={toolButton} id="suspects-now" disabled={!!jobs?.running || start.isPending} onClick={() => start.mutate("suspects")}>
           <Icon name="activity" small />{running ? `예측 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 예측"}
         </button>
@@ -62,7 +62,7 @@ export function UserSections({ d, selected, onSelect, jobs }: Props & { jobs: Jo
             key: p.key, current: selected?.kind === "suspect" && selected.key === p.key, onSelect: () => onSelect("suspect", p.key),
             cells: [p.subject, p.failed ? "예측 실패" : <ScoreCell key="s" p={p} />, verdictsText(p) || "—", (p.signals.highlights || []).join(", ") || "—", p.login_id || "계정 미연결"],
           }))} />
-      ) : <p className={statSub}>예측 없음</p>}
+      ) : <p className={cardNote}>예측 없음</p>}
     </section>
   );
 }

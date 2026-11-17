@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { SafetyBand } from "./SafetyBand";
 import { Tile } from "@/shared/ui/parts";
-import { mergeDays, statCard, statChart, statSafety, statSub, statTiles } from "./lib";
+import { mergeDays, statChart, statSafety } from "./lib";
 import type { StatSelection } from "@/app/ui/state/uiReducer";
 import type { Stats } from "@/shared/api/types";
 import { niceMax, pct } from "@/shared/lib/format";
 import { DataTable, Legend, ViewSwitch } from "@/shared/ui/charts";
 import { cn } from "@/shared/lib/cn";
-import { cardHead, cardTitle, mark, markTone, type MarkKey } from "@/shared/ui/styles";
+import { cardHead, cardTitle, mark, markTone, type MarkKey, cardCol, cardNote, tileGrid } from "@/shared/ui/styles";
 
 interface Props { d: Stats; selected: StatSelection | null; onSelect: (kind: string, key: string) => void }
 
@@ -31,7 +31,7 @@ export function SystemHead({ d, onSelect }: Props) {
           ["위험", nodeGroup((i) => i.level === "위험"), "node", "위험"], ["주의", nodeGroup((i) => i.level === "주의"), "node", "주의"],
           ["끊김", nodeGroup((i) => i.stale), "node", "none"], ["판정 없음", nodeGroup((i) => !i.level), "node", "none"]]} />
       </div>
-      <div className={statTiles} id="stat-tiles">
+      <div className={tileGrid} id="stat-tiles">
         <Tile label="위협 로그" big={logs == null ? "—" : `${threat}건`}>
           {logs == null ? "로그를 읽지 못했습니다" : `위험 ${L["위험"]}, 주의 ${L["주의"]} / 전체 ${logs}건 (${pct(threat, logs)})`}
         </Tile>
@@ -57,10 +57,10 @@ function ThreatLogs({ d }: Props) {
   const at = (n: number) => `${((n + 0.5) / keys.length) * 100}%`;
   const ticks = [...new Set([0, Math.floor(keys.length / 2), keys.length - 1])];
   return (
-    <section className={statCard} id="stat-events">
+    <section className={cardCol} id="stat-events">
       <div className={cardHead}><h3 className={cardTitle}>위협 로그 — 날짜별</h3>
         <span className="ml-auto"><ViewSwitch id="stat-events-view" table={table} onChange={setTable} /></span></div>
-      {!keys.length ? <p className={statSub}>로그 없음</p> : table ? (
+      {!keys.length ? <p className={cardNote}>로그 없음</p> : table ? (
         <DataTable scroll head={["날짜", "로그", "위험", "주의", "비율"]} empty="" numCols={[1, 2, 3, 4]}
           rows={keys.map((k) => ({ key: k, cells: [k, byDay[k].total, byDay[k]["위험"], byDay[k]["주의"], pct(byDay[k]["위험"] + byDay[k]["주의"], byDay[k].total)] }))} />
       ) : (
@@ -97,7 +97,7 @@ function NodeThreats({ d, selected, onSelect }: Props) {
   const sv = d.servers;
   const modulesOf = (node: string) => sv.modules.filter((m) => m.nodes.includes(node)).map((m) => m.module).join(", ") || "—";
   return (
-    <section className={statCard} id="stat-servers">
+    <section className={cardCol} id="stat-servers">
       <div className={cardHead}><h3 className={cardTitle}>노드별 위협 항목</h3></div>
       {sv.nodes.length ? (
         <>
@@ -107,7 +107,7 @@ function NodeThreats({ d, selected, onSelect }: Props) {
             cells: [n.node, n.level || "판정 없음", n.threats["위험"], n.threats["주의"], modulesOf(n.node), <span key="c" className="tabular-nums">{n.changed} / {n.collected}</span>],
           }))} />
         </>
-      ) : <p className={statSub}>점검 결과 없음</p>}
+      ) : <p className={cardNote}>점검 결과 없음</p>}
     </section>
   );
 }

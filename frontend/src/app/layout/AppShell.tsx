@@ -14,6 +14,7 @@ import type { Me } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { card, empty } from "@/shared/ui/styles";
 import { useMediaQuery } from "@/shared/lib/hooks";
+import { isDone } from "@/shared/lib/format";
 
 export function AppShell({ me }: { me: Me }) {
   return (
@@ -55,7 +56,7 @@ function Shell() {
     if (ui.view) savePage(me.login_id, { view: ui.view, mainTab: ui.mainTab, stageFilter: ui.stageFilter, lastAdmin: ui.lastAdmin });
   }, [me.login_id, ui.view, ui.mainTab, ui.stageFilter, ui.lastAdmin]);
   useEffect(() => {
-    if (!ui.panelMsg.startsWith("✓")) return;
+    if (!isDone(ui.panelMsg)) return;
     const t = setTimeout(() => dispatch({ type: "SET_PANEL_MSG", msg: "" }), DONE_MSG_MS);
     return () => clearTimeout(t);
   }, [ui.panelMsg, dispatch]);

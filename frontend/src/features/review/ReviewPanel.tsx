@@ -13,7 +13,7 @@ import { stamp, person } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
 import { LevelDot, Meta, Periods, Section, ModuleChanges, ModuleTables, History } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
-import { box, boxPre, kvTable, kvTd, kvTh, meta, note, panelFoot, panelFootTitle, subject, toolButton } from "@/shared/ui/styles";
+import { box, boxPre, kvTable, kvTd, kvTh, meta, note, panelFoot, panelFootTitle, subject, toolButton, toolButtonInline } from "@/shared/ui/styles";
 
 type PanelTab = "ai" | "log";
 
@@ -120,9 +120,9 @@ function EventSection({ f, onLogs }: { f: EventFinding; onLogs: () => void }) {
         </>
       )}
       <div className="mt-2 flex flex-wrap gap-2">
-        <button className={cn(toolButton, "ml-0")} id="log-raw" aria-expanded={open} onClick={() => setOpen(!open)}><Icon name="file" small />{open ? "원문 접기" : "원문 보기"}</button>
-        {open && hidden > 0 && <button className={cn(toolButton, "ml-0")} onClick={() => setAll(true)}>앞의 {hidden}줄 더 보기</button>}
-        <button className={cn(toolButton, "ml-0")} id="to-logs" onClick={onLogs}><Icon name="search" small />이 사용자의 최근 한 달 로그</button>
+        <button className={toolButtonInline} id="log-raw" aria-expanded={open} onClick={() => setOpen(!open)}><Icon name="file" small />{open ? "원문 접기" : "원문 보기"}</button>
+        {open && hidden > 0 && <button className={toolButtonInline} onClick={() => setAll(true)}>앞의 {hidden}줄 더 보기</button>}
+        <button className={toolButtonInline} id="to-logs" onClick={onLogs}><Icon name="search" small />이 사용자의 최근 한 달 로그</button>
       </div>
     </Section>
   );

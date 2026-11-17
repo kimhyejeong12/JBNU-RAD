@@ -8,7 +8,7 @@ import { activateProps } from "@/shared/lib/hooks";
 import { Periods } from "@/shared/ui/parts";
 import { Icon } from "@/shared/ui/Icon";
 import { cn } from "@/shared/lib/cn";
-import { card, cardCount, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, searchBox, searchInput, toolButton } from "@/shared/ui/styles";
+import { card, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, searchBox, searchInput, toolButton, cardCountInline } from "@/shared/ui/styles";
 
 const PERIODS = Object.entries(PERIOD_LABEL) as [LogPeriod, string][];
 type LogCond = UiState["logs"];
@@ -40,7 +40,7 @@ export function LogsTab() {
       <div className={cardHead}>
         <h3 className={cardTitle}>로그 조회</h3>
         <Periods id="log-periods" labels={PERIODS} value={L.period} onChange={(period) => { if (period !== L.period) change({ period }); }} />
-        <span className={cn(cardCount, "ml-0")} id="log-count">{logs.isFetching ? "불러오는 중…" : d ? `${d.total.toLocaleString()}건` : ""}</span>
+        <span className={cardCountInline} id="log-count">{logs.isFetching ? "불러오는 중…" : d ? `${d.total.toLocaleString()}건` : ""}</span>
         <PickInput key={L.user} id="log-user" label="사용자" values={filterChoices(d?.options.users ?? [], L.user, undefined).map((c) => c.value)}
           value={L.user} onPick={(v) => change({ user: v })} />
       </div>

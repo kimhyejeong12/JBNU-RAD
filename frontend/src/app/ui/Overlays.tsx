@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { placeTip, pageScale } from "@/app/layout/lib";
 import { registerConfirm, type Ask } from "@/app/ui/ask";
 import { cn } from "@/shared/lib/cn";
-import { actionButton, dangerButton, primaryButton } from "@/shared/ui/styles";
+import { actionButton, dangerButton, primaryButton, cardTitle } from "@/shared/ui/styles";
 
 // 마지막 자식으로 두어 opacity · transform 이 걸린 조상 밑에 들어가지 않게 합니다.
 export function TooltipLayer() {
@@ -111,7 +111,7 @@ export function ConfirmLayer() {
     <div className="fixed inset-0 z-70 flex items-center justify-center bg-[rgba(17,17,17,.4)] px-4" onClick={() => close(false)}>
       <div role="alertdialog" aria-modal="true" aria-labelledby="ask-title" aria-describedby="ask-message" onClick={(e) => e.stopPropagation()}
         className="w-[min(420px,100%)] rounded-xl bg-surface px-5.5 py-5 shadow-[0_12px_32px_rgba(0,0,0,.18)]">
-        <h3 id="ask-title" className="m-0 text-[15.5px] font-bold">{a.title}</h3>
+        <h3 id="ask-title" className={cardTitle}>{a.title}</h3>
         <p id="ask-message" className="mt-2 mb-0 text-[13.5px] whitespace-pre-line text-ink-soft">{a.message}</p>
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" className={actionButton} autoFocus={a.danger} onClick={() => close(false)}>취소</button>

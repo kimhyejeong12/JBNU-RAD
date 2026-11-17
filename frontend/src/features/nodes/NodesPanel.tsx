@@ -14,7 +14,7 @@ import { KvTable, LevelDot, Section, ModuleTables } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
 import { formProblem } from "@/shared/lib/form";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { actionButton, box, boxPre, empty, field, formActions, formGrid, formMsg, input, meta, note, primaryButton, recLine, subject, toolButton } from "@/shared/ui/styles";
+import { box, boxPre, empty, formGrid, formMsg, input, meta, note, recLine, subject, toolButton, primaryAction, wideActions, wideField } from "@/shared/ui/styles";
 
 export function NodesPanel() {
   const { ui } = useUi();
@@ -39,8 +39,8 @@ function AddNodePanel() {
   return (
     <Panel title="노드 등록">
       <form id="node-form" className={formGrid} noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
-        <label className={cn(field, "col-span-full")}><span>노드 이름 <b className="text-risk">*</b></span><input className={input} id="node-name" name="name" required maxLength={64} pattern="[A-Za-z0-9._\-]+" title="영문, 숫자, . _ -" placeholder="예: cust-db01" autoFocus /></label>
-        <div className={cn(formActions, "col-span-full")}><PanelMsg /><button type="submit" className={cn(actionButton, primaryButton)}>등록하고 키 발급</button></div>
+        <label className={wideField}><span>노드 이름 <b className="text-risk">*</b></span><input className={input} id="node-name" name="name" required maxLength={64} pattern="[A-Za-z0-9._\-]+" title="영문, 숫자, . _ -" placeholder="예: cust-db01" autoFocus /></label>
+        <div className={wideActions}><PanelMsg /><button type="submit" className={primaryAction}>등록하고 키 발급</button></div>
       </form>
     </Panel>
   );

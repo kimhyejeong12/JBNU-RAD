@@ -10,7 +10,7 @@ import { activateProps } from "@/shared/lib/hooks";
 import { Icon } from "@/shared/ui/Icon";
 import { LevelDot } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
-import { card, cardCount, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton } from "@/shared/ui/styles";
+import { card, cardHead, cardTitle, lrowTone, ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton, cardCountInline, toolButtonInline } from "@/shared/ui/styles";
 
 export function NodesTab() {
   const { ui, pickNode, addNode, dispatch } = useUi();
@@ -25,13 +25,13 @@ export function NodesTab() {
       <div className={cardHead}>
         <h3 className={cardTitle}>수집 노드</h3>
         {/* 건수와 버튼이 둘 다 오른쪽으로 밀면 버튼이 가운데로 떠서 버튼만 오른쪽 끝에 둡니다. */}
-        <span className={cn(cardCount, "ml-0")} id="node-count">{nodes.data ? `${list.length}대` : ""}</span>
+        <span className={cardCountInline} id="node-count">{nodes.data ? `${list.length}대` : ""}</span>
         <button className={toolButton} id="check-now" disabled={!jobs || !!jobs.running || start.isPending} onClick={() => start.mutate("nodes")}>
           <Icon name="activity" small />
           <span id="check-now-txt">{checking ? `점검 중…${jobs?.total ? ` ${jobs.done}/${jobs.total}` : ""}` : "지금 점검"}</span>
         </button>
         <JobReset />
-        <button className={cn(toolButton, "ml-0")} id="add-node" onClick={addNode}><Icon name="plus" small />노드 등록</button>
+        <button className={toolButtonInline} id="add-node" onClick={addNode}><Icon name="plus" small />노드 등록</button>
       </div>
       <div className={ltableWrap}>
         <table className={ltable}>
