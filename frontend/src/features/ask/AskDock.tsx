@@ -21,7 +21,7 @@ const ME = "max-w-[85%] self-end rounded-2xl rounded-tr-sm border border-brand-s
 const AVATAR = "flex size-8 flex-none items-center justify-center rounded-full bg-brand-soft-line";
 const CHECKS = "m-0 mt-2 flex items-start gap-1 rounded-lg bg-warn-tint px-2.5 py-1.5 text-[12px] text-warn";
 // 분류 타일 — 작은 타일이라 고른 표시는 1px 남색 테두리 (숫자 타일의 2px 는 두꺼워 보임)
-const TOPIC = "flex min-w-0 flex-col items-center gap-1.5 rounded-xl border border-line bg-surface px-1 pt-2.5 pb-2 text-[12px] font-semibold whitespace-nowrap text-ink-soft hover:bg-row-hover aria-pressed:border-brand aria-pressed:text-brand";
+const TOPIC = "flex min-w-0 flex-col items-center gap-2 rounded-xl border border-line bg-surface px-1 pt-3.5 pb-2.5 text-[12px] font-semibold whitespace-nowrap text-ink-soft hover:bg-row-hover aria-pressed:border-brand aria-pressed:text-brand";
 const EXAMPLE = "self-start rounded-full border border-line bg-surface px-3.5 py-1.5 text-left text-[13px] text-ink hover:border-brand hover:text-brand disabled:cursor-progress disabled:opacity-50";
 // 머리의 기호 단추
 const HEAD_ICON = "flex size-8 flex-none items-center justify-center rounded-[7px] border-0 bg-transparent text-ink-dim hover:bg-canvas hover:text-ink aria-expanded:bg-canvas aria-expanded:text-ink disabled:opacity-40 disabled:hover:bg-transparent";
@@ -142,7 +142,8 @@ function Examples({ busy, onAsk }: { busy: boolean; onAsk: (q: string) => void }
       <div className="grid grid-cols-5 gap-2 pl-10" id="ask-topics" role="group" aria-label="분류">
         {ASK_TOPICS.map((t) => (
           <button type="button" key={t.label} className={TOPIC} aria-pressed={t === topic} onClick={() => setTopic(t)}>
-            <span className="flex size-9 items-center justify-center rounded-full bg-brand-soft text-brand"><Icon name={t.icon} /></span>{t.label}
+            {/* 타일이 이미 테두리 상자라 원 없이 기호만 — 원은 챗봇 프로필에만 */}
+            <Icon name={t.icon} className="size-5.5 text-brand" />{t.label}
           </button>
         ))}
       </div>
