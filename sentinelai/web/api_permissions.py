@@ -301,7 +301,7 @@ def rejudge(request_no: str, request: Request, user: Approver) -> dict[str, Any]
     except Denied as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from None
     if not permissions.rejudgeable(request.app.state.main_db, request_no):
-        raise HTTPException(status_code=400, detail="1차 결재 뒤에는 다시 판정할 수 없습니다")
+        raise HTTPException(status_code=400, detail="1차 결재 후에는 다시 판정할 수 없습니다")
     request.app.state.engine.enqueue_request(request_no)
     return {"request_no": request_no, "judging": True}
 

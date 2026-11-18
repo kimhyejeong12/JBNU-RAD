@@ -52,7 +52,7 @@ export function revokeReason(f: Flag): string | null {
   if (!f.request_no) return null;
   if (f.kind === "expired") return `사용 기간 만료 (${f.at})`;
   // 재검토 대기 · 실패는 아직 판정이 없어 회수를 권하지 않음
-  if (f.kind === "grant" && f.text.includes("이동 뒤 재검토")) return "부서 이동 뒤 업무에 맞지 않는 권한";
+  if (f.kind === "grant" && f.text.includes("이동 후 재검토")) return "부서 이동 후 업무에 맞지 않는 권한";
   return null;
 }
 

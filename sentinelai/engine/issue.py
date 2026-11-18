@@ -284,7 +284,7 @@ class Issuer:
     def risk_people(self) -> dict[str, Any]:
         """부서 · 직무를 옮겼거나 사용 기간이 끝난 권한이 남은 일반 사용자 — 이동 뒤 보유 권한 재검토 · 로그 감시 판정을 더합니다."""
         main_db, results_db = self.res.main_db, self.res.results_db
-        # 결재 중 신청 · 퇴사는 확인할 사람에 있어 여기서는 이동과 보유 권한만 봅니다.
+        # 퇴사는 화면이 /api/people 에서 붙이고 결재 중 신청은 결재 대기에 있어 여기서는 이동과 보유 권한만 봅니다.
         people = {p["id"]: {**p, "flags": [f for f in p["flags"] if f["kind"] in ("move", "grant")]}
                   for p in permissions.watch_people(main_db) if any(f["kind"] == "move" for f in p["flags"])}
         for r in permissions.expired_grants(main_db):

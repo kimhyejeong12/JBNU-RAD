@@ -9,7 +9,7 @@ const person = (over: Partial<RiskPerson>): RiskPerson => ({
 describe("risk lib", () => {
   const moved = person({ id: 1, level: "위험", flags: [
     { kind: "move", level: "정상", at: "2026-10-05", text: "이동" },
-    { kind: "grant", level: "위험", at: "2026-09-01", text: "보유 급여 — 이동 뒤 재검토 위험", request_no: "REQ-1" },
+    { kind: "grant", level: "위험", at: "2026-09-01", text: "보유 급여 — 이동 후 재검토 위험", request_no: "REQ-1" },
     { kind: "event", level: "주의", at: "2026-10-06", text: "이동 뒤 로그 감시 주의", event_key: "event_findings/3" },
   ] });
   const expired = person({ id: 2, flags: [
@@ -27,7 +27,7 @@ describe("risk lib", () => {
     const merged = mergeWatch([moved], [
       watch({ id: 1, flags: [
         { kind: "move", level: "정상", at: "2026-10-05", text: "이동" },
-        { kind: "grant", level: "위험", at: "2026-09-01", text: "보유 급여 — 이동 뒤 재검토 위험", request_no: "REQ-1" },
+        { kind: "grant", level: "위험", at: "2026-09-01", text: "보유 급여 — 이동 후 재검토 위험", request_no: "REQ-1" },
         { kind: "grant", level: "주의", at: "2026-08-01", text: "보유 CRM — 승인 때 AI 판정 주의", request_no: "REQ-7" },
         { kind: "request", level: "위험", at: "2026-11-02", text: "신청 급여 — AI 판정 위험", request_no: "REQ-8" },
       ] }),
@@ -47,7 +47,7 @@ describe("risk lib", () => {
 
   it("offers revoke only for expired or misfit grants", () => {
     expect(revokeReason({ kind: "grant", level: "주의", at: "2026-10-20", text: "보유 CRM — 재검토 대기", request_no: "REQ-3" })).toBeNull();
-    expect(moved.flags.map(revokeReason)).toEqual([null, "부서 이동 뒤 업무에 맞지 않는 권한", null]);
+    expect(moved.flags.map(revokeReason)).toEqual([null, "부서 이동 후 업무에 맞지 않는 권한", null]);
     expect(revokeReason(expired.flags[0])).toBe("사용 기간 만료 (2026-11-01)");
   });
 

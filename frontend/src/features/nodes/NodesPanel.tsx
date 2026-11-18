@@ -52,7 +52,7 @@ function SummaryPanel({ list }: { list: NodeRow[] }) {
       <Section icon="activity" title="상태">
         <KvTable rows={[["노드", `${list.length}대`], ["수집 중", `${count("on")}대`], ["끊김", `${count("stale")}대`], ["꺼짐", `${count("off") + count("wait")}대`]]} />
       </Section>
-      <Section icon="server" title="노드 깔기">
+      <Section icon="server" title="노드 설치">
         <div className={boxPre}>node/install.sh --server {location.origin} --key {"<키>"}</div>
       </Section>
     </Panel>

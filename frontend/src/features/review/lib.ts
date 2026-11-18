@@ -38,7 +38,7 @@ export function serverItems(r: Results): QueueItem[] {
       type: "server", key: `server:${s.key}`, itemKey: s.key, id: s.id, level: s.level,
       decision: decisionOf(r, "server", s.key),
       who: s.title,
-      lead: gaps.length ? `다른 곳 ${gaps.length}` : undefined, what: s.reason,
+      lead: gaps.length ? `불일치 ${gaps.length}` : undefined, what: s.reason,
       when: stamp(r.sections?.servers?.generated_at),
       judge: s.level, raw: s,
     };

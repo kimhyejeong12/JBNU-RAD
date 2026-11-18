@@ -59,7 +59,7 @@ function Servers({ s, f }: Props & { f: ServerFacts }) {
     <>
       <Section icon="activity" title="집계">
         <KvTable rows={[["조건", criteriaText(s.criteria, "전체")], ["서버", `${f["노드 수"]}대`], ["마지막 판정", levels],
-          ["기간 안 수집", first ? stampRange(first, f["기간 안 마지막 수집"]) : "없음"], ...nodes]} />
+          ["기간 내 수집", first ? stampRange(first, f["기간 안 마지막 수집"]) : "없음"], ...nodes]} />
       </Section>
       <Section icon="file" title="기록">
         <LinesBox lines={evidence} empty="기록이 없습니다." />
@@ -80,7 +80,7 @@ function Clauses({ s }: { s: AskStep }) {
 function Lines({ s }: { s: AskStep }) {
   const evidence = s.evidence ?? [];
   return (
-    <Section icon="file" title="찾은 것">
+    <Section icon="file" title="찾은 결과">
       <LinesBox lines={evidence} empty={s.summary} />
       {!!s.sources?.length && <p className={note}>{s.sources.join(", ")}</p>}
     </Section>

@@ -22,7 +22,7 @@ const Fields = ({ v }: { v?: AccessItem }) => (
     <label className={field}>이름<input className={input} name="name" required maxLength={100} defaultValue={v?.name ?? ""} placeholder="예: 급여 테이블 조회" /></label>
     <label className={field}>시스템<input className={input} name="system" maxLength={100} defaultValue={v?.system ?? ""} placeholder="예: 인사 시스템" /></label>
     <label className={wideField}>분류<input className={input} name="category" maxLength={100} defaultValue={v?.category ?? ""} placeholder="예: 급여정보" /></label>
-    <label className={wideField}>설명<textarea className={input} name="description" rows={3} maxLength={2000} defaultValue={v?.description ?? ""} placeholder="무엇을 할 수 있는 권한인지" /></label>
+    <label className={wideField}>설명<textarea className={input} name="description" rows={3} maxLength={2000} defaultValue={v?.description ?? ""} placeholder="이 권한으로 할 수 있는 일" /></label>
   </>
 );
 
@@ -43,7 +43,7 @@ function NewAccess() {
     <Panel title="권한 등록">
     {/* 패널 높이를 채우는 격자라 줄이 벌어지지 않게 위에서부터 쌓음(content-start) */}
     <form className={panelFormGrid} id="access-form" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
-      <label className={field}>코드 (바꿀 수 없음)<input className={input} name="code" required maxLength={64} pattern="[A-Za-z0-9_.\-]+" title="영문, 숫자, _ . -" autoComplete="off" placeholder="예: HR_SALARY_READ" /></label>
+      <label className={field}>코드 (변경 불가)<input className={input} name="code" required maxLength={64} pattern="[A-Za-z0-9_.\-]+" title="영문, 숫자, _ . -" autoComplete="off" placeholder="예: HR_SALARY_READ" /></label>
       <Fields />
       <div className={wideActions}><PanelMsg /><button type="submit" className={primaryAction}>등록</button></div>
     </form>

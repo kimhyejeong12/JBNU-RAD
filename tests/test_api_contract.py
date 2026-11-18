@@ -31,7 +31,7 @@ def test_response_models_declare_every_column(main_db, people):
 
 
 def test_watch_people_fit_the_model(main_db, people):
-    """확인할 사람 — 걸린 일(flags)마다 칸이 조금씩 달라 모델보다 많지만 않으면 됩니다."""
+    """사람별 걸린 일 — 걸린 일(flags)마다 칸이 조금씩 달라 모델보다 많지만 않으면 됩니다."""
     root, user = people["root"], people["user"]
     item = catalog.create(main_db, root, "HR_SALARY_READ", "급여 테이블 조회")
     no = permissions.submit(main_db, user, item["code"], "급여 정산 업무")["request_no"]

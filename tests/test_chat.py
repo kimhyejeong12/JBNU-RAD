@@ -37,7 +37,7 @@ def test_waiting_goes_to_teams(monkeypatch):
     req = {"stage": "manager", "request_no": "REQ-20261115-001", "requester_department": "인사팀", "requested_access": "급여 테이블 조회"}
     notify.notify_waiting(notify.Chat(teams="https://teams.example/hook"), req)
     [(_, _, payload)] = sent
-    assert payload["attachments"][0]["content"]["body"][0]["text"] == "[1차 결재 대기] REQ-20261115-001 — 인사팀 · 급여 테이블 조회"
+    assert payload["attachments"][0]["content"]["body"][0]["text"] == "[1차 결재 대기] REQ-20261115-001 — 인사팀, 급여 테이블 조회"
 
 
 def test_watcher_starts_with_teams_only(results_db):

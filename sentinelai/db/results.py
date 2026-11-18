@@ -254,7 +254,7 @@ def threat_stats(db: Database, since: str | None = None) -> dict[str, Any]:
     for n in nodes.values():
         first, last = (n["grades"][0]["level"], n["grades"][-1]["level"]) if n["grades"] else (None, None)
         diff = LEVEL_ORDER[last] - LEVEL_ORDER[first] if first else 0
-        n["trend"] = "판정 없음" if not first else "나빠짐" if diff > 0 else "좋아짐" if diff < 0 else "그대로"
+        n["trend"] = "판정 없음" if not first else "악화" if diff > 0 else "개선" if diff < 0 else "변화 없음"
         n["level"] = last
         # 자주 점검한 노드가 건수를 부풀리지 않게 노드마다 마지막 판정만 셉니다.
         n["threats"] = {"주의": 0, "위험": 0}

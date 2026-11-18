@@ -45,7 +45,7 @@ def waiting_message(req: dict) -> str | None:
         return None
     head, inbox = WAITING[req["stage"]]
     # 바깥 서비스로 나가므로 신청 사유 · 이름은 넣지 않습니다.
-    return (f"[{head}] {req['request_no']} — {req['requester_department']} · {req['requested_access']}\n"
+    return (f"[{head}] {req['request_no']} — {req['requester_department']}, {req['requested_access']}\n"
             f"SentinelAI 권한 신청 {inbox}에서 확인하세요")
 
 
@@ -123,7 +123,7 @@ def result_message(req: dict) -> tuple[str, str] | None:
     elif req["stage"] == "rejected":
         rejected = next(a for a in req["approvals"] if a["action"] == "reject")
         head, first = "반려", f"신청하신 권한이 {'1차' if rejected['step'] == 'manager' else '최종'} 결재에서 반려되었습니다."
-        why = f"반려 의견: {rejected['comment'] or '(적지 않음)'}\n"
+        why = f"반려 의견: {rejected['comment'] or '(미입력)'}\n"
     elif req["stage"] == "revoked":
         head, first = "회수", "승인됐던 권한이 회수되었습니다."
         why = f"회수 사유: {req['revocation']['reason']}\n"
@@ -181,7 +181,7 @@ STAGE_TEXT = {"fast": "1차 판정", "final": "확정"}
 
 def risk_message(stage: str, count: int) -> str:
     # 바깥 서비스로 나가므로 사람 · 로그 내용은 넣지 않습니다.
-    return f"[로그 감시 위험 · {STAGE_TEXT[stage]}] {count}건\nSentinelAI 로그 감시에서 확인하세요"
+    return f"[로그 감시 위험, {STAGE_TEXT[stage]}] {count}건\nSentinelAI 로그 감시에서 확인하세요"
 
 
 def _same(a: dict, b: dict) -> bool:
@@ -249,8 +249,8 @@ class RiskWatcher(Poller):
 # --- 예외 상황 → 운영자 Slack 채널 ---------------------------------------------------
 
 ROLE_TEXT = {"user": "일반 사용자", "manager": "보안 운영자", "top": "보안 총책임자"}
-SETTING_TEXT = {"regulation_upload": "기준 문서 올림", "regulation_edit": "기준 문서 고침", "regulation_remove": "기준 문서 지움",
-                "access_create": "권한 목록 추가", "access_update": "권한 목록 고침", "node_key_issue": "수집 노드 키 다시 발급",
+SETTING_TEXT = {"regulation_upload": "기준 문서 업로드", "regulation_edit": "기준 문서 수정", "regulation_remove": "기준 문서 삭제",
+                "access_create": "권한 목록 추가", "access_update": "권한 목록 수정", "node_key_issue": "수집 노드 키 재발급",
                 "jobs_reset": "작업 강제 중지", "queue_clear": "작업 큐 초기화"}
 
 
@@ -266,19 +266,19 @@ def account_changes(before: dict[int, tuple[str, bool]], after: dict[int, tuple[
     for uid, (role, active) in after.items():
         if uid not in before:
             if role != "user":
-                lines.append(f"{ROLE_TEXT[role]} 계정 만듦")
+                lines.append(f"{ROLE_TEXT[role]} 계정 생성")
             continue
         old_role, old_active = before[uid]
         if role != old_role:
             lines.append(f"{ROLE_TEXT[old_role]} → {ROLE_TEXT[role]}")
         if active != old_active:
-            lines.append(f"{ROLE_TEXT[role]} 계정 {'다시 켬' if active else '정지'}")
+            lines.append(f"{ROLE_TEXT[role]} 계정 {'재활성' if active else '정지'}")
     return lines
 
 
 def setting_line(row: dict) -> str:
     if row["action"] == "node_update":
-        return f"수집 노드 {'켬' if row['detail'].get('enabled') else '끔'}: {row['target_id']}"
+        return f"수집 노드 {'활성' if row['detail'].get('enabled') else '비활성'}: {row['target_id']}"
     if row["action"] in ("jobs_reset", "queue_clear"):
         return SETTING_TEXT[row["action"]]
     return f"{SETTING_TEXT[row['action']]}: {row['target_id']}"
@@ -306,7 +306,7 @@ class ExceptionWatcher(Poller):
         grants = watch.risky_grants_after(self.db, self.grant_after)
         if grants:
             self.grant_after = grants[-1]["id"]
-        grant_lines += [f"이동 뒤 재검토 위험: {g['request_no']} — {g['requested_access']}" for g in grants]
+        grant_lines += [f"이동 후 재검토 위험: {g['request_no']} — {g['requested_access']}" for g in grants]
         # 퇴사일은 날이 바뀌며 지나므로 이벤트가 없어 계정 목록을 견줍니다.
         gone = watch.gone_holders(self.db)
         grant_lines += [f"퇴사일이 지난 계정에 권한 {n}건 남음" for uid, n in gone.items() if uid not in self.gone]
@@ -318,12 +318,12 @@ class ExceptionWatcher(Poller):
         risky = [r["target_id"] for r in rows if r["action"] == "request_approve"
                  and r["detail"].get("step") == "top" and r["detail"].get("ai_level") == "위험"]
         reqs = watch.requests_by_no(self.db, risky)
-        approve_lines = [f"{no} — {reqs[no]['requester_department']} · {reqs[no]['requested_access']}" for no in risky if no in reqs]
+        approve_lines = [f"{no} — {reqs[no]['requester_department']}, {reqs[no]['requested_access']}" for no in risky if no in reqs]
         setting_lines = [setting_line(r) for r in rows if r["action"] != "request_approve"]
 
         texts = [exception_message(head, lines, where) for head, lines, where in (
             ("계정 역할 변경", account_lines, "관리의 계정 관리"),
-            ("보유 권한 위험", grant_lines, "권한 신청의 확인할 사람"),
+            ("보유 권한 위험", grant_lines, "보안 현황의 권한 변동"),
             ("AI 위험 판정 승인", approve_lines, "권한 신청"),
             ("보안 설정 변경", setting_lines, ""),
         ) if lines]

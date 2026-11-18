@@ -13,9 +13,9 @@ ACTIONS = {"policy": ("approve", "cond", "reject", "done"), "event": ("clear", "
 def record(db: Database, by: User, kind: str, item_key: str, action: str, subject: str = "",
            comment: str = "", ai_level: str | None = None) -> dict | None:
     if kind not in ACTIONS:
-        raise Denied(f"kind 는 {' · '.join(ACTIONS)} 중 하나입니다")
+        raise Denied(f"kind 는 {', '.join(ACTIONS)} 중 하나입니다")
     if action != "cancel" and action not in ACTIONS[kind]:
-        raise Denied(f"action 은 {', '.join(ACTIONS[kind])} · cancel 중 하나입니다")
+        raise Denied(f"action 은 {', '.join(ACTIONS[kind])}, cancel 중 하나입니다")
     with db.transaction() as conn:
         conn.execute(
             "INSERT INTO review_decisions (kind, item_key, subject, action, comment, ai_level, decider_id, decider_name,"

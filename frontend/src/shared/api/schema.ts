@@ -1105,7 +1105,7 @@ export interface VerdictQueue {
   waiting?: string[] | null;
 }
 
-/** 확인할 사람에게 걸린 일 하나 — 퇴사 · 이동 · 보유 권한 · 결재 중 신청. */
+/** 사람에게 걸린 일 하나 — 퇴사 · 이동 · 보유 권한 · 결재 중 신청. */
 export interface WatchFlag {
   kind: "leave" | "move" | "grant" | "request";
   level: "정상" | "주의" | "위험";
@@ -1114,7 +1114,7 @@ export interface WatchFlag {
   request_no?: string | null;
 }
 
-/** 확인할 사람 한 명 — level · at 은 걸린 일 중 가장 높은 등급 · 가장 늦은 날. */
+/** 걸린 일이 있는 사람 한 명 — level · at 은 걸린 일 중 가장 높은 등급 · 가장 늦은 날. */
 export interface WatchPerson {
   id: number;
   login_id: string;

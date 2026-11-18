@@ -36,7 +36,6 @@ const stateTone: Record<DecisionColor, string> = {
   done: "border-ink text-ink",
 };
 
-// 처리 상태 — AI 판정과 따로 보임
 export function decisionState(d: Pick<Decision, "action"> | null | undefined): { text: string; tone: string } {
   if (!d) return { text: "결정 없음", tone: "border-line text-ink-dim" };
   const color = ACTION_COLOR[d.action];

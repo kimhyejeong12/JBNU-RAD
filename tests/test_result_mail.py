@@ -56,7 +56,7 @@ def test_reject_mail_has_comment(main_db, people):
     req = permissions.decide(main_db, people["top"], final, "reject")
     body = notify.result_message(req)[1]
     assert body.splitlines()[0] == "신청하신 권한이 최종 결재에서 반려되었습니다."
-    assert "반려 의견: (적지 않음)" in body and "괜찮아 보임" not in body
+    assert "반려 의견: (미입력)" in body and "괜찮아 보임" not in body
 
 
 def test_result_message_skips_unfinished():

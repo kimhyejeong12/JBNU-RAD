@@ -27,7 +27,7 @@ def _readable(exc: psycopg.IntegrityError) -> str:
     if exc.diag.constraint_name in _CONSTRAINT_TEXT:
         return _CONSTRAINT_TEXT[exc.diag.constraint_name]
     if isinstance(exc, psycopg.errors.ForeignKeyViolation):
-        return "없는 계정 · 신청을 가리킵니다"
+        return "없는 계정이나 신청을 가리킵니다"
     if isinstance(exc, psycopg.errors.CheckViolation):
         return "허용되지 않는 값입니다"
     return exc.diag.message_primary or str(exc)

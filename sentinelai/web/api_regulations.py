@@ -37,7 +37,7 @@ async def _exclusive(request: Request, work: Callable[[], Any], failed: str) -> 
     engine = request.app.state.engine
     health = await run_in_threadpool(engine.health)
     if not (health.get("connected") and health.get("embedding_ready")):
-        raise HTTPException(status_code=503, detail="AI 엔진에 닿지 않아 기준 문서를 적재할 수 없습니다. 엔진을 확인한 뒤 다시 하세요.")
+        raise HTTPException(status_code=503, detail="AI 엔진에 연결되지 않아 기준 문서를 적재할 수 없습니다. 엔진을 확인한 뒤 다시 하세요.")
     job = engine.exclusive(work)
     waited = 0.0
     while not job.finished.is_set():
@@ -109,7 +109,7 @@ async def extract_xlsx(request: Request) -> dict[str, Any]:
 async def upload(body: NewRegulation, request: Request, user: Approver) -> dict[str, str]:
     """같은 이름은 덮어쓰지 않고, 적재가 실패하면 올린 문서를 지웁니다."""
     if not NAME.fullmatch(body.name):
-        raise HTTPException(status_code=400, detail="기준 문서는 .md · .txt 파일만 올립니다 (이름에 / 없이 100자까지)")
+        raise HTTPException(status_code=400, detail="기준 문서는 .md, .txt 파일만 올립니다 (이름에 / 없이 100자까지)")
     if not body.content.strip():
         raise HTTPException(status_code=400, detail="빈 문서는 올릴 수 없습니다")
     db, engine = request.app.state.main_db, request.app.state.engine
@@ -125,7 +125,7 @@ async def upload(body: NewRegulation, request: Request, user: Approver) -> dict[
             regs.restore(db, body.name, None)
             raise
 
-    await _exclusive(request, work, "적재하지 못해 올리지 않았습니다")
+    await _exclusive(request, work, "적재에 실패해 업로드를 취소했습니다")
     _audit(request, user, "regulation_upload", body.name, {"chars": len(body.content), **({"source": body.source} if body.source else {})})
     return regs.get(db, body.name)
 
@@ -158,7 +158,7 @@ async def edit(name: str, body: EditRegulation, request: Request, user: Approver
             regs.restore(db, name, before)
             raise
 
-    await _exclusive(request, work, "적재하지 못해 고치지 않았습니다")
+    await _exclusive(request, work, "적재에 실패해 수정을 취소했습니다")
     _audit(request, user, "regulation_edit", name, {"reason": body.reason, "chars": len(body.content), "before": before})
     return regs.get(db, name)
 
@@ -186,6 +186,6 @@ async def remove(name: str, body: RemoveRegulation, request: Request, user: Appr
             regs.restore(db, name, before)
             raise
 
-    await _exclusive(request, work, "RAG 에서 빼지 못해 지우지 않았습니다")
+    await _exclusive(request, work, "RAG 에서 빼지 못해 삭제를 취소했습니다")
     _audit(request, user, "regulation_remove", name, {"reason": body.reason, "before": before})
     return {"name": name}
