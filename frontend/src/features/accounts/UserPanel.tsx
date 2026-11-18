@@ -17,7 +17,7 @@ import { noEnterSubmit } from "@/shared/lib/hooks";
 import { actionButton, field, input, note, panelFormGrid, primaryAction, rowInput, wideActions, wideField } from "@/shared/ui/styles";
 import { Icon } from "@/shared/ui/Icon";
 import { GroupBox, InfoRow, Switch } from "@/shared/ui/parts";
-import { ask } from "@/app/ui/ask";
+import { confirmBox } from "@/app/ui/confirm";
 import { checkForm } from "@/shared/lib/form";
 
 // 폼이 이름(role)으로 읽으므로 라디오는 글자로만 숨김
@@ -99,19 +99,19 @@ function EditUser({ u }: { u: UserRow }) {
     };
     // 부서 · 직무를 옮기면 지금 가진 권한을 AI 가 다시 판정함 (빈 칸을 처음 채우는 것은 이동이 아님)
     const moved = (["department", "job"] as const).filter((k) => (u[k] ?? "") !== "" && String(f.get(k) ?? "").trim() !== (u[k] ?? ""));
-    if (moved.length && !(await ask({
+    if (moved.length && !(await confirmBox({
       title: "부서 이동", confirm: "저장",
       message: `${u.display_name}의 ${moved.map((k) => (k === "department" ? "부서" : "직무")).join(", ")}를 바꿉니다. 가진 권한을 다시 판정합니다.`,
     }))) return;
     const leftOn = String(f.get("left_on") ?? "");
-    if (leftOn && leftOn !== u.left_on && !(await ask({
+    if (leftOn && leftOn !== u.left_on && !(await confirmBox({
       title: "퇴사일 적기", confirm: "저장", danger: true,
       message: `${u.display_name}의 퇴사일을 ${leftOn}로 적습니다.`,
     }))) return;
     if (canRole) {
       const role = f.get("role") as Role;
       // 저장하면 권한이 바로 오르내려서 역할이 바뀔 때만 물음
-      if (role !== u.role && !(await ask({
+      if (role !== u.role && !(await confirmBox({
         title: "역할 바꾸기", confirm: "바꾸기", danger: true,
         message: `${u.display_name}: ${ROLE_LABEL[u.role]} → ${ROLE_LABEL[role]}`,
       }))) return;
@@ -119,7 +119,7 @@ function EditUser({ u }: { u: UserRow }) {
     }
     // 상태도 [저장] 때 함께 — [취소]로 되돌릴 수 있게. 정지는 로그인을 막고 세션을 끊어서 정지할 때만 물음
     if (active !== u.is_active) {
-      if (!active && !(await ask({
+      if (!active && !(await confirmBox({
         title: "계정 정지", confirm: "정지", danger: true,
         message: `${u.display_name} 계정을 정지합니다. 로그인 중이면 바로 끊깁니다.`,
       }))) return;
@@ -129,7 +129,7 @@ function EditUser({ u }: { u: UserRow }) {
   }
   async function onReset() {
     if (!temp) return setPanelMsg("임시 비밀번호를 입력하세요");
-    if (!(await ask({
+    if (!(await confirmBox({
       title: "비밀번호 초기화", confirm: "초기화", danger: true,
       message: `${u.display_name}의 비밀번호를 임시 비밀번호로 바꿉니다.`,
     }))) return;

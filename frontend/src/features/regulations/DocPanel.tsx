@@ -11,7 +11,7 @@ import { actionButton, field, formActions, input, meta, note, noteError, primary
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useExtractPdf, useExtractXlsx, useRemoveRegulation, useUploadRegulation } from "./api";
 import { docItem, draftProblem, editProblem, isPdf, isXlsx, removeProblem, tablesText, textName, uploadProblem } from "./lib";
-import { ask } from "@/app/ui/ask";
+import { confirmBox } from "@/app/ui/confirm";
 
 // 다른 문서를 고르면 고치던 상태를 버리도록 문서 이름을 key 로 둠
 export function DocPanel({ d }: { d: Regulation | null }) {
@@ -192,13 +192,13 @@ function EditDoc({ d, edit, remove, onDone, onCancel }: {
     setTried("save");
     if (editProblem(d, { content, reason, typed })) return;
     const message = `${d.name}을(를) 수정합니다. 다음 판정부터 새 내용을 씁니다.`;
-    if (await ask({ title: "기준 문서 수정", confirm: "저장", message })) edit.mutate({ name: d.name, content, reason }, { onSuccess: onDone });
+    if (await confirmBox({ title: "기준 문서 수정", confirm: "저장", message })) edit.mutate({ name: d.name, content, reason }, { onSuccess: onDone });
   }
   async function onRemove() {
     setTried("remove");
     if (removeProblem(d, count, { reason, typed })) return;
     const message = `${d.name}을(를) 지웁니다. 다음 판정부터 근거에서 빠집니다.`;
-    if (await ask({ title: "기준 문서 지우기", confirm: "지우기", danger: true, message })) remove.mutate({ name: d.name, reason });
+    if (await confirmBox({ title: "기준 문서 지우기", confirm: "지우기", danger: true, message })) remove.mutate({ name: d.name, reason });
   }
   return (
     <form className="mt-3 flex flex-col gap-3" id="doc-edit" onKeyDown={noEnterSubmit} onSubmit={onSubmit}>

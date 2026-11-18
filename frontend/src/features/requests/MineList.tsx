@@ -11,7 +11,7 @@ import { Icon } from "@/shared/ui/Icon";
 import { usePage } from "@/shared/lib/hooks";
 import { Pager, Pill, Tile } from "@/shared/ui/parts";
 import { card, linkButton, stageColor, stageTone, msgTone } from "@/shared/ui/styles";
-import { ask } from "@/app/ui/ask";
+import { confirmBox } from "@/app/ui/confirm";
 
 // 한 쪽 4건 — 신청서와 아래 끝이 맞게 함
 const PAGE = 4;
@@ -126,7 +126,7 @@ function WithdrawButton({ r }: { r: RequestRow }) {
   const action = useRequestAction();
   if (!canWithdraw(r)) return null;
   const withdraw = async () => {
-    if (await ask({ title: "신청 철회", confirm: "철회", danger: true, message: `${r.request_no} 신청을 철회합니다.` })) action.mutate({ no: r.request_no, act: "withdraw" });
+    if (await confirmBox({ title: "신청 철회", confirm: "철회", danger: true, message: `${r.request_no} 신청을 철회합니다.` })) action.mutate({ no: r.request_no, act: "withdraw" });
   };
   return <button type="button" className={cn(linkButton, "self-center")} disabled={action.isPending} onClick={withdraw}>철회</button>;
 }

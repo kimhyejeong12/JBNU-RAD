@@ -1,5 +1,5 @@
 import { Fragment, useState, type ReactNode } from "react";
-import { ask } from "@/app/ui/ask";
+import { confirmBox } from "@/app/ui/confirm";
 import { useRequestAction, type RequestAct } from "./api";
 import { approvalFlow, moveText, type FlowState } from "./lib";
 import { useMe } from "@/app/session/me";
@@ -30,13 +30,13 @@ export function RequestPanel({ it }: { it: RequestItem }) {
   const rejudge = !r.judging && r.stage === "manager";
 
   const act = async (a: RequestAct) => {
-    if (a === "reject" && !(await ask({ title: "신청 반려", confirm: "반려", danger: true, message: `${no} 신청을 반려합니다. 반려하면 신청자는 새로 신청해야 합니다.` }))) return;
+    if (a === "reject" && !(await confirmBox({ title: "신청 반려", confirm: "반려", danger: true, message: `${no} 신청을 반려합니다. 반려하면 신청자는 새로 신청해야 합니다.` }))) return;
     if (a === "revoke") {
       if (!draft.reason.trim()) {
         setPanelMsg("회수 사유를 적어 주세요");
         return;
       }
-      if (!(await ask({ title: "권한 회수", confirm: "회수", danger: true, message: `${no} 권한을 회수합니다.` }))) return;
+      if (!(await confirmBox({ title: "권한 회수", confirm: "회수", danger: true, message: `${no} 권한을 회수합니다.` }))) return;
     }
     action.mutate({ no, act: a, ...draft }, { onSuccess: () => setDraft({ comment: "", reason: "" }) });
   };

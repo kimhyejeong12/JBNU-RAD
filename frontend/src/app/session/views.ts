@@ -1,7 +1,7 @@
 import type { StageFilter } from "@/app/ui/state/uiReducer";
 import type { Role } from "@/shared/api/types";
 
-export type MainTab = "queue" | "nodes" | "logs" | "overview" | "risk" | "stats" | "ustats" | "engine";
+export type MainTab = "queue" | "nodes" | "logs" | "overview" | "risk" | "stats" | "ustats" | "jobs";
 export type View = "requests" | "policies" | "stats" | "events" | "mine" | "users" | "access" | "docs" | "jobs";
 export type ItemType = "req" | "server" | "user" | "access" | "policy" | "pass" | "event" | "doc";
 
@@ -38,7 +38,7 @@ export const VIEWS: Record<View, ViewMeta> = {
   docs: { title: "기준 문서", label: "기준 문서", icon: "book", tip: "기준 문서",
           tabs: ["queue"], cols: ["문서", "파일", "고친 시각", "조항"], search: "검색" },
   jobs: { title: "큐", label: "큐", icon: "list", tip: "큐",
-              tabs: ["engine"], cols: [], search: "" },
+              tabs: ["jobs"], cols: [], search: "" },
 };
 
 export const ROLE_VIEWS: Record<Role, View[]> = {

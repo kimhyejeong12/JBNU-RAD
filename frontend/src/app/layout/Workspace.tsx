@@ -13,7 +13,7 @@ import { LogsTab } from "@/features/logs/LogsTab";
 import { StatsTab } from "@/features/stats/StatsTab";
 import { RiskTab } from "@/features/risk/RiskTab";
 import { OverviewTab } from "@/features/overview/OverviewTab";
-import { EngineTab } from "@/features/engine/EngineTab";
+import { JobsTab } from "@/features/jobs/JobsTab";
 import { RequestForm } from "@/features/requests/RequestForm";
 import { MineList } from "@/features/requests/MineList";
 import { cn } from "@/shared/lib/cn";
@@ -39,7 +39,7 @@ export function Workspace() {
         {ui.mainTab === "risk" ? <RiskTab /> : <section id="view-risk" role="tabpanel" aria-labelledby="tab-risk" hidden />}
         {stat ? <StatsTab /> : <div id="view-stats" role="tabpanel" aria-labelledby="tab-stats" hidden />}
         {ui.mainTab === "logs" ? <LogsTab /> : <section id="view-logs" role="tabpanel" aria-labelledby="tab-logs" hidden />}
-        {ui.mainTab === "engine" ? <EngineTab /> : <section id="view-engine" role="tabpanel" aria-labelledby="tab-engine" hidden />}
+        {ui.mainTab === "jobs" ? <JobsTab /> : <section id="view-jobs" role="tabpanel" aria-labelledby="tab-jobs" hidden />}
         <Footer />
       </div>
       {!noPanel && <RightPanel />}
