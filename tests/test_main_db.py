@@ -161,6 +161,8 @@ def test_full_approval_and_revoke(main_db, people, item, request_no):
     # 가진 권한은 다시 신청하지 못하고, 다른 권한 신청의 현재 보유 권한에 남습니다.
     with denied("이미 가진 권한입니다"):
         permissions.submit(main_db, people["user"], item["code"])
+    with denied("사용 종료일이 시작일보다 앞섭니다"):
+        permissions.submit(main_db, people["user"], "CRM_READ", "고객 응대", period_start="2026-12-01", period_end="2026-11-30")
     catalog.create(main_db, people["top"], "CRM_READ", "CRM 조회")
     second = permissions.submit(main_db, people["user"], "CRM_READ")
     assert second["request_no"].endswith("-002") and "급여 테이블 조회" in second["current_access"]
