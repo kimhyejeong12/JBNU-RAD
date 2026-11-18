@@ -1,6 +1,17 @@
 export const stamp = (iso: string | null | undefined): string =>
   iso ? new Date(iso).toLocaleString("sv-SE", { hour12: false }).slice(0, 16) : "";
 
+// 지난 일까지의 짧은 시간 — 목록 오른쪽 끝용 (방금, 5분 전, 4시간 전, 2일 전, 넘으면 날짜)
+export function ago(iso: string | null | undefined, now: Date = new Date()): string {
+  if (!iso) return "";
+  const min = Math.floor((now.getTime() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return "방금";
+  if (min < 60) return `${min}분 전`;
+  if (min < 1440) return `${Math.floor(min / 60)}시간 전`;
+  if (min < 1440 * 7) return `${Math.floor(min / 1440)}일 전`;
+  return dayTime(iso, now)[0];
+}
+
 export const stampRange = (from: string | null | undefined, to: string | null | undefined): string => `${stamp(from)} ~ ${stamp(to)}`;
 
 // 카드 머리 오른쪽 글 — 세는 중, 오류, 센 시작점

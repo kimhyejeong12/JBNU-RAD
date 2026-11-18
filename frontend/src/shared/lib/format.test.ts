@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { dayTime, niceMax, pageLinks, pct, person, points, rangeText, stamp } from "./format";
+import { ago, dayTime, niceMax, pageLinks, pct, person, points, rangeText, stamp } from "./format";
 
 test("points: 줄이 여럿이면 줄마다, 번호 떼고 소제목 따로", () => {
   expect(points("1. 직무 연관성: 연관성이 부족합니다.\n2. 사용 기간: 적당합니다.")).toEqual([
@@ -71,4 +71,14 @@ test("rangeText: 세는 중, 오류, 시작점", () => {
   expect(rangeText({ isFetching: false, error: null })).toBe("");
   expect(rangeText({ isFetching: false, error: null, data: { since: "" } }, "완료율 ")).toBe("완료율 처음부터");
   expect(rangeText({ isFetching: false, error: null, data: { since: "2026-11-01T00:00:00+09:00" } }, "완료율 ")).toMatch(/^완료율 .+ 부터$/);
+});
+
+test("지난 일까지의 짧은 시간 — 일주일이 넘으면 날짜", () => {
+  const now = new Date("2026-11-18T20:00:00+09:00");
+  expect(ago("2026-11-18T19:59:40+09:00", now)).toBe("방금");
+  expect(ago("2026-11-18T19:55:00+09:00", now)).toBe("5분 전");
+  expect(ago("2026-11-18T16:00:00+09:00", now)).toBe("4시간 전");
+  expect(ago("2026-11-16T20:00:00+09:00", now)).toBe("2일 전");
+  expect(ago("2026-11-01T09:00:00+09:00", now)).toBe("11-01");
+  expect(ago(null, now)).toBe("");
 });

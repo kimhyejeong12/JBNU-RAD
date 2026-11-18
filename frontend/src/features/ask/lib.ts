@@ -12,6 +12,7 @@ export const TOOLS: Record<string, { label: string; icon: string }> = {
   servers: { label: "서버", icon: "server" },
   person: { label: "사람", icon: "users" },
   findings: { label: "AI 판정", icon: "eye" },
+  query: { label: "권한 DB", icon: "db" },
 };
 
 const CRITERIA_LABEL: Record<string, string> = {
@@ -41,16 +42,17 @@ export function stepText(s: AskStep): string {
 
 export const ASK = {
   placeholder: "무엇이든 물어보세요",
-  empty: "기준 문서, 로그, 서버, 사람, AI 판정에서 찾아 답합니다.",
-  examples: [
-    "영업팀이 급여 테이블(HR_SALARY)에 접근해도 돼?",
-    "재무 정다은이 출력을 몇 번 했어?",
-    "SSH 루트 로그인이 열린 서버와 근거 조항은?",
-    "예외 처리된 출력이 있었어?",
-    "박민수가 받은 위험 판정과 걸린 조항은?",
-    "지금 방화벽에 문제가 있는 서버는?",
-  ],
+  empty: "무엇을 도와드릴까요?",
 };
+
+// 빈 대화의 분류별 예시 질문 — 도구가 찾을 수 있는 곳으로 나누고, 실제 데이터에서도 통하게 사람 이름 · 기간은 넣지 않음
+export const ASK_TOPICS: { label: string; icon: string; questions: string[] }[] = [
+  { label: "기준 문서", icon: "book", questions: ["급여 정보에 접근할 수 있는 기준은?", "방화벽 정책을 만들 때 지킬 원칙은?", "개인 클라우드 업로드는 기준상 허용돼?"] },
+  { label: "권한", icon: "key", questions: ["급여 테이블 권한을 가진 사람은?", "사용 기간이 곧 끝나는 권한은?", "AI가 위험으로 봤는데 승인된 신청은?"] },
+  { label: "로그", icon: "search", questions: ["예외 승인된 출력 기록은?", "출력을 가장 많이 한 사람은?", "솔루션별 로그 건수는?"] },
+  { label: "서버", icon: "server", questions: ["SSH 루트 로그인이 열린 서버는?", "방화벽에 문제가 있는 서버는?", "최근 설정이 바뀐 서버는?"] },
+  { label: "AI 판정", icon: "eye", questions: ["위험 판정을 받은 사람은?", "의심 점수가 높은 사람은?", "정책 관리 검토에서 나온 문제는?"] },
+];
 
 // 기다리는 항목을 먼저 캐시에 넣어 탭을 떠나도 남게 함
 export function useAsk(conversation: string) {
