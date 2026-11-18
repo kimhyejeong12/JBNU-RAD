@@ -55,9 +55,9 @@ def results(policies: dict[str, Any] | None, events: dict[str, Any] | None, node
     findings = [f for f in judged if f["level"] in REVIEW_LEVELS]
     servers = [server(f) for f in node_findings]
     if policies and policies["failed"]:
-        policy_review = {"summary": f"판정 실패: {policies['error']}", "issues": [], "elapsed_sec": policies["elapsed_sec"]}
+        policy_review = {"summary": f"판정 실패: {policies['error']}", "issues": [], "passed": [], "elapsed_sec": policies["elapsed_sec"]}
     elif policies:
-        policy_review = {k: policies[k] for k in ("summary", "issues", "elapsed_sec")}
+        policy_review = {k: policies[k] for k in ("summary", "issues", "passed", "elapsed_sec")}
     else:
         policy_review = None
     issues = policy_review["issues"] if policy_review else []

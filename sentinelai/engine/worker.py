@@ -17,7 +17,7 @@ from ..context import Built, Prompts
 from ..context import precedent as prec
 from ..db import permissions, regulations, results
 from .queue import Batch, Job, Queues
-from .ground import ground
+from .ground import ground, regulation_sources
 from .rag import IndexReport
 from .resource import Resources
 
@@ -37,7 +37,7 @@ class Verdict(BaseModel):
 
     level: RiskLevel = Field(description="위험 등급")
     reason: str = Field(description="그렇게 판단한 이유")
-    sources: list[str] = Field(description="근거로 삼은 기준 문서 식별자 목록")
+    sources: list[str] = Field(description="근거 조항 — 기준 문서 이름과 조항 번호만 (예: 접근권한_관리기준.md 3.3). 입력 칸 이름 · 로그 · 기록은 넣지 않는다")
     recommendation: str = Field(description="개선안 또는 권고 조치")
 
 
@@ -79,10 +79,18 @@ class PolicyIssue(BaseModel):
     recommendation: str = Field(description="개선안")
 
 
+class PolicyPass(BaseModel):
+    """검토해 문제가 없다고 본 조항 하나."""
+
+    policy_id: str = Field(description="조항 (문서 이름과 조항 번호, 예: 정책_운영기준.md 5.1)")
+    reason: str = Field(description="문제가 없다고 본 이유 한 줄")
+
+
 class PolicyReview(BaseModel):
     """기준 문서 검토 결과 전체."""
 
     issues: list[PolicyIssue] = Field(description="발견된 문제 목록. 없으면 빈 목록")
+    passed: list[PolicyPass] = Field(description="문제 목록에 들지 않은 조항마다 정상으로 본 이유. 문제 목록의 조항은 넣지 않는다")
     summary: str = Field(description="검토 요약")
 
 
@@ -277,7 +285,12 @@ class Worker:
                     result = {**result, **again, "elapsed_sec": round(result["elapsed_sec"] + review["elapsed_sec"], 1)}
                 else:
                     result["elapsed_sec"] = round(result["elapsed_sec"] + review["elapsed_sec"], 1)
+        dropped: list[str] = []
+        if "sources" in result:
+            result["sources"], dropped = regulation_sources(result["sources"], built)
         result["grounding"] = ground(result, built) if verdict is not None else {"checks": []}
+        if dropped:
+            result["grounding"]["checks"].append(f"근거에서 조항이 아닌 것을 뺐습니다: {', '.join(dropped)}")
         if review is not None:
             result["grounding"]["precedent"] = review
             result["grounding"]["checks"] += review.pop("checks", [])

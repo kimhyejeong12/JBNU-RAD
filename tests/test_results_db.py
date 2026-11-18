@@ -13,9 +13,11 @@ def test_policy_review(results_db):
         "summary": "충돌 1건", "failed": False,
         "elapsed_sec": 12.5,
         "issues": [{"kind": "충돌", "level": "위험", "policy_ids": ["SWG-001", "DLP-001"], "reason": "업로드", "recommendation": "차단"}],
+        "passed": [{"policy_id": "정책_운영기준.md 5.1", "reason": "DENY 우선과 맞음"}],
     }, "qwen3:14b")
     review = results.latest_policy_review(results_db)
     assert review["id"] == rid and review["elapsed_sec"] == 12.5
+    assert review["passed"] == [{"policy_id": "정책_운영기준.md 5.1", "reason": "DENY 우선과 맞음"}]
     assert review["issues"][0]["policy_ids"] == ["SWG-001", "DLP-001"]
     key = review["issues"][0]["key"]
     assert results.findings_by_key(results_db, [key, "policy_issues/x", "other/1"])[key]["kind"] == "충돌"
