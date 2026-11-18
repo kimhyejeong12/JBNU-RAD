@@ -43,12 +43,12 @@ export const VIEWS: Record<View, ViewMeta> = {
 
 export const ROLE_VIEWS: Record<Role, View[]> = {
   user: ["mine"],
-  manager: ["requests", "policies", "events", "stats", "access", "users", "docs", "jobs"],
-  top: ["requests", "policies", "events", "stats", "access", "users", "docs", "jobs"],
+  manager: ["requests", "policies", "events", "stats", "users", "access", "docs", "jobs"],
+  top: ["requests", "policies", "events", "stats", "users", "access", "docs", "jobs"],
 };
 // 로그인 뒤 첫 화면 — 보안 운영자는 처리할 결재, 보안 총책임자는 보안 현황 종합 대시보드
 export const HOME: Record<Role, View> = { user: "mine", manager: "requests", top: "stats" };
-const ADMIN_VIEWS: readonly View[] = ["access", "users", "docs", "jobs"];
+const ADMIN_VIEWS: readonly View[] = ["users", "access", "docs", "jobs"];
 export const isAdminView = (v: View | null): boolean => v !== null && ADMIN_VIEWS.includes(v);
 export const RESULT_VIEWS: ReadonlySet<View> = new Set<View>(["policies", "events"]);
 export const LEVEL_VIEWS: ReadonlySet<View> = new Set<View>(["requests", "policies", "events"]);

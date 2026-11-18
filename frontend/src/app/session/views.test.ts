@@ -15,8 +15,8 @@ test("사이드바 구역 — 역할 메뉴 순서대로 묶고, 관리 메뉴�
   const groups = [["결재", ["requests"]], ["보안 운영", ["policies", "events", "stats"]]];
   expect(navGroups(ROLE_VIEWS.manager)).toEqual(groups);
   expect(navGroups(ROLE_VIEWS.top)).toEqual(groups);
-  expect(ROLE_VIEWS.manager.filter(isAdminView)).toEqual(["access", "users", "docs", "jobs"]);
-  expect(ROLE_VIEWS.top.filter(isAdminView)).toEqual(["access", "users", "docs", "jobs"]);
+  expect(ROLE_VIEWS.manager.filter(isAdminView)).toEqual(["users", "access", "docs", "jobs"]);
+  expect(ROLE_VIEWS.top.filter(isAdminView)).toEqual(["users", "access", "docs", "jobs"]);
 });
 
 test("새로고침 뒤 마지막 화면 — 이 역할에 있는 메뉴 · 탭만 쓰고, 없으면 null 이나 첫 탭", () => {
