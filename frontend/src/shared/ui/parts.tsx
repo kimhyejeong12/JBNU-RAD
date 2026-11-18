@@ -17,6 +17,17 @@ export function LevelLabel({ level }: { level: Level }) {
   return <span className={cn("flex items-center gap-1.25 whitespace-nowrap font-semibold", levelText[level])}><Icon name={LEVEL_ICON[level]} small />{level}</span>;
 }
 
+// 표의 두 줄 칸 — 대상(굵게) 위, 이유 · 의견(회색) 아래 한 줄씩, 전체 글은 툴팁 (종합 대시보드 · 보안 현황)
+export function TwoLine({ title, note: sub }: { title: ReactNode; note?: ReactNode }) {
+  const tip = typeof title === "string" && typeof sub === "string" && sub ? `${title}|${sub}` : undefined;
+  return (
+    <span className="block min-w-0" data-tip={tip}>
+      <b className="line-clamp-1">{title}</b>
+      {sub && <small className="line-clamp-1 text-[12px] text-ink-dim">{sub}</small>}
+    </span>
+  );
+}
+
 // 알약 모양 배지 — 색은 tone 으로 줌
 export function Pill({ tone = "border-line text-ink-soft", className, children }: { tone?: string; className?: string; children: ReactNode }) {
   return <span className={cn("inline-flex items-center rounded-full border border-solid px-2 py-px text-[12px] font-bold whitespace-nowrap", tone, className)}>{children}</span>;

@@ -36,6 +36,12 @@ export function StateCell({ text, tone }: { text: string; tone: string }) {
   );
 }
 
+// 표의 처리 상태 칸 — 결정 없음은 글만, 결정이 있으면 배지 (종합 대시보드 · 보안 현황)
+export function DecisionCell({ decision }: { decision: Pick<Decision, "action"> | null | undefined }) {
+  const s = decisionState(decision);
+  return decision ? <StateCell {...s} /> : <span className="whitespace-nowrap text-ink-dim">{s.text}</span>;
+}
+
 export function DecisionBadge({ decision }: { decision: Pick<Decision, "action"> | null | undefined }) {
   const s = decisionState(decision);
   return <Pill tone={s.tone} className={squarePill}>{s.text}</Pill>;

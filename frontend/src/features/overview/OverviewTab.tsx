@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AREA_COLOR, AREA_ICON, arcs, delta, deltaText, firstTodos, ofText, rateText, useGo, type Go } from "./lib";
 import { useJobs } from "@/app/session/data";
-import { StateCell } from "@/app/ui/panel/DecisionFoot";
+import { DecisionCell, StateCell } from "@/app/ui/panel/DecisionFoot";
 import { decisionState } from "@/app/ui/panel/decision";
 import { useUi } from "@/app/ui/state/UiContext";
 import { useStartJob } from "@/shared/api/jobs";
@@ -12,7 +12,7 @@ import { dayTime, niceMax, slotAt, stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/Icon";
 import { usePage } from "@/shared/lib/hooks";
-import { LevelDot, LevelLabel, Pager, Periods, Tile, CardHead } from "@/shared/ui/parts";
+import { LevelDot, LevelLabel, Pager, Periods, Tile, TwoLine, CardHead } from "@/shared/ui/parts";
 import { DataTable, Legend, XTicks, YGrid } from "@/shared/ui/charts";
 import { card, cardCount, levelText, markTone, toolButton, cardNote, tileGrid } from "@/shared/ui/styles";
 import { STAT_PERIODS } from "@/shared/lib/labels";
@@ -220,9 +220,9 @@ function Issues({ id, title, rows, empty, go }: { id: string; title: string; row
           cells: [
             <Day key="o" iso={r.opened_at} />,
             <Area key="a" area={r.area} label={r.area_label} />,
-            <Content key="c" subject={r.subject} note={r.reason} />,
+            <TwoLine key="c" title={r.subject} note={r.reason} />,
             r.level ? <LevelLabel key="l" level={r.level} /> : <span key="l" className="text-ink-dim">판정 실패</span>,
-            <State key="d" decision={r.decision} />,
+            <DecisionCell key="d" decision={r.decision} />,
           ],
         }))} />
       {pages > 1 && <Pager className="py-3" at={at} pages={pages} onPage={setPage} />}
@@ -244,7 +244,7 @@ function Recent({ d, span, go }: { d: Overview; span: string; go: Go }) {
           cells: [
             <Day key="t" iso={r.at} />,
             <Area key="a" area={r.area} label={r.area_label} />,
-            <Content key="c" subject={r.subject} note={r.note} />,
+            <TwoLine key="c" title={r.subject} note={r.note} />,
             <StateCell key="l" text={r.label} tone={DONE_TONE} />,
           ],
         }))} />
@@ -264,20 +264,4 @@ function Day({ iso }: { iso: string }) {
 // 유형 — 상자 없이 메뉴 기호와 회색 글
 function Area({ area, label }: { area: OverviewRow["area"]; label: string }) {
   return <span className="flex items-center gap-1 whitespace-nowrap text-ink-soft"><Icon name={AREA_ICON[area]} small />{label}</span>;
-}
-
-// 처리 상태 — 결정 없음은 글만, 결정이 있으면 배지 (조치 필요 · 승인 · 조건부 승인)
-function State({ decision }: { decision: OverviewRow["decision"] }) {
-  const s = decisionState(decision);
-  return decision ? <StateCell {...s} /> : <span className="whitespace-nowrap text-ink-dim">{s.text}</span>;
-}
-
-// 내용 — 대상(굵게) 위, 이유 · 의견(회색) 아래 한 줄씩, 전체 글은 툴팁
-function Content({ subject, note }: { subject: string; note?: string }) {
-  return (
-    <span className="block min-w-0" data-tip={note ? `${subject}|${note}` : undefined}>
-      <b className="line-clamp-1">{subject}</b>
-      {note && <small className="line-clamp-1 text-[12px] text-ink-dim">{note}</small>}
-    </span>
-  );
 }
