@@ -8,7 +8,6 @@ import { useClearQueue, useQueueDetail, LANE_ROWS, jobIcon, jobName, jobRows, jo
 
 const ROWS = "m-0 list-none divide-y divide-line border-t border-line p-0";
 const ROW = "flex items-center gap-3 px-4.5 py-2.75";
-const ICON_BOX = "flex size-8 flex-none items-center justify-center rounded-lg bg-canvas text-ink-soft";
 const at = (iso: string | null | undefined) => dayTime(iso).join(" ");
 
 // 왼쪽 작업 큐(실시간), 오른쪽 작업별 실행(예약 · 마지막 실행)
@@ -86,10 +85,13 @@ function Jobs({ d }: { d: QueueDetail }) {
         <ul className={ROWS}>
           {rows.map((r) => (
             <li key={r.kind} className={ROW}>
-              <span className={ICON_BOX}><Icon name={jobIcon(r.kind)} small /></span>
-              <span className="min-w-0 flex-1">
-                <b className="block truncate text-[13.5px]">{jobName(d, r.kind)}</b>
-                <small className="text-[12px] text-ink-dim tabular-nums">{r.everyMin ? `${r.everyMin}분마다` : "예약 없음"}</small>
+              {/* 기호는 이름 · 간격 두 줄의 가운데 */}
+              <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                <Icon name={jobIcon(r.kind)} small className="flex-none text-ink-soft" />
+                <span className="min-w-0">
+                  <b className="block truncate text-[13.5px]">{jobName(d, r.kind)}</b>
+                  <small className="block text-[12px] text-ink-dim tabular-nums">{r.everyMin ? `${r.everyMin}분마다` : "예약 없음"}</small>
+                </span>
               </span>
               <span className="flex flex-col items-end gap-0.5 text-[12px] leading-tight text-ink-dim tabular-nums">
                 {r.nextAt && <span>다음 <b className="text-ink">{at(r.nextAt)}</b></span>}
