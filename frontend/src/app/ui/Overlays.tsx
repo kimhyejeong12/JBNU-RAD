@@ -35,7 +35,8 @@ export function TooltipLayer() {
       tip.style.left = `${left / z}px`;
       tip.style.top = `${top / z}px`;
       tip.dataset.pos = pos;
-      requestAnimationFrame(() => { tip.dataset.show = ""; });
+      // 그 사이 hide 가 불렸으면(누르기 등) 띄우지 않음
+      requestAnimationFrame(() => { if (target === el) tip.dataset.show = ""; });
     };
     const hide = () => {
       clearTimeout(timer);
