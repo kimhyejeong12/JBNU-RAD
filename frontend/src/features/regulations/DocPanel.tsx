@@ -108,9 +108,10 @@ function UploadDoc() {
         </div>
       )}
       {problem && <p className={noteError}>{problem}</p>}
+      {busy && !problem && <p className={note}>{busy} 끝난 뒤 적용됩니다.</p>}
       <div className={cn(formActions, "mt-3")}>
         <PanelMsg />
-        <button type="submit" className={primaryAction} disabled={upload.isPending || pending}>{upload.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "업로드하는 중…") : "업로드"}</button>
+        <button type="submit" className={primaryAction} disabled={upload.isPending || pending}>{upload.isPending ? (busy ? "대기 중…" : "업로드하는 중…") : "업로드"}</button>
       </div>
     </form>
     </Panel>
@@ -201,7 +202,7 @@ function EditDoc({ d, edit, onDone, onCancel, onRemove }: { d: Regulation; edit:
       </label>
       {problem && <p className={cn(note, tried && "text-risk")}>{problem}</p>}
       {busy && !problem && <p className={note}>{busy} 끝난 뒤 적용됩니다.</p>}
-      <EditActions onCancel={onCancel} busy={edit.isPending && (busy ? `${busy} 끝나기를 기다리는 중…` : "적재하는 중…")}
+      <EditActions onCancel={onCancel} busy={edit.isPending && (busy ? "대기 중…" : "적재하는 중…")}
         left={<button type="button" className={cn(actionButton, "mr-auto text-risk")} onClick={onRemove} disabled={edit.isPending}>문서 지우기</button>} />
     </form>
   );
@@ -236,7 +237,7 @@ function RemoveDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
       <div className={formActions}>
         <PanelMsg />
         <button type="button" className={actionButton} onClick={onClose} disabled={remove.isPending}>취소</button>
-        <button type="submit" className={dangerAction} disabled={remove.isPending}>{remove.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "지우는 중…") : "지우기"}</button>
+        <button type="submit" className={dangerAction} disabled={remove.isPending}>{remove.isPending ? (busy ? "대기 중…" : "지우는 중…") : "지우기"}</button>
       </div>
     </form>
   );

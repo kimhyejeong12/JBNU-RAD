@@ -46,7 +46,8 @@ export const linkButton = "self-start border-none bg-transparent p-0 text-[11px]
 export const formActions = "flex items-center justify-end gap-2";
 export const wideActions = `${formActions} col-span-full`;
 export const panelActions = "mt-1.5 flex gap-2";
-export const actionButton = "h-9 rounded-lg border border-line bg-surface px-4 font-bold";
+// 버튼 글은 줄을 바꾸지 않음
+export const actionButton = "h-9 whitespace-nowrap rounded-lg border border-line bg-surface px-4 font-bold";
 export const primaryButton = "border-brand bg-brand text-white hover:border-brand-hover hover:bg-brand-hover";
 export const dangerButton = "border-risk bg-risk text-white";
 export const goodButton = "border-ok-line bg-ok-tint text-ok";
