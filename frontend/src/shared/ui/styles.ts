@@ -8,7 +8,8 @@ import { stageGroup, today, type StageGroup } from "@/shared/lib/request";
 export const card = "rounded-xl border border-line bg-surface";
 export const cardCol = `${card} flex flex-col`;
 export const empty = "px-4.5 py-9 text-center text-ink-dim";
-export const panelBody = "flex-1 overflow-auto px-4.5 py-4";
+// 아래 여백은 끝까지 내렸을 때 마지막 버튼이 오른쪽 아래 질의 버튼에 가리지 않게 함
+export const panelBody = "flex-1 overflow-auto px-4.5 pt-4 pb-18";
 export const panelFoot = "border-t border-line bg-surface px-4.5 py-2.5";
 export const panelFootTitle = "m-0 mb-1.5 text-[12.5px] font-bold";
 export const subject = "m-0 mb-1 text-[15px] font-bold";
