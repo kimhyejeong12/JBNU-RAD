@@ -38,7 +38,7 @@ test("고치기 확인 — 바뀐 내용 · 사유 · 파일 이름을 똑같이
   expect(editProblem(doc, ok)).toBeNull();
   expect(editProblem(doc, { ...ok, content: doc.content })).toBe("바뀐 내용이 없습니다");
   expect(editProblem(doc, { ...ok, content: "  \n" })).toBe("빈 문서로 고칠 수 없습니다");
-  expect(editProblem(doc, { ...ok, reason: " " })).toBe("고치는 사유를 적으세요");
+  expect(editProblem(doc, { ...ok, reason: " " })).toBe("사유를 적으세요");
   expect(editProblem(doc, { ...ok, typed: "접근권한" })).toBe("확인 칸에 파일 이름을 똑같이 입력하세요");
 });
 
@@ -46,7 +46,7 @@ test("지우기 확인 — 마지막 문서는 안 되고, 사유 · 파일 이�
   const ok = { reason: "새 기준으로 바뀜", typed: "접근권한_관리기준.md" };
   expect(removeProblem(doc, 2, ok)).toBeNull();
   expect(removeProblem(doc, 1, ok)).toBe("마지막 기준 문서는 지울 수 없습니다. 새 문서를 먼저 업로드하세요");
-  expect(removeProblem(doc, 2, { ...ok, reason: " " })).toBe("지우는 사유를 적으세요");
+  expect(removeProblem(doc, 2, { ...ok, reason: " " })).toBe("사유를 적으세요");
   expect(removeProblem(doc, 2, { ...ok, typed: "접근권한" })).toBe("확인 칸에 파일 이름을 똑같이 입력하세요");
 });
 

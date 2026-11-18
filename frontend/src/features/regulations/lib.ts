@@ -45,14 +45,14 @@ export function draftProblem(draft: { name: string; content: string }, existing:
 export function editProblem(d: { name: string; content: string }, form: { content: string; reason: string; typed: string }): string | null {
   if (!form.content.trim()) return "빈 문서로 고칠 수 없습니다";
   if (form.content === d.content) return "바뀐 내용이 없습니다";
-  if (!form.reason.trim()) return "고치는 사유를 적으세요";
+  if (!form.reason.trim()) return "사유를 적으세요";
   if (form.typed.trim() !== d.name) return "확인 칸에 파일 이름을 똑같이 입력하세요";
   return null;
 }
 
 export function removeProblem(d: { name: string }, count: number, form: { reason: string; typed: string }): string | null {
   if (count <= 1) return "마지막 기준 문서는 지울 수 없습니다. 새 문서를 먼저 업로드하세요";
-  if (!form.reason.trim()) return "지우는 사유를 적으세요";
+  if (!form.reason.trim()) return "사유를 적으세요";
   if (form.typed.trim() !== d.name) return "확인 칸에 파일 이름을 똑같이 입력하세요";
   return null;
 }

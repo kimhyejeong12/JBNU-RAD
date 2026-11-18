@@ -7,7 +7,7 @@ import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
 import { GroupBox, Meta, Section } from "@/shared/ui/parts";
-import { actionButton, field, formActions, input, meta, note, dangerAction, noteError, primaryAction } from "@/shared/ui/styles";
+import { actionButton, field, formActions, input, meta, note, noteError, primaryAction } from "@/shared/ui/styles";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useExtractPdf, useExtractXlsx, useRemoveRegulation, useUploadRegulation } from "./api";
 import { docItem, draftProblem, editProblem, isPdf, isXlsx, removeProblem, tablesText, textName, uploadProblem } from "./lib";
@@ -122,12 +122,12 @@ function UploadDoc() {
 function DocView({ d }: { d: Regulation }) {
   const it = docItem(d, useRegulationIndex(true));
   const edit = useEditRegulation();
+  const remove = useRemoveRegulation();
   const [mode, setMode] = useState<PanelMode>("view");
-  const [removing, setRemoving] = useState(false);
-  // [취소]와 머리 ×가 같음 — 기다리던 고치기를 멈추면 쓰던 글은 남기고, 이미 적재가 시작됐으면 닫음
+  // [취소]와 머리 ×가 같음 — 기다리던 고치기를 멈추면 쓰던 글은 남기고, 이미 적재가 시작됐으면 닫음. 지우는 중에는 그대로 둠
   async function leave() {
+    if (remove.isPending) return;
     if (edit.isPending && !(await edit.cancel(d))) return;
-    setRemoving(false);
     setMode("view");
   }
   const record: PanelRecord = {
@@ -139,8 +139,7 @@ function DocView({ d }: { d: Regulation }) {
       <RecordHead record={record} title={it.who} info={[d.name, d.updated_at && `고친 시각 ${stamp(d.updated_at)}`, `조항 ${it.judge}`]}
         state={it.sub ? { on: it.sub === "검색 가능", text: it.sub } : undefined} />
       {mode === "edit" ? (
-        removing ? <RemoveDoc d={d} onClose={() => void leave()} />
-          : <EditDoc d={d} edit={edit} onDone={() => setMode("view")} onCancel={() => void leave()} onRemove={() => setRemoving(true)} />
+        <EditDoc d={d} edit={edit} remove={remove} onDone={() => setMode("view")} onCancel={() => void leave()} />
       ) : (
         <>
           <SearchState name={d.name} />
@@ -174,20 +173,32 @@ const StateLine = ({ ok, children }: { ok: boolean; children: string }) => (
   <li className="flex items-center gap-1.5"><Icon name={ok ? "ok" : "warn"} small className={ok ? "text-ok" : "text-warn"} />{children}</li>
 );
 
-// 판정의 근거가 바뀌므로 사유와 파일 이름을 입력해야 버튼이 켜짐
-function EditDoc({ d, edit, onDone, onCancel, onRemove }: { d: Regulation; edit: ReturnType<typeof useEditRegulation>; onDone: () => void; onCancel: () => void; onRemove: () => void }) {
+// 판정의 근거가 바뀌므로 사유와 파일 이름을 입력해야 함 — [저장]과 [문서 지우기]가 같은 두 칸을 씀
+function EditDoc({ d, edit, remove, onDone, onCancel }: {
+  d: Regulation; edit: ReturnType<typeof useEditRegulation>; remove: ReturnType<typeof useRemoveRegulation>; onDone: () => void; onCancel: () => void;
+}) {
   const busy = busyJob(useJobs());
+  const count = useRegulations().length;
   const [content, setContent] = useState(d.content);
   const [reason, setReason] = useState("");
   const [typed, setTyped] = useState("");
-  const problem = editProblem(d, { content, reason, typed });
-  const [tried, setTried] = useState(false);
+  // 누른 버튼에 맞는 안내를 보임 — 누르기 전에는 수정 안내
+  const [tried, setTried] = useState<"save" | "remove" | null>(null);
+  const problem = tried === "remove" ? removeProblem(d, count, { reason, typed }) : editProblem(d, { content, reason, typed });
+  const pending = edit.isPending || remove.isPending;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (problem) return setTried(true);
+    setTried("save");
+    if (editProblem(d, { content, reason, typed })) return;
     const message = `${d.name}을(를) 수정합니다. 다음 판정부터 새 내용을 씁니다.`;
     if (await ask({ title: "기준 문서 수정", confirm: "저장", message })) edit.mutate({ name: d.name, content, reason }, { onSuccess: onDone });
+  }
+  async function onRemove() {
+    setTried("remove");
+    if (removeProblem(d, count, { reason, typed })) return;
+    const message = `${d.name}을(를) 지웁니다. 다음 판정부터 근거에서 빠집니다.`;
+    if (await ask({ title: "기준 문서 지우기", confirm: "지우기", danger: true, message })) remove.mutate({ name: d.name, reason });
   }
   return (
     <form className="mt-3 flex flex-col gap-3" id="doc-edit" onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
@@ -195,50 +206,19 @@ function EditDoc({ d, edit, onDone, onCancel, onRemove }: { d: Regulation; edit:
         <textarea className={cn(input, "resize-y font-normal")} rows={18} value={content} onChange={(e) => setContent(e.target.value)} />
       </label>
       <label className={field}>사유
-        <input className={input} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="예: 매체 반출 조항 추가" />
+        <input className={input} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="예: 조항 추가, 새 문서로 교체" />
       </label>
       <label className={field}>파일 이름 확인
         <input className={input} value={typed} autoComplete="off" onChange={(e) => setTyped(e.target.value)} placeholder={d.name} />
       </label>
       {problem && <p className={cn(note, tried && "text-risk")}>{problem}</p>}
       {busy && !problem && <p className={note}>{busy} 끝난 뒤 적용됩니다.</p>}
-      <EditActions onCancel={onCancel} busy={edit.isPending && (busy ? "대기 중…" : "적재하는 중…")}
-        left={<button type="button" className={cn(actionButton, "mr-auto text-risk")} onClick={onRemove} disabled={edit.isPending}>문서 지우기</button>} />
-    </form>
-  );
-}
-
-function RemoveDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
-  const remove = useRemoveRegulation();
-  const busy = busyJob(useJobs());
-  const count = useRegulations().length;
-  const [reason, setReason] = useState("");
-  const [typed, setTyped] = useState("");
-  const [tried, setTried] = useState(false);
-  const problem = removeProblem(d, count, { reason, typed });
-
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (problem) return setTried(true);
-    const message = `${d.name}을(를) 지웁니다. 다음 판정부터 근거에서 빠집니다.`;
-    if (await ask({ title: "기준 문서 지우기", confirm: "지우기", danger: true, message })) remove.mutate({ name: d.name, reason });
-  }
-
-  return (
-    <form className="mt-3 flex flex-col gap-3" id="doc-remove" onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
-      <label className={field}>지우는 사유 (감사 기록에 남습니다)
-        <input className={input} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="예: 새 기준 문서로 교체" />
-      </label>
-      <label className={field}>확인 — 파일 이름을 똑같이 입력하세요
-        <input className={input} value={typed} autoComplete="off" onChange={(e) => setTyped(e.target.value)} placeholder={d.name} />
-      </label>
-      {problem && <p className={cn(note, (tried || count <= 1) && "text-risk")}>{problem}</p>}
-      {busy && !problem && <p className={note}>{busy} 끝난 뒤 적용됩니다.</p>}
-      <div className={formActions}>
-        <PanelMsg />
-        <button type="button" className={actionButton} onClick={onClose} disabled={remove.isPending}>취소</button>
-        <button type="submit" className={dangerAction} disabled={remove.isPending}>{remove.isPending ? (busy ? "대기 중…" : "지우는 중…") : "지우기"}</button>
-      </div>
+      <EditActions onCancel={onCancel} busy={pending && (edit.isPending ? (busy ? "대기 중…" : "적재하는 중…") : "저장")}
+        left={(
+          <button type="button" className={cn(actionButton, "mr-auto text-risk")} onClick={() => void onRemove()} disabled={pending}>
+            {remove.isPending ? (busy ? "대기 중…" : "지우는 중…") : "문서 지우기"}
+          </button>
+        )} />
     </form>
   );
 }
