@@ -448,6 +448,7 @@ class PolicyReview(BaseModel):
 
     summary: str
     issues: list[PolicyIssue]
+    passed: list[judged.PolicyPass]   # 문제가 없다고 본 조항 · 이유
     elapsed_sec: float | None
 
 

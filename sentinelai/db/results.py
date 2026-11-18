@@ -31,10 +31,10 @@ def save_policy_review(db: Database, review: dict[str, Any], model: str) -> int:
     """→ policy_reviews.id"""
     with db.transaction() as conn:
         rid = conn.execute(
-            "INSERT INTO policy_reviews (summary, failed, error, model, elapsed_sec, created_at, grounding)"
-            " VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            "INSERT INTO policy_reviews (summary, failed, error, model, elapsed_sec, created_at, grounding, passed)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (review.get("summary", ""), int(review["failed"]), review.get("error"), model, review.get("elapsed_sec"), now(),
-             _json(review.get("grounding", {}))),
+             _json(review.get("grounding", {})), _json(review.get("passed", []))),
         ).fetchone()[0]
         conn.cursor().executemany(
             "INSERT INTO policy_issues (review_id, seq, kind, level, policy_ids, reason, recommendation) VALUES (%s,%s,%s,%s,%s,%s,%s)",
@@ -76,6 +76,7 @@ def latest_policy_review(db: Database) -> dict[str, Any] | None:
         "model": row["model"],
         "elapsed_sec": row["elapsed_sec"],
         "grounding": json.loads(row["grounding"]),
+        "passed": json.loads(row["passed"]),
         "issues": [
             {"key": f"policy_issues/{i['id']}", "seq": i["seq"], "kind": i["kind"], "level": i["level"],
              "policy_ids": json.loads(i["policy_ids"]), "reason": i["reason"], "recommendation": i["recommendation"]}
