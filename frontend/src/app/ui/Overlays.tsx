@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { placeTip, pageScale } from "@/app/layout/lib";
-import { registerConfirm, type Ask } from "@/app/ui/ask";
+import { registerConfirm, type Confirm } from "@/app/ui/confirm";
 import { cn } from "@/shared/lib/cn";
 import { actionButton, dangerButton, primaryButton, cardTitle } from "@/shared/ui/styles";
 import { useEscape } from "@/shared/lib/hooks";
@@ -86,7 +86,7 @@ export function TooltipLayer() {
 
 // 버튼 순서는 확인 창 관례대로 [취소] 왼쪽 · 실행 오른쪽임
 export function ConfirmLayer() {
-  const [cur, setCur] = useState<{ a: Ask; done: (ok: boolean) => void } | null>(null);
+  const [cur, setCur] = useState<{ a: Confirm; done: (ok: boolean) => void } | null>(null);
   useEffect(() => {
     registerConfirm((a, done) => setCur({ a, done }));
     return () => registerConfirm(null);

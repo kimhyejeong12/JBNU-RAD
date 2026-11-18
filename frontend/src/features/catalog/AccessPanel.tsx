@@ -12,7 +12,7 @@ import { useUi } from "@/app/ui/state/UiContext";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { field, input, panelFormGrid, primaryAction, rowInput, wideActions, wideField } from "@/shared/ui/styles";
 import { GroupBox, InfoRow, Switch } from "@/shared/ui/parts";
-import { ask } from "@/app/ui/ask";
+import { confirmBox } from "@/app/ui/confirm";
 import { checkForm } from "@/shared/lib/form";
 
 
@@ -71,7 +71,7 @@ function EditAccess({ a }: { a: AccessItem }) {
     const f = checkForm(e, setPanelMsg);
     if (!f) return;
     // 막으면 새 신청이 바로 막혀서 막을 때만 물음
-    if (a.is_active && !open && !(await ask({
+    if (a.is_active && !open && !(await confirmBox({
       title: "신청 막기", confirm: "막기", danger: true,
       message: `${a.name} 권한의 새 신청을 막습니다.`,
     }))) return;

@@ -1,7 +1,7 @@
 import type { FormEvent, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { ask } from "@/app/ui/ask";
+import { confirmBox } from "@/app/ui/confirm";
 import { useQueue } from "@/app/queue/useQueue";
 import { useUi } from "@/app/ui/state/UiContext";
 import { Panel, PanelMsg } from "@/app/ui/panel/Panel";
@@ -71,7 +71,7 @@ function NodePanel({ n }: { n: NodeRow }) {
       : a === "key" && n.key_issued
         ? { title: "키 다시 발급", confirm: "다시 발급", danger: true, message: `${n.name} 의 키를 새로 발급합니다. 지금 키는 바로 못 쓰게 되어, 그 서버의 node.conf 를 새 키로 바꿔야 다시 보냅니다.` }
         : null;
-    if (q && !(await ask(q))) return;
+    if (q && !(await confirmBox(q))) return;
     action.mutate({ name: n.name, action: a });
   };
 

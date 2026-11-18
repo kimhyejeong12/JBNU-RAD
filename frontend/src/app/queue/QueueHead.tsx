@@ -3,7 +3,7 @@ import { useJobs, useResults } from "@/app/session/data";
 import { LEVEL_VIEWS, VIEWS, canManageAccounts } from "@/app/session/views";
 import { useUi } from "@/app/ui/state/UiContext";
 import { NEW_ITEM } from "@/app/ui/state/uiReducer";
-import { ask } from "@/app/ui/ask";
+import { confirmBox } from "@/app/ui/confirm";
 import { useQueue } from "./useQueue";
 import { levelCounts } from "./select";
 import { runButton, useStartJob, busyJob, useResetJobs } from "@/shared/api/jobs";
@@ -71,7 +71,7 @@ export function JobReset() {
 
   async function onClick() {
     const message = `${name}을(를) 끝내고 처음부터 다시 돌립니다.`;
-    if (await ask({ title: "작업 강제 중지", confirm: "다시 돌리기", danger: true, message })) reset.mutate(true);
+    if (await confirmBox({ title: "작업 강제 중지", confirm: "다시 돌리기", danger: true, message })) reset.mutate(true);
   }
 
   return (

@@ -1,28 +1,28 @@
-import { ask } from "@/app/ui/ask";
+import { confirmBox } from "@/app/ui/confirm";
 import { dayTime } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
 import { DayTime, Pill, CardHead } from "@/shared/ui/parts";
 import { cn } from "@/shared/lib/cn";
 import { ltable, ltableWrap, ltd, ltdEmpty, lth, note, toolButton, cardCol, cardCountInline, squarePill } from "@/shared/ui/styles";
-import { useClearQueue, useQueueDetail, LANE_ROWS, jobIcon, jobName, jobRows, jobTarget, progress, waitingCount, type QueueDetail } from "@/features/engine/lib";
+import { useClearQueue, useQueueDetail, LANE_ROWS, jobIcon, jobName, jobRows, jobTarget, progress, waitingCount, type QueueDetail } from "@/features/jobs/lib";
 
 const ROWS = "m-0 list-none divide-y divide-line border-t border-line p-0";
 const ROW = "flex items-center gap-3 px-4.5 py-2.75";
 const at = (iso: string | null | undefined) => dayTime(iso).join(" ");
 
 // 왼쪽 작업 큐(실시간), 오른쪽 작업별 실행(예약 · 마지막 실행)
-export function EngineTab() {
+export function JobsTab() {
   const q = useQueueDetail();
   const clear = useClearQueue();
   const d = q.data;
 
   async function onClear() {
     const message = "모든 작업을 끝내고 큐를 새로 시작합니다.";
-    if (await ask({ title: "작업 큐 강제 초기화", confirm: "초기화", danger: true, message })) clear.mutate();
+    if (await confirmBox({ title: "작업 큐 강제 초기화", confirm: "초기화", danger: true, message })) clear.mutate();
   }
 
   return (
-    <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-start gap-3.5 narrow:grid-cols-[minmax(0,1fr)]" id="view-engine" role="tabpanel" aria-labelledby="tab-engine">
+    <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-start gap-3.5 narrow:grid-cols-[minmax(0,1fr)]" id="view-jobs" role="tabpanel" aria-labelledby="tab-jobs">
       <section className={cardCol}>
         <CardHead title="작업 큐">
           <span className={cardCountInline} id="queue-count">{d ? `실행 ${d.current ? 1 : 0}, 대기 ${waitingCount(d)}` : ""}</span>

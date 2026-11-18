@@ -1,12 +1,14 @@
+"""결재 결과 메일 — 신청자에게 결과 · 반려 의견을 글과 HTML 로 보내고, 결재가 안 끝난 신청은 보내지 않는지 봅니다."""
 from __future__ import annotations
 
 from sentinelai.db import auth, catalog, permissions
 from sentinelai.web import notify
+from sentinelai.web.alert_cards import alert_text
 
 
 def test_result_mail(main_db, people, monkeypatch):
     sent = []
-    monkeypatch.setattr(notify, "send_mail", lambda mail, to, subject, body: sent.append((to, subject, body)))
+    monkeypatch.setattr(notify, "send_mail", lambda mail, to, subject, alert: sent.append((to, subject, alert_text(alert))))
     mail = notify.Mail(host="smtp.example.com", port=587, user="", password="", sender="sentinel@example.com")
     auth.update_user(main_db, people["root"], people["user"].id, email="user@example.com")
     catalog.create(main_db, people["top"], "HR_SALARY_READ", "급여 테이블 조회")
@@ -47,19 +49,44 @@ def test_reject_mail_has_comment(main_db, people):
     catalog.create(main_db, people["top"], "B", "권한B")
     first = permissions.submit(main_db, people["user"], "A", "업무")["request_no"]
     req = permissions.decide(main_db, people["manager"], first, "reject", "인사팀 업무가 아님")
-    subject, body = notify.result_message(req)
+    subject, alert = notify.result_alert(req)
+    body = alert_text(alert)
+    assert alert.tone == "plain" and alert.summary == ("반려 의견", "인사팀 업무가 아님") and alert.badge == "반려"
     assert subject.endswith("반려") and body.splitlines()[0] == "신청하신 권한이 1차 결재에서 반려되었습니다."
     assert "반려 의견: 인사팀 업무가 아님" in body and "운영자" not in body
 
     final = permissions.submit(main_db, people["user"], "B", "업무")["request_no"]
     permissions.decide(main_db, people["manager"], final, "approve", "괜찮아 보임")
     req = permissions.decide(main_db, people["top"], final, "reject")
-    body = notify.result_message(req)[1]
+    body = alert_text(notify.result_alert(req)[1])
     assert body.splitlines()[0] == "신청하신 권한이 최종 결재에서 반려되었습니다."
     assert "반려 의견: (미입력)" in body and "괜찮아 보임" not in body
 
 
-def test_result_message_skips_unfinished():
+def test_result_alert_skips_unfinished():
     base = {"request_no": "REQ-20261109-001", "requested_access": "CRM 조회", "approvals": []}
     for stage in ("manager", "top", "withdrawn"):
-        assert notify.result_message({**base, "stage": stage}) is None
+        assert notify.result_alert({**base, "stage": stage}) is None
+
+
+def test_mail_carries_text_and_html(monkeypatch):
+    sent = []
+
+    class FakeSmtp:
+        def __init__(self, *args, **kwargs): pass
+        def __enter__(self): return self
+        def __exit__(self, *exc): return False
+        def ehlo_or_helo_if_needed(self): pass
+        def has_extn(self, name): return False
+        def send_message(self, msg): sent.append(msg)
+
+    monkeypatch.setattr(notify.smtplib, "SMTP", FakeSmtp)
+    mail = notify.Mail(host="smtp.example.com", port=587, user="", password="", sender="sentinel@example.com")
+    req = {"stage": "revoked", "request_no": "REQ-20261118-001", "requested_access": "CRM 조회", "approvals": [],
+           "revocation": {"reason": "사용 기간 만료"}}
+    notify.send_mail(mail, "user@example.com", *notify.result_alert(req))
+    [msg] = sent
+    plain, page = msg.get_body(("plain",)).get_content(), msg.get_body(("html",)).get_content()
+    # HTML 을 못 보는 메일 프로그램은 글 부분을 봄
+    assert plain.splitlines()[0] == "승인됐던 권한이 회수되었습니다." and "회수 사유: 사용 기간 만료" in plain
+    assert "사용 기간 만료" in page and "REQ-20261118-001" in page

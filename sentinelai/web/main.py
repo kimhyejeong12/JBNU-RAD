@@ -37,7 +37,8 @@ async def lifespan(app: FastAPI):
     app.state.chat = notify.chat_settings()
     # 엔진이 뜨자마자 돌리는 로그 감시부터 알리도록 엔진보다 먼저 시작점을 잡습니다.
     watchers = [notify.RiskWatcher(app.state.chat, engine.results_db),
-                notify.ExceptionWatcher(app.state.chat, engine.main_db)]
+                notify.ExceptionWatcher(app.state.chat, engine.main_db),
+                notify.WaitingWatcher(app.state.chat, engine.main_db)]
     engine.start()
     for watcher in watchers:
         watcher.start()

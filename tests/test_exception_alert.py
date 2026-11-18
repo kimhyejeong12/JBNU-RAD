@@ -1,3 +1,4 @@
+"""예외 상황 알림 — 계정 역할 변경 · 보유 권한 위험 · AI 위험 판정 승인 · 보안 설정 변경과 변경 이력을 봅니다."""
 from __future__ import annotations
 
 import time
@@ -9,7 +10,7 @@ from sentinelai.web import notify
 
 def _watcher(main_db, monkeypatch):
     sent = []
-    monkeypatch.setattr(notify, "send_slack", lambda url, text: sent.append(text))
+    monkeypatch.setattr(notify, "send_slack", lambda url, alert: sent.append(alert))
     return notify.ExceptionWatcher(notify.Chat(slack="http://hook"), main_db), sent
 
 
@@ -33,8 +34,8 @@ def test_accounts(main_db, people, monkeypatch):
     auth.create_user(main_db, root, "new-top", "test-pass-1234", "새", "보안팀", "top")
     auth.create_user(main_db, root, "new-user", "test-pass-1234", "새", "인사팀", "user")
     [text] = watcher.check()
-    assert text == ("[계정 역할 변경] 3건\n- 일반 사용자 → 보안 운영자\n- 일반 사용자 계정 재활성\n- 보안 총책임자 계정 생성\n"
-                    "SentinelAI 관리의 계정 관리에서 확인하세요")
+    assert text == ("계정 역할 변경 3건\n주의\n- 일반 사용자 → 보안 운영자\n- 일반 사용자 계정 재활성\n- 보안 총책임자 계정 생성\n"
+                    "관리의 계정 관리에서 변경 이력 확인")
     assert "user2" not in text and "사용자" not in text.split("\n")[0]
     assert watcher.check() == [] and len(sent) == 1
 
@@ -53,8 +54,8 @@ def test_held_grants(main_db, people, monkeypatch):
     permissions.save_grant_review(main_db, moved, move_id, {"level": "위험", "reason": "업무가 바뀜", "failed": False}, "m")
     auth.update_user(main_db, people["root"], people["user2"].id, left_on="2026-01-01")
     assert watcher.check() == [
-        f"[보유 권한 위험] 2건\n- 이동 후 재검토 위험: {moved} — HR_SALARY_READ 권한\n- 퇴사일이 지난 계정에 권한 1건 남음\n"
-        "SentinelAI 보안 현황의 권한 변동에서 확인하세요"]
+        f"보유 권한 2건\n위험\n- 이동 후 재검토 위험: {moved} — HR_SALARY_READ 권한\n- 퇴사일이 지난 계정에 권한 1건 남음\n"
+        "보안 현황의 권한 변동에서 확인하고 회수 여부 결정"]
     # 같은 퇴사자를 다시 알리지 않음
     auth.update_user(main_db, people["root"], people["user2"].id, display_name="바뀜")
     assert watcher.check() == []
@@ -83,9 +84,9 @@ def test_risky_approval_and_settings(main_db, people, monkeypatch):
         audit(conn, "queue_clear", people["top"].id, target_type="jobs", target_id="")
         audit(conn, "login_failed", target_type="user", target_id="x")  # 알리지 않는 기록
     approval, settings = watcher.check()
-    assert approval == f"[AI 위험 판정 승인] 1건\n- {risky} — 인사팀, 방화벽 정책 변경\nSentinelAI 권한 신청에서 확인하세요"
-    assert settings == ("[보안 설정 변경] 5건\n- 권한 목록 수정: CRM_READ\n- 수집 노드 키 재발급: web-01\n- 수집 노드 비활성: web-01\n"
-                        "- 기준 문서 수정: 접근권한_관리기준.md\n- 작업 큐 초기화\nSentinelAI에서 확인하세요")
+    assert approval == f"AI 위험 판정 승인 1건\n위험\n- {risky} — 인사팀, 방화벽 정책 변경\n권한 신청에서 승인 근거 확인"
+    assert settings == ("보안 설정 변경 5건\n기록\n- 권한 목록 수정: CRM_READ\n- 수집 노드 키 재발급: web-01\n- 수집 노드 비활성: web-01\n"
+                        "- 기준 문서 수정: 접근권한_관리기준.md\n- 작업 큐 초기화\n의도한 변경인지 확인")
     assert watcher.check() == []
 
 

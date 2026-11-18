@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KIND, mergeWatch, pickPeople, revokeReason, status, summarize, type Flag, type Person, type Pick } from "./lib";
 import { usePeople } from "@/app/session/data";
-import { ask } from "@/app/ui/ask";
+import { confirmBox } from "@/app/ui/confirm";
 import { useUi } from "@/app/ui/state/UiContext";
 import { send } from "@/shared/api/http";
 import { riskPeopleQuery } from "@/shared/api/queries";
@@ -59,7 +59,7 @@ function PersonCard({ p }: { p: Person }) {
     onSettled: () => qc.invalidateQueries({ queryKey: ["requests"] }),
   });
   const onRevoke = async (f: Flag, reason: string) => {
-    const ok = await ask({ title: "권한 회수", message: `${p.name}: ${f.text}\n사유: ${reason}`, confirm: "회수", danger: true });
+    const ok = await confirmBox({ title: "권한 회수", message: `${p.name}: ${f.text}\n사유: ${reason}`, confirm: "회수", danger: true });
     if (ok) revoke.mutate({ no: f.request_no!, reason });
   };
   const logs = () => {

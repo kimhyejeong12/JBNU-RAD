@@ -14,7 +14,7 @@ const TABS: { tab: MainTab; icon: string; label: string; panel: string }[] = [
   { tab: "stats", icon: "activity", label: "시스템", panel: "view-stats" },
   { tab: "ustats", icon: "warn", label: "사용자", panel: "view-stats" },
   { tab: "logs", icon: "search", label: "로그 조회", panel: "view-logs" },
-  { tab: "engine", icon: "list", label: "작업 큐", panel: "view-engine" },
+  { tab: "jobs", icon: "list", label: "작업 큐", panel: "view-jobs" },
 ];
 
 // 아래 테두리 2px 가 탭 줄의 선과 겹치게 1px 내림
@@ -33,7 +33,7 @@ export function MainTabs() {
     return (
       <nav className={BAR} role="tablist" aria-label="관리">
         {views.filter(isAdminView).map((v) => (
-          <button key={v} role="tab" className={TAB} data-view={v} aria-selected={ui.view === v} aria-controls={v === "jobs" ? "view-engine" : "view-queue"} onClick={() => navigate(v)}>
+          <button key={v} role="tab" className={TAB} data-view={v} aria-selected={ui.view === v} aria-controls={v === "jobs" ? "view-jobs" : "view-queue"} onClick={() => navigate(v)}>
             <Icon name={VIEWS[v].icon} small />{VIEWS[v].label}
           </button>
         ))}
