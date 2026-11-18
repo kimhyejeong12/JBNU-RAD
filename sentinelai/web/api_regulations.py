@@ -109,12 +109,12 @@ async def extract_xlsx(request: Request) -> dict[str, Any]:
 async def upload(body: NewRegulation, request: Request, user: Approver) -> dict[str, str]:
     """같은 이름은 덮어쓰지 않고, 적재가 실패하면 올린 문서를 지웁니다."""
     if not NAME.fullmatch(body.name):
-        raise HTTPException(status_code=400, detail="기준 문서는 .md, .txt 파일만 올립니다 (이름에 / 없이 100자까지)")
+        raise HTTPException(status_code=400, detail="기준 문서는 .md, .txt 파일만 업로드합니다 (이름에 / 없이 100자까지)")
     if not body.content.strip():
         raise HTTPException(status_code=400, detail="빈 문서는 올릴 수 없습니다")
     db, engine = request.app.state.main_db, request.app.state.engine
     if regs.get(db, body.name):
-        raise HTTPException(status_code=400, detail="같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요")
+        raise HTTPException(status_code=400, detail="같은 이름의 기준 문서가 있습니다. 다른 이름으로 업로드하세요")
 
     def work() -> None:
         if not regs.create(db, user, body.name, body.content):
@@ -175,7 +175,7 @@ async def remove(name: str, body: RemoveRegulation, request: Request, user: Appr
     if row is None:
         raise HTTPException(status_code=404, detail="그 기준 문서가 없습니다")
     if len(regs.texts(db)) <= 1:
-        raise HTTPException(status_code=400, detail="마지막 기준 문서는 지울 수 없습니다. 새 문서를 먼저 올리세요")
+        raise HTTPException(status_code=400, detail="마지막 기준 문서는 지울 수 없습니다. 새 문서를 먼저 업로드하세요")
     before = row["content"]
 
     def work() -> None:

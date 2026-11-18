@@ -37,7 +37,7 @@ def extract(data: bytes, max_chars: int) -> PdfText:
     try:
         reader = PdfReader(io.BytesIO(data))
         if reader.is_encrypted and not reader.decrypt(""):
-            raise PdfProblem("암호가 걸린 PDF 입니다. 암호를 푼 파일로 올리세요")
+            raise PdfProblem("암호가 걸린 PDF 입니다. 암호를 푼 파일로 업로드하세요")
         if len(reader.pages) > MAX_PAGES:
             raise PdfProblem(f"{MAX_PAGES}쪽 까지 읽습니다")
         texts = [_clean(p.extract_text() or "") for p in reader.pages]
@@ -50,5 +50,5 @@ def extract(data: bytes, max_chars: int) -> PdfText:
         raise PdfProblem("글자가 없는 PDF 입니다. 스캔본은 OCR 이 필요합니다")
     text = "\n\n".join(t for t in texts if t)
     if len(text) > max_chars:
-        raise PdfProblem(f"꺼낸 글이 {max_chars:,}자를 넘습니다. 나눠서 올리세요")
+        raise PdfProblem(f"꺼낸 글이 {max_chars:,}자를 넘습니다. 나눠서 업로드하세요")
     return PdfText(text=text, pages=len(texts), empty_pages=empty)

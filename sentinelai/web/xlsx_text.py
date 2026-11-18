@@ -130,18 +130,18 @@ def extract(data: bytes, max_chars: int) -> list[Table]:
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as z:
             if sum(i.file_size for i in z.infolist()) > MAX_UNZIPPED:
-                raise XlsxProblem("압축을 풀면 너무 큰 엑셀입니다. 필요한 시트만 남겨 올리세요")
+                raise XlsxProblem("압축을 풀면 너무 큰 엑셀입니다. 필요한 시트만 남겨 업로드하세요")
         book = load_workbook(io.BytesIO(data), data_only=True)
     except XlsxProblem:
         raise
     except Exception as e:   # 깨진 zip · 다른 형식 · 암호 걸린 파일이 모두 여기로 옵니다
         raise XlsxProblem("엑셀(.xlsx) 파일을 읽지 못했습니다. 암호가 걸렸거나 깨졌는지 확인하세요") from e
     if sum(ws.max_row * ws.max_column for ws in book.worksheets) > MAX_CELLS:
-        raise XlsxProblem("칸이 너무 많은 엑셀입니다. 필요한 시트만 남겨 올리세요")
+        raise XlsxProblem("칸이 너무 많은 엑셀입니다. 필요한 시트만 남겨 업로드하세요")
     tables = [t for ws in book.worksheets for t in _tables(ws)]
     if not tables:
         raise XlsxProblem("내용이 든 표가 없습니다")
     chars = sum(len(c) for t in tables for row in t.rows for c in row.cells + row.notes)
     if chars > max_chars:
-        raise XlsxProblem(f"표의 글이 {max_chars:,}자를 넘습니다. 필요한 시트만 남겨 올리세요")
+        raise XlsxProblem(f"표의 글이 {max_chars:,}자를 넘습니다. 필요한 시트만 남겨 업로드하세요")
     return tables
