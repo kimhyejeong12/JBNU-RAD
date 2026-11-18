@@ -112,7 +112,7 @@ JBNU-RAD/
 │       ├── api_regulations.py    기준 문서 API — 보기 · 올리기 · 고치기 · 지우기 · 검색 상태 · PDF 글자 · 엑셀 표 꺼내기(보안 운영자 이상, 감사 기록). 엔진의 공개 기능(index · documents.chunks)만 씀 (/api/regulations)
 │       ├── pdf_text.py           PDF → 글 (pypdf, 저장 안 함). 스캔본은 OCR 이 없어 못 읽음 (11/13)
 │       ├── xlsx_text.py          엑셀 → 표 목록 (openpyxl, 저장 안 함) — 합친 칸 채우기 · 두 줄 머리 · 셀 메모 · 사람 기록 표 표시. 조항 글은 화면이 씀 (11/16)
-│       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 신청 · 결재 · 회수 API (/api/auth · /api/users · /api/requests). 일반 사용자에게는 AI 칸을 빼고 줌
+│       ├── api_permissions.py    로그인 · 계정 · 권한 목록 · 신청 · 결재 · 회수 · 운영자 결정 · 사람 목록 API (/api/auth · /api/users · /api/access-catalog · /api/requests · /api/decisions · /api/people). 일반 사용자에게는 AI 칸을 빼고 줌
 │       ├── responses.py          API 가 돌려주는 모양 — 명세(/openapi.json)와 화면 타입(schema.ts)의 출처. 판정 결과는 엔진 출력 타입을 물려받음 (11/16, §9)
 │       ├── contract.py           돌려준 값이 선언과 같은지 대조 — 시험과 `dev api-check` 가 함께 씀 (11/16)
 │       ├── view.py               AI 결과 DB → 화면용 dict (판정 필드는 그대로, title · detail만 덧붙임. 판정 실패는 "주의")
@@ -124,10 +124,10 @@ JBNU-RAD/
 │       ├── app/                  껍데기 — App(로그인 게이트) · styles.css(CSS는 이 파일 하나 — Tailwind · 색 토큰 · 화면 틀)
 │       │   ├── layout/             화면 틀 — AppShell · TopBar(메뉴 포함) · Workspace(탭 내용 · 아래 줄) · MainTabs · RightPanel · lib(큰 화면 확대 · 경고 · 툴팁 자리)
 │       │   ├── session/            me(로그인한 사람 · 로그인 API) · views(역할별 메뉴 · 마지막 화면) · data(역할별 데이터 훅 · 부팅)
-│       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · AiReport · DecisionFoot) · Overlays(확인 창 · 툴팁) · ask(확인 창 열기)
+│       │   ├── ui/                 state/(UiContext · uiReducer — 메뉴 · 탭 · 선택 · 패널 동작) · panel/(Panel · AiReport · DecisionFoot) · Overlays(확인 창 · 툴팁) · confirm(확인 창 열기 `confirmBox`)
 │       │   └── queue/              검토 현황 공통 — useQueue · select · QueueHead · QueueTable
 │       ├── shared/               api/(http · types · schema(백엔드 응답 모델에서 생성 — 손으로 안 고침) · queries · jobs) · lib/(format · request · clause · labels · form · hooks) · ui/(parts 공용 부품 · styles 클래스 묶음 · charts · Icon · Dropdown 직접 그린 고르기 목록)
-│       └── features/             메뉴별 — 화면(.tsx) · lib(계산 · 훅) · api(서버 호출). auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(질의 팝업 AskDock — 오른쪽 아래 버튼으로 어느 화면에서든 열고, 대화 · 근거 칩 · 도구별 근거 보기, 분류별 예시 질문은 lib.ts `ASK_TOPICS`) · stats · risk(보안 현황의 권한 변동 탭 — 사람 카드 · 회수) · overview(보안 현황의 종합 대시보드 `OverviewTab`) · catalog · accounts · regulations(기준 문서) · engine(관리의 큐 탭). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
+│       └── features/             메뉴별 — 화면(.tsx) · lib(계산 · 훅) · api(서버 호출). auth · requests(결재 패널 · 신청서 · 내 신청 MineList) · review · nodes · logs · ask(질의 팝업 AskDock — 오른쪽 아래 버튼으로 어느 화면에서든 열고, 대화 · 근거 칩 · 도구별 근거 보기, 분류별 예시 질문은 lib.ts `ASK_TOPICS`) · stats · risk(보안 현황의 권한 변동 탭 — 사람 카드 · 회수) · overview(보안 현황의 종합 대시보드 `OverviewTab`) · catalog · accounts · regulations(기준 문서) · jobs(관리의 큐 탭 — 작업 큐 · 작업별 실행). 서로 import 하지 않고 shared 와 app/{session,ui,queue} 만 씀
 ├── data/                     DLP 로그 (위치는 .env) · 예시 기준 문서. 컨테이너에는 읽기만으로 붙음
 │   └── example-regulations/    예시 기준 문서(.md · .txt) · 참고 pptx — 웹은 읽지 않음. 시험 환경 setup 이 권한 DB 에 넣음, 운영은 화면에서 올림 (11/9, 예전 docs/ → examples/regulations/)
 │       ├── 접근권한_관리기준.md     3.1 최소권한 · 3.2 인사정보 · 3.3 급여정보 · 4.1~4.3 등급 기준
@@ -136,7 +136,7 @@ JBNU-RAD/
 │   ├── sentinel_node/          collect(모듈별 원문 읽기) · client(보내기 · 못 보낸 것 쌓기 · 키 저장) · config · __main__(run · once · show · export)
 │   ├── install.sh              /opt/sentinel-node · /etc/sentinel-node/node.conf · systemd 설치 · 제거
 │   └── testenv/                시험용 점검 대상 컨테이너 (Ubuntu + ufw · sshd · PAM · sudo, weak · strict)
-├── tests/                    DB 시험 (pytest, 시험마다 새 스키마) — python -m sentinelai.dev test
+├── tests/                    백엔드 시험 (pytest — 권한 DB 트리거 · API 응답 모양 · 알림 · 큐 · 데이터 계층 · 질의, 시험마다 새 스키마). 이미지에는 안 들어감 (.dockerignore) — python -m sentinelai.dev test
 ├── .dev/                     로컬 시험 환경 파일 (git 제외)
 ├── .env · .env.example       설정. .env 는 git 제외, 처음에 예시를 복사함
 ├── compose.yaml              웹(app) + PostgreSQL 18 + Milvus(벡터 DB, 단독 실행 — 로컬 저장소) + etcd(Milvus 메타데이터, 11/9) (docker compose up). DB sentinelai · sentinelai_dev · sentinelai_test, 컬렉션 sentinelai_policies · sentinelai_dev. 벡터 DB(`milvus-store`) · etcd · PostgreSQL은 볼륨, data/는 읽기만 (기준 문서 볼륨 `docs`는 11/6에 뺐음)
