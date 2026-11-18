@@ -73,14 +73,13 @@ const emptyText = (level: Pick | null): string => (!level ? "이슈 없음" : le
 // 판정 실패는 0이면 비활성으로 늘 둠 — 실패 때만 나타나면 타일 줄이 갑자기 바뀜
 function Tiles({ d, span, level, onPick }: { d: Overview; span: string; level: Pick | null; onPick: (l: Pick | null) => void }) {
   const c = d.counts;
-  const all = c.completion.done + c.completion.waiting;
   return (
     <div className={tileGrid} id="overview-tiles">
       <Tile label="전체 이슈" big={c.completion.waiting} pressed={level === null} onClick={() => onPick(null)}>결정 없음 {c.action.undecided}, 조치 중 {c.action.acting}</Tile>
       {(["위험", "주의"] as const).map((l) => (
         <Tile key={l} label={<><LevelDot level={l} />{l}</>} big={c[l]} tone={c[l] ? levelText[l] : undefined} pressed={level === l} onClick={() => onPick(l)}>{deltaText(delta(d.trend, l))}</Tile>
       ))}
-      <Tile label={`조치 완료율 (${span})`} big={rateText(c.completion.rate)}>{c.completion.done} / {all}건</Tile>
+      <Tile label={`조치 완료율 (${span})`} big={rateText(c.completion.rate)}>완료 {c.completion.done}, 미완료 {c.completion.waiting}</Tile>
       <Tile label="판정 실패" big={c.failed} pressed={!!c.failed && level === "판정 실패"} disabled={!c.failed}
         onClick={() => onPick("판정 실패")}>{c.failed ? "위험, 주의 집계 제외" : "실패 없음"}</Tile>
     </div>
