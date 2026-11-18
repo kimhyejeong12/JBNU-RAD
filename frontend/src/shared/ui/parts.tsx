@@ -17,6 +17,17 @@ export function LevelLabel({ level }: { level: Level }) {
   return <span className={cn("flex items-center gap-1.25 whitespace-nowrap font-semibold", levelText[level])}><Icon name={LEVEL_ICON[level]} small />{level}</span>;
 }
 
+// 표의 두 줄 칸 — 대상(굵게) 위, 이유 · 의견(회색) 아래 한 줄씩, 전체 글은 툴팁 (종합 대시보드 · 보안 현황)
+export function TwoLine({ title, note: sub }: { title: ReactNode; note?: ReactNode }) {
+  const tip = typeof title === "string" && typeof sub === "string" && sub ? `${title}|${sub}` : undefined;
+  return (
+    <span className="block min-w-0" data-tip={tip}>
+      <b className="line-clamp-1">{title}</b>
+      {sub && <small className="line-clamp-1 text-[12px] text-ink-dim">{sub}</small>}
+    </span>
+  );
+}
+
 // 알약 모양 배지 — 색은 tone 으로 줌
 export function Pill({ tone = "border-line text-ink-soft", className, children }: { tone?: string; className?: string; children: ReactNode }) {
   return <span className={cn("inline-flex items-center rounded-full border border-solid px-2 py-px text-[12px] font-bold whitespace-nowrap", tone, className)}>{children}</span>;
@@ -96,8 +107,8 @@ const TILE = "flex min-w-0 flex-col justify-start rounded-xl border border-line 
 
 // 큰 숫자 하나 — children 은 아래 작은 글, extra 는 숫자와 글 사이(막대 등)임
 // onClick 을 주면 누르는 타일이고, pressed 는 목록을 이 타일로 거르는 중인지, disabled 는 지금 거를 것이 없는지, dot 은 이름 앞 점의 색임
-export function Tile({ label, big, tone, extra, onClick, pressed, disabled, dot, className, children }: {
-  label: ReactNode; big: ReactNode; tone?: string; extra?: ReactNode; onClick?: () => void; pressed?: boolean;
+export function Tile({ label, big, tone, onClick, pressed, disabled, dot, className, children }: {
+  label: ReactNode; big: ReactNode; tone?: string; onClick?: () => void; pressed?: boolean;
   disabled?: boolean; dot?: string; className?: string; children?: ReactNode;
 }) {
   const body = (
@@ -106,15 +117,15 @@ export function Tile({ label, big, tone, extra, onClick, pressed, disabled, dot,
         {dot && <i className="inline-block size-2 flex-none rounded-full" style={{ background: dot }} aria-hidden="true" />}{label}
       </span>
       <span className={cn("text-2xl font-bold tabular-nums", tone)}>{big}</span>
-      {extra}
       {children != null && <span className="mt-0.5 text-xs text-ink-dim">{children}</span>}
     </>
   );
   if (!onClick) return <div className={cn(TILE, className)}>{body}</div>;
   // 고른 타일은 2px 남색 테두리만 — 신청서 칸을 누를 때와 같은 표시임
+  // 누를 것이 없는 타일(disabled)은 흐리게 하지 않고 누르지만 못하게 함 — 흐리면 닫힌 느낌
   return (
     <button type="button" aria-pressed={pressed} onClick={onClick} disabled={disabled}
-      className={cn(TILE, className, "bg-surface hover:bg-row-hover aria-pressed:border-brand aria-pressed:shadow-[inset_0_0_0_1px_var(--color-brand)] disabled:cursor-default disabled:opacity-50 disabled:hover:bg-surface")}>
+      className={cn(TILE, className, "bg-surface hover:bg-row-hover aria-pressed:border-brand aria-pressed:shadow-[inset_0_0_0_1px_var(--color-brand)] disabled:cursor-default disabled:hover:bg-surface")}>
       {body}
     </button>
   );

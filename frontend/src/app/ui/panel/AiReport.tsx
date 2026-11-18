@@ -14,7 +14,8 @@ const CAPTION = "mt-2 mb-1 text-[11.5px] font-semibold text-ink-dim";
 // 왜 · 조치 답 글 — 테두리 없이 바탕만 (카드 안 테두리 겹침 방지)
 const ANSWER = "rounded-lg bg-canvas px-3 py-2.5";
 
-export interface AiFinding { level: Level; reason: string; recommendation?: string | null; sources?: string[] | null; judgedAt?: string | null }
+// label 은 등급 대신 배지에 쓸 글 (위협 예측의 "75점 높음")
+export interface AiFinding { level: Level; label?: string; reason: string; recommendation?: string | null; sources?: string[] | null; judgedAt?: string | null }
 
 // AI 판정을 네 질문으로 — 어떻게 판단 · 왜 · 어떤 규정 · 어떻게 처리. 판정을 보이는 패널이 모두 씀
 // wait = 판정이 없을 때 글, tip = 등급 옆 글, why = 이유 아래 덧붙일 것, how · lead = 마지막 칸 제목 · 권고 앞 굵은 글
@@ -26,7 +27,7 @@ export function AiReport({ itemKey, f, wait, tip, lead, why, what, how = "어떻
 }) {
   const badge = f && (
     <span className={cn("inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[13px] font-bold", levelText[f.level], LEVEL_TINT[f.level])}>
-      <Icon name={LEVEL_ICON[f.level]} small />{f.level}{tip && ` (${tip})`}
+      <Icon name={LEVEL_ICON[f.level]} small />{f.label ?? f.level}{tip && ` (${tip})`}
     </span>
   );
   const steps: StepRow[] = !f ? [] : [

@@ -1,31 +1,11 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { DECISIONS, DECISION_SET, decisionState, decisionTone, useDecide, type DecisionTarget } from "./decision";
 import { PanelMsg } from "./Panel";
-import type { Decision, Level } from "@/shared/api/types";
-import { LEVEL_ICON } from "@/shared/lib/labels";
-import { Icon } from "@/shared/ui/Icon";
+import type { Decision } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Meta, Pill } from "@/shared/ui/parts";
-import { input, levelText, panelFoot, panelFootTitle, squarePill } from "@/shared/ui/styles";
-
-const STATE_LABEL = "text-[11.5px] font-semibold text-ink-dim";
-
-// AI 판정과 사람의 처리 상태를 나란히 따로 둠
-export function JudgeState({ level, label, children }: { level: Level | null | undefined; label?: ReactNode; children: ReactNode }) {
-  return (
-    <div className="mt-2 grid grid-cols-2 gap-2">
-      <div className="flex flex-col gap-1 rounded-lg border border-line px-3 py-2">
-        <span className={STATE_LABEL}>AI 판단</span>
-        <b className={cn("flex items-center gap-1.5 text-[15px]", level && levelText[level])}><Icon name={(level && LEVEL_ICON[level]) || "warn"} className="size-4.5" />{label ?? (level || "판정 실패")}</b>
-      </div>
-      <div className="flex flex-col items-start gap-1 rounded-lg border border-line px-3 py-2">
-        <span className={STATE_LABEL}>처리 상태</span>
-        {children}
-      </div>
-    </div>
-  );
-}
+import { input, panelFoot, panelFootTitle, squarePill } from "@/shared/ui/styles";
 
 // 표의 처리 상태 칸 — 배지만, 누가 · 언제는 패널 (검토 현황 · 종합 대시보드)
 export function StateCell({ text, tone }: { text: string; tone: string }) {
@@ -34,6 +14,12 @@ export function StateCell({ text, tone }: { text: string; tone: string }) {
       <Pill tone={tone} className={cn("block max-w-full truncate", squarePill)}>{text}</Pill>
     </span>
   );
+}
+
+// 표의 처리 상태 칸 — 결정 없음은 글만, 결정이 있으면 배지 (종합 대시보드 · 보안 현황)
+export function DecisionCell({ decision }: { decision: Pick<Decision, "action"> | null | undefined }) {
+  const s = decisionState(decision);
+  return decision ? <StateCell {...s} /> : <span className="whitespace-nowrap text-ink-dim">{s.text}</span>;
 }
 
 export function DecisionBadge({ decision }: { decision: Pick<Decision, "action"> | null | undefined }) {

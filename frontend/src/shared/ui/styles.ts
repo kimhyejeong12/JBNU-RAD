@@ -8,8 +8,8 @@ import { stageGroup, today, type StageGroup } from "@/shared/lib/request";
 export const card = "rounded-xl border border-line bg-surface";
 export const cardCol = `${card} flex flex-col`;
 export const empty = "px-4.5 py-9 text-center text-ink-dim";
-// 아래 여백은 끝까지 내렸을 때 마지막 버튼이 오른쪽 아래 질의 버튼에 가리지 않게 함
-export const panelBody = "flex-1 overflow-auto px-4.5 pt-4 pb-18";
+// 아래 여백은 끝까지 내렸을 때 마지막 버튼이 오른쪽 아래 질의 버튼에 가리지 않게 함 — 아래에 처리 칸이 있으면 그 칸이 그 자리라 줄임
+export const panelBody = "flex-1 overflow-auto px-4.5 pt-4 pb-18 [&:not(:last-child)]:pb-4";
 export const panelFoot = "border-t border-line bg-surface px-4.5 py-2.5";
 export const panelFootTitle = "m-0 mb-1.5 text-[12.5px] font-bold";
 export const subject = "m-0 mb-1 text-[15px] font-bold";
@@ -34,8 +34,7 @@ export const tileGrid = "grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap
 export const formGrid = "grid grid-cols-[1fr_1fr] gap-x-3.5 gap-y-2.5 px-4.5 pt-1 pb-4 narrow:grid-cols-[1fr]";
 export const field = "flex flex-col gap-1 text-[12.5px] font-semibold text-ink-dim";
 export const wideField = `${field} col-span-full`;
-// 패널 안 두 칸 입력 줄 · 패널 높이를 채우는 폼 격자(위에서부터 쌓음)
-export const fieldGrid = "grid grid-cols-2 gap-x-3 gap-y-2.5 narrow:grid-cols-1";
+// 패널 높이를 채우는 폼 격자(위에서부터 쌓음)
 export const panelFormGrid = cn(formGrid, "content-start p-0");
 export const input = "w-full rounded-lg border border-line bg-surface px-2.5 py-2 text-[13.5px] font-normal text-ink outline-none font-[inherit] leading-[inherit] focus:border-ink disabled:bg-canvas disabled:text-ink-dim";
 // 설정 패널 한 줄(InfoRow) 안의 낮은 입력 칸
@@ -52,7 +51,6 @@ export const primaryButton = "border-brand bg-brand text-white hover:border-bran
 export const dangerButton = "border-risk bg-risk text-white";
 export const goodButton = "border-ok-line bg-ok-tint text-ok";
 export const primaryAction = cn(actionButton, primaryButton);
-export const dangerAction = cn(actionButton, dangerButton);
 
 export const toolButtonInline = "flex items-center gap-1.5 rounded-[7px] border border-line bg-surface px-2.75 py-1.5 text-[12.5px] font-semibold hover:border-ink-dim disabled:cursor-progress disabled:bg-canvas disabled:text-ink-dim";
 export const toolButton = `ml-auto ${toolButtonInline}`;
