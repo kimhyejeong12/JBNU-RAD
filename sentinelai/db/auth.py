@@ -118,6 +118,13 @@ def create_user(db: Database, by: User, login_id: str, password: str, display_na
         return User.of(conn.execute("SELECT * FROM users WHERE id = %s", (uid,)).fetchone())
 
 
+def _same(key: str, old: object, new: object) -> bool:
+    """DB 값과 받은 값이 같은지 — 상태는 0/1 과 참/거짓을 같게 봅니다."""
+    if key == "is_active":
+        return bool(old) == bool(new)
+    return str(old or "") == str(new or "")
+
+
 def update_user(db: Database, by: User, user_id: int, **changes: object) -> User:
     """정지하면 세션을 끊고, 부서 · 직무가 바뀌면 이동 기록(user_moves)을 남깁니다."""
     _require_account_admin(by)
@@ -147,19 +154,23 @@ def update_user(db: Database, by: User, user_id: int, **changes: object) -> User
         # 자기 역할을 낮추거나 정지하면 되돌릴 수 없게 됩니다.
         if target["id"] == by.id and ("role" in fields or fields.get("is_active") in (0, False)):
             raise Denied("자기 계정의 역할을 바꾸거나 정지할 수 없습니다")
-        conn.execute(f"UPDATE users SET {', '.join(f'{k} = %s' for k in fields)} WHERE id = %s", (*fields.values(), user_id))
+        # 화면은 칸을 전부 보내므로 바뀐 칸만 씀 — 변경 이력에 무엇이 바뀌었는지 보이게
+        changed = {k: v for k, v in fields.items() if not _same(k, target[k], v)}
+        if not changed:
+            return User.of(target)
+        conn.execute(f"UPDATE users SET {', '.join(f'{k} = %s' for k in changed)} WHERE id = %s", (*changed.values(), user_id))
         # 비어 있던 칸을 처음 채우는 것은 이동이 아닙니다.
-        moved = [k for k in ("department", "job") if k in fields and fields[k] != target[k] and target[k]]
+        moved = [k for k in ("department", "job") if k in changed and target[k]]
         if moved:
             conn.execute(
                 "INSERT INTO user_moves (user_id, from_department, from_job, to_department, to_job, moved_on, recorded_at, recorded_by)"
                 " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (user_id, target["department"], target["job"], fields.get("department", target["department"]),
-                 fields.get("job", target["job"]), today(), now(), by.id))
-        if fields.get("is_active") in (0, False):
+                (user_id, target["department"], target["job"], changed.get("department", target["department"]),
+                 changed.get("job", target["job"]), today(), now(), by.id))
+        if changed.get("is_active") in (0, False):
             conn.execute("UPDATE sessions SET revoked_at = %s WHERE user_id = %s AND revoked_at IS NULL", (now(), user_id))
         audit(conn, "user_update", by.id, target_type="user", target_id=str(user_id),
-              detail=json.dumps(fields, ensure_ascii=False))
+              detail=json.dumps({**changed, "from": {k: target[k] for k in changed}}, ensure_ascii=False))
         return User.of(conn.execute("SELECT * FROM users WHERE id = %s", (user_id,)).fetchone())
 
 

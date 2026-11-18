@@ -65,10 +65,12 @@ def update(db: Database, by: User, code: str, **changes) -> dict:
     if values.get("name") == "":
         raise Denied("권한 이름을 적어 주세요")
     with db.transaction() as conn:
-        get(conn, code)
-        if values:
-            sets = ", ".join(f"{k} = %s" for k in values)
-            conn.execute(f"UPDATE access_catalog SET {sets}, updated_at = %s WHERE code = %s", (*values.values(), now(), code))
+        row = get(conn, code)
+        # 바뀐 칸만 쓰고 바뀌기 전 값과 함께 남김 — 변경 이력에 무엇이 바뀌었는지 보이게
+        changed = {k: v for k, v in values.items() if row[k] != v}
+        if changed:
+            sets = ", ".join(f"{k} = %s" for k in changed)
+            conn.execute(f"UPDATE access_catalog SET {sets}, updated_at = %s WHERE code = %s", (*changed.values(), now(), code))
             audit(conn, "access_update", by.id, target_type="access", target_id=code,
-                  detail=json.dumps(values, ensure_ascii=False))
+                  detail=json.dumps({**changed, "from": {k: row[k] for k in changed}}, ensure_ascii=False))
         return _item(get(conn, code))

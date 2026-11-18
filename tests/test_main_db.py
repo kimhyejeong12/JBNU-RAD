@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from sentinelai.db import Denied, auth, catalog, decisions, nodes, open_main_db, permissions
+from sentinelai.db import Denied, auth, catalog, decisions, nodes, open_main_db, permissions, watch
 
 from .conftest import PASSWORD
 
@@ -124,6 +124,9 @@ def test_catalog_rules(main_db, people, item):
                      " VALUES ('X', 'x', %s, 'now', 'now')", (people["user"].id,))
     made = catalog.create(main_db, people["manager"], "FW_POLICY_EDIT", "방화벽 정책 변경")
     assert catalog.update(main_db, people["manager"], made["code"], is_active=False)["is_active"] is False
+    catalog.update(main_db, people["manager"], made["code"], name="방화벽 정책 변경", system="방화벽", is_active=False)
+    assert [r["detail"] for r in watch.history(main_db, "access", made["code"])][:2] == [
+        {"system": "방화벽", "from": {"system": ""}}, {"is_active": 0, "from": {"is_active": 1}}]
     assert [i["code"] for i in catalog.list_items(main_db, people["manager"])] == ["FW_POLICY_EDIT", "HR_SALARY_READ"]
     with denied("권한 코드는 바꿀 수 없습니다"), main_db.transaction() as conn:
         conn.execute("UPDATE access_catalog SET code = 'OTHER'")
