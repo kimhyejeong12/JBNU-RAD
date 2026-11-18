@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from "react";
-import { ChangeLog, Panel, PanelFoot, PanelMsg } from "@/app/ui/panel/Panel";
+import { EditActions, Panel, PanelFoot, PanelMsg, RecordHead, type PanelMode, type PanelRecord } from "@/app/ui/panel/Panel";
 import { useHealth, useJobs, useRegulationIndex, useRegulations } from "@/app/session/data";
 import { busyJob } from "@/shared/api/jobs";
 import type { Regulation, XlsxTable } from "@/shared/api/types";
 import { cn } from "@/shared/lib/cn";
 import { stamp } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
-import { GroupBox, Meta, Section, Subject } from "@/shared/ui/parts";
-import { actionButton, field, formActions, input, meta, note, panelActions, dangerAction, noteError, primaryAction } from "@/shared/ui/styles";
+import { GroupBox, Meta, Section } from "@/shared/ui/parts";
+import { actionButton, field, formActions, input, meta, note, dangerAction, noteError, primaryAction } from "@/shared/ui/styles";
 import { noEnterSubmit } from "@/shared/lib/hooks";
 import { useEditRegulation, useExtractPdf, useExtractXlsx, useRemoveRegulation, useUploadRegulation } from "./api";
 import { docItem, draftProblem, editProblem, isPdf, isXlsx, removeProblem, tablesText, textName, uploadProblem } from "./lib";
@@ -75,7 +75,7 @@ function UploadDoc() {
   }
 
   return (
-    <Panel title="기준 문서 올리기">
+    <Panel title="기준 문서 업로드">
     <form id="doc-upload" noValidate onKeyDown={noEnterSubmit} onSubmit={(e) => void onSubmit(e)}>
       <label className={field}>문서 파일 (.md, .txt, .pdf, .xlsx)
         <input className={input} type="file" accept=".md,.txt,.pdf,.xlsx" required
@@ -110,28 +110,39 @@ function UploadDoc() {
       {problem && <p className={noteError}>{problem}</p>}
       <div className={cn(formActions, "mt-3")}>
         <PanelMsg />
-        <button type="submit" className={primaryAction} disabled={upload.isPending || pending}>{upload.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "올리는 중…") : "올리기"}</button>
+        <button type="submit" className={primaryAction} disabled={upload.isPending || pending}>{upload.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "업로드하는 중…") : "업로드"}</button>
       </div>
     </form>
     </Panel>
   );
 }
 
+// 계정 · 권한 패널과 같은 틀 — 보기에서 [수정], 최근 변경 줄을 눌러 이력. 지우기는 수정 화면 아래 [문서 지우기]
 function DocView({ d }: { d: Regulation }) {
-  const it = docItem(d);
-  const [mode, setMode] = useState<"view" | "edit" | "remove">("view");
-  const close = () => setMode("view");
+  const it = docItem(d, useRegulationIndex(true));
+  const edit = useEditRegulation();
+  const [mode, setMode] = useState<PanelMode>("view");
+  const [removing, setRemoving] = useState(false);
+  // [취소]와 머리 ×가 같음 — 기다리던 고치기를 멈추면 쓰던 글은 남기고, 이미 적재가 시작됐으면 닫음
+  async function leave() {
+    if (edit.isPending && !(await edit.cancel(d))) return;
+    setRemoving(false);
+    setMode("view");
+  }
+  const record: PanelRecord = {
+    mode, editable: true, audit: { type: "regulation", id: d.name, rev: d.updated_at ?? "" },
+    setMode: (m) => (m === "view" && mode === "edit" ? void leave() : setMode(m)),
+  };
   return (
-    <Panel title="기준 문서" foot={<PanelFoot />}>
-      <Subject title={it.who} info={[d.name, d.updated_at && `고친 시각 ${stamp(d.updated_at)}`, `조항 ${it.judge}`]} />
-      {mode === "edit" ? <EditDoc d={d} onClose={close} /> : mode === "remove" ? <RemoveDoc d={d} onClose={close} /> : (
+    <Panel title="문서 상세 정보" record={record} foot={<PanelFoot />}>
+      <RecordHead record={record} title={it.who} info={[d.name, d.updated_at && `고친 시각 ${stamp(d.updated_at)}`, `조항 ${it.judge}`]}
+        state={it.sub ? { on: it.sub === "검색 가능", text: it.sub } : undefined} />
+      {mode === "edit" ? (
+        removing ? <RemoveDoc d={d} onClose={() => void leave()} />
+          : <EditDoc d={d} edit={edit} onDone={() => setMode("view")} onCancel={() => void leave()} onRemove={() => setRemoving(true)} />
+      ) : (
         <>
-          <div className={panelActions}>
-            <button type="button" className={actionButton} onClick={() => setMode("edit")}>수정</button>
-            <button type="button" className={cn(actionButton, "text-risk")} onClick={() => setMode("remove")}>지우기</button>
-          </div>
           <SearchState name={d.name} />
-          <ChangeLog type="regulation" id={d.name} rev={d.updated_at ?? ""} />
           <Section icon="book" title="원문">
             <pre className="m-0 max-h-90 overflow-auto whitespace-pre-wrap rounded-lg bg-canvas px-3.5 py-3 text-[13px] font-[inherit]">{d.content.trim()}</pre>
           </Section>
@@ -149,7 +160,7 @@ function SearchState({ name }: { name: string }) {
   const stored = !index ? "확인 중…" : n ? `벡터 DB에 적재됨 (조각 ${n}개)` : Object.keys(index.chunks).length ? "미적재" : "벡터 DB가 비었거나 연결되지 않았습니다";
   const used = !health ? "AI 엔진 확인 불가" : health.ok ? `판정, 질의가 근거로 검색 (${health.model})` : "AI 엔진 준비 전";
   return (
-    <GroupBox icon="db" title="검색 상태 (AI 판정 근거)">
+    <GroupBox icon="db" title="검색 상태" className="mt-3">
       <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[13px]">
         <StateLine ok={n > 0}>{stored}</StateLine>
         <StateLine ok={!!health?.ok && n > 0}>{used}</StateLine>
@@ -163,8 +174,7 @@ const StateLine = ({ ok, children }: { ok: boolean; children: string }) => (
 );
 
 // 판정의 근거가 바뀌므로 사유와 파일 이름을 입력해야 버튼이 켜짐
-function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
-  const edit = useEditRegulation();
+function EditDoc({ d, edit, onDone, onCancel, onRemove }: { d: Regulation; edit: ReturnType<typeof useEditRegulation>; onDone: () => void; onCancel: () => void; onRemove: () => void }) {
   const busy = busyJob(useJobs());
   const [content, setContent] = useState(d.content);
   const [reason, setReason] = useState("");
@@ -175,19 +185,13 @@ function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (problem) return setTried(true);
-    const message = `${d.name}을(를) 고칩니다. 다음 판정부터 새 내용을 씁니다.`;
-    if (await ask({ title: "기준 문서 고치기", confirm: "고치기", message })) edit.mutate({ name: d.name, content, reason }, { onSuccess: onClose });
+    const message = `${d.name}을(를) 수정합니다. 다음 판정부터 새 내용을 씁니다.`;
+    if (await ask({ title: "기준 문서 수정", confirm: "저장", message })) edit.mutate({ name: d.name, content, reason }, { onSuccess: onDone });
   }
-  // 기다리는 중이면 고치기를 멈추고 쓰던 글은 남김
-  async function onCancel() {
-    if (!edit.isPending) return onClose();
-    if (await edit.cancel(d)) onClose();
-  }
-
   return (
     <form className="mt-3 flex flex-col gap-3" id="doc-edit" onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
       <label className={field}>원문
-        <textarea className={cn(input, "resize-y")} rows={18} value={content} onChange={(e) => setContent(e.target.value)} />
+        <textarea className={cn(input, "resize-y font-normal")} rows={18} value={content} onChange={(e) => setContent(e.target.value)} />
       </label>
       <label className={field}>사유
         <input className={input} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="예: 매체 반출 조항 추가" />
@@ -197,10 +201,8 @@ function EditDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
       </label>
       {problem && <p className={cn(note, tried && "text-risk")}>{problem}</p>}
       {busy && !problem && <p className={note}>{busy} 끝난 뒤 적용됩니다.</p>}
-      <div className={formActions}>
-        <button type="button" className={actionButton} onClick={() => void onCancel()}>취소</button>
-        <button type="submit" className={primaryAction} disabled={edit.isPending}>{edit.isPending ? (busy ? `${busy} 끝나기를 기다리는 중…` : "적재하는 중…") : "고치기"}</button>
-      </div>
+      <EditActions onCancel={onCancel} busy={edit.isPending && (busy ? `${busy} 끝나기를 기다리는 중…` : "적재하는 중…")}
+        left={<button type="button" className={cn(actionButton, "mr-auto text-risk")} onClick={onRemove} disabled={edit.isPending}>문서 지우기</button>} />
     </form>
   );
 }

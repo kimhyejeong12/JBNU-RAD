@@ -29,7 +29,7 @@ export function uploadProblem(file: { name: string; size: number }, existing: st
     if (!/\.(md|txt)$/i.test(file.name)) return ".md, .txt, .pdf, .xlsx 파일만 올릴 수 있습니다";
     if (file.size > 1_000_000) return "1MB 까지 올릴 수 있습니다";
   }
-  if (existing.includes(textName(file.name))) return "같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요";
+  if (existing.includes(textName(file.name))) return "같은 이름의 기준 문서가 있습니다. 다른 이름으로 업로드하세요";
   return null;
 }
 
@@ -37,7 +37,7 @@ export function uploadProblem(file: { name: string; size: number }, existing: st
 export function draftProblem(draft: { name: string; content: string }, existing: string[]): string | null {
   const name = draft.name.trim();
   if (!/^[^./\\\0][^/\\\0]{0,95}\.(md|txt)$/i.test(name)) return "이름은 .md, .txt 로 끝나야 합니다 (/ 없이 100자까지)";
-  if (existing.includes(name)) return "같은 이름의 기준 문서가 있습니다. 다른 이름으로 올리세요";
+  if (existing.includes(name)) return "같은 이름의 기준 문서가 있습니다. 다른 이름으로 업로드하세요";
   if (!draft.content.trim()) return "빈 문서는 올릴 수 없습니다";
   return null;
 }
@@ -51,7 +51,7 @@ export function editProblem(d: { name: string; content: string }, form: { conten
 }
 
 export function removeProblem(d: { name: string }, count: number, form: { reason: string; typed: string }): string | null {
-  if (count <= 1) return "마지막 기준 문서는 지울 수 없습니다. 새 문서를 먼저 올리세요";
+  if (count <= 1) return "마지막 기준 문서는 지울 수 없습니다. 새 문서를 먼저 업로드하세요";
   if (!form.reason.trim()) return "지우는 사유를 적으세요";
   if (form.typed.trim() !== d.name) return "확인 칸에 파일 이름을 똑같이 입력하세요";
   return null;

@@ -6,7 +6,7 @@ import { regulationsQuery } from "@/shared/api/queries";
 import type { ExtractedPdf, ExtractedTables, Regulation } from "@/shared/api/types";
 
 export const useUploadRegulation = () => usePanelCreate((body: { name: string; content: string; source?: string }) => send<Regulation>("/api/regulations", body),
-  "regulations", (made) => [`✓ ${made.name} 를 올렸습니다`, `doc:${made.name}`]);
+  "regulations", (made) => [`✓ ${made.name} 를 업로드했습니다`, `doc:${made.name}`]);
 
 // 저장하지 않고 꺼낸 글만 받음
 export function useExtractPdf() {
@@ -36,7 +36,7 @@ export function useEditRegulation() {
       ctrl.current = new AbortController();
       return send<Regulation>(`/api/regulations/${encodeURIComponent(name)}`, { content, reason }, "PUT", ctrl.current.signal);
     },
-    onSuccess: () => setPanelMsg("✓ 고쳤습니다. 이 문서만 다시 적재했습니다"),
+    onSuccess: () => setPanelMsg("✓ 수정했습니다. 이 문서만 다시 적재했습니다"),
     onError: (e) => {
       if (!ctrl.current?.signal.aborted) setPanelMsg(e.message);
     },
@@ -47,7 +47,7 @@ export function useEditRegulation() {
     ctrl.current?.abort();
     const now = (await qc.fetchQuery({ ...regulationsQuery(), staleTime: 0 })).find((r) => r.name === before.name);
     const applied = !!now && now.content !== before.content;
-    setPanelMsg(applied ? "이미 적재가 시작돼 고쳐졌습니다" : "✓ 고치기를 취소했습니다. 문서는 그대로입니다");
+    setPanelMsg(applied ? "이미 적재가 시작돼 수정됐습니다" : "✓ 수정을 취소했습니다. 문서는 그대로입니다");
     return applied;
   }
   return { ...mutation, cancel };

@@ -14,4 +14,5 @@ test("changeSummary: 바뀐 칸 이름, 모르면 동작 이름", () => {
   expect(changeSummary(row({ department: "인사팀", job: "급여", from: { department: "", job: "" } }))).toBe("부서, 직무");
   expect(changeSummary(row({ department: "인사팀", job: "급여" }))).toBe("수정");
   expect(changeSummary({ ...row({}), action: "password_reset" })).toBe("비밀번호 초기화");
+  expect(changeSummary({ ...row({ reason: "조항 번호 오타", chars: 120 }), action: "regulation_edit" })).toBe("수정, 조항 번호 오타");
 });

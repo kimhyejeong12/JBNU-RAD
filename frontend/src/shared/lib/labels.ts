@@ -43,8 +43,10 @@ export function changeText(r: AuditRow): string {
     .map(([k, v]) => (from && k in from ? `${FIELD[k]} ${value(k, from[k])} → ${value(k, v)}` : `${FIELD[k]} ${value(k, v)}`)).join(", ");
 }
 
-// 최근 변경 줄의 짧은 글 — 바뀐 칸 이름만, 알 수 없으면 동작 이름
+// 최근 변경 줄의 짧은 글 — 바뀐 칸 이름만, 알 수 없으면 동작 이름과 사유(기준 문서)
 export function changeSummary(r: AuditRow): string {
   const keys = Object.keys(before(r) ?? {}).filter((k) => k in FIELD);
-  return keys.length ? keys.map((k) => FIELD[k]).join(", ") : AUDIT_ACTION[r.action] ?? r.action;
+  if (keys.length) return keys.map((k) => FIELD[k]).join(", ");
+  const reason = typeof r.detail.reason === "string" ? r.detail.reason : "";
+  return [AUDIT_ACTION[r.action] ?? r.action, reason].filter(Boolean).join(", ");
 }

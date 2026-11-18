@@ -5,7 +5,7 @@ import { ROLE_DUTY } from "./lib";
 import { useMe } from "@/app/session/me";
 import { canManageAccounts } from "@/app/session/views";
 import { useRequests } from "@/app/session/data";
-import { Panel, PanelFoot, PanelMsg, RecentChange, type PanelMode, type PanelRecord } from "@/app/ui/panel/Panel";
+import { EditActions, Panel, PanelFoot, PanelMsg, RecordHead, type PanelMode, type PanelRecord } from "@/app/ui/panel/Panel";
 import { usersQuery } from "@/shared/api/queries";
 import type { Role, UserRow } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
@@ -14,9 +14,9 @@ import { ROLE_LABEL } from "@/shared/lib/labels";
 import { cn } from "@/shared/lib/cn";
 import { useUi } from "@/app/ui/state/UiContext";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { actionButton, field, formActions, input, note, goodButton, panelFormGrid, primaryAction, rowInput, wideActions, wideField } from "@/shared/ui/styles";
+import { actionButton, field, input, note, panelFormGrid, primaryAction, rowInput, wideActions, wideField } from "@/shared/ui/styles";
 import { Icon } from "@/shared/ui/Icon";
-import { GroupBox, InfoRow, Pill, Switch, Subject } from "@/shared/ui/parts";
+import { GroupBox, InfoRow, Switch } from "@/shared/ui/parts";
 import { ask } from "@/app/ui/ask";
 import { checkForm } from "@/shared/lib/form";
 
@@ -140,15 +140,8 @@ function EditUser({ u }: { u: UserRow }) {
   // 비밀번호 칸은 이름이 없어 저장에 안 실림 — [초기화]로 따로 보냄
   return (
     <Panel title="계정 상세 정보" record={record} foot={<PanelFoot />}>
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <Subject title={<>{u.display_name} ({u.login_id})</>} className="mb-0" info={[ROLE_LABEL[u.role], u.department || "부서 없음"]} />
-        </div>
-        <Pill tone={u.is_active ? goodButton : "border-line text-ink-dim"} className="gap-1 py-1">
-          <Icon name={u.is_active ? "check" : "close"} small />{u.is_active ? "활성 계정" : "정지 계정"}
-        </Pill>
-      </div>
-      {mode === "view" && <RecentChange record={record} />}
+      <RecordHead record={record} title={<>{u.display_name} ({u.login_id})</>} info={[ROLE_LABEL[u.role], u.department || "부서 없음"]}
+        state={{ on: u.is_active, text: u.is_active ? "활성 계정" : "정지 계정" }} />
       <form key={`edit:${formKey}`} id="user-edit" onKeyDown={noEnterSubmit} onSubmit={onEdit}>
         <GroupBox icon="briefcase" title="업무 정보" className="mt-3">
           <InfoRow icon="briefcase" label="부서">
@@ -184,12 +177,7 @@ function EditUser({ u }: { u: UserRow }) {
           <InfoRow icon="calendar" label="계정 생성일"><span className="tabular-nums">{stamp(u.created_at)}</span></InfoRow>
         </GroupBox>
         {lockText && <p className={cn(note, "flex items-center gap-1")}><Icon name="lock" small />{lockText}</p>}
-        {editing && (
-          <div className={cn(formActions, "mt-3")}>
-            <button type="button" className={actionButton} onClick={() => setMode("view")}>취소</button>
-            <button type="submit" className={primaryAction}>저장</button>
-          </div>
-        )}
+        {editing && <EditActions onCancel={() => setMode("view")} />}
       </form>
     </Panel>
   );

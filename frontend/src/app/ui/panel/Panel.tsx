@@ -3,12 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useUi } from "@/app/ui/state/UiContext";
 import { panelOnDemand } from "@/app/ui/state/uiReducer";
 import { cn } from "@/shared/lib/cn";
-import { card, note, panelBody, panelFoot, cardTitle, msgTone, toolButton } from "@/shared/ui/styles";
+import { actionButton, card, formActions, goodButton, note, panelBody, panelFoot, cardTitle, msgTone, primaryAction, toolButton } from "@/shared/ui/styles";
 import { auditQuery } from "@/shared/api/queries";
 import type { AuditTarget } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { AUDIT_ACTION, changeSummary, changeText } from "@/shared/lib/labels";
-import { History, Section } from "@/shared/ui/parts";
+import { History, Pill, Subject } from "@/shared/ui/parts";
 import { Icon } from "@/shared/ui/Icon";
 
 export type PanelMode = "view" | "edit" | "history";
@@ -76,10 +76,6 @@ export function PanelFoot({ note: text }: { note?: ReactNode }) {
 }
 
 // 감사 기록에서 읽은 한 대상의 변경 이력임 — 판정의 근거가 언제 누구 손으로 바뀌었는지 보임
-export function ChangeLog(audit: PanelRecord["audit"]) {
-  return <Section icon="list" title="변경 이력"><AuditList {...audit} /></Section>;
-}
-
 function AuditList({ type, id, rev }: PanelRecord["audit"]) {
   const q = useQuery(auditQuery(type, id, rev));
   const rows = q.data ?? [];
@@ -88,8 +84,36 @@ function AuditList({ type, id, rev }: PanelRecord["audit"]) {
     : <p className={note}>{q.isLoading ? "읽는 중…" : q.isError ? q.error.message : "기록 없음"}</p>;
 }
 
+// 설정 패널(계정 · 권한 · 기준 문서) 머리 — 이름, 정보 한 줄, 오른쪽 상태 배지, 보기에서는 최근 변경 줄
+export function RecordHead({ record, title, info, state }: { record: PanelRecord; title: ReactNode; info: ReactNode[]; state?: { on: boolean; text: string } }) {
+  return (
+    <>
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1"><Subject title={title} className="mb-0" info={info} /></div>
+        {state && (
+          <Pill tone={state.on ? goodButton : "border-line text-ink-dim"} className="gap-1 py-1">
+            <Icon name={state.on ? "check" : "close"} small />{state.text}
+          </Pill>
+        )}
+      </div>
+      {record.mode === "view" && <RecentChange record={record} />}
+    </>
+  );
+}
+
+// 수정 화면 아래 [취소] [저장] — busy 면 저장 자리에 진행 글. left 는 왼쪽 끝 버튼(문서 지우기)
+export function EditActions({ onCancel, busy, left }: { onCancel: () => void; busy?: string | false; left?: ReactNode }) {
+  return (
+    <div className={cn(formActions, "mt-3")}>
+      {left}
+      <button type="button" className={actionButton} onClick={onCancel}>취소</button>
+      <button type="submit" className={primaryAction} disabled={!!busy}>{busy || "저장"}</button>
+    </div>
+  );
+}
+
 // 보기 화면 위 한 줄 — 마지막으로 누가 무엇을 바꿨는지. 누르면 이력 전체(같은 질의라 한 번만 받음)
-export function RecentChange({ record }: { record: PanelRecord }) {
+function RecentChange({ record }: { record: PanelRecord }) {
   const { type, id, rev } = record.audit;
   const rows = useQuery(auditQuery(type, id, rev)).data;
   if (!rows) return null;

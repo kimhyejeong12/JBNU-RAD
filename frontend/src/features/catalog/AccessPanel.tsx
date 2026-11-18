@@ -3,17 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useCreateAccess, useUpdateAccess } from "./api";
 import { accessState } from "./lib";
 import { useRequests } from "@/app/session/data";
-import { Panel, PanelFoot, PanelMsg, RecentChange, type PanelMode, type PanelRecord } from "@/app/ui/panel/Panel";
+import { EditActions, Panel, PanelFoot, PanelMsg, RecordHead, type PanelMode, type PanelRecord } from "@/app/ui/panel/Panel";
 import { catalogQuery } from "@/shared/api/queries";
 import type { AccessItem } from "@/shared/api/types";
 import { stamp } from "@/shared/lib/format";
 import { isActive } from "@/shared/lib/request";
-import { cn } from "@/shared/lib/cn";
 import { useUi } from "@/app/ui/state/UiContext";
 import { noEnterSubmit } from "@/shared/lib/hooks";
-import { actionButton, field, formActions, goodButton, input, panelFormGrid, primaryAction, rowInput, wideActions, wideField } from "@/shared/ui/styles";
-import { Icon } from "@/shared/ui/Icon";
-import { GroupBox, InfoRow, Pill, Switch, Subject } from "@/shared/ui/parts";
+import { field, input, panelFormGrid, primaryAction, rowInput, wideActions, wideField } from "@/shared/ui/styles";
+import { GroupBox, InfoRow, Switch } from "@/shared/ui/parts";
 import { ask } from "@/app/ui/ask";
 import { checkForm } from "@/shared/lib/form";
 
@@ -84,15 +82,8 @@ function EditAccess({ a }: { a: AccessItem }) {
   // 권한 정보(시스템 · 분류 · 설명)는 신청 판정의 입력에 들어감 (sources/people.py)
   return (
     <Panel title="권한 상세 정보" record={record} foot={<PanelFoot />}>
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <Subject title={<>{a.name} ({a.code})</>} className="mb-0" info={[`신청 ${used.length}건`, `유효 ${active}건`]} />
-        </div>
-        <Pill tone={a.is_active ? goodButton : "border-line text-ink-dim"} className="gap-1 py-1">
-          <Icon name={a.is_active ? "check" : "close"} small />{accessState(a.is_active)}
-        </Pill>
-      </div>
-      {mode === "view" && <RecentChange record={record} />}
+      <RecordHead record={record} title={<>{a.name} ({a.code})</>} info={[`신청 ${used.length}건`, `유효 ${active}건`]}
+        state={{ on: a.is_active, text: accessState(a.is_active) }} />
       <form key={formKey} id="access-edit" noValidate onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
         <GroupBox icon="key" title="권한 정보" className="mt-3">
           {editing && <InfoRow icon="key" label="이름"><input className={rowInput} name="name" aria-label="이름" required maxLength={100} defaultValue={a.name} /></InfoRow>}
@@ -114,12 +105,7 @@ function EditAccess({ a }: { a: AccessItem }) {
           </InfoRow>
           <InfoRow icon="calendar" label="등록일"><span className="tabular-nums">{stamp(a.created_at)}</span></InfoRow>
         </GroupBox>
-        {editing && (
-          <div className={cn(formActions, "mt-3")}>
-            <button type="button" className={actionButton} onClick={() => setMode("view")}>취소</button>
-            <button type="submit" className={primaryAction}>저장</button>
-          </div>
-        )}
+        {editing && <EditActions onCancel={() => setMode("view")} />}
       </form>
     </Panel>
   );
