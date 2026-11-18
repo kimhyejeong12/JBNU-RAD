@@ -2,8 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/shared/lib/cn";
 import { slotAt } from "@/shared/lib/format";
 import { activateProps } from "@/shared/lib/hooks";
-import { Periods } from "@/shared/ui/parts";
-import { lrowTone, ltable, ltableWrap, ltd, lth, mark, markTone, type MarkKey, cardNote } from "@/shared/ui/styles";
+import { lrowTone, ltable, ltableWrap, ltd, lth, markTone, type MarkKey, cardNote } from "@/shared/ui/styles";
 
 export function Legend({ items, round, className }: { items: [cls: MarkKey, label: string][]; round?: boolean; className?: string }) {
   return (
@@ -13,19 +12,6 @@ export function Legend({ items, round, className }: { items: [cls: MarkKey, labe
       ))}
     </div>
   );
-}
-
-export function Meter({ segs, total }: { segs: [cls: MarkKey, value: number][]; total: number }) {
-  return (
-    <div className="mt-1.5 flex h-2 gap-0.5 overflow-hidden rounded-sm bg-canvas">
-      {segs.filter(([, v]) => v).map(([k, v]) => <span key={k} className={cn(mark, markTone[k])} style={{ width: `${total ? (v / total) * 100 : 0}%` }} />)}
-    </div>
-  );
-}
-
-// 표는 차트 자리에 바꿔 보여 카드가 길어지지 않게 함
-export function ViewSwitch({ id, table, onChange }: { id: string; table: boolean; onChange: (table: boolean) => void }) {
-  return <Periods<"chart" | "table"> id={id} label="보기" labels={[["chart", "차트"], ["table", "표"]]} value={table ? "table" : "chart"} onChange={(k) => onChange(k === "table")} />;
 }
 
 export interface DataRow {
@@ -86,7 +72,9 @@ export function XTicks({ count, label }: { count: number; label: (n: number) => 
   const ticks = [...new Set([0, Math.floor(count / 2), count - 1])].filter((n) => n >= 0);
   return (
     <div className="relative ml-7.5 h-4.5 text-[11px] text-ink-dim tabular-nums">
-      {ticks.map((n, i) => <span key={n} className={TICK} style={{ left: i === 0 ? "0" : i === ticks.length - 1 ? "100%" : `${slotAt(n, count)}%` }}>{label(n)}</span>)}
+      {/* 하루뿐이면 막대 아래 가운데에 — 양끝 정렬이면 왼쪽 밖으로 잘림 */}
+      {ticks.length === 1 ? <span className={cn(TICK, "first:-translate-x-1/2 last:-translate-x-1/2")} style={{ left: `${slotAt(0, 1)}%` }}>{label(0)}</span>
+        : ticks.map((n, i) => <span key={n} className={TICK} style={{ left: i === 0 ? "0" : i === ticks.length - 1 ? "100%" : `${slotAt(n, count)}%` }}>{label(n)}</span>)}
     </div>
   );
 }

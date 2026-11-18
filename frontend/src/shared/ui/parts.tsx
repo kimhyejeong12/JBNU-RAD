@@ -107,8 +107,8 @@ const TILE = "flex min-w-0 flex-col justify-start rounded-xl border border-line 
 
 // 큰 숫자 하나 — children 은 아래 작은 글, extra 는 숫자와 글 사이(막대 등)임
 // onClick 을 주면 누르는 타일이고, pressed 는 목록을 이 타일로 거르는 중인지, disabled 는 지금 거를 것이 없는지, dot 은 이름 앞 점의 색임
-export function Tile({ label, big, tone, extra, onClick, pressed, disabled, dot, className, children }: {
-  label: ReactNode; big: ReactNode; tone?: string; extra?: ReactNode; onClick?: () => void; pressed?: boolean;
+export function Tile({ label, big, tone, onClick, pressed, disabled, dot, className, children }: {
+  label: ReactNode; big: ReactNode; tone?: string; onClick?: () => void; pressed?: boolean;
   disabled?: boolean; dot?: string; className?: string; children?: ReactNode;
 }) {
   const body = (
@@ -117,7 +117,6 @@ export function Tile({ label, big, tone, extra, onClick, pressed, disabled, dot,
         {dot && <i className="inline-block size-2 flex-none rounded-full" style={{ background: dot }} aria-hidden="true" />}{label}
       </span>
       <span className={cn("text-2xl font-bold tabular-nums", tone)}>{big}</span>
-      {extra}
       {children != null && <span className="mt-0.5 text-xs text-ink-dim">{children}</span>}
     </>
   );

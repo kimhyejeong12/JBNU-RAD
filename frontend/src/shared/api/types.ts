@@ -5,7 +5,7 @@ import type * as S from "./schema";
 export type {
   AccessItem, AuditRow, Briefing, Conversation, Decision, DecisionResult, EventFinding, ExtractedPdf, ExtractedTables, GrantReview, Health,
   Jobs, LogFacts, Me, NodeDetail, NodeRow, NodeWithKey, Overview, OverviewRow, PolicyIssue, PolicyPass, Regulation, RegulationIndex, RequestRow, Results, RiskFlag, RiskPeople,
-  RiskPerson, SafetyScore, Section, ServerFinding, Snapshot, SnapshotState, Stats, Suspect, Todo, UserRow, UserStats, Verdict, WatchFlag,
+  RiskPerson, SafetyDay, SafetyScore, Section, ServerFinding, Snapshot, SnapshotState, StatNode, Stats, Suspect, Todo, UserRow, UserStats, Verdict, WatchFlag,
   WatchPerson, XlsxTable,
 } from "./schema";
 

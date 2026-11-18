@@ -3,14 +3,15 @@ import { STAT_TITLES, SUSPECT_COLOR, useStatsData } from "./lib";
 import { useClauses, useResults } from "@/app/session/data";
 import { useUi } from "@/app/ui/state/UiContext";
 import { Panel } from "@/app/ui/panel/Panel";
-import { DecisionBadge, DecisionFoot, JudgeState } from "@/app/ui/panel/DecisionFoot";
+import { AiReport } from "@/app/ui/panel/AiReport";
+import { DecisionBadge, DecisionFoot } from "@/app/ui/panel/DecisionFoot";
 import type { Stats, Suspect, UserStats } from "@/shared/api/types";
 import { stamp, stampRange } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
-import { KvTable, Section, LinesBox, Subject } from "@/shared/ui/parts";
+import { KvTable, Section, Subject } from "@/shared/ui/parts";
 import { Sparkline } from "@/shared/ui/charts";
 import { cn } from "@/shared/lib/cn";
-import { box, boxPre, note, toolButton } from "@/shared/ui/styles";
+import { boxPre, note, toolButton, toolButtonInline } from "@/shared/ui/styles";
 
 const HELD_ROW = "grid cursor-pointer grid-cols-[1fr_auto] gap-x-2.5 gap-y-0.5 rounded-lg border border-line bg-surface px-2.5 py-2 text-left text-[13px] font-[inherit] [font-weight:inherit] leading-[inherit] hover:border-ink-dim";
 const HELD_SUB = "text-[12px] text-ink-dim";
@@ -74,14 +75,19 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
   const itemKey = `suspect/${p.key}`;
   const decision = results.decisions?.suspect?.[itemKey];
   return (
-    <Body title="의심 점수" subject={p.subject}
+    <Panel title="위협 예측 검토"
       foot={<DecisionFoot key={itemKey} decision={decision} target={{ kind: "suspect", itemKey, level: tone, subject: p.subject }} />}>
-      <JudgeState level={tone} label={p.failed ? "예측 실패" : `${p.score}점 ${p.level}`}><DecisionBadge decision={decision} /></JudgeState>
-      {p.failed ? <div className={cn(box, "mt-4.5")}>{p.error || ""}</div> : (
-        <>
-          <Section icon="activity" title="이유"><div className={box}>{p.reason}</div></Section>
-          <Section icon="ok" title="확인할 점"><div className={box}>{p.watch}</div></Section>
-        </>
+      <Subject title={p.subject} infoClass="flex items-center gap-1.5" info={<>처리 상태<DecisionBadge decision={decision} /></>} />
+      {/* 다른 검토 패널의 AI 분석 카드 — 무슨 일(행동 신호) · 왜 · 확인할 점을 번호와 글머리표로 (결정 기록 탭은 두지 않음) */}
+      <AiReport itemKey={itemKey} how="무엇을 확인할까요?" wait={p.failed ? `예측 실패: ${p.error || "알 수 없는 오류"}` : "예측 결과가 없습니다."}
+        what={g.highlights?.length ? <ul className="m-0 flex list-none flex-col gap-0.5 p-0">{g.highlights.map((h) => <li key={h}>{h}</li>)}</ul> : "최근 7일 눈에 띄는 신호 없음"}
+        f={tone && p.level ? { level: tone, label: `${p.score}점 ${p.level}`, reason: p.reason, recommendation: p.watch } : null} />
+      {/* 확인할 점을 읽고 바로 가 볼 곳 — AI 분석 바로 아래 한 줄 (검토 패널의 로그 버튼 줄과 같은 모양) */}
+      {(g.subject || found) && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {g.subject && <button className={toolButtonInline} id="stat-go" onClick={() => { navigate("events"); openLogs({ user: g.subject!, period: "month" }); }}><Icon name="search" small />최근 한 달 로그</button>}
+          {found && <button className={toolButtonInline} id="stat-go2" onClick={() => gotoEvent(`event:${found.keys[found.keys.length - 1]}`)}><Icon name="list" small />로그 감시 판정</button>}
+        </div>
       )}
       <Section icon="key" title="지금 가진 권한">
         {p.held == null ? <p className={note}>계정 미연결</p>
@@ -98,7 +104,6 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
           ) : <p className={note}>없음</p>}
       </Section>
       <Section icon="warn" title="행동 신호 (최근 7일)">
-        <LinesBox lines={g.highlights} empty="없음" />
         {g.subject ? (
           <KvTable rows={[["로그 (최근 / 평소)", `${g.recent_events} / ${g.baseline_events}건`],
             ["하루 양", `${g.baseline_daily_volume} → ${g.recent_daily_volume}${g.volume_ratio != null ? ` (${g.volume_ratio}배)` : ""}`],
@@ -114,11 +119,7 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
       </Section>
       <Section icon="activity" title="의심 점수 흐름"><ScoreTrend p={p} /></Section>
       <p className={note}>{stamp(p.created_at)}</p>
-      <div className="mt-4.5">
-        {g.subject && <button className={toolButton} id="stat-go" onClick={() => { navigate("events"); openLogs({ user: g.subject!, period: "month" }); }}><Icon name="search" small />로그 조회</button>}
-        {found && <button className={toolButton} id="stat-go2" onClick={() => gotoEvent(`event:${found.keys[found.keys.length - 1]}`)}><Icon name="list" small />로그 감시 판정 보기</button>}
-      </div>
-    </Body>
+    </Panel>
   );
 }
 
