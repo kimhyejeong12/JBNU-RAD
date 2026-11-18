@@ -61,15 +61,15 @@ export function OverviewTab() {
 // 판정 실패는 따로 표를 두지 않고 타일로 골라 같은 표에서 봄
 function picked(d: Overview, level: Pick | null): { rows: OverviewRow[]; total: number; name: string } {
   if (level === "판정 실패") return { rows: d.failed, total: d.counts.failed, name: "판정 실패" };
-  if (level) return { rows: d.top.filter((r) => r.level === level), total: d.counts[level], name: `열린 ${level}` };
-  return { rows: d.top, total: d.counts["위험"] + d.counts["주의"], name: "주요 위험 이슈" };
+  if (level) return { rows: d.top.filter((r) => r.level === level), total: d.counts[level], name: `${level} 이슈` };
+  return { rows: d.top, total: d.counts["위험"] + d.counts["주의"], name: "전체 이슈" };
 }
 
 // 주요 이슈는 위험부터 10건이라, 위험이 많으면 주의는 열려 있어도 이 목록에 안 들어옴
 function emptyText(level: Pick | null, total: number): string {
-  if (!level) return "열린 위험 없음";
+  if (!level) return "이슈 없음";
   if (level === "판정 실패") return "판정 실패 없음";
-  return total ? `위험이 많아 주요 이슈 10건에 ${level}가 들지 않았습니다` : `열린 ${level} 없음`;
+  return total ? `위험이 많아 10건 안에 ${level} 이슈가 들지 않았습니다` : `${level} 이슈 없음`;
 }
 
 // 전체 이슈 = 지금 열린 위험 + 주의 — 아래 표와 같은 건수, 누르면 거르기를 풂. 기간은 완료율에만
@@ -136,7 +136,7 @@ function AreaDonut({ d }: { d: Overview }) {
     <section className={card} id="overview-areas">
       <CardHead title="위험 유형별 현황" />
       <div className="flex flex-wrap items-center gap-5 px-4.5 pb-4">
-        <svg viewBox="0 0 140 140" className="size-35 flex-none" role="img" aria-label={`영역별 열린 위험, 주의 ${total}건`}>
+        <svg viewBox="0 0 140 140" className="size-35 flex-none" role="img" aria-label={`영역별 위험, 주의 이슈 ${total}건`}>
           <circle cx="70" cy="70" r={R} fill="none" stroke="var(--color-canvas)" strokeWidth="18" />
           {parts.map((a) => {
             const len = (a.end - a.start) * C - (parts.length > 1 ? GAP : 0);
@@ -147,7 +147,7 @@ function AreaDonut({ d }: { d: Overview }) {
             );
           })}
           <text x="70" y="68" textAnchor="middle" className="fill-ink text-[24px] font-extrabold tabular-nums">{total}</text>
-          <text x="70" y="88" textAnchor="middle" className="fill-ink-dim text-[11px]">열린 건</text>
+          <text x="70" y="88" textAnchor="middle" className="fill-ink-dim text-[11px]">전체 이슈</text>
         </svg>
         <ul className="m-0 flex min-w-40 flex-1 list-none flex-col gap-1.5 p-0 text-[13px]">
           {d.areas.map((a) => (

@@ -26,7 +26,7 @@ test("delta: 어제 끝과 지금의 차이, 하루뿐이면 견주지 않음", 
   const trend = [day("2026-11-14", 1, 4), day("2026-11-15", 3, 4), day("2026-11-16", 5, 2)];
   expect([delta(trend, "위험"), delta(trend, "주의")]).toEqual([2, -2]);
   expect(delta(trend.slice(2), "위험")).toBeNull();
-  expect([deltaText(2), deltaText(-2), deltaText(0), deltaText(null)]).toEqual(["어제보다 +2", "어제보다 -2", "어제와 동일", "현재 열린 건"]);
+  expect([deltaText(2), deltaText(-2), deltaText(0), deltaText(null)]).toEqual(["어제보다 +2", "어제보다 -2", "어제와 동일", "어제 기록 없음"]);
 });
 
 test("firstTodos: 영역마다 맨 앞 하나씩, 위험부터", () => {
