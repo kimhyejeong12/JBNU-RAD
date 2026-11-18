@@ -18,7 +18,8 @@ def _parts(result: dict[str, Any]) -> list[tuple[str, list[str]]]:
         return [(f"차이 {g.get('item', '?')}", [g["source"]] if g.get("source") else []) for g in result.get("gaps") or []]
     if "issues" in result:
         return [(f"문제 {i.get('kind', '?')} {', '.join(i.get('policy_ids') or [])}", i.get("policy_ids") or [])
-                for i in result.get("issues") or []]
+                for i in result.get("issues") or []] + [
+               (f"정상 {p.get('policy_id', '?')}", [p["policy_id"]] if p.get("policy_id") else []) for p in result.get("passed") or []]
     return [("판정", result.get("sources") or [])]
 
 

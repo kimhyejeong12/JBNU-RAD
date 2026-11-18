@@ -79,10 +79,18 @@ class PolicyIssue(BaseModel):
     recommendation: str = Field(description="개선안")
 
 
+class PolicyPass(BaseModel):
+    """검토해 문제가 없다고 본 조항 하나."""
+
+    policy_id: str = Field(description="조항 (문서 이름과 조항 번호, 예: 정책_운영기준.md 5.1)")
+    reason: str = Field(description="문제가 없다고 본 이유 한 줄")
+
+
 class PolicyReview(BaseModel):
     """기준 문서 검토 결과 전체."""
 
     issues: list[PolicyIssue] = Field(description="발견된 문제 목록. 없으면 빈 목록")
+    passed: list[PolicyPass] = Field(description="문제 목록에 들지 않은 조항마다 정상으로 본 이유. 문제 목록의 조항은 넣지 않는다")
     summary: str = Field(description="검토 요약")
 
 

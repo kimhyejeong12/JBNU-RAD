@@ -573,10 +573,17 @@ export interface PolicyIssue {
   seq: number;
 }
 
+/** 검토해 문제가 없다고 본 조항 하나. */
+export interface PolicyPass {
+  policy_id: string;
+  reason: string;
+}
+
 /** 마지막 정책 관리 검토 — 판정에 실패했으면 summary 에 원인이 오고 issues 가 빕니다. */
 export interface PolicyReview {
   summary: string;
   issues: PolicyIssue[];
+  passed: PolicyPass[];
   elapsed_sec: number | null;
 }
 

@@ -20,6 +20,8 @@ def test_ground_flags_clauses_missing_from_input():
     assert bad["checks"] == ["판정: 입력에 없는 조항 접근권한_관리기준.md 4.2, 보안_규정.md"]
     gaps = ground({"gaps": [{"item": "ssh", "source": "정책_운영기준.md 6.2"}, {"item": "ufw", "source": "접근권한_관리기준.md 3.3"}]}, built)
     assert gaps["checks"] == ["차이 ssh: 입력에 없는 조항 정책_운영기준.md 6.2"]
+    passed = ground({"issues": [], "passed": [{"policy_id": "접근권한_관리기준.md 3.3"}, {"policy_id": "정책_운영기준.md 5.1"}]}, built)
+    assert passed["checks"] == ["정상 정책_운영기준.md 5.1: 입력에 없는 조항 정책_운영기준.md 5.1"]
 
 
 ROW = {"request_no": "REQ-20261109-001", "requester_name": "김철수", "requester_department": "영업팀", "requested_access": "급여 테이블 조회",

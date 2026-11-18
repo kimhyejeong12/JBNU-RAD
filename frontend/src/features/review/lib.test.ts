@@ -31,7 +31,7 @@ test("serverItems: 다른 곳이 있으면 개수를 앞 글로", () => {
 });
 
 test("policyItems: 번호 · 정책 쌍 · 유형", () => {
-  const r: Results = { ...EMPTY_RESULTS, policy_review: { summary: "", elapsed_sec: null, issues: [{ key: "p1", seq: 1, kind: "충돌", level: "위험", policy_ids: ["FW-004", "FW-005"], reason: "순서", recommendation: "r" }] },
+  const r: Results = { ...EMPTY_RESULTS, policy_review: { summary: "", elapsed_sec: null, passed: [], issues: [{ key: "p1", seq: 1, kind: "충돌", level: "위험", policy_ids: ["FW-004", "FW-005"], reason: "순서", recommendation: "r" }] },
     sections: { policies: { source: "data/policies", generated_at: "2026-10-29T03:00:00+09:00", load_issues: [] } } };
   expect(policyItems(r)[0]).toMatchObject({ type: "policy", key: "policy:p1", itemKey: "p1", id: "", typeLabel: "정책 문제", who: "FW-004 ↔ FW-005", lead: "충돌", what: "순서", when: "2026-10-29 03:00", judge: "위험" });
 });
