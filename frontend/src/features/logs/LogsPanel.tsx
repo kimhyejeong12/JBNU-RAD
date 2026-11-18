@@ -3,7 +3,7 @@ import { PERIOD_LABEL, useLogsPage } from "./lib";
 import { useUi } from "@/app/ui/state/UiContext";
 import { Panel } from "@/app/ui/panel/Panel";
 import { stamp, stampRange } from "@/shared/lib/format";
-import { Icon } from "@/shared/ui/Icon";
+import { cn } from "@/shared/lib/cn";
 import { KvTable, Section, Subject } from "@/shared/ui/parts";
 import { empty, note, toolButton } from "@/shared/ui/styles";
 
@@ -22,7 +22,7 @@ export function LogsPanel() {
       <Panel title="로그 원본">
         <Subject title={e.user} info={[stamp(e.occurred_at), e.solution]} />
         <Section icon="list" title="내용"><KvTable rows={fields} /></Section>
-        <button className={toolButton} id="log-back" onClick={closePanel}><Icon name="activity" small />집계로 돌아가기</button>
+        <button className={cn(toolButton, "mt-3")} id="log-back" onClick={closePanel}>집계로 돌아가기</button>
       </Panel>
     );
   }
