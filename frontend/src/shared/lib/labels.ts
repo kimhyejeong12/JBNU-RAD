@@ -1,7 +1,6 @@
 import type { AuditRow, Role, Level, StatPeriod } from "@/shared/api/types";
 
 export const ROLE_LABEL: Record<Role, string> = { top: "보안 총책임자", manager: "보안 운영자", user: "일반 사용자" };
-export const ROLE_ICON: Record<Role, string> = { top: "shield", manager: "gear", user: "users" };
 export const MODULE_LABEL: Record<string, string> = { ufw: "UFW", sshd: "SSH", pam: "PAM", accounts: "계정, sudo" };
 
 export const STAT_PERIODS: [StatPeriod, string][] = [["week", "일주일"], ["month", "한 달"], ["quarter", "3개월"], ["all", "전체"]];
@@ -32,8 +31,20 @@ function value(key: string, v: unknown): string {
   return v === "" || v == null ? "빈 값" : String(v);
 }
 
-// 사유가 있으면 사유를, 없으면 바뀐 칸과 값을 적음
+// 바뀌기 전 값 — 바뀐 칸만 남긴 기록에만 있음 (예전 기록은 저장 때 보낸 칸 전부)
+const before = (r: AuditRow): Record<string, unknown> | null =>
+  r.detail.from && typeof r.detail.from === "object" ? r.detail.from as Record<string, unknown> : null;
+
+// 사유가 있으면 사유를, 없으면 바뀐 칸과 값("부서 빈 값 → 인사팀")을 적음
 export function changeText(r: AuditRow): string {
   if (typeof r.detail.reason === "string" && r.detail.reason) return r.detail.reason;
-  return Object.entries(r.detail).filter(([k]) => k in FIELD).map(([k, v]) => `${FIELD[k]} ${value(k, v)}`).join(", ");
+  const from = before(r);
+  return Object.entries(r.detail).filter(([k]) => k in FIELD)
+    .map(([k, v]) => (from && k in from ? `${FIELD[k]} ${value(k, from[k])} → ${value(k, v)}` : `${FIELD[k]} ${value(k, v)}`)).join(", ");
+}
+
+// 최근 변경 줄의 짧은 글 — 바뀐 칸 이름만, 알 수 없으면 동작 이름
+export function changeSummary(r: AuditRow): string {
+  const keys = Object.keys(before(r) ?? {}).filter((k) => k in FIELD);
+  return keys.length ? keys.map((k) => FIELD[k]).join(", ") : AUDIT_ACTION[r.action] ?? r.action;
 }

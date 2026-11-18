@@ -14,7 +14,7 @@ interface Base {
   lead?: string;         // 주요 문제 칸 앞 굵은 글 (정책 유형 · 다른 곳 수)
   note?: string;         // 그 칸 아래 작은 줄 (로그 감시의 AI 이유 첫 요점)
   sub?: string;
-  badge?: { icon: string; text: string };   // 배지 칸 (계정 역할 · 권한의 업무 시스템)
+  kind?: string;         // 셋째 칸 (계정 역할 · 권한의 업무 시스템)
 }
 
 export type QueueItem =

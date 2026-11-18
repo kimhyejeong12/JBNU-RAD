@@ -37,6 +37,8 @@ export const wideField = `${field} col-span-full`;
 export const fieldGrid = "grid grid-cols-2 gap-x-3 gap-y-2.5 narrow:grid-cols-1";
 export const panelFormGrid = cn(formGrid, "content-start p-0");
 export const input = "w-full rounded-lg border border-line bg-surface px-2.5 py-2 text-[13.5px] font-normal text-ink outline-none font-[inherit] leading-[inherit] focus:border-ink disabled:bg-canvas disabled:text-ink-dim";
+// 설정 패널 한 줄(InfoRow) 안의 낮은 입력 칸
+export const rowInput = cn(input, "py-1.25 text-[13px]");
 export const searchBox = "flex h-8 items-center gap-2 rounded-lg border border-line bg-surface px-2.75 text-[13px] text-ink-dim focus-within:border-ink";
 export const searchInput = "flex-1 border-none bg-transparent px-0.5 py-px text-ink outline-none font-[inherit] [font-size:inherit] [font-weight:inherit] leading-[inherit]";
 export const linkButton = "self-start border-none bg-transparent p-0 text-[11px] font-medium text-ink-dim underline hover:text-ink disabled:cursor-progress";

@@ -54,9 +54,14 @@ export function Pager({ at, pages, onPage, className }: { at: number; pages: num
   );
 }
 
-// 기호와 글을 묶은 회색 배지 — 표의 분류 칸 (보안 현황 유형, 계정 역할, 권한의 업무 시스템)
-export function IconBadge({ icon, children }: { icon: string; children: ReactNode }) {
-  return <Pill tone="border-transparent bg-canvas text-ink-soft" className="max-w-full gap-1 rounded-md py-0.75"><Icon name={icon} small /><span className="truncate">{children}</span></Pill>;
+// 설정 패널(계정 · 권한)의 한 줄 — 왼쪽 기호와 이름, 오른쪽 값(수정 중이면 입력 칸). 이름 칸은 "로그 사용자 ID"가 들어가는 폭
+export function InfoRow({ icon, label, children }: { icon: string; label: string; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[108px_minmax(0,1fr)] items-center gap-2.5 py-1">
+      <span className="flex items-center gap-1.5 whitespace-nowrap text-[12.5px] font-semibold text-ink-dim"><Icon name={icon} small />{label}</span>
+      <div className="min-w-0 text-[13px]">{children}</div>
+    </div>
+  );
 }
 
 // 패널 안의 묶음 상자 — 무엇에 쓰는 칸인지 제목으로 나눔 (관리 패널의 업무 정보 · 시스템 역할 · 검색 상태)

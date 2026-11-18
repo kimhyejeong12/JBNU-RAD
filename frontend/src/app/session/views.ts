@@ -17,7 +17,7 @@ interface ViewMeta {
   cols: string[];
   search: string;
   time?: false;   // 줄마다 시각이 같아 시간 열을 두지 않는 목록
-  badge?: true;   // 셋째 칸이 배지인 목록 (계정 역할 · 권한의 업무 시스템)
+  kind?: true;    // 셋째 칸에 종류(계정 역할 · 권한의 업무 시스템)를 글로 두는 목록
 }
 
 export const VIEWS: Record<View, ViewMeta> = {
@@ -32,9 +32,9 @@ export const VIEWS: Record<View, ViewMeta> = {
   mine: { title: "내 신청 현황", label: "내 신청", icon: "file", tip: "내 신청",
           tabs: ["queue"], cols: [], search: "" },
   users: { title: "계정 목록", label: "계정 관리", icon: "users", tip: "계정 관리",
-           tabs: ["queue"], cols: ["이름", "부서, 직무", "역할", "마지막 로그인", "상태"], search: "이름, 부서, 역할", badge: true },
+           tabs: ["queue"], cols: ["이름", "부서, 직무", "역할", "마지막 로그인", "상태"], search: "이름, 부서, 역할", kind: true },
   access: { title: "권한 목록", label: "권한 목록", icon: "key", tip: "권한 목록",
-            tabs: ["queue"], cols: ["권한", "분류, 설명", "업무 시스템", "고친 시각", "상태"], search: "권한, 시스템", badge: true },
+            tabs: ["queue"], cols: ["권한", "분류, 설명", "업무 시스템", "고친 시각", "상태"], search: "권한, 시스템", kind: true },
   docs: { title: "기준 문서", label: "기준 문서", icon: "book", tip: "기준 문서",
           tabs: ["queue"], cols: ["문서", "파일", "고친 시각", "조항"], search: "검색" },
   jobs: { title: "큐", label: "큐", icon: "list", tip: "큐",
