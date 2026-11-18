@@ -5,7 +5,7 @@ import { cn } from "@/shared/lib/cn";
 import { dayTime, pageLinks, stamp } from "@/shared/lib/format";
 import { LEVEL_ICON, MODULE_LABEL } from "@/shared/lib/labels";
 import { Icon } from "@/shared/ui/Icon";
-import { box, kvTable, kvTd, kvTh, levelDot, levelText, boxPre, note, cardHead, cardTitle, meta, searchBox, searchInput, subject } from "@/shared/ui/styles";
+import { box, kvTable, kvTd, kvTh, levelDot, levelText, boxPre, note, cardHead, cardTitle, meta, pressedMark, searchBox, searchInput, subject } from "@/shared/ui/styles";
 // SnapshotState · Snapshot 둘 다 받음 (앞의 것이 칸이 다 선택이라)
 
 export function LevelDot({ level, className }: { level?: Level | null; className?: string }) {
@@ -114,7 +114,7 @@ export function Tile({ label, big, tone, extra, onClick, pressed, disabled, dot,
   // 고른 타일은 2px 남색 테두리만 — 신청서 칸을 누를 때와 같은 표시임
   return (
     <button type="button" aria-pressed={pressed} onClick={onClick} disabled={disabled}
-      className={cn(TILE, className, "bg-surface hover:bg-row-hover aria-pressed:border-brand aria-pressed:shadow-[inset_0_0_0_1px_var(--color-brand)] disabled:cursor-default disabled:opacity-50 disabled:hover:bg-surface")}>
+      className={cn(TILE, className, pressedMark, "bg-surface hover:bg-row-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-surface")}>
       {body}
     </button>
   );
