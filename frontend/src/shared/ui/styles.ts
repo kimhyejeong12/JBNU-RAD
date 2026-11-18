@@ -51,8 +51,6 @@ export const actionButton = "h-9 whitespace-nowrap rounded-lg border border-line
 export const primaryButton = "border-brand bg-brand text-white hover:border-brand-hover hover:bg-brand-hover";
 export const dangerButton = "border-risk bg-risk text-white";
 export const goodButton = "border-ok-line bg-ok-tint text-ok";
-// 고른 것 표시 — 2px 남색 테두리 (숫자 타일 · 질의 분류 타일)
-export const pressedMark = "aria-pressed:border-brand aria-pressed:shadow-[inset_0_0_0_1px_var(--color-brand)]";
 export const primaryAction = cn(actionButton, primaryButton);
 export const dangerAction = cn(actionButton, dangerButton);
 

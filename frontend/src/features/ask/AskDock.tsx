@@ -11,7 +11,7 @@ import { ago } from "@/shared/lib/format";
 import { Dropdown } from "@/shared/ui/Dropdown";
 import { cn } from "@/shared/lib/cn";
 import { Icon, LogoMark } from "@/shared/ui/Icon";
-import { chip, chipTone, note, pressedMark } from "@/shared/ui/styles";
+import { chip, chipTone, note } from "@/shared/ui/styles";
 
 // 메신저 모양 — 흰 머리에 남색 제목, 회색 바탕에 봇 말풍선(흰색, 왼쪽)과 내 말풍선(연한 남색, 오른쪽). 진한 남색은 보내기 단추만
 const BOT = "min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-line bg-surface px-3.5 py-2.5 text-[13.5px] leading-relaxed";
@@ -20,8 +20,8 @@ const ME = "max-w-[85%] self-end rounded-2xl rounded-tr-sm border border-brand-s
 // 챗봇 프로필 — 머리 로고와 같은 빨간 방패, 바탕은 아주 연한 남색 (남색을 중간 밝기로 올리면 회색이 섞여 탁함)
 const AVATAR = "flex size-8 flex-none items-center justify-center rounded-full bg-brand-soft-line";
 const CHECKS = "m-0 mt-2 flex items-start gap-1 rounded-lg bg-warn-tint px-2.5 py-1.5 text-[12px] text-warn";
-// 분류 타일 — 고른 타일은 숫자 타일과 같은 표시
-const TOPIC = cn("flex min-w-0 flex-col items-center gap-1.5 rounded-xl border border-line bg-surface px-1 pt-2.5 pb-2 text-[12px] font-semibold whitespace-nowrap text-ink-soft hover:bg-row-hover aria-pressed:text-brand", pressedMark);
+// 분류 타일 — 작은 타일이라 고른 표시는 1px 남색 테두리 (숫자 타일의 2px 는 두꺼워 보임)
+const TOPIC = "flex min-w-0 flex-col items-center gap-1.5 rounded-xl border border-line bg-surface px-1 pt-2.5 pb-2 text-[12px] font-semibold whitespace-nowrap text-ink-soft hover:bg-row-hover aria-pressed:border-brand aria-pressed:text-brand";
 const EXAMPLE = "self-start rounded-full border border-line bg-surface px-3.5 py-1.5 text-left text-[13px] text-ink hover:border-brand hover:text-brand disabled:cursor-progress disabled:opacity-50";
 // 머리의 기호 단추
 const HEAD_ICON = "flex size-8 flex-none items-center justify-center rounded-[7px] border-0 bg-transparent text-ink-dim hover:bg-canvas hover:text-ink aria-expanded:bg-canvas aria-expanded:text-ink disabled:opacity-40 disabled:hover:bg-transparent";
