@@ -1,3 +1,4 @@
+"""결재 결과 메일 — 신청자에게 결과 · 반려 의견을 글과 HTML 로 보내고, 결재가 안 끝난 신청은 보내지 않는지 봅니다."""
 from __future__ import annotations
 
 from sentinelai.db import auth, catalog, permissions

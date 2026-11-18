@@ -1,3 +1,4 @@
+"""알림 카드 — 같은 알림이 글 · Slack · Teams · 메일에서 같은 순서로 그려지고, 이스케이프 · 목록 자르기 · 이름 가리기 · 색을 봅니다."""
 from __future__ import annotations
 
 import json

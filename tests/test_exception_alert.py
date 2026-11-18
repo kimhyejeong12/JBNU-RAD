@@ -1,3 +1,4 @@
+"""예외 상황 알림 — 계정 역할 변경 · 보유 권한 위험 · AI 위험 판정 승인 · 보안 설정 변경과 변경 이력을 봅니다."""
 from __future__ import annotations
 
 import time

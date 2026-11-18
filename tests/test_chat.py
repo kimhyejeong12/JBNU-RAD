@@ -1,3 +1,4 @@
+"""운영자 채널 — Slack · Teams 에 같은 알림을 보내고, 1차 결재 대기는 AI 판정이 저장된 뒤 보내는지 봅니다."""
 from __future__ import annotations
 
 from sentinelai.db import catalog, permissions

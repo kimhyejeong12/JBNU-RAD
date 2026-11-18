@@ -1,3 +1,4 @@
+"""로그 감시 위험 알림 — 결과 DB 에서 새 위험 판정을 읽어 채널로 보내는지 봅니다."""
 from __future__ import annotations
 
 from sentinelai.db import results, watch
