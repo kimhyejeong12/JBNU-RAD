@@ -8,7 +8,7 @@ import { useUi } from "@/app/ui/state/UiContext";
 import { useStartJob } from "@/shared/api/jobs";
 import { overviewQuery } from "@/shared/api/queries";
 import type { Briefing, Overview, OverviewRow, StatPeriod } from "@/shared/api/types";
-import { dayTime, niceMax, slotAt, stamp, rangeText } from "@/shared/lib/format";
+import { dayTime, niceMax, slotAt, stamp } from "@/shared/lib/format";
 import { cn } from "@/shared/lib/cn";
 import { Icon } from "@/shared/ui/Icon";
 import { usePage } from "@/shared/lib/hooks";
@@ -26,6 +26,8 @@ const AREA_MARK = "inline-block size-2.5 flex-none rounded-xs";
 export function OverviewTab() {
   const { ui, setStats } = useUi();
   const period = ui.stats.period;
+  // 기간은 완료율 · 추이 · 최근 조치에만 — 날짜 축이 없는 완료율 · 최근 조치 이름에 붙임
+  const span = STAT_PERIODS.find(([k]) => k === period)?.[1] ?? "";
   const q = useQuery(overviewQuery(period));
   const d = q.data;
   const go = useGo();
@@ -37,9 +39,9 @@ export function OverviewTab() {
       <section className={card}>
         <CardHead title="종합 대시보드">
           <Periods<StatPeriod> id="overview-periods" labels={STAT_PERIODS} value={period} onChange={(p) => { if (p !== period) setStats({ period: p }); }} />
-          <span className={cardCount}>{rangeText(q, "완료율 ")}</span>
+          <span className={cardCount}>{q.isFetching ? "세는 중…" : q.error?.message ?? ""}</span>
         </CardHead>
-        {d && <Tiles d={d} level={level} onPick={(l) => setLevel(l === level ? null : l)} />}
+        {d && <Tiles d={d} span={span} level={level} onPick={(l) => setLevel(l === level ? null : l)} />}
       </section>
       {d && (
         <>
@@ -50,7 +52,7 @@ export function OverviewTab() {
           </div>
           <div className="grid grid-cols-[minmax(0,7fr)_minmax(0,5fr)] items-start gap-3.5 narrow:grid-cols-[minmax(0,1fr)]">
             <Issues key={level ?? "all"} id="overview-top" title={title} rows={rows} empty={emptyText(level)} go={go} />
-            <Recent d={d} go={go} />
+            <Recent d={d} span={span} go={go} />
           </div>
         </>
       )}
@@ -69,7 +71,7 @@ const emptyText = (level: Pick | null): string => (!level ? "이슈 없음" : le
 
 // 전체 이슈 = 지금 열린 위험 + 주의 — 아래 표와 같은 건수, 누르면 거르기를 풂. 기간은 완료율에만
 // 판정 실패는 0이면 비활성으로 늘 둠 — 실패 때만 나타나면 타일 줄이 갑자기 바뀜
-function Tiles({ d, level, onPick }: { d: Overview; level: Pick | null; onPick: (l: Pick | null) => void }) {
+function Tiles({ d, span, level, onPick }: { d: Overview; span: string; level: Pick | null; onPick: (l: Pick | null) => void }) {
   const c = d.counts;
   const all = c.completion.done + c.completion.waiting;
   return (
@@ -78,7 +80,7 @@ function Tiles({ d, level, onPick }: { d: Overview; level: Pick | null; onPick: 
       {(["위험", "주의"] as const).map((l) => (
         <Tile key={l} label={<><LevelDot level={l} />{l}</>} big={c[l]} tone={c[l] ? levelText[l] : undefined} pressed={level === l} onClick={() => onPick(l)}>{deltaText(delta(d.trend, l))}</Tile>
       ))}
-      <Tile label="조치 완료율" big={rateText(c.completion.rate)}>{c.completion.done} / {all}건</Tile>
+      <Tile label={`조치 완료율 (${span})`} big={rateText(c.completion.rate)}>{c.completion.done} / {all}건</Tile>
       <Tile label="판정 실패" big={c.failed} pressed={!!c.failed && level === "판정 실패"} disabled={!c.failed}
         onClick={() => onPick("판정 실패")}>{c.failed ? "위험, 주의 집계 제외" : "실패 없음"}</Tile>
     </div>
@@ -231,12 +233,12 @@ function Issues({ id, title, rows, empty, go }: { id: string; title: string; row
 
 
 // 최근 조치 — 완료율의 "완료"(조치 완료 결정 · 회수), 늦은 것부터 10건. recent 없는 예전 서버 대비
-function Recent({ d, go }: { d: Overview; go: Go }) {
+function Recent({ d, span, go }: { d: Overview; span: string; go: Go }) {
   const rows = d.recent ?? [];
   const { shown, at, pages, setPage } = usePage(rows, PAGE);
   return (
     <section className={card} id="overview-recent">
-      <CardHead title={<>최근 조치 내역 ({ofText(d.counts.completion.done, rows.length)})</>} />
+      <CardHead title={<>최근 조치 내역 ({span}, {ofText(d.counts.completion.done, rows.length)})</>} />
       <DataTable head={["처리일", "유형", "대상, 조치 내용", "결과"]} empty="기간 내 조치 없음"
         rows={shown.map((r) => ({
           key: `${r.area}:${r.key}:${r.at}`, onSelect: () => go(r.area, r.key),
