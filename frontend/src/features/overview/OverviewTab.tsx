@@ -49,7 +49,7 @@ export function OverviewTab() {
             <Summary b={d.briefing} go={go} />
           </div>
           <div className="grid grid-cols-[minmax(0,7fr)_minmax(0,5fr)] items-start gap-3.5 narrow:grid-cols-[minmax(0,1fr)]">
-            <Issues key={level ?? "all"} id="overview-top" title={title} rows={rows} empty={emptyText(level, total)} go={go} />
+            <Issues key={level ?? "all"} id="overview-top" title={title} rows={rows} empty={emptyText(level)} go={go} />
             <Recent d={d} go={go} />
           </div>
         </>
@@ -65,12 +65,7 @@ function picked(d: Overview, level: Pick | null): { rows: OverviewRow[]; total: 
   return { rows: d.top, total: d.counts["위험"] + d.counts["주의"], name: "전체 이슈" };
 }
 
-// 주요 이슈는 위험부터 10건이라, 위험이 많으면 주의는 열려 있어도 이 목록에 안 들어옴
-function emptyText(level: Pick | null, total: number): string {
-  if (!level) return "이슈 없음";
-  if (level === "판정 실패") return "판정 실패 없음";
-  return total ? `위험이 많아 10건 안에 ${level} 이슈가 들지 않았습니다` : `${level} 이슈 없음`;
-}
+const emptyText = (level: Pick | null): string => (!level ? "이슈 없음" : level === "판정 실패" ? "판정 실패 없음" : `${level} 이슈 없음`);
 
 // 전체 이슈 = 지금 열린 위험 + 주의 — 아래 표와 같은 건수, 누르면 거르기를 풂. 기간은 완료율에만
 // 판정 실패는 0이면 비활성으로 늘 둠 — 실패 때만 나타나면 타일 줄이 갑자기 바뀜

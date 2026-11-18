@@ -14,7 +14,7 @@ SUSPECT_LEVEL = {"높음": "위험", "보통": "주의", "낮음": "정상"}
 ACTIONS = {"done": "조치 완료", "act": "조치 필요", "clear": "이상 없음", "approve": "승인", "cond": "조건부 승인",
            "reject": "반려 확정"}
 CLEARED = {"clear", "reject"}
-TOP = 10
+RECENT = 10   # 최근 조치만 10건 — 주요 이슈 · 판정 실패는 전부 (타일 숫자와 표 건수가 같게)
 REASON_CHARS = 200
 
 
@@ -255,9 +255,9 @@ def summarize(items: list[Item], log: dict[str, dict[str, list[dict[str, Any]]]]
                    "failed": len(failed)},
         "areas": list(areas.values()),
         "trend": trend,
-        "top": [_row(i, d) for i, _, d in top[:TOP]],
-        "failed": [_row(i, d) for i, _, d in failed[:TOP]],
-        "recent": recent[:TOP],   # 완료로 센 것 — 늦은 것부터
+        "top": [_row(i, d) for i, _, d in top],
+        "failed": [_row(i, d) for i, _, d in failed],
+        "recent": recent[:RECENT],   # 완료로 센 것 — 늦은 것부터
     }
 
 
