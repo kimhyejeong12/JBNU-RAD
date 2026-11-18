@@ -37,10 +37,7 @@ export function LogsTab() {
   return (
     <section className={cn(card, "@container flex min-h-80 flex-col")} id="view-logs" role="tabpanel" aria-labelledby="tab-logs" ref={section}>
       <CardHead title="로그 조회">
-        <Periods id="log-periods" labels={PERIODS} value={L.period} onChange={(period) => { if (period !== L.period) change({ period }); }} />
         <span className={cardCountInline} id="log-count">{logs.isFetching ? "불러오는 중…" : d ? `${d.total.toLocaleString()}건` : ""}</span>
-        <PickInput key={L.user} id="log-user" label="사용자" values={filterChoices(d?.options.users ?? [], L.user, undefined).map((c) => c.value)}
-          value={L.user} onPick={(v) => change({ user: v })} />
       </CardHead>
       <LogFilters d={d} cond={L} onChange={change} />
       <div className={ltableWrap}>
@@ -72,28 +69,41 @@ export function LogsTab() {
   );
 }
 
-// 값이 하나뿐이거나 없어도 무엇으로 거를 수 있는지 보이게 늘 둠
+// 표를 거르는 조건(기간 · 솔루션 · 행위 · 사용자)을 한 상자에 묶음 — 값이 하나뿐이거나 없어도 무엇으로 거를 수 있는지 보이게 늘 둠
 function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChange: (patch: Partial<LogCond>) => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4.5 pb-3">
+    <div className="mx-4.5 mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-line px-3.5 py-2.5">
+      <Labeled label="기간">
+        <Periods id="log-periods" label="기간" labels={PERIODS} value={cond.period} onChange={(period) => { if (period !== cond.period) onChange({ period }); }} />
+      </Labeled>
       {LOG_FILTERS.map(([k, id, label, opt, fact]) => {
         const choices = filterChoices(d?.options[opt] ?? [], cond[k], d?.facts?.[fact]);
         return (
-          <div key={k} className="flex items-center gap-2">
-            <span className="text-[12px] font-semibold text-ink-dim">{label}</span>
+          <Labeled key={k} label={label}>
             <Periods id={id} label={label} value={cond[k]} onChange={(v) => { if (v !== cond[k]) onChange({ [k]: v }); }}
               labels={[["", "전체"], ...choices.map((c): [string, ReactNode] => [c.value, <>{c.value}{c.count != null && <span className="ml-1.5 tabular-nums text-ink-faint">{c.count}</span>}</>])]} />
-          </div>
+          </Labeled>
         );
       })}
+      <Labeled label="사용자" className="ml-auto phone:ml-0 phone:w-full">
+        <PickInput key={cond.user} id="log-user" label="사용자" values={filterChoices(d?.options.users ?? [], cond.user, undefined).map((c) => c.value)}
+          value={cond.user} onPick={(v) => onChange({ user: v })} />
+      </Labeled>
     </div>
   );
 }
 
+const Labeled = ({ label, className, children }: { label: string; className?: string; children: ReactNode }) => (
+  <div className={cn("flex items-center gap-2", className)}>
+    <span className="text-[12px] font-semibold whitespace-nowrap text-ink-dim">{label}</span>
+    {children}
+  </div>
+);
+
 // 서버는 완전 일치로 거르므로 목록의 이름과 같아지거나 비울 때만 거름
 function PickInput({ id, label, values, value, onPick }: { id: string; label: string; values: string[]; value: string; onPick: (v: string) => void }) {
   return (
-    <SearchBox className="ml-auto w-50 phone:w-full" id={id} list={`${id}-list`} defaultValue={value} placeholder={`${label} 이름으로 찾기`}
+    <SearchBox className="w-50 phone:w-full" id={id} list={`${id}-list`} defaultValue={value} placeholder={`${label} 이름으로 찾기`}
       onChange={(e) => { const v = e.target.value.trim(); if (!v || values.includes(v)) onPick(v); }}>
       <datalist id={`${id}-list`}>{values.map((v) => <option key={v} value={v} />)}</datalist>
     </SearchBox>
