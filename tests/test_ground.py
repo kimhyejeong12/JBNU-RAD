@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from langchain_core.runnables import RunnableLambda
 
 from sentinelai.context import Inputs, Section, fit
-from sentinelai.engine.ground import ground
+from sentinelai.engine.ground import ground, regulation_sources
 from sentinelai.engine.worker import PrecedentReview, Verdict, Worker
 from sentinelai.sources import Person
 
@@ -22,6 +22,14 @@ def test_ground_flags_clauses_missing_from_input():
     assert gaps["checks"] == ["차이 ssh: 입력에 없는 조항 정책_운영기준.md 6.2"]
     passed = ground({"issues": [], "passed": [{"policy_id": "접근권한_관리기준.md 3.3"}, {"policy_id": "정책_운영기준.md 5.1"}]}, built)
     assert passed["checks"] == ["정상 정책_운영기준.md 5.1: 입력에 없는 조항 정책_운영기준.md 5.1"]
+
+
+def test_sources_keep_only_document_clauses():
+    built = fit([Section("context", [CLAUSES])], 1000)
+    kept, dropped = regulation_sources(["대상 사용자 기록 — 로그 22건", "[접근권한_관리기준.md] ### 3.3 급여 정보 접근",
+                                        "접근권한_관리기준 3.3, 4.2", "보안_규정.md", "보안 솔루션 로그"], built)
+    assert kept == ["접근권한_관리기준.md 3.3", "접근권한_관리기준.md 4.2", "보안_규정.md"]
+    assert dropped == ["대상 사용자 기록 — 로그 22건", "보안 솔루션 로그"]
 
 
 ROW = {"request_no": "REQ-20261109-001", "requester_name": "김철수", "requester_department": "영업팀", "requested_access": "급여 테이블 조회",
@@ -58,6 +66,13 @@ def test_judge_grounds_sources_without_precedents():
     out = worker.judge("request", {"row": ROW, "person": PERSON})
     assert seen["first"]["requester"].startswith("영업팀 김철수") and seen["first"]["context"] == CLAUSES and "judge" not in seen
     assert out["level"] == "위험" and out["grounding"] == {"checks": ["판정: 입력에 없는 조항 접근권한_관리기준.md 9.9"]}
+
+
+def test_judge_drops_input_names_from_sources():
+    worker, _ = _worker(_verdict("주의", ("신청자 기록 — 로그 22건", "접근권한_관리기준.md 3.3")))
+    out = worker.judge("request", {"row": ROW, "person": PERSON})
+    assert out["sources"] == ["접근권한_관리기준.md 3.3"]
+    assert out["grounding"]["checks"] == ["근거에서 조항이 아닌 것을 뺐습니다: 신청자 기록 — 로그 22건"]
 
 
 def test_precedent_conflict_rejudges_once():
