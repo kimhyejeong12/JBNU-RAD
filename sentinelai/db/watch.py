@@ -15,13 +15,46 @@ def last_finding_id(db: Database) -> int:
 
 
 def findings_after(db: Database, after: int, level: str = "위험") -> list[dict[str, Any]]:
-    """after 뒤로 쌓인 그 등급의 로그 감시 판정(실패 제외) — id · 사용자 · 로그 구간 · 단계(fast · final)."""
+    """after 뒤로 쌓인 그 등급의 로그 감시 판정(실패 제외) — id · 사용자 · 부서 이름 · 로그 구간 · 묶인 로그 글 · AI 이유 · 단계(fast · final)."""
     with db.connection() as conn:
         rows = conn.execute(
-            "SELECT f.id, f.\"user\", f.first_event_at, f.last_event_at, m.stage FROM event_findings f"
+            "SELECT f.id, f.\"user\", f.subject, f.first_event_at, f.last_event_at, f.events, f.reason, m.stage FROM event_findings f"
             " JOIN monitor_runs m ON m.id = f.run_id WHERE f.id > %s AND f.level = %s AND f.failed = 0 ORDER BY f.id",
             (after, level)).fetchall()
     return [dict(r) for r in rows]
+
+
+# --- 1차 결재 대기 (권한 DB) ---
+
+def last_request_id(db: Database) -> int:
+    with db.connection() as conn:
+        return conn.execute("SELECT coalesce(max(id), 0) FROM access_requests").fetchone()[0]
+
+
+def request_ids_after(db: Database, after: int) -> list[int]:
+    with db.connection() as conn:
+        return [r["id"] for r in conn.execute("SELECT id FROM access_requests WHERE id > %s ORDER BY id", (after,))]
+
+
+def unjudged_request_ids(db: Database, since: str) -> list[int]:
+    """1차 결재를 기다리는데 AI 판정이 아직 없는 신청 중 since 뒤에 들어온 것 — 웹을 다시 띄웠을 때 이어서 지켜볼 것."""
+    with db.connection() as conn:
+        return [r["id"] for r in conn.execute(
+            "SELECT id FROM access_requests WHERE stage = 'manager' AND ai_judged_at IS NULL AND submitted_at >= %s ORDER BY id", (since,))]
+
+
+def waiting_requests(db: Database, ids: list[int]) -> list[dict[str, Any]]:
+    """알림에 쓸 신청 행 — 칸 이름은 permissions 의 화면용 dict 와 같고, ai_verdict 는 판정이 없으면 None 입니다."""
+    if not ids:
+        return []
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT id, request_no, stage, submitted_at, requester_name, requester_department, requester_job, requested_access,"
+            " period_start, period_end, ai_level, ai_reason, ai_failed, ai_judged_at FROM access_requests WHERE id = ANY(%s) ORDER BY id",
+            (ids,)).fetchall()
+    return [{**{k: v for k, v in r.items() if not k.startswith("ai_")},
+             "ai_verdict": None if r["ai_judged_at"] is None else {"level": r["ai_level"], "reason": r["ai_reason"], "failed": bool(r["ai_failed"])}}
+            for r in rows]
 
 
 # --- 예외 상황 (권한 DB) ---

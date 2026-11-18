@@ -233,8 +233,7 @@ class NewRequest(BaseModel):
 
 
 @router.post("/requests", status_code=201, responses={201: {"model": RequestRow}})
-def submit(body: NewRequest, request: Request, background: BackgroundTasks,
-           user: Annotated[User, Depends(role("user"))]) -> dict[str, Any]:
+def submit(body: NewRequest, request: Request, user: Annotated[User, Depends(role("user"))]) -> dict[str, Any]:
     # 업무상 필요한지는 결재자가 사유를 보고 판단하므로 비면 받지 않습니다.
     if not body.reason:
         raise HTTPException(status_code=400, detail="신청 사유를 적으세요 — 결재자가 업무상 필요한지 판단하는 근거입니다")
@@ -242,8 +241,8 @@ def submit(body: NewRequest, request: Request, background: BackgroundTasks,
         req = permissions.submit(request.app.state.main_db, user, **body.model_dump())
     except Denied as exc:
         raise _denied(exc) from None
+    # 1차 결재 대기 알림은 AI 판정이 저장된 뒤 notify.WaitingWatcher 가 보냅니다 (AI 사전 검토 한 줄을 함께).
     request.app.state.engine.enqueue_request(req["request_no"])
-    background.add_task(notify.notify_waiting, request.app.state.chat, req)
     return _with_verdict(request, req, user)
 
 
