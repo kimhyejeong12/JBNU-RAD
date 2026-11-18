@@ -50,7 +50,7 @@ def create(db: Database, by: User, name: str) -> tuple[dict[str, Any], str]:
     """→ (노드, 키)."""
     _require_analyst(by)
     if not NAME.match(name) or name in RESERVED:
-        raise Denied("노드 이름은 영문 · 숫자 · . _ - 1~64자입니다" + (" (쓸 수 없는 이름)" if name in RESERVED else ""))
+        raise Denied("노드 이름은 영문, 숫자, . _ - 로 1~64자입니다" + (" (쓸 수 없는 이름)" if name in RESERVED else ""))
     key = secrets.token_urlsafe(32)
     with db.transaction() as conn:
         if conn.execute("SELECT 1 FROM nodes WHERE name = %s", (name,)).fetchone():
@@ -101,7 +101,7 @@ def enabled_names(db: Database) -> set[str]:
 
 def _require_analyst(by: User) -> None:
     if by.role not in ("manager", "top"):
-        raise Denied("노드 관리는 보안 운영자 · 보안 총책임자만 할 수 있습니다")
+        raise Denied("노드 관리는 보안 운영자 이상만 할 수 있습니다")
 
 
 def _change(db: Database, by: User, name: str, sql: str, args: tuple, action: str, detail: dict) -> dict[str, Any]:

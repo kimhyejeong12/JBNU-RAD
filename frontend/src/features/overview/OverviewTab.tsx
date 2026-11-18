@@ -85,7 +85,7 @@ function Tiles({ d, level, onPick }: { d: Overview; level: Pick | null; onPick: 
       ))}
       <Tile label="조치 완료율" big={rateText(c.completion.rate)}>{c.completion.done} / {all}건</Tile>
       <Tile label="판정 실패" big={c.failed} pressed={!!c.failed && level === "판정 실패"} disabled={!c.failed}
-        onClick={() => onPick("판정 실패")}>{c.failed ? "위험 주의에 안 셈" : "모두 판정됨"}</Tile>
+        onClick={() => onPick("판정 실패")}>{c.failed ? "위험, 주의 집계 제외" : "실패 없음"}</Tile>
     </div>
   );
 }
@@ -136,7 +136,7 @@ function AreaDonut({ d }: { d: Overview }) {
     <section className={card} id="overview-areas">
       <CardHead title="위험 유형별 현황" />
       <div className="flex flex-wrap items-center gap-5 px-4.5 pb-4">
-        <svg viewBox="0 0 140 140" className="size-35 flex-none" role="img" aria-label={`영역별 열린 위험 주의 ${total}건`}>
+        <svg viewBox="0 0 140 140" className="size-35 flex-none" role="img" aria-label={`영역별 열린 위험, 주의 ${total}건`}>
           <circle cx="70" cy="70" r={R} fill="none" stroke="var(--color-canvas)" strokeWidth="18" />
           {parts.map((a) => {
             const len = (a.end - a.start) * C - (parts.length > 1 ? GAP : 0);
@@ -147,7 +147,7 @@ function AreaDonut({ d }: { d: Overview }) {
             );
           })}
           <text x="70" y="68" textAnchor="middle" className="fill-ink text-[24px] font-extrabold tabular-nums">{total}</text>
-          <text x="70" y="88" textAnchor="middle" className="fill-ink-dim text-[11px]">열린 것</text>
+          <text x="70" y="88" textAnchor="middle" className="fill-ink-dim text-[11px]">열린 건</text>
         </svg>
         <ul className="m-0 flex min-w-40 flex-1 list-none flex-col gap-1.5 p-0 text-[13px]">
           {d.areas.map((a) => (
@@ -177,13 +177,13 @@ function Trend({ d }: { d: Overview }) {
   const last = days[days.length - 1];
   return (
     <section className={card} id="overview-trend">
-      <CardHead title="위험 주의 추이">
+      <CardHead title="위험, 주의 추이">
         <Legend round className="ml-auto p-0" items={[["위험", "위험"], ["주의", "주의"]]} />
       </CardHead>
       {!last ? <p className={SUB}>기록 없음</p> : (
         <>
           <div className="px-4.5 pt-1 pb-1.5">
-            <div className="relative ml-7.5 h-32 border-b border-line" role="img" aria-label={`일별 위험 주의 (그날 끝에 남은 것), ${last.day} 위험 ${last["위험"]}, 주의 ${last["주의"]}`}>
+            <div className="relative ml-7.5 h-32 border-b border-line" role="img" aria-label={`일별 위험, 주의 (그날 끝에 남은 건), ${last.day} 위험 ${last["위험"]}, 주의 ${last["주의"]}`}>
               <YGrid lines={[max, Math.round(max / 2)].map((v): [number, number] => [v, v / max])} />
               <svg className="absolute inset-0 size-full" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
                 <polygon points={`${at(0) * 10},100 ${line("위험")} ${at(days.length - 1) * 10},100`} fill={LINE["위험"]} fillOpacity={0.1} />
@@ -242,7 +242,7 @@ function Recent({ d, go }: { d: Overview; go: Go }) {
   return (
     <section className={card} id="overview-recent">
       <CardHead title={<>최근 조치 내역 ({ofText(d.counts.completion.done, rows.length)})</>} />
-      <DataTable head={["처리일", "유형", "대상, 조치 내용", "결과"]} empty="기간 안 조치 없음"
+      <DataTable head={["처리일", "유형", "대상, 조치 내용", "결과"]} empty="기간 내 조치 없음"
         rows={shown.map((r) => ({
           key: `${r.area}:${r.key}:${r.at}`, onSelect: () => go(r.area, r.key),
           cells: [

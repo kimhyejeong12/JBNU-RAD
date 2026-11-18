@@ -50,7 +50,7 @@ function NodePanel({ d, node }: { d: Stats; node: string }) {
   const hit = d.servers.clauses.filter((c) => c.nodes.includes(n.node));
   return (
     <Body title="서버 등급 변화" subject={n.node}>
-      <KvTable rows={[["마지막 등급", n.level || "판정 없음"], ...stale, ["기간 안 변화", n.trend],
+      <KvTable rows={[["마지막 등급", n.level || "판정 없음"], ...stale, ["기간 내 변화", n.trend],
         ["점검", n.grades.map((g) => `${stamp(g.at)} ${g.level}`).join("\n") || "없음"], ["설정이 바뀐 수집", `${n.changed} / ${n.collected}`]]} />
       {hit.length > 0 && (
         <Section icon="warn" title="걸린 조항">
@@ -102,9 +102,9 @@ function SuspectPanel({ d, suspectKey }: { d: UserStats; suspectKey: string }) {
         {g.subject ? (
           <KvTable rows={[["로그 (최근 / 평소)", `${g.recent_events} / ${g.baseline_events}건`],
             ["하루 양", `${g.baseline_daily_volume} → ${g.recent_daily_volume}${g.volume_ratio != null ? ` (${g.volume_ratio}배)` : ""}`],
-            ["근무 시간 밖", `${Math.round((g.off_hours_ratio ?? 0) * 100)}%`], ["예외 승인", `${Math.round((g.exception_ratio ?? 0) * 100)}%`],
+            ["근무 시간 외", `${Math.round((g.off_hours_ratio ?? 0) * 100)}%`], ["예외 승인", `${Math.round((g.exception_ratio ?? 0) * 100)}%`],
             ["민감 문서", `${g.sensitive_events}건${g.sensitive_words?.length ? ` (${g.sensitive_words.join(", ")})` : ""}`],
-            ["30분 안 최대", `${g.max_burst_30min}건`], ["로그 기간", stampRange(g.first_seen, g.last_seen)]]} />
+            ["30분 내 최대", `${g.max_burst_30min}건`], ["로그 기간", stampRange(g.first_seen, g.last_seen)]]} />
         ) : <p className={note}>로그 없음</p>}
       </Section>
       <Section icon="list" title="기록 (35일)">

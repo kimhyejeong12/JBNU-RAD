@@ -55,7 +55,7 @@ export function delta(trend: Overview["trend"], level: "위험" | "주의"): num
   return trend[trend.length - 1][level] - trend[trend.length - 2][level];
 }
 
-export const deltaText = (n: number | null): string => (n == null ? "지금 열린 것" : n === 0 ? "어제와 같음" : `어제보다 ${n > 0 ? "+" : ""}${n}`);
+export const deltaText = (n: number | null): string => (n == null ? "현재 열린 건" : n === 0 ? "어제와 동일" : `어제보다 ${n > 0 ? "+" : ""}${n}`);
 
 export type FirstTodo = Todo & { area: OverviewArea; label: string };
 

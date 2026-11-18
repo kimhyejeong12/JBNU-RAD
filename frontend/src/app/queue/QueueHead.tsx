@@ -49,7 +49,7 @@ export function QueueHead() {
           <Tile label="전체" big={byLevel["전체"]} className="py-3" pressed={ui.filter === "전체"} onClick={() => setFilter("전체")} />
           {LEVELS.map((l) => {
             const countOnly = view === "events" && l === "정상";
-            const note = view === "requests" ? LEVEL_TIP[l] : countOnly ? "목록에 안 올림" : null;
+            const note = view === "requests" ? LEVEL_TIP[l] : countOnly ? "목록 제외" : null;
             return (
               <Tile key={l} label={<><LevelDot level={l} />{l}</>} className="py-3" tone={byLevel[l] ? levelText[l] : undefined}
                 big={<>{byLevel[l]}{note && <span className="ml-1.5 text-xs font-normal text-ink-dim">{note}</span>}</>}

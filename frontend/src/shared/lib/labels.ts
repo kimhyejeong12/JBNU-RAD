@@ -17,9 +17,9 @@ export const LEVEL_TIP: Record<Level, string> = {
 
 // 변경 이력(감사 기록)에 쓰는 말임
 export const AUDIT_ACTION: Record<string, string> = {
-  regulation_upload: "올림", regulation_edit: "고침", regulation_remove: "지움",
-  user_create: "만듦", root_create: "만듦", user_update: "고침", password_reset: "비밀번호 초기화",
-  access_create: "등록", access_update: "고침",
+  regulation_upload: "업로드", regulation_edit: "수정", regulation_remove: "삭제",
+  user_create: "생성", root_create: "생성", user_update: "수정", password_reset: "비밀번호 초기화",
+  access_create: "등록", access_update: "수정",
 };
 const FIELD: Record<string, string> = {
   display_name: "이름", department: "부서", job: "직무", role: "역할", is_active: "상태", log_id: "로그 사용자 ID", left_on: "퇴사일",
@@ -28,8 +28,8 @@ const FIELD: Record<string, string> = {
 
 function value(key: string, v: unknown): string {
   if (key === "role") return ROLE_LABEL[v as Role] ?? String(v);
-  if (key === "is_active") return v ? "켬" : "끔";
-  return v === "" || v == null ? "비움" : String(v);
+  if (key === "is_active") return v ? "활성" : "비활성";
+  return v === "" || v == null ? "빈 값" : String(v);
 }
 
 // 사유가 있으면 사유를, 없으면 바뀐 칸과 값을 적음

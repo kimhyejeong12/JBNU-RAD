@@ -47,7 +47,7 @@ function Queue({ d }: { d: QueueDetail }) {
       <table className={ltable}>
         <thead><tr><th className={lth}>상태</th><th className={lth}>작업</th><th className={lth}>대상</th><th className={lth}>진행</th><th className={lth}>시각</th></tr></thead>
         <tbody id="queue-waiting">
-          {!j && waitingCount(d) === 0 && <tr><td colSpan={5} className={ltdEmpty}>쉬는 중입니다</td></tr>}
+          {!j && waitingCount(d) === 0 && <tr><td colSpan={5} className={ltdEmpty}>대기 중인 작업이 없습니다</td></tr>}
           {j && (
             <tr>
               <td className={ltd}><Pill tone="border-brand text-brand" className={squarePill}>실행 중</Pill></td>

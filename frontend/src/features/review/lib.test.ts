@@ -26,7 +26,7 @@ test("serverItems: 다른 곳이 있으면 개수를 앞 글로", () => {
   const gap = { level: "위험" as const, item: "UFW", current: "inactive", required: "active", change: "ufw enable", source: "정책_운영기준.md 5.2" };
   const r: Results = { ...EMPTY_RESULTS, servers: [server({ gaps: [gap, gap] }), server({ key: "s2", id: "NODE-x" })], sections: { servers: { source: "nodes", generated_at: "2026-10-29T03:00:00+09:00", load_issues: [] } } };
   const [a, b] = serverItems(r);
-  expect(a).toMatchObject({ type: "server", key: "server:s1", itemKey: "s1", id: "NODE-sim-01", lead: "다른 곳 2", what: "요약", when: "2026-10-29 03:00", judge: "주의" });
+  expect(a).toMatchObject({ type: "server", key: "server:s1", itemKey: "s1", id: "NODE-sim-01", lead: "불일치 2", what: "요약", when: "2026-10-29 03:00", judge: "주의" });
   expect(b).toMatchObject({ lead: undefined, what: "요약" });
 });
 

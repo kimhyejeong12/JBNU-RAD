@@ -162,7 +162,7 @@ def watch_people(db: Database) -> list[dict[str, Any]]:
                 gone = u["left_on"] <= day
                 if gone and (held or u["is_active"] or u["left_on"] >= since):
                     level = "위험" if held else "주의" if u["is_active"] else "정상"
-                    note = f"권한 {len(held)}건 남음" if held else "계정 아직 활성" if u["is_active"] else "권한 · 계정 정리됨"
+                    note = f"권한 {len(held)}건 남음" if held else "계정 활성 상태" if u["is_active"] else "권한, 계정 정리 완료"
                     flags.append({"kind": "leave", "level": level, "at": u["left_on"], "text": f"{u['left_on']} 퇴사 — {note}"})
                 elif not gone:
                     flags.append({"kind": "leave", "level": "주의", "at": u["left_on"], "text": f"{u['left_on']} 퇴사 예정 — 권한 {len(held)}건"})
@@ -172,7 +172,7 @@ def watch_people(db: Database) -> list[dict[str, Any]]:
                 review = _grant_review(conn, r)
                 v = review["verdict"] if review else None
                 if review and review["cause"] == "move" and (v is None or v["failed"] or v["level"] != "정상"):
-                    state = "재검토 대기" if v is None else "재검토 실패" if v["failed"] else f"이동 뒤 재검토 {v['level']}"
+                    state = "재검토 대기" if v is None else "재검토 실패" if v["failed"] else f"이동 후 재검토 {v['level']}"
                     flags.append({"kind": "grant", "level": "주의" if v is None or v["failed"] else v["level"], "at": r["submitted_at"][:10],
                                   "request_no": r["request_no"], "text": f"보유 {r['requested_access']} — {state}"})
                 elif r["ai_level"] in ("위험", "주의") and not r["ai_failed"] and not (review and review["cause"] == "leave"):
@@ -325,7 +325,7 @@ def _person(conn: psycopg.Connection[Row], by: User) -> Row:
 def decide(db: Database, by: User, request_no: str, action: str, comment: str = "") -> dict:
     """단계는 결재자의 역할로 정합니다 (보안 운영자 = 1차, 보안 총책임자 = 최종)."""
     if action not in ("approve", "reject"):
-        raise Denied("action 은 approve · reject 중 하나입니다")
+        raise Denied("action 은 approve, reject 중 하나입니다")
     if by.role not in ("manager", "top"):
         raise Denied("결재할 수 있는 역할이 아닙니다")
     step = by.role

@@ -43,7 +43,7 @@ export function RequestPanel({ it }: { it: RequestItem }) {
 
   const rows: [string, ReactNode][] = [
     ["신청자", requester(r)],
-    ["신청 때 직무", r.requester_job || "적지 않음"],
+    ["신청 때 직무", r.requester_job || "미입력"],
     ["신청 권한", r.access_code ? `${r.requested_access} (${r.access_code})` : r.requested_access],
     ["신청 사유", r.reason || "—"],
     ["사용 기간", period(r)],

@@ -132,19 +132,19 @@ const GAP_TH = "w-13";
 function GapList({ itemKey, f }: { itemKey: string; f: ServerFinding }) {
   return (
     <>
-      <AiCaption>기준과 다른 곳 {f.gaps.length}</AiCaption>
+      <AiCaption>기준 불일치 {f.gaps.length}</AiCaption>
       {f.gaps.length ? f.gaps.map((g, n) => (
         <div className="mb-2 rounded-lg border border-line px-3 py-2.5" key={n}>
           <div className="mb-1.5 text-[13px] font-bold"><LevelDot level={g.level} />{g.item}</div>
           <table className={kvTable}><tbody>
             <tr><th className={cn(kvTh, GAP_TH)}>지금</th><td className={kvTd}>{g.current}</td></tr>
             <tr><th className={cn(kvTh, GAP_TH)}>기준</th><td className={kvTd}>{g.required}</td></tr>
-            <tr><th className={cn(kvTh, GAP_TH)}>바꿀 것</th><td className={kvTd}>{g.change}</td></tr>
+            <tr><th className={cn(kvTh, GAP_TH)}>조치</th><td className={kvTd}>{g.change}</td></tr>
           </tbody></table>
           {g.source && <SourceChips itemKey={`${itemKey}:gap${n}`} sources={[g.source]} className="mt-1.5" />}
         </div>
-      )) : <div className={box}>기준 문서와 다른 곳을 찾지 못했습니다.</div>}
-      {f.unjudged.length > 0 && <p className={note}>판단 안 함: {f.unjudged.join(", ")}</p>}
+      )) : <div className={box}>기준 문서와 어긋난 설정이 없습니다.</div>}
+      {f.unjudged.length > 0 && <p className={note}>판단 제외: {f.unjudged.join(", ")}</p>}
     </>
   );
 }

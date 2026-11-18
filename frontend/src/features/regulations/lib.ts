@@ -9,7 +9,7 @@ export function docItem(d: Regulation, index?: RegulationIndex | null): QueueIte
   return {
     type: "doc", key: `doc:${d.name}`, id: "",
     who: title, what: d.name, when: stamp(d.updated_at), judge: clauses ? `${clauses}개` : "없음", raw: d,
-    sub: index ? (index.chunks[d.name] ? "검색 가능" : "검색 안 됨") : undefined,
+    sub: index ? (index.chunks[d.name] ? "검색 가능" : "검색 불가") : undefined,
   };
 }
 

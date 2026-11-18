@@ -41,7 +41,7 @@ def create(db: Database, by: User, code: str, name: str, system: str = "", categ
     if not code or not name:
         raise Denied("권한 코드와 이름을 적어 주세요")
     if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", code):
-        raise Denied("권한 코드는 영문 · 숫자 · _ . - 만 64자까지 씁니다 (예: HR_SALARY_READ)")
+        raise Denied("권한 코드는 영문, 숫자, _ . - 로 64자까지 씁니다 (예: HR_SALARY_READ)")
     with db.transaction() as conn:
         if conn.execute("SELECT 1 FROM access_catalog WHERE code = %s", (code,)).fetchone():
             raise Denied("이미 있는 권한 코드입니다")

@@ -98,7 +98,7 @@ function UploadDoc() {
               ))}
               {sheet.picked.some((v, i) => v && sheet.tables[i].personal) && <p className={noteError}>사번, 이름이 든 표를 골랐습니다</p>}
             </fieldset>
-          ) : <div className={meta}><Meta items={[`${draft.pages}쪽`, draft.empty.length > 0 && `글자 없는 쪽 ${draft.empty.join(", ")} (스캔본은 못 읽음)`]} /></div>}
+          ) : <div className={meta}><Meta items={[`${draft.pages}쪽`, draft.empty.length > 0 && `글자 없는 쪽 ${draft.empty.join(", ")} (스캔본 읽기 불가)`]} /></div>}
           <label className={field}>저장할 이름
             <input className={input} value={draft.name} maxLength={100} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
           </label>
@@ -146,8 +146,8 @@ function SearchState({ name }: { name: string }) {
   const index = useRegulationIndex(true);
   const health = useHealth().data;
   const n = index?.chunks[name] ?? 0;
-  const stored = !index ? "확인 중…" : n ? `벡터 DB에 적재됨 (조각 ${n}개)` : Object.keys(index.chunks).length ? "적재 안 됨" : "벡터 DB가 비었거나 닿지 않음";
-  const used = !health ? "AI 엔진 확인 못 함" : health.ok ? `판정, 질의가 근거로 검색 (${health.model})` : "AI 엔진 준비 안 됨";
+  const stored = !index ? "확인 중…" : n ? `벡터 DB에 적재됨 (조각 ${n}개)` : Object.keys(index.chunks).length ? "미적재" : "벡터 DB가 비었거나 연결되지 않았습니다";
+  const used = !health ? "AI 엔진 확인 불가" : health.ok ? `판정, 질의가 근거로 검색 (${health.model})` : "AI 엔진 준비 전";
   return (
     <GroupBox icon="db" title="검색 상태 (AI 판정 근거)">
       <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-[13px]">
@@ -224,7 +224,7 @@ function RemoveDoc({ d, onClose }: { d: Regulation; onClose: () => void }) {
   return (
     <form className="mt-3 flex flex-col gap-3" id="doc-remove" onKeyDown={noEnterSubmit} onSubmit={onSubmit}>
       <label className={field}>지우는 사유 (감사 기록에 남습니다)
-        <input className={input} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="예: 새 기준 문서로 바뀜" />
+        <input className={input} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="예: 새 기준 문서로 교체" />
       </label>
       <label className={field}>확인 — 파일 이름을 똑같이 입력하세요
         <input className={input} value={typed} autoComplete="off" onChange={(e) => setTyped(e.target.value)} placeholder={d.name} />

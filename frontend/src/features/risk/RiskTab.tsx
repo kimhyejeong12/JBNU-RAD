@@ -34,7 +34,7 @@ export function RiskTab() {
         <div className={tileGrid} id="risk-tiles">
           <Tile label="위험" big={`${sum.danger}명`} tone={sum.danger ? levelText["위험"] : undefined} {...tile("danger")}>주의 {sum.caution}명</Tile>
           <Tile label="부서 이동" big={`${sum.moved}명`} {...tile("moved")}>맞지 않는 권한 {sum.grants}명</Tile>
-          <Tile label="이동 뒤 이상 행동" big={`${sum.events}명`} {...tile("events")} />
+          <Tile label="이동 후 이상 행동" big={`${sum.events}명`} {...tile("events")} />
           <Tile label="만료 권한 미회수" big={`${sum.expired}명`} {...tile("expired")} />
           <Tile label="퇴사" big={`${sum.left}명`} {...tile("left")} />
         </div>

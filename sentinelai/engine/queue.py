@@ -21,7 +21,7 @@ MAIN = set(KINDS) - {"events_fast"}
 STOPPED = "강제로 끝냈습니다"
 # 설정 화면에서 큐를 그대로 보여줄 때 쓰는 이름입니다.
 LABELS = {**KINDS, "request": "권한 신청 판정", "grant": "보유 권한 재검토", "index": "기준 문서 적재"}
-LANE_NAMES = {URGENT: "판정 · 적재", FAST: "빠른 감시", NORMAL: "정기 작업"}
+LANE_NAMES = {URGENT: "판정, 적재", FAST: "빠른 감시", NORMAL: "정기 작업"}
 
 Progress = Callable[[int, int, dict[str, Any]], None]
 
