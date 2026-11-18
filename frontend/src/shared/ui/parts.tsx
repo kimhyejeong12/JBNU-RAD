@@ -122,9 +122,10 @@ export function Tile({ label, big, tone, onClick, pressed, disabled, dot, classN
   );
   if (!onClick) return <div className={cn(TILE, className)}>{body}</div>;
   // 고른 타일은 2px 남색 테두리만 — 신청서 칸을 누를 때와 같은 표시임
+  // 누를 것이 없는 타일(disabled)은 흐리게 하지 않고 누르지만 못하게 함 — 흐리면 닫힌 느낌
   return (
     <button type="button" aria-pressed={pressed} onClick={onClick} disabled={disabled}
-      className={cn(TILE, className, "bg-surface hover:bg-row-hover aria-pressed:border-brand aria-pressed:shadow-[inset_0_0_0_1px_var(--color-brand)] disabled:cursor-default disabled:opacity-50 disabled:hover:bg-surface")}>
+      className={cn(TILE, className, "bg-surface hover:bg-row-hover aria-pressed:border-brand aria-pressed:shadow-[inset_0_0_0_1px_var(--color-brand)] disabled:cursor-default disabled:hover:bg-surface")}>
       {body}
     </button>
   );
