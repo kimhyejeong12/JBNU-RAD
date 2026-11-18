@@ -54,6 +54,7 @@ function NewUser() {
       <label className={field}>이름<input className={input} name="display_name" required maxLength={100} /></label>
       <label className={field}>부서<input className={input} name="department" maxLength={100} /></label>
       <label className={field}>직무<input className={input} name="job" maxLength={100} placeholder="예: 서버 운영 담당" /></label>
+      <label className={wideField}>이메일 (결재 결과 메일)<input className={input} name="email" type="email" maxLength={254} autoComplete="off" /></label>
       <div className={wideField}>역할<RoleSelect value="user" /></div>
       <label className={wideField}>임시 비밀번호 (첫 로그인에 바꾸게 됩니다)<input className={input} name="password" type="password" required autoComplete="new-password" /></label>
       <div className={wideActions}><PanelMsg /><button type="submit" className={primaryAction}>계정 만들기</button></div>
@@ -92,10 +93,11 @@ function EditUser({ u }: { u: UserRow }) {
   };
 
   async function onEdit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
+    const f = checkForm(e, setPanelMsg);
+    if (!f) return;
     const patch: Record<string, unknown> = {
       display_name: f.get("display_name"), department: f.get("department"), job: f.get("job"), log_id: f.get("log_id"), left_on: f.get("left_on"),
+      email: f.get("email"),
     };
     // 부서 · 직무를 옮기면 지금 가진 권한을 AI 가 다시 판정함 (빈 칸을 처음 채우는 것은 이동이 아님)
     const moved = (["department", "job"] as const).filter((k) => (u[k] ?? "") !== "" && String(f.get(k) ?? "").trim() !== (u[k] ?? ""));
@@ -142,7 +144,7 @@ function EditUser({ u }: { u: UserRow }) {
     <Panel title="계정 상세 정보" record={record} foot={<PanelFoot />}>
       <RecordHead record={record} title={<>{u.display_name} ({u.login_id})</>} info={[ROLE_LABEL[u.role], u.department || "부서 없음"]}
         state={{ on: u.is_active, text: u.is_active ? "활성 계정" : "정지 계정" }} />
-      <form key={`edit:${formKey}`} id="user-edit" onKeyDown={noEnterSubmit} onSubmit={onEdit}>
+      <form key={`edit:${formKey}`} id="user-edit" noValidate onKeyDown={noEnterSubmit} onSubmit={onEdit}>
         <GroupBox icon="briefcase" title="업무 정보" className="mt-3">
           <InfoRow icon="briefcase" label="부서">
             {editing ? <input className={rowInput} name="department" aria-label="부서" defaultValue={u.department ?? ""} maxLength={100} /> : u.department || "없음"}
@@ -162,6 +164,10 @@ function EditUser({ u }: { u: UserRow }) {
           {editing && <InfoRow icon="users" label="이름"><input className={rowInput} name="display_name" aria-label="이름" defaultValue={u.display_name} maxLength={100} /></InfoRow>}
           <InfoRow icon="gear" label="역할">
             {editing && canRole ? <RoleSelect value={u.role} /> : <>{ROLE_LABEL[u.role]}<span className="ml-2 text-ink-dim">{ROLE_DUTY[u.role]}</span></>}
+          </InfoRow>
+          {/* 결재 결과 · 회수 메일을 받는 주소 — 비면 메일을 보내지 않음 */}
+          <InfoRow icon="mail" label="이메일">
+            {editing ? <input className={rowInput} name="email" type="email" aria-label="이메일" defaultValue={u.email} maxLength={254} /> : u.email || "없음"}
           </InfoRow>
           {editing && (
             <>
