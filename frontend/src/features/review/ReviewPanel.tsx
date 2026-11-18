@@ -8,6 +8,7 @@ import { DecisionBadge, DecisionFoot } from "@/app/ui/panel/DecisionFoot";
 import { DECISIONS } from "@/app/ui/panel/decision";
 import { compactLog, countText, logFacts, logRows, type DecisionLogMap } from "./lib";
 import type { ReviewItem } from "@/features/review/lib";
+import type { QueueItem } from "@/app/queue/types";
 import type { EventFinding, ServerFinding, SnapshotState } from "@/shared/api/types";
 import { stamp, person } from "@/shared/lib/format";
 import { Icon } from "@/shared/ui/Icon";
@@ -16,6 +17,16 @@ import { cn } from "@/shared/lib/cn";
 import { box, boxPre, kvTable, kvTd, kvTh, note, panelFoot, panelFootTitle, toolButton, toolButtonInline } from "@/shared/ui/styles";
 
 type PanelTab = "ai" | "log";
+
+// 정상 조항 — 판단과 이유, 조항 원문만 (결정 칸 없음)
+export function PassPanel({ it }: { it: Extract<QueueItem, { type: "pass" }> }) {
+  return (
+    <Panel title="정상 조항 검토">
+      <Subject title={it.who} info={it.typeLabel} />
+      <AiReport itemKey={it.key} f={{ level: "정상", reason: it.raw.reason, sources: [it.raw.policy_id] }} />
+    </Panel>
+  );
+}
 
 // 다른 줄을 고르면 [AI 분석]으로 돌아가게 항목 key 로 다시 그림
 export function ReviewPanel({ it }: { it: ReviewItem }) {

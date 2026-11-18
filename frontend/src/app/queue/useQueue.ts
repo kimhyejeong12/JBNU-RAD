@@ -7,7 +7,7 @@ import { userItem } from "@/features/accounts/lib";
 import { accessItem } from "@/features/catalog/lib";
 import { docItem } from "@/features/regulations/lib";
 import { requestItem } from "@/features/requests/lib";
-import { eventItems, policyItems, serverItems } from "@/features/review/lib";
+import { eventItems, passItems, policyItems, serverItems } from "@/features/review/lib";
 
 export function useQueue(): QueueItem[] {
   const views = useViews();
@@ -25,6 +25,7 @@ export function useQueue(): QueueItem[] {
     ...(hasAccess ? catalog.map(accessItem) : []),
     ...(hasDocs ? regulations.map((d) => docItem(d, index)) : []),
     ...policyItems(results, regulations),
+    ...passItems(results, regulations),
     ...serverItems(results),
     ...eventItems(results),
   ]), [requests, users, catalog, hasAccess, hasDocs, regulations, index, results]);

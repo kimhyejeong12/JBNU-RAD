@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useUi } from "@/app/ui/state/UiContext";
 import { useQueue } from "@/app/queue/useQueue";
 import { RequestPanel } from "@/features/requests/RequestPanel";
-import { ReviewPanel } from "@/features/review/ReviewPanel";
+import { PassPanel, ReviewPanel } from "@/features/review/ReviewPanel";
 import { NodesPanel } from "@/features/nodes/NodesPanel";
 import { LogsPanel } from "@/features/logs/LogsPanel";
 import { StatsPanel } from "@/features/stats/StatsPanel";
@@ -31,6 +31,7 @@ export function RightPanel() {
   else if (it && it.type === "doc") body = <DocPanel key={it.key} d={it.raw} />;
   else if (it && it.type === "access") body = <AccessPanel key={it.key} a={it.raw} />;
   else if (it && (it.type === "policy" || it.type === "server" || it.type === "event")) body = <ReviewPanel key={it.key} it={it} />;
+  else if (it && it.type === "pass") body = <PassPanel key={it.key} it={it} />;
   else body = <EmptyQueuePanel view={ui.view} />;
   const hidden = panelIdle(ui);
   return (

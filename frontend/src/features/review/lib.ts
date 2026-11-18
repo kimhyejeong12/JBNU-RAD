@@ -31,6 +31,21 @@ export function policyItems(r: Results, regulations: Regulation[] = []): QueueIt
   });
 }
 
+// 검토에서 문제가 없다고 본 조항 — 결정할 대상이 아니라 결정 칸 없음, 같은 조항은 한 번만
+export function passItems(r: Results, regulations: Regulation[] = []): QueueItem[] {
+  const passed = r.policy_review?.passed ?? [];
+  return passed.filter((p, n) => passed.findIndex((q) => q.policy_id === p.policy_id) === n).map((p) => {
+    const t = policyTarget([p.policy_id], regulations);
+    return {
+      type: "pass", key: `pass:${p.policy_id}`, id: "", level: "정상",
+      typeLabel: t.docs ? `정상 조항 — ${t.docs}` : "정상 조항",
+      who: t.who, lead: "정상", what: p.reason,
+      when: stamp(r.sections?.policies?.generated_at),
+      judge: "정상", raw: p,
+    };
+  });
+}
+
 export function serverItems(r: Results): QueueItem[] {
   return (r.servers ?? []).map((s) => {
     const gaps = s.gaps ?? [];

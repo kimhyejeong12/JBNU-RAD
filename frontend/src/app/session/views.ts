@@ -3,7 +3,7 @@ import type { Role } from "@/shared/api/types";
 
 export type MainTab = "queue" | "nodes" | "logs" | "overview" | "risk" | "stats" | "ustats" | "engine";
 export type View = "requests" | "policies" | "stats" | "events" | "mine" | "users" | "access" | "docs" | "jobs";
-export type ItemType = "req" | "server" | "user" | "access" | "policy" | "event" | "doc";
+export type ItemType = "req" | "server" | "user" | "access" | "policy" | "pass" | "event" | "doc";
 
 export type NavGroup = "결재" | "보안 운영";
 
@@ -52,8 +52,8 @@ const ADMIN_VIEWS: readonly View[] = ["access", "users", "docs", "jobs"];
 export const isAdminView = (v: View | null): boolean => v !== null && ADMIN_VIEWS.includes(v);
 export const RESULT_VIEWS: ReadonlySet<View> = new Set<View>(["policies", "events"]);
 export const LEVEL_VIEWS: ReadonlySet<View> = new Set<View>(["requests", "policies", "events"]);
-export const TYPE_VIEW: Record<ItemType, View> = { req: "requests", server: "policies", user: "users", access: "access", policy: "policies", event: "events", doc: "docs" };
-export const TYPE_LABEL: Record<ItemType, string> = { req: "권한 신청", server: "서버 점검", user: "계정", access: "권한", policy: "정책 문제", event: "로그 감시", doc: "기준 문서" };
+export const TYPE_VIEW: Record<ItemType, View> = { req: "requests", server: "policies", user: "users", access: "access", policy: "policies", pass: "policies", event: "events", doc: "docs" };
+export const TYPE_LABEL: Record<ItemType, string> = { req: "권한 신청", server: "서버 점검", user: "계정", access: "권한", policy: "정책 문제", pass: "정상 조항", event: "로그 감시", doc: "기준 문서" };
 
 // 계정 관리는 보안 운영자, 루트는 처음 설정 · 비상용 — 서버 db/auth.py 와 같은 규칙
 export const canManageAccounts = (me: { role: Role; is_root: boolean }): boolean => me.role === "manager" || me.is_root;
