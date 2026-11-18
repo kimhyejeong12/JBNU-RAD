@@ -70,9 +70,10 @@ export function LogsTab() {
 }
 
 // 표를 거르는 조건(기간 · 솔루션 · 행위 · 사용자)을 한 상자에 묶음 — 값이 하나뿐이거나 없어도 무엇으로 거를 수 있는지 보이게 늘 둠
+// 사용자 칸은 남은 폭이 160px 이상이면 같은 줄에 두고 검색 칸이 줄어듦
 function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChange: (patch: Partial<LogCond>) => void }) {
   return (
-    <div className="mx-4.5 mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-line px-3.5 py-2.5">
+    <div className="mx-4.5 mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-line px-3.5 py-2.5">
       <Labeled label="기간">
         <Periods id="log-periods" label="기간" labels={PERIODS} value={cond.period} onChange={(period) => { if (period !== cond.period) onChange({ period }); }} />
       </Labeled>
@@ -85,7 +86,7 @@ function LogFilters({ d, cond, onChange }: { d?: LogsPage; cond: LogCond; onChan
           </Labeled>
         );
       })}
-      <Labeled label="사용자" className="ml-auto phone:ml-0 phone:w-full">
+      <Labeled label="사용자" className="min-w-0 flex-[1_1_160px] justify-end phone:basis-full">
         <PickInput key={cond.user} id="log-user" label="사용자" values={filterChoices(d?.options.users ?? [], cond.user, undefined).map((c) => c.value)}
           value={cond.user} onPick={(v) => onChange({ user: v })} />
       </Labeled>
@@ -103,7 +104,7 @@ const Labeled = ({ label, className, children }: { label: string; className?: st
 // 서버는 완전 일치로 거르므로 목록의 이름과 같아지거나 비울 때만 거름
 function PickInput({ id, label, values, value, onPick }: { id: string; label: string; values: string[]; value: string; onPick: (v: string) => void }) {
   return (
-    <SearchBox className="w-50 phone:w-full" id={id} list={`${id}-list`} defaultValue={value} placeholder={`${label} 이름으로 찾기`}
+    <SearchBox className="min-w-0 max-w-50 flex-1 phone:max-w-none" id={id} list={`${id}-list`} defaultValue={value} aria-label={label} placeholder="이름 찾기"
       onChange={(e) => { const v = e.target.value.trim(); if (!v || values.includes(v)) onPick(v); }}>
       <datalist id={`${id}-list`}>{values.map((v) => <option key={v} value={v} />)}</datalist>
     </SearchBox>

@@ -41,7 +41,7 @@ export const input = "w-full rounded-lg border border-line bg-surface px-2.5 py-
 // 설정 패널 한 줄(InfoRow) 안의 낮은 입력 칸
 export const rowInput = cn(input, "py-1.25 text-[13px]");
 export const searchBox = "flex h-8 items-center gap-2 rounded-lg border border-line bg-surface px-2.75 text-[13px] text-ink-dim focus-within:border-ink";
-export const searchInput = "flex-1 border-none bg-transparent px-0.5 py-px text-ink outline-none font-[inherit] [font-size:inherit] [font-weight:inherit] leading-[inherit]";
+export const searchInput = "min-w-0 flex-1 border-none bg-transparent px-0.5 py-px text-ink outline-none font-[inherit] [font-size:inherit] [font-weight:inherit] leading-[inherit]";
 export const linkButton = "self-start border-none bg-transparent p-0 text-[11px] font-medium text-ink-dim underline hover:text-ink disabled:cursor-progress";
 export const formActions = "flex items-center justify-end gap-2";
 export const wideActions = `${formActions} col-span-full`;
