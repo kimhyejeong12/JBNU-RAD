@@ -27,7 +27,6 @@ export function QueueTable() {
   const jobs = useJobs();
   const view = ui.view;
   const cols = view ? VIEWS[view].cols : [];
-  // 권한 신청 · 정책 관리 · 로그 감시는 AI 판단과 처리 상태를 다른 열로 둠
   const split = !!view && LEVEL_VIEWS.has(view);
   const time = !view || VIEWS[view].time !== false;
   const badge = !!view && VIEWS[view].badge === true;

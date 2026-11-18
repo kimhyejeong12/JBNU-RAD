@@ -13,7 +13,7 @@ export function useUserAction() {
     if (patch) {
       await send(`/api/users/${id}`, patch, "PATCH");
       await qc.invalidateQueries({ queryKey: ["me"] });
-      // 부서 · 직무 · 퇴사일이 바뀌면 확인할 사람 · 보유 권한 재검토도 달라짐
+      // 부서 · 직무 · 퇴사일이 바뀌면 권한 변동 · 보유 권한 재검토도 달라짐
       await qc.invalidateQueries({ queryKey: ["requests"] });
       return done;
     }

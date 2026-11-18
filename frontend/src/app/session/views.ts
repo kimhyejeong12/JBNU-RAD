@@ -103,7 +103,7 @@ export function restorable(raw: unknown, role: Role): SavedPage | null {
   };
 }
 
-// compare.html 의 세 칸이 같은 저장소를 써서 계정별로 남김
+// 한 브라우저를 여러 계정이 쓸 수 있어 계정별로 남김
 const PREFIX = "sentinelai.page.";
 
 export function readPage(loginId: string): unknown {

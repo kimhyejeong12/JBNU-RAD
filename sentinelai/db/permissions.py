@@ -142,7 +142,7 @@ def _grant_review(conn: psycopg.Connection[Row], row: Any) -> dict[str, Any] | N
 
 
 LEVEL_RANK = {"정상": 0, "주의": 1, "위험": 2}
-# 확인할 사람에 이동 · 퇴사를 보여 주는 기간입니다.
+# 지난 이동 · 퇴사를 보여 주는 기간입니다.
 WATCH_DAYS = 90
 
 

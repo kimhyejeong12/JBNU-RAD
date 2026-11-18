@@ -27,7 +27,7 @@ function Review({ it }: { it: ReviewItem }) {
   const [tab, setTab] = useState<PanelTab>("ai");
   const results = useResults();
   const r = it.raw;
-  // 10/14 전 서버 점검 결과(recommendation 이 있음)는 예전 칸으로 보임
+  // 예전 서버 점검 결과(recommendation 이 있음)는 예전 칸으로 보임
   const gapped = it.type === "server" && !it.raw.failed && !it.raw.recommendation;
   const title = it.type === "policy" ? `${it.who} ${it.raw.kind}` : it.raw.title;
   const fast = it.type === "event" && it.raw.stage === "fast";

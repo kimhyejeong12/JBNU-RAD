@@ -136,11 +136,11 @@ class AuditRow(BaseModel):
     detail: dict[str, Any]
 
 
-# --- 확인할 사람 · 권한 변동 ---
+# --- 사람별 걸린 일 · 권한 변동 ---
 
 
 class WatchFlag(BaseModel):
-    """확인할 사람에게 걸린 일 하나 — 퇴사 · 이동 · 보유 권한 · 결재 중 신청."""
+    """사람에게 걸린 일 하나 — 퇴사 · 이동 · 보유 권한 · 결재 중 신청."""
 
     kind: Literal["leave", "move", "grant", "request"]
     level: Level
@@ -150,7 +150,7 @@ class WatchFlag(BaseModel):
 
 
 class WatchPerson(BaseModel):
-    """확인할 사람 한 명 — level · at 은 걸린 일 중 가장 높은 등급 · 가장 늦은 날."""
+    """걸린 일이 있는 사람 한 명 — level · at 은 걸린 일 중 가장 높은 등급 · 가장 늦은 날."""
 
     id: int
     login_id: str
